@@ -1,0 +1,66 @@
+/** One member as stored in the `members` table. */
+export interface MemberRow {
+  bioguide_id: string;
+  first_name: string;
+  last_name: string;
+  party: string;
+  state: string;
+  district: number | null;
+  chamber: "house" | "senate";
+  term_start: string;
+  term_end: string;
+  ids: Record<string, unknown>;
+}
+
+/** Shape of an entry in congress-legislators' legislators-*.json files (fields we use). */
+export interface LegislatorEntry {
+  id: { bioguide: string; lis?: string; govtrack?: number; icpsr?: number; thomas?: string };
+  name: { first: string; last: string; nickname?: string };
+  terms: {
+    type: "sen" | "rep";
+    start: string;
+    end: string;
+    state: string;
+    district?: number;
+    party?: string;
+    url?: string;
+    rss_url?: string;
+  }[];
+}
+
+export const CURRENT_URL = "https://unitedstates.github.io/congress-legislators/legislators-current.json";
+export const HISTORICAL_URL = "https://unitedstates.github.io/congress-legislators/legislators-historical.json";
+
+const PARTY: Record<string, string> = { Democrat: "D", Republican: "R", Independent: "I", Libertarian: "L" };
+
+/**
+ * Converts congress-legislators entries to member rows using each member's latest term.
+ * Members whose latest term ended before `servedSince` are dropped, so historical data
+ * only adds people who could appear in the roll calls we backfill.
+ */
+export function toMemberRows(entries: LegislatorEntry[], servedSince = "2023-01-03"): MemberRow[] {
+  const rows: MemberRow[] = [];
+  for (const e of entries) {
+    const term = e.terms.at(-1);
+    if (!term || term.end < servedSince) continue;
+    const ids: Record<string, unknown> = {};
+    if (e.id.lis) ids.lis = e.id.lis;
+    if (e.id.govtrack) ids.govtrack = e.id.govtrack;
+    if (e.id.icpsr) ids.icpsr = e.id.icpsr;
+    if (term.url) ids.url = term.url;
+    if (term.rss_url) ids.rss_url = term.rss_url;
+    rows.push({
+      bioguide_id: e.id.bioguide,
+      first_name: e.name.nickname ?? e.name.first,
+      last_name: e.name.last,
+      party: PARTY[term.party ?? ""] ?? (term.party ?? "?").slice(0, 1),
+      state: term.state,
+      district: term.type === "rep" ? (term.district ?? 0) : null,
+      chamber: term.type === "sen" ? "senate" : "house",
+      term_start: term.start,
+      term_end: term.end,
+      ids,
+    });
+  }
+  return rows;
+}

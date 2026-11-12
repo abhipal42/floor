@@ -31,6 +31,7 @@ describe("migrations", () => {
       "devices",
       "floor_events",
       "follows",
+      "ingest_runs",
       "members",
       "profiles",
       "projections",
