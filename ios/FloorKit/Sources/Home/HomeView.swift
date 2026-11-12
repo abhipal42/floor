@@ -3,6 +3,7 @@ import DesignSystem
 import Models
 import Onboarding
 import BillScreen
+import RepScreen
 import SwiftUI
 import VoteScreen
 
@@ -39,9 +40,13 @@ public struct HomeView: View {
             .navigationDestination(for: HomeModel.Route.self) { route in
                 switch route {
                 case let .vote(id):
-                    VoteScreenView(model: model.voteScreen(id: id)) { measure in
-                        if measure.kind == .bill { path.append(.bill(id: measure.id)) }
-                    }
+                    VoteScreenView(
+                        model: model.voteScreen(id: id),
+                        onOpenMeasure: { measure in
+                            if measure.kind == .bill { path.append(.bill(id: measure.id)) }
+                        },
+                        onOpenMember: { path.append(.member(id: $0.bioguideId)) }
+                    )
                     .navigationTitle("Vote")
                     .inlineNavigationTitle()
                 case let .bill(id):
@@ -49,6 +54,12 @@ public struct HomeView: View {
                         path.append(.vote(id: vote.id))
                     }
                     .navigationTitle("Bill")
+                    .inlineNavigationTitle()
+                case let .member(id):
+                    RepScreenView(model: model.repScreen(id: id)) { vote in
+                        path.append(.vote(id: vote.id))
+                    }
+                    .navigationTitle("Member")
                     .inlineNavigationTitle()
                 }
             }
@@ -102,7 +113,19 @@ public struct HomeView: View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 10) {
                 ForEach(model.delegation.members) { member in
-                    VStack(spacing: 6) {
+                    NavigationLink(value: HomeModel.Route.member(id: member.bioguideId)) {
+                        delegationCard(member)
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            .padding(.horizontal, 14)
+        }
+        .padding(.top, 18)
+    }
+
+    private func delegationCard(_ member: Member) -> some View {
+        VStack(spacing: 6) {
                         Text(initials(member))
                             .font(.system(size: 15, weight: .bold))
                             .foregroundStyle(Palette.text)
@@ -129,15 +152,10 @@ public struct HomeView: View {
                     .padding(.vertical, 12)
                     .background(Palette.card, in: .rect(cornerRadius: 20))
                     .overlay(RoundedRectangle(cornerRadius: 20).stroke(Palette.cardBorder, lineWidth: 1))
-                    .accessibilityElement(children: .combine)
-                    .accessibilityLabel(
-                        "\(member.fullName), \(member.chamber == .house ? "Representative" : "Senator")"
-                    )
-                }
-            }
-            .padding(.horizontal, 14)
-        }
-        .padding(.top, 18)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(
+            "\(member.fullName), \(member.chamber == .house ? "Representative" : "Senator")"
+        )
     }
 
     private var chamberFilter: some View {

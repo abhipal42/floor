@@ -3,6 +3,7 @@ import Foundation
 import Models
 import BillScreen
 import Onboarding
+import RepScreen
 import VoteScreen
 
 /// One card in the feed: a vote, and how each of your own members voted on it.
@@ -97,6 +98,7 @@ public final class HomeModel {
     public enum Route: Hashable, Sendable {
         case vote(id: String)
         case bill(id: String)
+        case member(id: String)
     }
 
     /// Screens are built here so the API client stays private to this model.
@@ -106,6 +108,10 @@ public final class HomeModel {
 
     public func billScreen(id: String) -> BillScreenModel {
         BillScreenModel(billId: id, api: api)
+    }
+
+    public func repScreen(id: String) -> RepScreenModel {
+        RepScreenModel(bioguideId: id, api: api)
     }
 
     public var visibleItems: [FeedItem] {

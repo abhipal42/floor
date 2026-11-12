@@ -11,13 +11,22 @@ import SwiftUI
 public struct VoteScreenView: View {
     @State private var model: VoteScreenModel
     private let onOpenMeasure: (MeasureSummary) -> Void
+    private let onOpenMember: (Member) -> Void
 
-    /// - Parameter onOpenMeasure: pushes the bill or nomination this vote was on. Passed in rather
-    ///   than linked directly so this package need not depend on the bill screen, which links back
-    ///   to votes.
-    public init(model: VoteScreenModel, onOpenMeasure: @escaping (MeasureSummary) -> Void = { _ in }) {
+    /// - Parameters:
+    ///   - onOpenMeasure: pushes the bill or nomination this vote was on.
+    ///   - onOpenMember: pushes one of your own members' records.
+    ///
+    /// Both are passed in rather than linked directly, so this package need not depend on the bill
+    /// or rep screens — the bill screen links back to votes, which would be a cycle.
+    public init(
+        model: VoteScreenModel,
+        onOpenMeasure: @escaping (MeasureSummary) -> Void = { _ in },
+        onOpenMember: @escaping (Member) -> Void = { _ in }
+    ) {
         _model = State(initialValue: model)
         self.onOpenMeasure = onOpenMeasure
+        self.onOpenMember = onOpenMember
     }
 
     public var body: some View {
@@ -244,7 +253,16 @@ public struct VoteScreenView: View {
                 .font(Typography.sectionTitle)
                 .foregroundStyle(Palette.text)
             ForEach(detail.positions) { position in
-                HStack(spacing: 12) {
+                Button { onOpenMember(position.member) } label: {
+                    memberRow(position)
+                }
+                .buttonStyle(.plain)
+            }
+        }
+    }
+
+    private func memberRow(_ position: MemberPosition) -> some View {
+        HStack(spacing: 12) {
                     Text(position.member.party)
                         .font(.system(size: 12, weight: .bold))
                         .foregroundStyle(Palette.party(position.member.party))
@@ -259,16 +277,17 @@ public struct VoteScreenView: View {
                             .foregroundStyle(Palette.textMuted)
                     }
                     Spacer(minLength: 8)
-                    Text(positionLabel(position))
-                        .font(.system(size: 13, weight: .bold))
-                        .foregroundStyle(positionColor(position.position))
-                }
-                .padding(14)
-                .background(Palette.card, in: .rect(cornerRadius: 18))
-                .accessibilityElement(children: .combine)
-                .accessibilityLabel("\(position.member.fullName) \(positionLabel(position))")
-            }
+            Text(positionLabel(position))
+                .font(.system(size: 13, weight: .bold))
+                .foregroundStyle(positionColor(position.position))
+            Image(systemName: "chevron.right")
+                .font(.system(size: 11, weight: .bold))
+                .foregroundStyle(Palette.textMuted)
         }
+        .padding(14)
+        .background(Palette.card, in: .rect(cornerRadius: 18))
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("\(position.member.fullName) \(positionLabel(position))")
     }
 
     private func positionLabel(_ position: MemberPosition) -> String {
