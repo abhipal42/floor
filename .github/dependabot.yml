@@ -1,0 +1,27 @@
+# Dependabot — installed by the guards template's `bootstrap` only if absent;
+# after that the project owns this file.
+#
+# Every `uses:` in the template's workflows is pinned to a full commit SHA, so a
+# tag moved by a compromised action cannot change what runs here. A pin that is
+# never bumped is its own risk, though — it keeps whatever bug the SHA had. This
+# is what bumps them: one grouped PR a week for every action, not one per
+# action, so it reads as a chore rather than as noise (the Claros shape).
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 1
+    groups:
+      actions:
+        patterns: ["*"]
+
+  # Detected from this repo's manifests by bootstrap. Uncomment to get
+  # version-bump PRs for the project's own dependencies too.
+
+  # - package-ecosystem: npm
+  #   directory: /
+  #   schedule:
+  #     interval: weekly
+  #   open-pull-requests-limit: 5

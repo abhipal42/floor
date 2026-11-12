@@ -1,11 +1,12 @@
 node_modules/
 dist/
 coverage/
-.env
-.env.*
-!.env.example
+# Secrets — any .env variant; examples are placeholders and tracked.
+.env*
+!.env*.example
 .DS_Store
 *.log
+# Agent scratch state — never a deliverable.
 .omc/
 # Xcode
 ios/*.xcodeproj/
