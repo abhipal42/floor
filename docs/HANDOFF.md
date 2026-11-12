@@ -2,7 +2,7 @@
 
 Last updated 2026-11-12. Read this first, then [`plan.md`](plan.md) for the full design and reasoning.
 
-**In one paragraph:** M0 (foundation) is done. M1 (data backbone) is done; the one item still open against it, measured posting latency, has moved to M3, because it can only be taken on a live session day with polling running. Staging Postgres holds every House and Senate roll call since January 2023, and every one matches the official totals; every vote now has a subject attached, bills and nominations alike. The API serves district lookup, member votes, votes, bills, nominations and data freshness from that database, and now also the per-party breakdown of a vote, your own delegation's positions on it, and a member's party-loyalty record. The iOS app is still a skeleton (one scoreboard card on sample data). **M2 is in progress:** the API contract it needs is complete, so Swift models can be generated from `/openapi.json` once and not twice.
+**In one paragraph:** M0 (foundation) is done. M1 (data backbone) is done; the one item still open against it, measured posting latency, has moved to M3, because it can only be taken on a live session day with polling running. Staging Postgres holds every House and Senate roll call since January 2023, and every one matches the official totals; every vote now has a subject attached, bills and nominations alike. The API serves district lookup, member votes, votes, bills, nominations and data freshness from that database, and now also the per-party breakdown of a vote, your own delegation's positions on it, and a member's party-loyalty record. The iOS app is still a skeleton (one scoreboard card on sample data). **M2 is in progress:** the API contract it needs is complete, and the iOS `Models` package is written against it and tested on real staging responses. The screens are next.
 
 ---
 
@@ -40,7 +40,12 @@ npm run ingest -w @floor/worker -- rollcalls house 119 2          # new House vo
 npm run ingest -w @floor/worker -- rollcalls senate 119 2         # same for the Senate
 npm run ingest -w @floor/worker -- bills                          # load bills that votes refer to (only missing ones)
 npm run ingest -w @floor/worker -- nominations                    # load nominations that Senate votes refer to
+npm run openapi -w @floor/api                                    # regenerate apps/api/openapi.json after changing routes
+swift test --package-path ios/FloorKit                           # Swift models + contract tests
 ```
+
+`apps/api/openapi.json` is the committed contract. Re-run `npm run openapi` after any change to
+`app.ts`; CI fails if it has drifted, and the Swift contract tests check the models against it.
 
 iOS (needs a Mac with Xcode 16+): `brew install xcodegen && cd ios && xcodegen && open Floor.xcodeproj`. CI builds it on a macOS runner on every push.
 
@@ -57,7 +62,7 @@ iOS (needs a Mac with Xcode 16+): `brew install xcodegen && cd ios && xcodegen &
 | `supabase/migrations` | Postgres schema (applied to staging in filename order) | 7 migrations, all applied to staging |
 | `apps/worker` | Ingest CLI: members, roll calls, bills, nominations | `src/cli.ts`, `rollcalls.ts`, `bills.ts`, `nominations.ts`, `members.ts`, `db.ts` |
 | `apps/api` | Hono REST API with OpenAPI at `/openapi.json` | `src/app.ts` (routes + schemas), `pg.ts` (Postgres), `district.ts` (Census) |
-| `ios/` | SwiftUI app (XcodeGen), `FloorKit` package (`Models`, `DesignSystem`) | `FloorKit/Sources/Models/Vote.swift`, `DesignSystem/ScoreboardCard.swift` |
+| `ios/` | SwiftUI app (XcodeGen), `FloorKit` package (`Models`, `DesignSystem`) | `FloorKit/Sources/Models/` (one file per area, `Samples.swift` for previews), `FloorKit/Tests/ModelsTests/ContractTests.swift`, `DesignSystem/ScoreboardCard.swift` |
 | `.github/workflows/ci.yml` | Node job (lint/typecheck/tests) + macOS job (Swift tests + simulator build) | |
 | `docs/` | `plan.md` / `plan.html` (design + plan), this file | |
 
@@ -149,7 +154,20 @@ Real data broke our first assumptions several times. Each case below is now hand
    `votes = 0`, and clients must show no figure rather than a figure that means nothing. If we ever
    want a real number for them it needs a notion of which caucus they sit with — the data says both
    vote with the Democratic majority about 92% of the time.
-16. **Applying migrations to staging:** apply each new file in `supabase/migrations` in order (Supabase SQL editor or `supabase db push`). Tests run all migrations against PGlite, so a migration that breaks shows up in `npm run check` first.
+16. **A Speaker election's `result` is the ballot's leader, not a winner.** On every one of the 20
+   Speaker ballots since 2023, `votes.result` holds the name of whoever led *that ballot* — and only
+   3 of those 20 actually elected anyone. Showing `result` as the outcome would have the app announce
+   Jeffries as Speaker off the tenth ballot of January 2023. A Speaker needs a majority of the votes
+   cast **for a person**, so members voting present lower the bar: McCarthy was elected with 216 of
+   428 on the fifteenth ballot, which a flat 218 threshold misses. `Vote.electedSpeaker` in the Swift
+   models implements this; `Vote.leadingCandidate` is the weaker, always-valid question.
+17. **zod-openapi can hoist `nullable` onto a shared component.** Registering a component and then
+   using it nullably *before* any non-nullable use moves `nullable: true` onto the component itself,
+   which makes it nullable at every `$ref` — including uses that must not accept null. `LatestAction`
+   is nullable at both of its uses so it is correct there, and an `app.test.ts` case asserts it is the
+   only component carrying component-level nullability. Check how a component is used before widening
+   that list.
+18. **Applying migrations to staging:** apply each new file in `supabase/migrations` in order (Supabase SQL editor or `supabase db push`). Tests run all migrations against PGlite, so a migration that breaks shows up in `npm run check` first.
 
 ---
 
@@ -200,8 +218,18 @@ The working rhythm so far: break each milestone into tasks. For each task, write
   meant generating Swift models twice. `/v1/votes/{id}` now returns `partyTotals`,
   `candidateTotals` and `positions`, and `/v1/members/{id}` is new. `Vote` itself is unchanged, so
   the vote lists inside Bill and Nomination stay cheap.
-- Generate Swift `Models` from `/openapi.json` (swift-openapi-generator) and replace the hand-written `Vote.swift`, keeping its tests. **Note:** the hand-written `Vote.swift` is already stale — it has no `kind`, `nominationId`, `billRef`, `occurredAt` or `candidates`, and the Speaker election card cannot be built without the first and last of those.
-- `APIClient` package: URLSession client for the five routes; base URL from build config (staging vs. prod).
+- ~~Swift `Models`~~ **Done**, hand-written rather than generated. `swift-openapi-generator` was set
+  up and run against the real contract first: it works, but produced 2,280 lines for these 7
+  endpoints (1,217 of it operation wrappers an own `APIClient` does not use), named types
+  `Components.Schemas.Bill.ActionsPayloadPayload`, turned nullable `$ref`s into wrapper structs
+  instead of optionals (OpenAPI 3.1 does not help — zod-openapi emits `allOf` either way), and added
+  an OpenAPIRuntime dependency plus a ~20s generator build in CI, which has no SPM cache. The
+  hand-written models are ~600 lines across `Sources/Models/`, and `ContractTests` compares every
+  model's fields and every enum's cases against `apps/api/openapi.json`, so the drift that gutted the
+  old `Vote.swift` is caught in CI instead of on a phone. Tests decode nine real staging responses in
+  `Tests/ModelsTests/Fixtures/`. **If you ever do want generation,** the contract is already factored
+  for it (lesson: 25 named components, no inline enums), so it is one command away.
+- `APIClient` package: URLSession client for the seven routes; base URL from build config (staging vs. prod). `Models` has no networking in it and no dependencies, so this is the only place URLSession appears.
 - **Onboarding:** an address field (or "use my location" → reverse geocode → address) → `/v1/reps` → save state, district and member IDs locally. Never send the address anywhere except the API call.
 - **Home:** your delegation strip, then recent final votes for your reps (`/v1/members/{id}/votes`), using `ScoreboardCard`. Add the Speaker election card variant, which `candidateTotals` now feeds.
 - **Fix `ScoreboardCard` before building Home.** `score()` renders a 48pt condensed number inside a
@@ -213,6 +241,17 @@ The working rhythm so far: break each milestone into tasks. For each task, write
 - SwiftData cache for offline; snapshot tests for each card state.
 - **Backend for M2:** deploy the API (plan: Hono on Vercel, or a container alongside the worker) and point the app at it. Add CORS and rate limiting on `/v1/reps`.
 - **Exit:** TestFlight build where a tester enters their address and sees yesterday's votes by their reps.
+
+**The designs.** The canvas has two pages and launches on **v2 · Live + impact**, so that is the
+direction: its four phone artboards are `Home` (Floor scoreboard), `Matchup` (→ Vote detail), `Bill`
+and `Player` (→ Rep), all 390pt wide and scrolling to 1360-1960. Be aware **v2 includes M3 and M4
+work** — a "Live on the Floor" section with countdown timers, a "PROJECTED TO PASS" row, and a purple
+"For you ·" AI impact block. Build v2's structure without them for M2; the projection row already
+sits behind a `showOdds` prop that can be switched off. The score row's geometry
+(`56 | number | 92 | number | 56`) is what `ScoreboardCard` already implements, so it carries over,
+but the design sets the numbers in **Barlow Condensed** where the card currently uses SF Rounded
+condensed. Ground `#07080A` under a green gradient, cards `#1E2128`, yea `#34D399`, nay `#FB923C`,
+live `#FF453A`, muted text `#9BA1AD`.
 
 ### M3: Live layer
 **Goal:** "vote open" on the phone within 30 s, and your rep's vote within 60 s of the roll call posting.
