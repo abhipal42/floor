@@ -1,5 +1,5 @@
 import APIClient
-import DesignSystem
+import Home
 import Models
 import Onboarding
 import SwiftUI
@@ -33,7 +33,13 @@ struct FloorApp: App {
         WindowGroup {
             Group {
                 if let delegation {
-                    HomeView(delegation: delegation, onStartOver: startOver)
+                    HomeView(
+                        model: HomeModel(delegation: delegation, api: api),
+                        onChangeAddress: startOver
+                    )
+                    // A new delegation is a different feed, so the screen is rebuilt rather than
+                    // reused with stale votes in it.
+                    .id(delegation.district.name)
                 } else {
                     OnboardingView(model: OnboardingModel(api: api, store: store)) { saved in
                         withAnimation { delegation = saved }
@@ -47,62 +53,5 @@ struct FloorApp: App {
     private func startOver() {
         store.clear()
         withAnimation { delegation = nil }
-    }
-}
-
-/// Placeholder until the Home screen is built: shows the delegation onboarding resolved, so the
-/// stored result is visible and onboarding can be run again.
-struct HomeView: View {
-    let delegation: Delegation
-    let onStartOver: () -> Void
-
-    var body: some View {
-        NavigationStack {
-            ScrollView {
-                VStack(alignment: .leading, spacing: 16) {
-                    Text(delegation.district.name)
-                        .font(Typography.eyebrow)
-                        .tracking(0.8)
-                        .foregroundStyle(Palette.accentSoft)
-
-                    ForEach(delegation.members) { member in
-                        HStack(spacing: 12) {
-                            Text(member.party)
-                                .font(.system(size: 12, weight: .bold))
-                                .foregroundStyle(Palette.party(member.party))
-                                .frame(width: 28, height: 28)
-                                .background(Palette.party(member.party).opacity(0.16), in: .circle)
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text(member.fullName)
-                                    .font(.system(size: 16, weight: .semibold))
-                                    .foregroundStyle(Palette.text)
-                                Text(member.chamber == .house ? "Representative" : "Senator")
-                                    .font(Typography.caption)
-                                    .foregroundStyle(Palette.textMuted)
-                            }
-                            Spacer()
-                        }
-                        .padding(14)
-                        .background(Palette.card, in: .rect(cornerRadius: 18))
-                    }
-
-                    Text("Recent votes land here next.")
-                        .font(Typography.body)
-                        .foregroundStyle(Palette.textMuted)
-                        .padding(.top, 4)
-
-                    ScoreboardCard(vote: .sample, title: "H.Con.Res. 14 · FY2025 Budget Resolution")
-
-                    Button("Change my address", action: onStartOver)
-                        .font(.system(size: 15, weight: .semibold))
-                        .foregroundStyle(Palette.accent)
-                        .padding(.top, 8)
-                }
-                .padding(.horizontal, 14)
-                .padding(.vertical, 12)
-            }
-            .navigationTitle("Floor")
-            .background(Palette.ground)
-        }
     }
 }
