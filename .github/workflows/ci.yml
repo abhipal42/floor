@@ -21,7 +21,10 @@ jobs:
           git diff --exit-code -- apps/api/openapi.json
 
   ios:
-    runs-on: macos-15
+    # macos-latest (macOS 26) rather than a pinned macos-15: two runs in a row were cancelled after
+    # waiting 15 minutes without ever being assigned a macos-15 runner, and macOS 26 also matches the
+    # Xcode 27 / Swift 6.4 toolchain this code is written against locally.
+    runs-on: macos-latest
     defaults:
       run:
         shell: bash
