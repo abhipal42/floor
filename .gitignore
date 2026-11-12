@@ -1,0 +1,14 @@
+node_modules/
+dist/
+coverage/
+.env
+.env.*
+!.env.example
+.DS_Store
+*.log
+.omc/
+# Xcode
+ios/*.xcodeproj/
+ios/DerivedData/
+ios/build/
+xcuserdata/

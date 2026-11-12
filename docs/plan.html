@@ -1,0 +1,356 @@
+<title>Floor App Build Plan</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: single reading column (~72ch) with wide tables in their own scroll boxes */
+:root{
+  --bg:#F7F8F7; --surface:#FFFFFF; --fg:#16201C; --muted:#56635D; --line:#DCE2DE;
+  --accent:#0E7A52; --accent-soft:#E2F3EB; --nay:#B4530F; --nay-soft:#FBEBDD; --warn:#8A6A00; --warn-soft:#FBF3D6;
+  --code-bg:#EEF2EF;
+  --f-body:"Public Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --f-mono:"JetBrains Mono",ui-monospace,SFMono-Regular,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0E1311; --surface:#161D1A; --fg:#E7EDEA; --muted:#9AA8A1; --line:#2A3430;
+  --accent:#4ADE9B; --accent-soft:#163327; --nay:#FDA65E; --nay-soft:#3A2414; --warn:#F2CC5A; --warn-soft:#33290B;
+  --code-bg:#1D2622; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0E1311; --surface:#161D1A; --fg:#E7EDEA; --muted:#9AA8A1; --line:#2A3430;
+  --accent:#4ADE9B; --accent-soft:#163327; --nay:#FDA65E; --nay-soft:#3A2414; --warn:#F2CC5A; --warn-soft:#33290B;
+  --code-bg:#1D2622; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font-family:var(--f-body);font-size:16px;line-height:1.6;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.wrap{max-width:860px;margin:0 auto;padding-block:40px 80px;display:flex;flex-direction:column;gap:44px}
+header{display:flex;flex-direction:column;gap:12px;padding-bottom:28px;border-bottom:1px solid var(--line)}
+.eyebrow{font-size:12px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--accent)}
+h1{margin:0;font-size:clamp(30px,5vw,42px);line-height:1.1;font-weight:800;letter-spacing:-.02em;text-wrap:balance}
+h2{margin:0;font-size:24px;line-height:1.25;font-weight:800;letter-spacing:-.01em;text-wrap:balance}
+h3{margin:0;font-size:17px;font-weight:700}
+p{margin:0;max-width:70ch}
+.lede{font-size:18px;color:var(--muted);max-width:66ch}
+section{display:flex;flex-direction:column;gap:16px;scroll-margin-top:20px}
+ul,ol{margin:0;padding-left:22px;display:flex;flex-direction:column;gap:6px;max-width:70ch}
+code{font-family:var(--f-mono);font-size:.86em;background:var(--code-bg);padding:1px 5px;border-radius:4px;overflow-wrap:anywhere}
+a{color:var(--accent)} a:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+nav.toc{display:flex;flex-wrap:wrap;gap:8px}
+nav.toc a{font-size:13px;font-weight:600;text-decoration:none;color:var(--fg);background:var(--surface);border:1px solid var(--line);border-radius:999px;padding:6px 12px}
+nav.toc a:hover{border-color:var(--accent)}
+.decisions{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px}
+.decision{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:16px;display:flex;flex-direction:column;gap:6px;min-width:0}
+.decision b{font-size:15px}
+.decision span{font-size:14px;color:var(--muted)}
+.callout{background:var(--warn-soft);border:1px solid var(--line);border-radius:12px;padding:16px 18px;display:flex;flex-direction:column;gap:8px}
+.callout h3{color:var(--warn)}
+.tbl{overflow-x:auto;border:1px solid var(--line);border-radius:12px;background:var(--surface)}
+table{border-collapse:collapse;width:100%;min-width:720px;font-size:14px;line-height:1.45}
+th,td{text-align:left;vertical-align:top;padding:10px 12px;border-bottom:1px solid var(--line)}
+th{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:700;background:var(--bg)}
+tr:last-child td{border-bottom:none}
+td:first-child{font-weight:600}
+.pill{display:inline-block;font-size:11px;font-weight:700;letter-spacing:.04em;padding:2px 8px;border-radius:999px;white-space:nowrap}
+.p-live{background:var(--accent-soft);color:var(--accent)}
+.p-near{background:var(--warn-soft);color:var(--warn)}
+.p-after{background:var(--nay-soft);color:var(--nay)}
+.p-static{background:var(--code-bg);color:var(--muted)}
+.mermaid-box{overflow-x:auto;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:16px}
+pre.mermaid{margin:0;min-width:640px;background:transparent}
+.steps{display:flex;flex-direction:column;border-left:2px solid var(--line);margin-left:6px}
+.step{position:relative;padding:0 0 18px 20px;display:flex;flex-direction:column;gap:4px}
+.step::before{content:"";position:absolute;left:-7px;top:6px;width:12px;height:12px;border-radius:6px;background:var(--surface);border:2px solid var(--accent)}
+.step b{font-size:15px}
+.step span{font-size:14px;color:var(--muted);max-width:68ch}
+.ms{display:flex;flex-direction:column;gap:12px}
+.m{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:16px 18px;display:grid;grid-template-columns:64px minmax(0,1fr);gap:14px}
+.m .id{font-family:var(--f-mono);font-weight:500;font-size:20px;color:var(--accent)}
+.m h3{margin-bottom:4px}
+.m p{font-size:14px}
+.m .exit{font-size:13px;color:var(--muted);margin-top:6px}
+.two{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:12px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:16px;display:flex;flex-direction:column;gap:8px;min-width:0}
+.card li{font-size:14px}
+.sources li{font-size:13px;overflow-wrap:anywhere}
+footer{font-size:13px;color:var(--muted);border-top:1px solid var(--line);padding-top:20px}
+@media (max-width:520px){.m{grid-template-columns:1fr;gap:6px}}
+</style>
+
+<div class="wrap">
+<header>
+  <span class="eyebrow">Implementation plan · iOS first</span>
+  <h1>Floor: live federal vote tracker</h1>
+  <p class="lede">How we build the app from the v2 designs: where every number on screen comes from, the backend that turns government feeds into live updates, how the AI "What it means for you" summaries work, and the order we build it in.</p>
+  <nav class="toc" aria-label="Sections">
+    <a href="#decisions">Key decisions</a><a href="#live">What "live" means</a><a href="#sources">Data sources</a>
+    <a href="#arch">Backend</a><a href="#pipeline">Live pipeline</a><a href="#ai">AI summaries</a>
+    <a href="#projection">Projections</a><a href="#ios">iOS app</a><a href="#model">Data model</a>
+    <a href="#milestones">Milestones</a><a href="#risks">Risks</a>
+  </nav>
+</header>
+
+<section id="decisions">
+  <h2>Key decisions</h2>
+  <div class="decisions">
+    <div class="decision"><b>Native SwiftUI, iOS 17.2+</b><span>Live Activities, Dynamic Island and widgets are the core of the "sports app" feel. They need ActivityKit and WidgetKit, so the app is native Swift, not cross-platform.</span></div>
+    <div class="decision"><b>Official sources first</b><span>House Clerk, Senate LIS, Congress.gov and GovInfo are free and authoritative. Third-party data covers two gaps only: district geocoding as a second option, and display-only market odds.</span></div>
+    <div class="decision"><b>Always-on ingest worker</b><span>Votes need polling every 5–15 seconds while a chamber is in session. Minute-level serverless crons are too slow, so a small long-running worker owns ingestion and push.</span></div>
+    <div class="decision"><b>Postgres + realtime channels</b><span>One Postgres database is the system of record. Live vote state reaches open apps over realtime channels and closed apps through APNs and Live Activity pushes.</span></div>
+    <div class="decision"><b>AI analysis per bill, personalization per profile</b><span>Each bill version is analyzed once, with section citations. The "for you" text combines that analysis with coarse profile attributes. No names or addresses go to the model.</span></div>
+    <div class="decision"><b>Projections are ours; odds are display-only</b><span>An in-house model gives "% projected to pass" for every vote. Prediction-market prices appear only where a market exists, are labeled by source, and never link to trading.</span></div>
+  </div>
+</section>
+
+<section id="live">
+  <h2>What "live" can mean for each chamber</h2>
+  <p>The v2 designs show a running 212–196 tally with a clock and member-by-member play-by-play. The government doesn't publish all of that in real time, so the app has to be designed around what actually exists.</p>
+  <div class="tbl"><table>
+    <thead><tr><th>On screen</th><th>House</th><th>Senate</th><th>Design consequence</th></tr></thead>
+    <tbody>
+      <tr><td>"Vote is open" + what's being voted on</td><td><span class="pill p-near">Near-live</span> Clerk floor summary / live.house.gov, updated during the session</td><td><span class="pill p-near">Near-live</span> Senate floor activity pages (scraped)</td><td>Start the Live Activity and push "vote open" from floor events.</td></tr>
+      <tr><td>Running Yea/Nay totals + clock</td><td><span class="pill p-near">Experimental</span> Only shown on the chamber vote board in the public House floor video. Readable by OCR of the video.</td><td><span class="pill p-after">Not available</span> The Senate votes by voice roll call with no electronic board.</td><td>House: OCR totals as a beta feature; when OCR is off, show "Voting open". Senate: show the projection plus "results when the clerk posts".</td></tr>
+      <tr><td>How each member voted (incl. your rep)</td><td><span class="pill p-after">After close</span> Roll call XML from the Clerk, usually minutes after the gavel</td><td><span class="pill p-after">After close</span> Roll call XML from senate.gov after the vote</td><td>"Your rep voted Yea" arrives a few minutes after the vote closes. Before that, show announced positions labeled as statements.</td></tr>
+      <tr><td>Play-by-play ("Alvarez flips to Yea")</td><td><span class="pill p-after">After close</span> Rebuilt from the final roll call</td><td><span class="pill p-after">After close</span></td><td>Live: totals and floor events only. After close: a "How it unfolded" recap.</td></tr>
+      <tr><td>Bills, summaries, cosponsors, cost</td><td colspan="2"><span class="pill p-static">Hours</span> Congress.gov API, GovInfo, CBO</td><td>Fine for bill pages and AI analysis.</td></tr>
+    </tbody>
+  </table></div>
+  <div class="callout">
+    <h3>Change needed in the designs</h3>
+    <p>Replace the live per-member play-by-play with floor events (vote opened, motion, time remaining). Show your rep's vote as "Pending · posts after the vote" until the roll call lands. The OCR tally gets validated in M3 before the app promises a running score for House votes.</p>
+  </div>
+</section>
+
+<section id="sources">
+  <h2>Data sources</h2>
+  <p>Every screen element mapped to where its data comes from. Government sources are free. Congress.gov and GovInfo need a free api.data.gov key.</p>
+  <div class="tbl"><table>
+    <thead><tr><th>Data</th><th>Source</th><th>Access</th><th>Freshness</th><th>Feeds</th></tr></thead>
+    <tbody>
+      <tr><td>Your district from your address</td><td>U.S. Census Geocoder (geographies, current Congressional Districts layer). Second option: Geocodio (paid).</td><td>REST, no key</td><td><span class="pill p-static">Static</span></td><td>Onboarding, "District 4"</td></tr>
+      <tr><td>Members, terms, party, committees, ID crosswalk</td><td><code>unitedstates/congress-legislators</code> (GitHub, public domain) + Congress.gov <code>/member</code></td><td>YAML/JSON, REST</td><td><span class="pill p-static">Daily</span></td><td>Rep cards, rep profile</td></tr>
+      <tr><td>Bills, status, actions, cosponsors, CRS summaries, CBO estimates</td><td>Congress.gov API v3 (<code>/bill</code>, <code>/summaries</code>, <code>/amendment</code>)</td><td>REST, api.data.gov key</td><td><span class="pill p-static">Hourly</span></td><td>Bill screen, path to law</td></tr>
+      <tr><td>Full bill text (each version)</td><td>GovInfo API + bulk <code>BILLS</code> / <code>BILLSTATUS</code> XML</td><td>REST/bulk, key</td><td><span class="pill p-static">Daily</span></td><td>AI analysis input</td></tr>
+      <tr><td>House roll calls, member by member</td><td>Clerk EVS XML <code>clerk.house.gov/evs/{year}/roll{nnn}.xml</code> (fastest). Congress.gov <code>/house-vote</code> (beta) for backfill.</td><td>XML / REST</td><td><span class="pill p-after">Minutes after close</span></td><td>Final score, rep vote, recap</td></tr>
+      <tr><td>Senate roll calls, member by member</td><td>senate.gov LIS vote XML (vote menu + per-vote files)</td><td>XML</td><td><span class="pill p-after">After close</span></td><td>Same, Senate</td></tr>
+      <tr><td>House floor events</td><td>Clerk floor summary XML / live.house.gov</td><td>XML polling</td><td><span class="pill p-near">~10–30 s</span></td><td>"Vote open", Live Activity start</td></tr>
+      <tr><td>Senate floor events</td><td>senate.gov floor activity + Senate press gallery pages</td><td>HTML scrape</td><td><span class="pill p-near">~1 min</span></td><td>Senate "vote open"</td></tr>
+      <tr><td>House running tally (beta)</td><td>Public House floor video. OCR of the vote board graphic.</td><td>Video stream + OCR</td><td><span class="pill p-live">~5 s</span></td><td>Live 212–196 + clock</td></tr>
+      <tr><td>Upcoming votes</td><td>House floor schedule XML (docs.house.gov). Senate executive and legislative calendars.</td><td>XML / PDF</td><td><span class="pill p-static">Daily</span></td><td>"Up next" card</td></tr>
+      <tr><td>Voting history and ideology</td><td>Voteview (DW-NOMINATE scores, all past roll calls)</td><td>CSV bulk</td><td><span class="pill p-static">Weekly</span></td><td>Projection model, rep stats</td></tr>
+      <tr><td>Announced positions</td><td>Member press releases (official-site RSS) and floor statements in the Congressional Record (GovInfo <code>CREC</code>)</td><td>RSS / XML + AI extraction</td><td><span class="pill p-near">~15 min</span></td><td>"Leans Yea", projection inputs</td></tr>
+      <tr><td>Local context for "for you"</td><td>Census ACS 5-year API (income, housing, veterans, age), FCC National Broadband Map. Add topic datasets (HUD, BLS) as bills need them.</td><td>REST / bulk</td><td><span class="pill p-static">Yearly</span></td><td>"1 in 5 homes in your county…"</td></tr>
+      <tr><td>Market odds (optional, display-only)</td><td>Kalshi and Polymarket public read-only market data, where a matching market exists</td><td>REST, no auth for reads</td><td><span class="pill p-live">~1 min</span></td><td>Secondary odds line, sourced</td></tr>
+      <tr><td>AI analysis</td><td>Anthropic Claude API (server-side only)</td><td>API key</td><td>On each new bill version</td><td>Bill summary, impact, "for you"</td></tr>
+    </tbody>
+  </table></div>
+  <p><b>Avoid:</b> the Google Civic Information Representatives API (shut down in 2025) and the ProPublica Congress API (discontinued). Many older tutorials still point to both.</p>
+</section>
+
+<section id="arch">
+  <h2>Backend architecture</h2>
+  <div class="mermaid-box"><pre class="mermaid">
+flowchart LR
+  subgraph Sources
+    CLK[House Clerk XML]
+    SEN[senate.gov XML and pages]
+    CGV[Congress.gov API]
+    GOV[GovInfo bills and CREC]
+    VID[House floor video]
+    MKT[Market odds APIs]
+  end
+  subgraph Worker[Ingest worker, always on]
+    POLL[Session-aware pollers]
+    OCR[Tally OCR beta]
+    NORM[Normalize and diff]
+    EVT[Event bus]
+  end
+  subgraph Data
+    PG[(Postgres)]
+    Q[[Job queue]]
+  end
+  subgraph Services
+    PROJ[Projection service]
+    AI[AI analysis jobs]
+    API[Public REST API]
+    RT[Realtime channels]
+    PUSH[APNs and Live Activity push]
+  end
+  CLK & SEN & CGV & GOV & MKT --> POLL
+  VID --> OCR
+  POLL & OCR --> NORM --> EVT
+  EVT --> PG
+  EVT --> PROJ --> PG
+  EVT --> Q --> AI --> PG
+  EVT --> RT
+  EVT --> PUSH
+  PG --> API
+  API & RT & PUSH --> APP[iOS app and widgets]
+  </pre></div>
+  <div class="two">
+    <div class="card">
+      <h3>Recommended stack</h3>
+      <ul>
+        <li><b>Language:</b> TypeScript monorepo (worker, API, shared types). Swift types are generated from the OpenAPI spec.</li>
+        <li><b>Database, auth, realtime:</b> Supabase. That's Postgres, Sign in with Apple, row-level security and realtime broadcast channels in one service.</li>
+        <li><b>Ingest worker:</b> one small always-on container (Fly.io or Railway) running the pollers, OCR, the event bus and APNs sends.</li>
+        <li><b>Jobs:</b> <code>pg-boss</code> queue inside Postgres, so AI and backfill jobs need no extra service.</li>
+        <li><b>Public API:</b> Hono on Vercel (Node runtime), with CDN caching for bill and member pages.</li>
+        <li><b>Observability:</b> Sentry (app + backend) and an alert whenever a source goes stale.</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3>Why this split</h3>
+      <ul>
+        <li>Polling and push have to stay warm through a 15-minute vote. Request-scoped functions are the wrong shape for that.</li>
+        <li>Reads are huge and cacheable (bill pages, rep pages). Writes come from one place, the worker.</li>
+        <li>Each vendor can be swapped without touching the iOS app, because the app talks only to our API and realtime channel.</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section id="pipeline">
+  <h2>Live vote pipeline</h2>
+  <div class="steps">
+    <div class="step"><b>Session detection</b><span>The worker reads the daily schedule and floor summary. It polls every 10 s while a chamber is in session and backs off to every 5 min otherwise.</span></div>
+    <div class="step"><b>Vote opens</b><span>A floor event says a recorded vote has started. The worker creates a <code>vote</code> row with state <code>open</code>, links it to the bill or amendment, and records the vote type and threshold (majority, 3/5 cloture, 2/3 suspension).</span></div>
+    <div class="step"><b>Fan-out</b><span>A realtime broadcast goes to open apps. Followers of the bill or of any rep in the chamber get an APNs push that starts a Live Activity (push-to-start, iOS 17.2+). Everyone else who opted in gets a normal notification.</span></div>
+    <div class="step"><b>During the vote</b><span>House: the OCR tally updates the score and clock every ~5 s, and each update is pushed to the Live Activity. Both chambers: the projection recomputes on each update or new statement.</span></div>
+    <div class="step"><b>Vote closes</b><span>The worker polls for the roll call XML every 10 s until it appears. It then parses member positions, checks them against the OCR totals (and flags any mismatch), and sets state <code>final</code>.</span></div>
+    <div class="step"><b>Personal results</b><span>Each user gets "Your rep voted Yea · it passed 219–208" with a one-line "for you" summary. The Live Activity ends with a final state and stays on the lock screen for up to 4 hours.</span></div>
+  </div>
+  <p>Freshness targets: floor event to push under 30 s; roll call posted to "your rep voted" under 60 s; OCR tally to Live Activity under 10 s.</p>
+</section>
+
+<section id="ai">
+  <h2>AI: bill impact and "What it means for you"</h2>
+  <div class="two">
+    <div class="card">
+      <h3>Layer 1 · per bill version (shared)</h3>
+      <ul>
+        <li>Inputs: bill text (GovInfo), CRS summary, CBO estimate, committee report.</li>
+        <li>Output, as structured JSON: purpose, 3–5 key provisions, cost, affected groups with direction (▲ ▼ ●), supporter and opponent arguments, and impact rules keyed by profile attributes. Every claim cites a bill section.</li>
+        <li>Models: Claude Sonnet 5.5 for analysis, Claude Haiku 5.5 for tagging and citation checks.</li>
+        <li>Runs once per text version, so cost scales with bills, not users.</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3>Layer 2 · per user (personal)</h3>
+      <ul>
+        <li>Profile is coarse and opt-in: state, district, county, and optionally renter or owner, income band, veteran, student, parent, age band, work sector.</li>
+        <li>The impact rules are matched to the profile, then filled with county statistics (ACS, FCC). A short model call writes the paragraph. Results are cached by profile bucket, so many users share one result.</li>
+        <li>The model never sees names, emails or street addresses. The address is used once to find the district, then discarded.</li>
+      </ul>
+    </div>
+  </div>
+  <p><b>Guardrails:</b> a neutrality rubric in the prompt, a second automated pass that checks each claim against its cited section, a fixed eval set of ~50 bills with human-written reference summaries, human review for the top 20 bills each week, an "AI summary · may contain errors" label, a link to the source text, and the thumbs-up/down feedback already in the design.</p>
+</section>
+
+<section id="projection">
+  <h2>Projection model ("% projected to pass")</h2>
+  <ul>
+    <li><b>Pre-vote:</b> per-member probability of Yea from party and leadership position, cosponsorship, committee vote, vote on the rule or procedural motion, ideological distance (DW-NOMINATE) from the sponsors, past votes on similar bills, and announced positions.</li>
+    <li><b>Aggregate:</b> simulate the chamber (Monte Carlo), apply the vote's threshold, and report a pass probability plus a projected final tally.</li>
+    <li><b>Live:</b> update on each running total (House OCR) and on new statements. Members already counted drop out of the uncertainty.</li>
+    <li><b>Validation:</b> backtest on all 118th and 119th Congress roll calls, publish a calibration chart on an in-app "How projections work" page, and beat a party-line baseline on Brier score.</li>
+    <li><b>Market odds:</b> when a Kalshi or Polymarket market clearly matches the same question, show its price as a secondary line ("Markets: 77%") with the source named. It's display-only: no links to trade and no betting language.</li>
+  </ul>
+</section>
+
+<section id="ios">
+  <h2>iOS app</h2>
+  <div class="two">
+    <div class="card">
+      <h3>Frameworks</h3>
+      <ul>
+        <li>SwiftUI + Observation and Swift 6 concurrency, with a minimum of iOS 17.2 for push-to-start Live Activities.</li>
+        <li>ActivityKit (Live Activity + Dynamic Island), WidgetKit (score, "your reps today"), App Intents (follow and unfollow from widgets).</li>
+        <li>Swift Charts for the projection line and coalition bars.</li>
+        <li>SwiftData for an offline cache of followed bills, reps and recent votes.</li>
+        <li>Supabase Swift SDK for auth and realtime. URLSession for the REST API.</li>
+        <li>Sign in with Apple. Location is optional and only used to suggest a district.</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3>Structure</h3>
+      <ul>
+        <li>Swift packages: <code>Models</code> (generated from OpenAPI), <code>APIClient</code>, <code>Realtime</code>, <code>DesignSystem</code> (scoreboard cards, crests, bars), plus one package per feature: Floor, Vote, Bill, Rep, Alerts, Onboarding.</li>
+        <li>The widget and Live Activity extensions share <code>Models</code> and <code>DesignSystem</code> through an App Group.</li>
+        <li>Notification categories: vote opened, rep voted, bill passed or failed, scheduled vote reminder.</li>
+        <li>Tests: Swift Testing for models and parsers, snapshot tests for every card state (open, live tally, pending, final), and UI tests for onboarding.</li>
+      </ul>
+    </div>
+  </div>
+  <p>Android comes later as a native Kotlin + Jetpack Compose app on the same API. The only iOS-specific part of the backend is the APNs sender.</p>
+</section>
+
+<section id="model">
+  <h2>Core data model</h2>
+  <div class="tbl"><table>
+    <thead><tr><th>Table</th><th>Key fields</th><th>Notes</th></tr></thead>
+    <tbody>
+      <tr><td>members</td><td>bioguide_id, name, party, state, district, chamber, term dates</td><td>Crosswalk IDs from congress-legislators</td></tr>
+      <tr><td>bills / bill_versions</td><td>congress, type, number, title, status, sponsor, text_url, version_code</td><td>One analysis per version</td></tr>
+      <tr><td>actions</td><td>bill_id, date, chamber, text, action_code</td><td>Drives "Path to law"</td></tr>
+      <tr><td>votes</td><td>chamber, congress, session, roll_number, question, threshold, state (scheduled/open/final), yea, nay, present, not_voting, opened_at, closed_at</td><td>Live rows update during the vote</td></tr>
+      <tr><td>vote_positions</td><td>vote_id, member_id, position</td><td>Filled from roll call XML</td></tr>
+      <tr><td>tally_snapshots</td><td>vote_id, ts, yea, nay, remaining_seconds, source (ocr/xml)</td><td>Projection chart, recap</td></tr>
+      <tr><td>floor_events</td><td>chamber, ts, kind, text, vote_id</td><td>Replaces live play-by-play</td></tr>
+      <tr><td>statements</td><td>member_id, bill_id, stance, quote, url, ts</td><td>"Leans Yea", with citation</td></tr>
+      <tr><td>projections</td><td>vote_id, ts, p_pass, projected_yea, projected_nay, model_version</td><td>Shown as "% projected"</td></tr>
+      <tr><td>bill_analysis / impact_rules</td><td>bill_version_id, json, citations, model, reviewed_by</td><td>Layer 1 AI output</td></tr>
+      <tr><td>profiles / follows / devices</td><td>user_id, district, county, opt-in attributes; followed bills and reps; APNs and Live Activity tokens</td><td>Row-level security on user_id</td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<section id="milestones">
+  <h2>Milestones</h2>
+  <div class="ms">
+    <div class="m"><span class="id">M0</span><div><h3>Foundation and test harness</h3><p>Monorepo, Xcode project, CI (build, lint, unit and snapshot tests), Supabase project and schema migrations, an API skeleton with OpenAPI, and recorded copies of real Clerk, Senate and Congress.gov payloads for parser tests.</p><p class="exit">Exit: CI green on every push; the app runs on the simulator against a staging API.</p></div></div>
+    <div class="m"><span class="id">M1</span><div><h3>Data backbone</h3><p>Ingest members, bills, actions, summaries, and House and Senate roll calls (backfilled to 2023). Add district lookup and freshness monitoring. Measure real roll call posting latency on session days.</p><p class="exit">Exit: any vote from 2023 on has correct member positions; address → district → reps works.</p></div></div>
+    <div class="m"><span class="id">M2</span><div><h3>iOS core on real data</h3><p>Onboarding (address or location to your reps), Home, Vote detail, Bill and Rep screens built from the v2 designs, showing final results only (no live yet).</p><p class="exit">Exit: a TestFlight build a tester can use to see how their reps voted yesterday.</p></div></div>
+    <div class="m"><span class="id">M3</span><div><h3>Live layer</h3><p>Session-aware floor polling, vote open/close events, realtime channels, APNs, Live Activities and widgets. Prototype the House tally OCR and decide go/no-go on it.</p><p class="exit">Exit: during a real House vote, the phone shows "vote open" in under 30 s and your rep's vote in under 60 s after the roll call posts.</p></div></div>
+    <div class="m"><span class="id">M4</span><div><h3>Understanding: AI + projections</h3><p>Layer 1 and Layer 2 AI analysis with citations and the eval set. Projection model v1 with backtest and calibration page. Optional market odds line.</p><p class="exit">Exit: the eval set passes the factuality bar; projections beat the party-line baseline on backtest.</p></div></div>
+    <div class="m"><span class="id">M5</span><div><h3>Beta hardening and App Store</h3><p>Accessibility (Dynamic Type, VoiceOver on score cards), privacy labels, a load test for vote-night spikes, App Review prep, public TestFlight.</p><p class="exit">Exit: submitted to App Review.</p></div></div>
+  </div>
+</section>
+
+<section id="risks">
+  <h2>Risks and open questions</h2>
+  <div class="tbl"><table>
+    <thead><tr><th>Risk</th><th>Impact</th><th>Mitigation</th></tr></thead>
+    <tbody>
+      <tr><td>No official live per-member data</td><td>The live play-by-play in the designs can't ship as drawn</td><td>The design change above, plus OCR totals for the House as a beta.</td></tr>
+      <tr><td>Video OCR misreads</td><td>Wrong live totals</td><td>Confidence threshold, cross-check against the XML, a "beta" label, and a kill switch.</td></tr>
+      <tr><td>Senate pages change layout</td><td>Missed "vote open" events</td><td>Scraper contract tests, freshness alerts, and the posted roll call as the backstop.</td></tr>
+      <tr><td>AI errors or perceived bias</td><td>Trust and press risk</td><td>Citations, a verifier pass, the eval set, human review of top bills, visible labels and feedback.</td></tr>
+      <tr><td>App Review on odds and politics</td><td>Rejection</td><td>Keep market prices display-only with no trading links. Review the current gambling and political content guidelines before M4.</td></tr>
+      <tr><td>Vote-night traffic spikes</td><td>Slow pushes</td><td>Fan-out by topic, batched APNs over HTTP/2, CDN-cached reads.</td></tr>
+    </tbody>
+  </table></div>
+  <div class="card">
+    <h3>Decisions needed from you</h3>
+    <ul>
+      <li>Ship the House OCR tally if M3 validates it, or launch with "vote open → result" only?</li>
+      <li>Include prediction-market odds at all, or only our own projection?</li>
+      <li>Which optional profile questions are acceptable for "for you" (income band, veteran, renter, etc.)?</li>
+      <li>Android timing: right after the App Store launch, or later?</li>
+    </ul>
+  </div>
+</section>
+
+<section>
+  <h2>Sources checked</h2>
+  <ul class="sources">
+    <li><a href="https://blogs.loc.gov/law/2025/08/congress-gov-enhanced-access-to-house-roll-call-votes-is-now-available/">Library of Congress: Congress.gov House roll call vote endpoints (beta)</a></li>
+    <li><a href="https://github.com/LibraryOfCongress/api.congress.gov">Congress.gov API documentation (GitHub)</a></li>
+    <li><a href="https://groups.google.com/g/google-civicinfo-api/c/9fwFn-dhktA">Google: notice of turndown of the Representatives API</a></li>
+    <li><a href="https://groups.google.com/g/google-civicinfo-api/c/eWoEc2tn8DA">Google: divisionByAddress launch</a></li>
+    <li><a href="https://clerk.house.gov/LegislativeInfo">Office of the Clerk: legislative information and floor summary</a></li>
+    <li><a href="https://www.geocod.io/convert-zip-codes-to-congressional-districts">Geocodio: congressional district lookup</a></li>
+    <li><a href="https://www.predictionhunt.com/blog/kalshi-api-getting-started-guide">Kalshi API getting-started guide (public market data)</a></li>
+    <li><a href="https://pm.wiki/uk/learn/polymarket-api">Polymarket API overview (public read endpoints)</a></li>
+  </ul>
+</section>
+
+<footer>Built from the v2 "Live + impact" designs. Endpoint paths and posting latencies get confirmed against official docs and live session days in M1. Market data terms need a legal check before M4.</footer>
+</div>
