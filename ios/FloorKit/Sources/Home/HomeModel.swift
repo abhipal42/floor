@@ -2,6 +2,7 @@ import APIClient
 import Foundation
 import Models
 import Onboarding
+import VoteScreen
 
 /// One card in the feed: a vote, and how each of your own members voted on it.
 ///
@@ -88,6 +89,11 @@ public final class HomeModel {
         self.delegation = delegation
         self.api = api
         self.perMember = perMember
+    }
+
+    /// The screen for one card, built here so the API client stays private to this model.
+    public func voteScreen(for item: FeedItem) -> VoteScreenModel {
+        VoteScreenModel(voteId: item.vote.id, memberIds: delegation.memberIds, api: api)
     }
 
     public var visibleItems: [FeedItem] {

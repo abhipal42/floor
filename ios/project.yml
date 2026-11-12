@@ -19,6 +19,8 @@ targets:
       - package: FloorKit
         product: Onboarding
       - package: FloorKit
+        product: VoteScreen
+      - package: FloorKit
         product: Home
       - package: FloorKit
         product: DesignSystem

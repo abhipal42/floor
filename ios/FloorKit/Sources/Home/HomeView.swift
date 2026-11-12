@@ -3,6 +3,7 @@ import DesignSystem
 import Models
 import Onboarding
 import SwiftUI
+import VoteScreen
 
 /// The Floor screen: your delegation, then their recent votes.
 ///
@@ -18,19 +19,23 @@ public struct HomeView: View {
     }
 
     public var body: some View {
-        ZStack {
-            background
-            ScrollView {
-                VStack(alignment: .leading, spacing: 0) {
-                    header
-                    delegationStrip
-                    chamberFilter
-                    feed
+        NavigationStack {
+            ZStack {
+                background
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 0) {
+                        header
+                        delegationStrip
+                        chamberFilter
+                        feed
+                    }
+                    .padding(.bottom, 28)
                 }
-                .padding(.bottom, 28)
+                .refreshable { await model.load() }
             }
-            .refreshable { await model.load() }
+            .hideNavigationBar()
         }
+        .tint(Palette.accent)
         .task { if model.items.isEmpty { await model.load() } }
         .preferredColorScheme(.dark)
     }
@@ -172,7 +177,14 @@ public struct HomeView: View {
                 VStack(spacing: 10) {
                     sectionTitle
                     ForEach(model.visibleItems) { item in
-                        card(item)
+                        NavigationLink {
+                            VoteScreenView(model: model.voteScreen(for: item))
+                                .navigationTitle(item.measure?.citation ?? "Vote")
+                                .inlineNavigationTitle()
+                        } label: {
+                            card(item)
+                        }
+                        .buttonStyle(.plain)
                     }
                 }
                 .padding(.horizontal, 14)
@@ -218,6 +230,28 @@ public struct HomeView: View {
         let first = member.firstName.first.map(String.init) ?? ""
         let last = member.lastName.first.map(String.init) ?? ""
         return (first + last).uppercased()
+    }
+}
+
+private extension View {
+    /// Navigation-bar styling that exists only on iOS. The package also builds for macOS, where
+    /// `swift test` runs the models, so these cannot be applied unconditionally.
+    @ViewBuilder
+    func hideNavigationBar() -> some View {
+        #if os(iOS)
+        self.toolbar(.hidden, for: .navigationBar)
+        #else
+        self
+        #endif
+    }
+
+    @ViewBuilder
+    func inlineNavigationTitle() -> some View {
+        #if os(iOS)
+        self.navigationBarTitleDisplayMode(.inline)
+        #else
+        self
+        #endif
     }
 }
 
