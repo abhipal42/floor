@@ -150,9 +150,9 @@ Targets: floor event to push under 30 s; roll call posted to "your rep voted" un
 | | Milestone | Exit criteria |
 |---|---|---|
 | **M0** | Foundation and test harness: monorepo, Xcode project, CI, schema migrations, API skeleton with OpenAPI, recorded real payloads for parser tests | CI green on every push; app runs on simulator against staging API |
-| **M1** | Data backbone: members, bills, actions, summaries, House and Senate roll calls (backfill to 2023), district lookup, freshness monitoring, measured posting latency | Any vote from 2023 on has correct positions; address → district → reps works |
+| **M1** | Data backbone: members, bills, actions, summaries, House and Senate roll calls (backfill to 2023), nominations, district lookup, freshness monitoring | Any vote from 2023 on has correct positions; address → district → reps works |
 | **M2** | iOS core on real data: onboarding, Home, Vote, Bill, Rep (final results only) | TestFlight build shows yesterday's votes for your reps |
-| **M3** | Live layer: floor polling, open/close events, realtime, APNs, Live Activities, widgets; House OCR go/no-go | "Vote open" on phone under 30 s; rep vote under 60 s after posting |
+| **M3** | Live layer: floor polling, open/close events, realtime, APNs, Live Activities, widgets; measured Clerk and LIS posting latency; House OCR go/no-go | "Vote open" on phone under 30 s; rep vote under 60 s after posting |
 | **M4** | AI + projections: Layer 1/2 analysis with citations and eval set; projection v1 with backtest; optional odds | Eval set passes the factuality bar; projections beat the party-line baseline |
 | **M5** | Beta hardening and App Store: accessibility, privacy labels, load test, App Review prep, public TestFlight | Submitted to App Review |
 
