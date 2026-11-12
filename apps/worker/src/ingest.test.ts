@@ -57,6 +57,25 @@ describe("members", () => {
     expect(rows.find((r) => r.bioguide_id === "N000147")?.district).toBe(0); // DC delegate, at-large
   });
 
+  it("corrects a party that congress-legislators has wrong, without touching real independents", () => {
+    const rows = toMemberRows(legislators);
+    // The fixture holds Kiley's real upstream entry: 118th term "Republican", 119th "Independent".
+    const kiley = legislators.find((e) => e.id.bioguide === "K000401")!;
+    expect(kiley.terms.at(-1)).toMatchObject({ start: "2025-01-03", party: "Independent" });
+    expect(rows.find((r) => r.bioguide_id === "K000401")).toMatchObject({ party: "R", state: "CA", district: 3 });
+    // Sanders is genuinely independent and must stay that way.
+    expect(rows.find((r) => r.bioguide_id === "S000033")?.party).toBe("I");
+  });
+
+  it("stops overriding a party once the member starts a new term", () => {
+    const kiley = legislators.find((e) => e.id.bioguide === "K000401")!;
+    const reelected = {
+      ...kiley,
+      terms: [{ ...kiley.terms.at(-1)!, start: "2027-01-03", end: "2029-01-03" }],
+    };
+    expect(toMemberRows([reelected])[0]?.party).toBe("I");
+  });
+
   it("drops members whose last term ended before the backfill window", () => {
     const old = { ...legislators[0]!, terms: [{ ...legislators[0]!.terms.at(-1)!, end: "2021-01-03" }] };
     expect(toMemberRows([old])).toEqual([]);
@@ -65,7 +84,7 @@ describe("members", () => {
   it("upserts idempotently", async () => {
     await upsertMembers(db, toMemberRows(legislators));
     const { rows } = await pg.query<{ n: number }>("select count(*)::int as n from members");
-    expect(rows[0]?.n).toBe(4);
+    expect(rows[0]?.n).toBe(5);
   });
 });
 
@@ -118,7 +137,8 @@ describe("withRetry", () => {
 describe("ingestRollCalls", () => {
   it("stores a House vote and joins positions to known members by bioguide ID", async () => {
     const result = await ingestRollCalls(db, "house", 119, 1, { from: 100, fetchText: fakeFetch });
-    expect(result).toEqual({ stored: 1, lastRoll: 100, skippedPositions: 432 });
+    // Two of the 433 members on this roll call are in the fixture; the rest are skipped as unknown.
+    expect(result).toEqual({ stored: 1, lastRoll: 100, skippedPositions: 431 });
 
     const { rows: vote } = await pg.query(
       "select yea, nay, not_voting, state, bill_ref, threshold, occurred_at from votes where id = 'house-119-1-100'",
@@ -126,8 +146,13 @@ describe("ingestRollCalls", () => {
     expect(vote[0]).toMatchObject({ yea: 216, nay: 214, not_voting: 3, state: "final", bill_ref: "H CON RES 14", threshold: "majority" });
     expect((vote[0] as { occurred_at: Date }).occurred_at.toISOString()).toBe("2025-04-10T15:08:00.000Z");
 
-    const { rows: pos } = await pg.query("select member_id, position from vote_positions where vote_id = 'house-119-1-100'");
-    expect(pos).toEqual([{ member_id: "A000370", position: "nay" }]);
+    const { rows: pos } = await pg.query(
+      "select member_id, position from vote_positions where vote_id = 'house-119-1-100' order by member_id",
+    );
+    expect(pos).toEqual([
+      { member_id: "A000370", position: "nay" },
+      { member_id: "K000401", position: "yea" },
+    ]);
   });
 
   it("stores a Senate vote and maps LIS IDs to bioguide IDs", async () => {
@@ -152,8 +177,15 @@ describe("ingestRollCalls", () => {
     );
     expect(vote[0]?.kind).toBe("election");
     expect(vote[0]?.candidates[0]).toEqual({ name: "Jeffries", total: 212 });
-    const { rows: pos } = await pg.query("select position, choice from vote_positions where vote_id = 'house-118-1-2'");
-    expect(pos).toEqual([{ position: "candidate", choice: "Jeffries" }]);
+    const { rows: pos } = await pg.query(
+      "select member_id, choice from vote_positions where vote_id = 'house-118-1-2' order by member_id",
+    );
+    // Kiley voted for McCarthy here, which is the Republican caucus's candidate — one more sign that
+    // upstream's "Independent" label on his later term is wrong.
+    expect(pos).toEqual([
+      { member_id: "A000370", choice: "Jeffries" },
+      { member_id: "K000401", choice: "McCarthy" },
+    ]);
   });
 
   it("refetches positions for a vote that was saved without them", async () => {

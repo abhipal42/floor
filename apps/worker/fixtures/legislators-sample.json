@@ -1,646 +1,712 @@
 [
- {
-  "id": {
-   "bioguide": "C000127",
-   "thomas": "00172",
-   "lis": "S275",
-   "govtrack": 300018,
-   "opensecrets": "N00007836",
-   "votesmart": 27122,
-   "fec": [
-    "S8WA00194",
-    "H2WA01054"
-   ],
-   "cspan": 26137,
-   "wikipedia": "Maria Cantwell",
-   "house_history": 10608,
-   "ballotpedia": "Maria Cantwell",
-   "maplight": 544,
-   "icpsr": 39310,
-   "wikidata": "Q22250",
-   "google_entity_id": "kg:/m/01x68t",
-   "pictorial": 13398
+  {
+    "id": {
+      "bioguide": "C000127",
+      "thomas": "00172",
+      "lis": "S275",
+      "govtrack": 300018,
+      "opensecrets": "N00007836",
+      "votesmart": 27122,
+      "fec": [
+        "S8WA00194",
+        "H2WA01054"
+      ],
+      "cspan": 26137,
+      "wikipedia": "Maria Cantwell",
+      "house_history": 10608,
+      "ballotpedia": "Maria Cantwell",
+      "maplight": 544,
+      "icpsr": 39310,
+      "wikidata": "Q22250",
+      "google_entity_id": "kg:/m/01x68t",
+      "pictorial": 13398
+    },
+    "name": {
+      "first": "Maria",
+      "last": "Cantwell",
+      "official_full": "Maria Cantwell"
+    },
+    "bio": {
+      "birthday": "1958-10-13",
+      "gender": "F"
+    },
+    "terms": [
+      {
+        "type": "rep",
+        "start": "1993-01-05",
+        "end": "1995-01-03",
+        "state": "WA",
+        "district": 1,
+        "party": "Democrat"
+      },
+      {
+        "type": "sen",
+        "start": "2001-01-03",
+        "end": "2007-01-03",
+        "state": "WA",
+        "class": 1,
+        "party": "Democrat",
+        "url": "http://cantwell.senate.gov"
+      },
+      {
+        "type": "sen",
+        "start": "2007-01-04",
+        "end": "2013-01-03",
+        "state": "WA",
+        "class": 1,
+        "party": "Democrat",
+        "url": "http://cantwell.senate.gov",
+        "address": "311 HART SENATE OFFICE BUILDING WASHINGTON DC 20510",
+        "phone": "202-224-3441",
+        "fax": "202-228-0514",
+        "contact_form": "http://www.cantwell.senate.gov/contact/",
+        "office": "311 Hart Senate Office Building"
+      },
+      {
+        "type": "sen",
+        "start": "2013-01-03",
+        "end": "2019-01-03",
+        "state": "WA",
+        "party": "Democrat",
+        "class": 1,
+        "url": "https://www.cantwell.senate.gov",
+        "address": "511 Hart Senate Office Building Washington DC 20510",
+        "phone": "202-224-3441",
+        "fax": "202-228-0514",
+        "contact_form": "http://www.cantwell.senate.gov/public/index.cfm/email-maria",
+        "office": "511 Hart Senate Office Building",
+        "state_rank": "junior",
+        "rss_url": "http://www.cantwell.senate.gov/public/index.cfm/rss/feed"
+      },
+      {
+        "type": "sen",
+        "start": "2019-01-03",
+        "end": "2025-01-03",
+        "state": "WA",
+        "class": 1,
+        "party": "Democrat",
+        "state_rank": "junior",
+        "url": "https://www.cantwell.senate.gov",
+        "rss_url": "http://www.cantwell.senate.gov/public/index.cfm/rss/feed",
+        "contact_form": "https://www.cantwell.senate.gov/public/index.cfm/email-maria",
+        "address": "511 Hart Senate Office Building Washington DC 20510",
+        "office": "511 Hart Senate Office Building",
+        "phone": "202-224-3441"
+      },
+      {
+        "type": "sen",
+        "start": "2025-01-03",
+        "end": "2031-01-03",
+        "state": "WA",
+        "class": 1,
+        "state_rank": "junior",
+        "party": "Democrat",
+        "url": "https://www.cantwell.senate.gov",
+        "rss_url": "http://www.cantwell.senate.gov/public/index.cfm/rss/feed",
+        "contact_form": "https://www.cantwell.senate.gov/public/index.cfm/email-maria",
+        "address": "511 Hart Senate Office Building Washington DC 20510",
+        "office": "511 Hart Senate Office Building",
+        "phone": "202-224-3441"
+      }
+    ]
   },
-  "name": {
-   "first": "Maria",
-   "last": "Cantwell",
-   "official_full": "Maria Cantwell"
+  {
+    "id": {
+      "bioguide": "A000370",
+      "thomas": "02201",
+      "fec": [
+        "H4NC12100"
+      ],
+      "govtrack": 412607,
+      "opensecrets": "N00035451",
+      "cspan": 76386,
+      "wikipedia": "Alma Adams",
+      "ballotpedia": "Alma Adams",
+      "house_history": 15032409256,
+      "maplight": 2063,
+      "wikidata": "Q4733597",
+      "google_entity_id": "kg:/m/02b45d",
+      "votesmart": 5935,
+      "icpsr": 21545,
+      "pictorial": 13141
+    },
+    "name": {
+      "first": "Alma",
+      "middle": "S.",
+      "last": "Adams",
+      "official_full": "Alma S. Adams"
+    },
+    "bio": {
+      "gender": "F",
+      "birthday": "1946-05-27"
+    },
+    "terms": [
+      {
+        "type": "rep",
+        "start": "2014-11-12",
+        "end": "2015-01-03",
+        "state": "NC",
+        "district": 12,
+        "party": "Democrat",
+        "url": "http://adams.house.gov/",
+        "contact_form": "http://adams.house.gov/contact",
+        "address": "2304 Rayburn HOB; Washington DC 20515-3312",
+        "office": "2304 Rayburn House Office Building",
+        "phone": "202-225-1510"
+      },
+      {
+        "type": "rep",
+        "start": "2015-01-06",
+        "end": "2017-01-03",
+        "state": "NC",
+        "district": 12,
+        "party": "Democrat",
+        "url": "http://adams.house.gov",
+        "contact_form": "http://adams.house.gov/contact",
+        "address": "222 Cannon HOB; Washington DC 20515-3312",
+        "office": "222 Cannon House Office Building",
+        "phone": "202-225-1510",
+        "fax": "202-225-1512"
+      },
+      {
+        "type": "rep",
+        "start": "2017-01-03",
+        "end": "2019-01-03",
+        "state": "NC",
+        "district": 12,
+        "party": "Democrat",
+        "phone": "202-225-1510",
+        "url": "https://adams.house.gov",
+        "address": "222 Cannon House Office Building; Washington DC 20515-3312",
+        "office": "222 Cannon House Office Building",
+        "fax": "202-225-1512"
+      },
+      {
+        "type": "rep",
+        "start": "2019-01-03",
+        "end": "2021-01-03",
+        "state": "NC",
+        "district": 12,
+        "party": "Democrat",
+        "phone": "202-225-1510",
+        "address": "2436 Rayburn House Office Building Washington DC 20515-3312",
+        "office": "2436 Rayburn House Office Building",
+        "url": "https://adams.house.gov"
+      },
+      {
+        "type": "rep",
+        "start": "2021-01-03",
+        "end": "2023-01-03",
+        "state": "NC",
+        "district": 12,
+        "party": "Democrat",
+        "url": "https://adams.house.gov",
+        "address": "2436 Rayburn House Office Building Washington DC 20515-3312",
+        "office": "2436 Rayburn House Office Building",
+        "phone": "202-225-1510"
+      },
+      {
+        "type": "rep",
+        "start": "2023-01-03",
+        "end": "2025-01-03",
+        "state": "NC",
+        "district": 12,
+        "party": "Democrat",
+        "url": "https://adams.house.gov",
+        "address": "2436 Rayburn House Office Building Washington DC 20515-3312",
+        "office": "2436 Rayburn House Office Building",
+        "phone": "202-225-1510"
+      },
+      {
+        "type": "rep",
+        "start": "2025-01-03",
+        "end": "2027-01-03",
+        "state": "NC",
+        "district": 12,
+        "party": "Democrat",
+        "url": "https://adams.house.gov",
+        "address": "2436 Rayburn House Office Building Washington DC 20515-3312",
+        "office": "2436 Rayburn House Office Building",
+        "phone": "202-225-1510"
+      }
+    ]
   },
-  "bio": {
-   "birthday": "1958-10-13",
-   "gender": "F"
+  {
+    "id": {
+      "bioguide": "N000147",
+      "thomas": "00868",
+      "govtrack": 400295,
+      "opensecrets": "N00001692",
+      "votesmart": 775,
+      "fec": [
+        "H0DC00058"
+      ],
+      "cspan": 882,
+      "wikipedia": "Eleanor Holmes Norton",
+      "house_history": 19016,
+      "maplight": 390,
+      "wikidata": "Q461649",
+      "google_entity_id": "kg:/m/01s_vp",
+      "pictorial": 12980,
+      "ballotpedia": "Eleanor Holmes Norton"
+    },
+    "name": {
+      "first": "Eleanor",
+      "middle": "Holmes",
+      "last": "Norton",
+      "official_full": "Eleanor Holmes Norton"
+    },
+    "bio": {
+      "birthday": "1937-06-13",
+      "gender": "F"
+    },
+    "terms": [
+      {
+        "type": "rep",
+        "start": "1991-01-03",
+        "end": "1993-01-03",
+        "state": "DC",
+        "district": 0,
+        "party": "Democrat"
+      },
+      {
+        "type": "rep",
+        "start": "1993-01-05",
+        "end": "1995-01-03",
+        "state": "DC",
+        "district": 0,
+        "party": "Democrat"
+      },
+      {
+        "type": "rep",
+        "start": "1995-01-04",
+        "end": "1997-01-03",
+        "state": "DC",
+        "district": 0,
+        "party": "Democrat"
+      },
+      {
+        "type": "rep",
+        "start": "1997-01-07",
+        "end": "1999-01-03",
+        "state": "DC",
+        "district": 0,
+        "party": "Democrat"
+      },
+      {
+        "type": "rep",
+        "start": "1999-01-06",
+        "end": "2001-01-03",
+        "state": "DC",
+        "district": 0,
+        "party": "Democrat"
+      },
+      {
+        "type": "rep",
+        "start": "2001-01-03",
+        "end": "2003-01-03",
+        "state": "DC",
+        "district": 0,
+        "party": "Democrat"
+      },
+      {
+        "type": "rep",
+        "start": "2003-01-07",
+        "end": "2005-01-03",
+        "state": "DC",
+        "district": 0,
+        "party": "Democrat",
+        "url": "http://www.house.gov/norton"
+      },
+      {
+        "type": "rep",
+        "start": "2005-01-04",
+        "end": "2007-01-03",
+        "state": "DC",
+        "district": 0,
+        "party": "Democrat",
+        "url": "http://www.house.gov/norton"
+      },
+      {
+        "type": "rep",
+        "start": "2007-01-04",
+        "end": "2009-01-03",
+        "state": "DC",
+        "district": 0,
+        "party": "Democrat",
+        "url": "http://www.house.gov/norton"
+      },
+      {
+        "type": "rep",
+        "start": "2009-01-06",
+        "end": "2011-01-03",
+        "state": "DC",
+        "district": 0,
+        "party": "Democrat",
+        "url": "http://www.house.gov/norton"
+      },
+      {
+        "type": "rep",
+        "start": "2011-01-05",
+        "end": "2013-01-03",
+        "state": "DC",
+        "district": 0,
+        "party": "Democrat",
+        "url": "http://www.house.gov/norton",
+        "address": "2136 Rayburn HOB; Washington DC 20515-5100",
+        "phone": "202-225-8050",
+        "fax": "202-225-3002",
+        "contact_form": "http://www.norton.house.gov/forms/contact.html",
+        "office": "2136 Rayburn House Office Building"
+      },
+      {
+        "type": "rep",
+        "start": "2013-01-03",
+        "end": "2015-01-03",
+        "state": "DC",
+        "party": "Democrat",
+        "district": 0,
+        "url": "http://norton.house.gov",
+        "address": "2136 Rayburn HOB; Washington DC 20515-5101",
+        "phone": "202-225-8050",
+        "fax": "202-225-3002",
+        "contact_form": "https://norton.house.gov/contact/email-me",
+        "office": "2136 Rayburn House Office Building",
+        "rss_url": "http://norton.house.gov/index.php?format=feed&amp;type=rss"
+      },
+      {
+        "type": "rep",
+        "start": "2015-01-06",
+        "end": "2017-01-03",
+        "state": "DC",
+        "party": "Democrat",
+        "district": 0,
+        "url": "http://norton.house.gov",
+        "address": "2136 Rayburn HOB; Washington DC 20515-5101",
+        "phone": "202-225-8050",
+        "fax": "202-225-3002",
+        "contact_form": "https://norton.house.gov/contact/email-me",
+        "office": "2136 Rayburn House Office Building",
+        "rss_url": "http://norton.house.gov/index.php?format=feed&amp;type=rss"
+      },
+      {
+        "type": "rep",
+        "start": "2017-01-03",
+        "end": "2019-01-03",
+        "state": "DC",
+        "district": 0,
+        "party": "Democrat",
+        "phone": "202-225-8050",
+        "url": "https://norton.house.gov",
+        "rss_url": "http://norton.house.gov/index.php?format=feed&amp;type=rss",
+        "address": "2136 Rayburn House Office Building; Washington DC 20515-5101",
+        "office": "2136 Rayburn House Office Building",
+        "fax": "202-225-3002"
+      },
+      {
+        "type": "rep",
+        "start": "2019-01-03",
+        "end": "2021-01-03",
+        "state": "DC",
+        "district": 0,
+        "party": "Democrat",
+        "phone": "202-225-8050",
+        "address": "2136 Rayburn House Office Building Washington DC 20515-5101",
+        "office": "2136 Rayburn House Office Building",
+        "url": "https://norton.house.gov",
+        "rss_url": "http://norton.house.gov/index.php?format=feed&amp;type=rss"
+      },
+      {
+        "type": "rep",
+        "start": "2021-01-03",
+        "end": "2023-01-03",
+        "state": "DC",
+        "district": 0,
+        "party": "Democrat",
+        "url": "https://norton.house.gov",
+        "rss_url": "http://norton.house.gov/index.php?format=feed&amp;type=rss",
+        "address": "2136 Rayburn House Office Building Washington DC 20515-5101",
+        "office": "2136 Rayburn House Office Building",
+        "phone": "202-225-8050"
+      },
+      {
+        "type": "rep",
+        "start": "2023-01-03",
+        "end": "2025-01-03",
+        "state": "DC",
+        "district": 0,
+        "party": "Democrat",
+        "url": "https://norton.house.gov",
+        "rss_url": "http://norton.house.gov/index.php?format=feed&amp;type=rss",
+        "address": "2136 Rayburn House Office Building Washington DC 20515-5101",
+        "office": "2136 Rayburn House Office Building",
+        "phone": "202-225-8050"
+      },
+      {
+        "type": "rep",
+        "start": "2025-01-03",
+        "end": "2027-01-03",
+        "state": "DC",
+        "district": 0,
+        "party": "Democrat",
+        "url": "https://norton.house.gov",
+        "rss_url": "http://norton.house.gov/index.php?format=feed&amp;type=rss",
+        "address": "2136 Rayburn House Office Building Washington DC 20515-5101",
+        "office": "2136 Rayburn House Office Building",
+        "phone": "202-225-8050"
+      }
+    ]
   },
-  "terms": [
-   {
-    "type": "rep",
-    "start": "1993-01-05",
-    "end": "1995-01-03",
-    "state": "WA",
-    "district": 1,
-    "party": "Democrat"
-   },
-   {
-    "type": "sen",
-    "start": "2001-01-03",
-    "end": "2007-01-03",
-    "state": "WA",
-    "class": 1,
-    "party": "Democrat",
-    "url": "http://cantwell.senate.gov"
-   },
-   {
-    "type": "sen",
-    "start": "2007-01-04",
-    "end": "2013-01-03",
-    "state": "WA",
-    "class": 1,
-    "party": "Democrat",
-    "url": "http://cantwell.senate.gov",
-    "address": "311 HART SENATE OFFICE BUILDING WASHINGTON DC 20510",
-    "phone": "202-224-3441",
-    "fax": "202-228-0514",
-    "contact_form": "http://www.cantwell.senate.gov/contact/",
-    "office": "311 Hart Senate Office Building"
-   },
-   {
-    "type": "sen",
-    "start": "2013-01-03",
-    "end": "2019-01-03",
-    "state": "WA",
-    "party": "Democrat",
-    "class": 1,
-    "url": "https://www.cantwell.senate.gov",
-    "address": "511 Hart Senate Office Building Washington DC 20510",
-    "phone": "202-224-3441",
-    "fax": "202-228-0514",
-    "contact_form": "http://www.cantwell.senate.gov/public/index.cfm/email-maria",
-    "office": "511 Hart Senate Office Building",
-    "state_rank": "junior",
-    "rss_url": "http://www.cantwell.senate.gov/public/index.cfm/rss/feed"
-   },
-   {
-    "type": "sen",
-    "start": "2019-01-03",
-    "end": "2025-01-03",
-    "state": "WA",
-    "class": 1,
-    "party": "Democrat",
-    "state_rank": "junior",
-    "url": "https://www.cantwell.senate.gov",
-    "rss_url": "http://www.cantwell.senate.gov/public/index.cfm/rss/feed",
-    "contact_form": "https://www.cantwell.senate.gov/public/index.cfm/email-maria",
-    "address": "511 Hart Senate Office Building Washington DC 20510",
-    "office": "511 Hart Senate Office Building",
-    "phone": "202-224-3441"
-   },
-   {
-    "type": "sen",
-    "start": "2025-01-03",
-    "end": "2031-01-03",
-    "state": "WA",
-    "class": 1,
-    "state_rank": "junior",
-    "party": "Democrat",
-    "url": "https://www.cantwell.senate.gov",
-    "rss_url": "http://www.cantwell.senate.gov/public/index.cfm/rss/feed",
-    "contact_form": "https://www.cantwell.senate.gov/public/index.cfm/email-maria",
-    "address": "511 Hart Senate Office Building Washington DC 20510",
-    "office": "511 Hart Senate Office Building",
-    "phone": "202-224-3441"
-   }
-  ]
- },
- {
-  "id": {
-   "bioguide": "A000370",
-   "thomas": "02201",
-   "fec": [
-    "H4NC12100"
-   ],
-   "govtrack": 412607,
-   "opensecrets": "N00035451",
-   "cspan": 76386,
-   "wikipedia": "Alma Adams",
-   "ballotpedia": "Alma Adams",
-   "house_history": 15032409256,
-   "maplight": 2063,
-   "wikidata": "Q4733597",
-   "google_entity_id": "kg:/m/02b45d",
-   "votesmart": 5935,
-   "icpsr": 21545,
-   "pictorial": 13141
+  {
+    "id": {
+      "bioguide": "S000033",
+      "thomas": "01010",
+      "lis": "S313",
+      "govtrack": 400357,
+      "opensecrets": "N00000528",
+      "votesmart": 27110,
+      "fec": [
+        "H8VT01016",
+        "S4VT00033"
+      ],
+      "cspan": 994,
+      "wikipedia": "Bernie Sanders",
+      "ballotpedia": "Bernie Sanders",
+      "maplight": 450,
+      "icpsr": 29147,
+      "house_history": 21173,
+      "wikidata": "Q359442",
+      "google_entity_id": "kg:/m/01_gbv",
+      "pictorial": 13382
+    },
+    "name": {
+      "first": "Bernard",
+      "last": "Sanders",
+      "nickname": "Bernie",
+      "official_full": "Bernard Sanders"
+    },
+    "bio": {
+      "birthday": "1941-09-08",
+      "gender": "M"
+    },
+    "leadership_roles": [
+      {
+        "title": "Senate Democratic Outreach Chair",
+        "chamber": "senate",
+        "start": "2023-01-03",
+        "end": "2025-01-03"
+      },
+      {
+        "title": "Senate Democratic Outreach Chair",
+        "chamber": "senate",
+        "start": "2025-01-03"
+      }
+    ],
+    "terms": [
+      {
+        "type": "rep",
+        "start": "1991-01-03",
+        "end": "1993-01-03",
+        "state": "VT",
+        "district": 0,
+        "party": "Independent",
+        "caucus": "Democrat"
+      },
+      {
+        "type": "rep",
+        "start": "1993-01-05",
+        "end": "1995-01-03",
+        "state": "VT",
+        "district": 0,
+        "party": "Independent",
+        "caucus": "Democrat"
+      },
+      {
+        "type": "rep",
+        "start": "1995-01-04",
+        "end": "1997-01-03",
+        "state": "VT",
+        "district": 0,
+        "party": "Independent",
+        "caucus": "Democrat"
+      },
+      {
+        "type": "rep",
+        "start": "1997-01-07",
+        "end": "1999-01-03",
+        "state": "VT",
+        "district": 0,
+        "party": "Independent",
+        "caucus": "Democrat"
+      },
+      {
+        "type": "rep",
+        "start": "1999-01-06",
+        "end": "2001-01-03",
+        "state": "VT",
+        "district": 0,
+        "party": "Independent",
+        "caucus": "Democrat"
+      },
+      {
+        "type": "rep",
+        "start": "2001-01-03",
+        "end": "2003-01-03",
+        "state": "VT",
+        "district": 0,
+        "party": "Independent",
+        "caucus": "Democrat"
+      },
+      {
+        "type": "rep",
+        "start": "2003-01-07",
+        "end": "2005-01-03",
+        "state": "VT",
+        "district": 0,
+        "party": "Independent",
+        "caucus": "Democrat",
+        "url": "http://bernie.house.gov"
+      },
+      {
+        "type": "rep",
+        "start": "2005-01-04",
+        "end": "2007-01-03",
+        "state": "VT",
+        "district": 0,
+        "party": "Independent",
+        "caucus": "Democrat",
+        "url": "http://bernie.house.gov"
+      },
+      {
+        "type": "sen",
+        "start": "2007-01-04",
+        "end": "2013-01-03",
+        "state": "VT",
+        "class": 1,
+        "party": "Independent",
+        "caucus": "Democrat",
+        "url": "http://sanders.senate.gov/",
+        "address": "332 DIRKSEN SENATE OFFICE BUILDING WASHINGTON DC 20510",
+        "phone": "202-224-5141",
+        "fax": "202-228-0776",
+        "contact_form": "http://www.sanders.senate.gov/contact/",
+        "office": "332 Dirksen Senate Office Building"
+      },
+      {
+        "type": "sen",
+        "start": "2013-01-03",
+        "end": "2019-01-03",
+        "state": "VT",
+        "party": "Independent",
+        "caucus": "Democrat",
+        "class": 1,
+        "url": "https://www.sanders.senate.gov",
+        "address": "332 Dirksen Senate Office Building Washington DC 20510",
+        "phone": "202-224-5141",
+        "fax": "202-228-0776",
+        "contact_form": "http://www.sanders.senate.gov/contact/",
+        "office": "332 Dirksen Senate Office Building",
+        "state_rank": "junior",
+        "rss_url": "http://www.sanders.senate.gov/rss/"
+      },
+      {
+        "type": "sen",
+        "start": "2019-01-03",
+        "end": "2025-01-03",
+        "state": "VT",
+        "class": 1,
+        "party": "Independent",
+        "caucus": "Democrat",
+        "state_rank": "senior",
+        "url": "https://www.sanders.senate.gov",
+        "rss_url": "http://www.sanders.senate.gov/rss/",
+        "contact_form": "https://www.sanders.senate.gov/contact/",
+        "address": "332 Dirksen Senate Office Building Washington DC 20510",
+        "office": "332 Dirksen Senate Office Building",
+        "phone": "202-224-5141"
+      },
+      {
+        "type": "sen",
+        "start": "2025-01-03",
+        "end": "2031-01-03",
+        "state": "VT",
+        "class": 1,
+        "state_rank": "senior",
+        "party": "Independent",
+        "caucus": "Democrat",
+        "url": "https://www.sanders.senate.gov",
+        "rss_url": "http://www.sanders.senate.gov/rss/",
+        "contact_form": "https://www.sanders.senate.gov/contact/",
+        "address": "332 Dirksen Senate Office Building Washington DC 20510",
+        "office": "332 Dirksen Senate Office Building",
+        "phone": "202-224-5141"
+      }
+    ]
   },
-  "name": {
-   "first": "Alma",
-   "middle": "S.",
-   "last": "Adams",
-   "official_full": "Alma S. Adams"
-  },
-  "bio": {
-   "gender": "F",
-   "birthday": "1946-05-27"
-  },
-  "terms": [
-   {
-    "type": "rep",
-    "start": "2014-11-12",
-    "end": "2015-01-03",
-    "state": "NC",
-    "district": 12,
-    "party": "Democrat",
-    "url": "http://adams.house.gov/",
-    "contact_form": "http://adams.house.gov/contact",
-    "address": "2304 Rayburn HOB; Washington DC 20515-3312",
-    "office": "2304 Rayburn House Office Building",
-    "phone": "202-225-1510"
-   },
-   {
-    "type": "rep",
-    "start": "2015-01-06",
-    "end": "2017-01-03",
-    "state": "NC",
-    "district": 12,
-    "party": "Democrat",
-    "url": "http://adams.house.gov",
-    "contact_form": "http://adams.house.gov/contact",
-    "address": "222 Cannon HOB; Washington DC 20515-3312",
-    "office": "222 Cannon House Office Building",
-    "phone": "202-225-1510",
-    "fax": "202-225-1512"
-   },
-   {
-    "type": "rep",
-    "start": "2017-01-03",
-    "end": "2019-01-03",
-    "state": "NC",
-    "district": 12,
-    "party": "Democrat",
-    "phone": "202-225-1510",
-    "url": "https://adams.house.gov",
-    "address": "222 Cannon House Office Building; Washington DC 20515-3312",
-    "office": "222 Cannon House Office Building",
-    "fax": "202-225-1512"
-   },
-   {
-    "type": "rep",
-    "start": "2019-01-03",
-    "end": "2021-01-03",
-    "state": "NC",
-    "district": 12,
-    "party": "Democrat",
-    "phone": "202-225-1510",
-    "address": "2436 Rayburn House Office Building Washington DC 20515-3312",
-    "office": "2436 Rayburn House Office Building",
-    "url": "https://adams.house.gov"
-   },
-   {
-    "type": "rep",
-    "start": "2021-01-03",
-    "end": "2023-01-03",
-    "state": "NC",
-    "district": 12,
-    "party": "Democrat",
-    "url": "https://adams.house.gov",
-    "address": "2436 Rayburn House Office Building Washington DC 20515-3312",
-    "office": "2436 Rayburn House Office Building",
-    "phone": "202-225-1510"
-   },
-   {
-    "type": "rep",
-    "start": "2023-01-03",
-    "end": "2025-01-03",
-    "state": "NC",
-    "district": 12,
-    "party": "Democrat",
-    "url": "https://adams.house.gov",
-    "address": "2436 Rayburn House Office Building Washington DC 20515-3312",
-    "office": "2436 Rayburn House Office Building",
-    "phone": "202-225-1510"
-   },
-   {
-    "type": "rep",
-    "start": "2025-01-03",
-    "end": "2027-01-03",
-    "state": "NC",
-    "district": 12,
-    "party": "Democrat",
-    "url": "https://adams.house.gov",
-    "address": "2436 Rayburn House Office Building Washington DC 20515-3312",
-    "office": "2436 Rayburn House Office Building",
-    "phone": "202-225-1510"
-   }
-  ]
- },
- {
-  "id": {
-   "bioguide": "N000147",
-   "thomas": "00868",
-   "govtrack": 400295,
-   "opensecrets": "N00001692",
-   "votesmart": 775,
-   "fec": [
-    "H0DC00058"
-   ],
-   "cspan": 882,
-   "wikipedia": "Eleanor Holmes Norton",
-   "house_history": 19016,
-   "maplight": 390,
-   "wikidata": "Q461649",
-   "google_entity_id": "kg:/m/01s_vp",
-   "pictorial": 12980,
-   "ballotpedia": "Eleanor Holmes Norton"
-  },
-  "name": {
-   "first": "Eleanor",
-   "middle": "Holmes",
-   "last": "Norton",
-   "official_full": "Eleanor Holmes Norton"
-  },
-  "bio": {
-   "birthday": "1937-06-13",
-   "gender": "F"
-  },
-  "terms": [
-   {
-    "type": "rep",
-    "start": "1991-01-03",
-    "end": "1993-01-03",
-    "state": "DC",
-    "district": 0,
-    "party": "Democrat"
-   },
-   {
-    "type": "rep",
-    "start": "1993-01-05",
-    "end": "1995-01-03",
-    "state": "DC",
-    "district": 0,
-    "party": "Democrat"
-   },
-   {
-    "type": "rep",
-    "start": "1995-01-04",
-    "end": "1997-01-03",
-    "state": "DC",
-    "district": 0,
-    "party": "Democrat"
-   },
-   {
-    "type": "rep",
-    "start": "1997-01-07",
-    "end": "1999-01-03",
-    "state": "DC",
-    "district": 0,
-    "party": "Democrat"
-   },
-   {
-    "type": "rep",
-    "start": "1999-01-06",
-    "end": "2001-01-03",
-    "state": "DC",
-    "district": 0,
-    "party": "Democrat"
-   },
-   {
-    "type": "rep",
-    "start": "2001-01-03",
-    "end": "2003-01-03",
-    "state": "DC",
-    "district": 0,
-    "party": "Democrat"
-   },
-   {
-    "type": "rep",
-    "start": "2003-01-07",
-    "end": "2005-01-03",
-    "state": "DC",
-    "district": 0,
-    "party": "Democrat",
-    "url": "http://www.house.gov/norton"
-   },
-   {
-    "type": "rep",
-    "start": "2005-01-04",
-    "end": "2007-01-03",
-    "state": "DC",
-    "district": 0,
-    "party": "Democrat",
-    "url": "http://www.house.gov/norton"
-   },
-   {
-    "type": "rep",
-    "start": "2007-01-04",
-    "end": "2009-01-03",
-    "state": "DC",
-    "district": 0,
-    "party": "Democrat",
-    "url": "http://www.house.gov/norton"
-   },
-   {
-    "type": "rep",
-    "start": "2009-01-06",
-    "end": "2011-01-03",
-    "state": "DC",
-    "district": 0,
-    "party": "Democrat",
-    "url": "http://www.house.gov/norton"
-   },
-   {
-    "type": "rep",
-    "start": "2011-01-05",
-    "end": "2013-01-03",
-    "state": "DC",
-    "district": 0,
-    "party": "Democrat",
-    "url": "http://www.house.gov/norton",
-    "address": "2136 Rayburn HOB; Washington DC 20515-5100",
-    "phone": "202-225-8050",
-    "fax": "202-225-3002",
-    "contact_form": "http://www.norton.house.gov/forms/contact.html",
-    "office": "2136 Rayburn House Office Building"
-   },
-   {
-    "type": "rep",
-    "start": "2013-01-03",
-    "end": "2015-01-03",
-    "state": "DC",
-    "party": "Democrat",
-    "district": 0,
-    "url": "http://norton.house.gov",
-    "address": "2136 Rayburn HOB; Washington DC 20515-5101",
-    "phone": "202-225-8050",
-    "fax": "202-225-3002",
-    "contact_form": "https://norton.house.gov/contact/email-me",
-    "office": "2136 Rayburn House Office Building",
-    "rss_url": "http://norton.house.gov/index.php?format=feed&amp;type=rss"
-   },
-   {
-    "type": "rep",
-    "start": "2015-01-06",
-    "end": "2017-01-03",
-    "state": "DC",
-    "party": "Democrat",
-    "district": 0,
-    "url": "http://norton.house.gov",
-    "address": "2136 Rayburn HOB; Washington DC 20515-5101",
-    "phone": "202-225-8050",
-    "fax": "202-225-3002",
-    "contact_form": "https://norton.house.gov/contact/email-me",
-    "office": "2136 Rayburn House Office Building",
-    "rss_url": "http://norton.house.gov/index.php?format=feed&amp;type=rss"
-   },
-   {
-    "type": "rep",
-    "start": "2017-01-03",
-    "end": "2019-01-03",
-    "state": "DC",
-    "district": 0,
-    "party": "Democrat",
-    "phone": "202-225-8050",
-    "url": "https://norton.house.gov",
-    "rss_url": "http://norton.house.gov/index.php?format=feed&amp;type=rss",
-    "address": "2136 Rayburn House Office Building; Washington DC 20515-5101",
-    "office": "2136 Rayburn House Office Building",
-    "fax": "202-225-3002"
-   },
-   {
-    "type": "rep",
-    "start": "2019-01-03",
-    "end": "2021-01-03",
-    "state": "DC",
-    "district": 0,
-    "party": "Democrat",
-    "phone": "202-225-8050",
-    "address": "2136 Rayburn House Office Building Washington DC 20515-5101",
-    "office": "2136 Rayburn House Office Building",
-    "url": "https://norton.house.gov",
-    "rss_url": "http://norton.house.gov/index.php?format=feed&amp;type=rss"
-   },
-   {
-    "type": "rep",
-    "start": "2021-01-03",
-    "end": "2023-01-03",
-    "state": "DC",
-    "district": 0,
-    "party": "Democrat",
-    "url": "https://norton.house.gov",
-    "rss_url": "http://norton.house.gov/index.php?format=feed&amp;type=rss",
-    "address": "2136 Rayburn House Office Building Washington DC 20515-5101",
-    "office": "2136 Rayburn House Office Building",
-    "phone": "202-225-8050"
-   },
-   {
-    "type": "rep",
-    "start": "2023-01-03",
-    "end": "2025-01-03",
-    "state": "DC",
-    "district": 0,
-    "party": "Democrat",
-    "url": "https://norton.house.gov",
-    "rss_url": "http://norton.house.gov/index.php?format=feed&amp;type=rss",
-    "address": "2136 Rayburn House Office Building Washington DC 20515-5101",
-    "office": "2136 Rayburn House Office Building",
-    "phone": "202-225-8050"
-   },
-   {
-    "type": "rep",
-    "start": "2025-01-03",
-    "end": "2027-01-03",
-    "state": "DC",
-    "district": 0,
-    "party": "Democrat",
-    "url": "https://norton.house.gov",
-    "rss_url": "http://norton.house.gov/index.php?format=feed&amp;type=rss",
-    "address": "2136 Rayburn House Office Building Washington DC 20515-5101",
-    "office": "2136 Rayburn House Office Building",
-    "phone": "202-225-8050"
-   }
-  ]
- },
- {
-  "id": {
-   "bioguide": "S000033",
-   "thomas": "01010",
-   "lis": "S313",
-   "govtrack": 400357,
-   "opensecrets": "N00000528",
-   "votesmart": 27110,
-   "fec": [
-    "H8VT01016",
-    "S4VT00033"
-   ],
-   "cspan": 994,
-   "wikipedia": "Bernie Sanders",
-   "ballotpedia": "Bernie Sanders",
-   "maplight": 450,
-   "icpsr": 29147,
-   "house_history": 21173,
-   "wikidata": "Q359442",
-   "google_entity_id": "kg:/m/01_gbv",
-   "pictorial": 13382
-  },
-  "name": {
-   "first": "Bernard",
-   "last": "Sanders",
-   "nickname": "Bernie",
-   "official_full": "Bernard Sanders"
-  },
-  "bio": {
-   "birthday": "1941-09-08",
-   "gender": "M"
-  },
-  "leadership_roles": [
-   {
-    "title": "Senate Democratic Outreach Chair",
-    "chamber": "senate",
-    "start": "2023-01-03",
-    "end": "2025-01-03"
-   },
-   {
-    "title": "Senate Democratic Outreach Chair",
-    "chamber": "senate",
-    "start": "2025-01-03"
-   }
-  ],
-  "terms": [
-   {
-    "type": "rep",
-    "start": "1991-01-03",
-    "end": "1993-01-03",
-    "state": "VT",
-    "district": 0,
-    "party": "Independent",
-    "caucus": "Democrat"
-   },
-   {
-    "type": "rep",
-    "start": "1993-01-05",
-    "end": "1995-01-03",
-    "state": "VT",
-    "district": 0,
-    "party": "Independent",
-    "caucus": "Democrat"
-   },
-   {
-    "type": "rep",
-    "start": "1995-01-04",
-    "end": "1997-01-03",
-    "state": "VT",
-    "district": 0,
-    "party": "Independent",
-    "caucus": "Democrat"
-   },
-   {
-    "type": "rep",
-    "start": "1997-01-07",
-    "end": "1999-01-03",
-    "state": "VT",
-    "district": 0,
-    "party": "Independent",
-    "caucus": "Democrat"
-   },
-   {
-    "type": "rep",
-    "start": "1999-01-06",
-    "end": "2001-01-03",
-    "state": "VT",
-    "district": 0,
-    "party": "Independent",
-    "caucus": "Democrat"
-   },
-   {
-    "type": "rep",
-    "start": "2001-01-03",
-    "end": "2003-01-03",
-    "state": "VT",
-    "district": 0,
-    "party": "Independent",
-    "caucus": "Democrat"
-   },
-   {
-    "type": "rep",
-    "start": "2003-01-07",
-    "end": "2005-01-03",
-    "state": "VT",
-    "district": 0,
-    "party": "Independent",
-    "caucus": "Democrat",
-    "url": "http://bernie.house.gov"
-   },
-   {
-    "type": "rep",
-    "start": "2005-01-04",
-    "end": "2007-01-03",
-    "state": "VT",
-    "district": 0,
-    "party": "Independent",
-    "caucus": "Democrat",
-    "url": "http://bernie.house.gov"
-   },
-   {
-    "type": "sen",
-    "start": "2007-01-04",
-    "end": "2013-01-03",
-    "state": "VT",
-    "class": 1,
-    "party": "Independent",
-    "caucus": "Democrat",
-    "url": "http://sanders.senate.gov/",
-    "address": "332 DIRKSEN SENATE OFFICE BUILDING WASHINGTON DC 20510",
-    "phone": "202-224-5141",
-    "fax": "202-228-0776",
-    "contact_form": "http://www.sanders.senate.gov/contact/",
-    "office": "332 Dirksen Senate Office Building"
-   },
-   {
-    "type": "sen",
-    "start": "2013-01-03",
-    "end": "2019-01-03",
-    "state": "VT",
-    "party": "Independent",
-    "caucus": "Democrat",
-    "class": 1,
-    "url": "https://www.sanders.senate.gov",
-    "address": "332 Dirksen Senate Office Building Washington DC 20510",
-    "phone": "202-224-5141",
-    "fax": "202-228-0776",
-    "contact_form": "http://www.sanders.senate.gov/contact/",
-    "office": "332 Dirksen Senate Office Building",
-    "state_rank": "junior",
-    "rss_url": "http://www.sanders.senate.gov/rss/"
-   },
-   {
-    "type": "sen",
-    "start": "2019-01-03",
-    "end": "2025-01-03",
-    "state": "VT",
-    "class": 1,
-    "party": "Independent",
-    "caucus": "Democrat",
-    "state_rank": "senior",
-    "url": "https://www.sanders.senate.gov",
-    "rss_url": "http://www.sanders.senate.gov/rss/",
-    "contact_form": "https://www.sanders.senate.gov/contact/",
-    "address": "332 Dirksen Senate Office Building Washington DC 20510",
-    "office": "332 Dirksen Senate Office Building",
-    "phone": "202-224-5141"
-   },
-   {
-    "type": "sen",
-    "start": "2025-01-03",
-    "end": "2031-01-03",
-    "state": "VT",
-    "class": 1,
-    "state_rank": "senior",
-    "party": "Independent",
-    "caucus": "Democrat",
-    "url": "https://www.sanders.senate.gov",
-    "rss_url": "http://www.sanders.senate.gov/rss/",
-    "contact_form": "https://www.sanders.senate.gov/contact/",
-    "address": "332 Dirksen Senate Office Building Washington DC 20510",
-    "office": "332 Dirksen Senate Office Building",
-    "phone": "202-224-5141"
-   }
-  ]
- }
+  {
+    "id": {
+      "bioguide": "K000401",
+      "fec": [
+        "H2CA03157"
+      ],
+      "govtrack": 456881,
+      "opensecrets": "N00050259",
+      "wikidata": "Q27987136",
+      "wikipedia": "Kevin Kiley (politician)",
+      "google_entity_id": "kg:/g/11c5qpst__",
+      "votesmart": 169303,
+      "ballotpedia": "Kevin Kiley",
+      "pictorial": 12917
+    },
+    "name": {
+      "first": "Kevin",
+      "middle": "Patrick",
+      "last": "Kiley",
+      "official_full": "Kevin Kiley"
+    },
+    "bio": {
+      "gender": "M",
+      "birthday": "1985-01-30"
+    },
+    "terms": [
+      {
+        "type": "rep",
+        "start": "2023-01-03",
+        "end": "2025-01-03",
+        "state": "CA",
+        "district": 3,
+        "party": "Republican",
+        "url": "https://kiley.house.gov",
+        "address": "1032 Longworth House Office Building Washington DC 20515-0503",
+        "office": "1032 Longworth House Office Building",
+        "phone": "202-225-2523"
+      },
+      {
+        "type": "rep",
+        "start": "2025-01-03",
+        "end": "2027-01-03",
+        "state": "CA",
+        "district": 3,
+        "party": "Independent",
+        "caucus": "Republican",
+        "party_affiliations": [
+          {
+            "start": "2025-01-03",
+            "end": "2026-03-08",
+            "party": "Republican"
+          },
+          {
+            "start": "2026-03-09",
+            "end": "2027-01-03",
+            "party": "Independent",
+            "caucus": "Republican"
+          }
+        ],
+        "url": "https://kiley.house.gov",
+        "address": "2445 Rayburn House Office Building Washington DC 20515-0503",
+        "office": "2445 Rayburn House Office Building",
+        "phone": "202-225-2523"
+      }
+    ]
+  }
 ]

@@ -34,6 +34,23 @@ export const HISTORICAL_URL = "https://unitedstates.github.io/congress-legislato
 const PARTY: Record<string, string> = { Democrat: "D", Republican: "R", Independent: "I", Libertarian: "L" };
 
 /**
+ * Parties congress-legislators has wrong, corrected on the way in. Keyed by Bioguide ID *and* term
+ * start, so an override lapses at the member's next term instead of silently outliving the error.
+ *
+ * - `K000401|2025-01-03` — Kevin Kiley (CA-3). Upstream lists his 119th-Congress term as
+ *   "Independent"; his 118th term says "Republican", and across the 1,879 House roll calls we hold
+ *   he sides with the Republican majority on 88% and the Democratic majority on 42%. Left alone he
+ *   is the sole member of an "I" bloc, which puts a spurious one-vote third-party row on the party
+ *   breakdown of nearly every House vote and makes his party-loyalty figure a trivial 100%.
+ *
+ * Genuine independents (Sanders, King, and Manchin and Sinema after they left the Democrats) are
+ * *not* overridden: their entries are correct.
+ */
+const PARTY_OVERRIDES: Record<string, string> = {
+  "K000401|2025-01-03": "R",
+};
+
+/**
  * Converts congress-legislators entries to member rows using each member's latest term.
  * Members whose latest term ended before `servedSince` are dropped, so historical data
  * only adds people who could appear in the roll calls we backfill. The default reaches
@@ -55,7 +72,10 @@ export function toMemberRows(entries: LegislatorEntry[], servedSince = "2022-11-
       bioguide_id: e.id.bioguide,
       first_name: e.name.nickname ?? e.name.first,
       last_name: e.name.last,
-      party: PARTY[term.party ?? ""] ?? (term.party ?? "?").slice(0, 1),
+      party:
+        PARTY_OVERRIDES[`${e.id.bioguide}|${term.start}`] ??
+        PARTY[term.party ?? ""] ??
+        (term.party ?? "?").slice(0, 1),
       state: term.state,
       district: term.type === "rep" ? (term.district ?? 0) : null,
       chamber: term.type === "sen" ? "senate" : "house",
