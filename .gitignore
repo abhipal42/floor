@@ -12,6 +12,7 @@ ios/*.xcodeproj/
 ios/DerivedData/
 ios/build/
 ios/FloorKit/.build/
+ios/Floor/Info.plist
 xcuserdata/
 
 # Local agent tooling
