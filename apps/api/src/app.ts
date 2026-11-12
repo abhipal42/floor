@@ -176,11 +176,34 @@ const RepsSchema = z
   })
   .openapi("Reps");
 
+/**
+ * Just enough about the bill or nomination a vote was on to label it in a list.
+ *
+ * Carried on each row so a feed of votes can name what they were about without a request per row:
+ * the Home screen shows a member's recent votes, and one round trip per card is not viable.
+ */
+export const MeasureSummarySchema = z
+  .object({
+    id: z.string().openapi({ example: "119-hr-1013" }),
+    kind: z.enum(["bill", "nomination"]),
+    citation: z.string().openapi({ example: "H.R. 1013", description: "As the chamber cites it" }),
+    title: z.string().openapi({
+      description:
+        "A bill's short title where it has one, else its full title; a nomination's nominee, or the post for a military nomination that names nobody",
+    }),
+  })
+  .openapi("MeasureSummary");
+
+export type MeasureSummary = z.infer<typeof MeasureSummarySchema>;
+
 export const MemberVoteSchema = z
   .object({
     vote: VoteSchema,
     position: PositionSchema,
     choice: z.string().nullable().openapi({ description: "Candidate named in a Speaker election" }),
+    measure: MeasureSummarySchema.nullable().openapi({
+      description: "null for a procedural vote that refers to no measure, e.g. a motion to adjourn",
+    }),
   })
   .openapi("MemberVote");
 
@@ -223,6 +246,7 @@ export const BillSchema = z
     congress: z.number().int(),
     type: z.string().openapi({ example: "hconres" }),
     number: z.number().int(),
+    citation: z.string().openapi({ example: "H.Con.Res. 14", description: "As the chamber cites it" }),
     title: z.string(),
     shortTitle: z.string().nullable(),
     sponsor: MemberSchema.nullable(),

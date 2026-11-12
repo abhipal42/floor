@@ -51,6 +51,7 @@ struct ContractTests {
             "PartyLoyalty": fields(PartyLoyalty.sample),
             "MemberDetail": fields(MemberDetail.sample),
             "MemberVote": fields(MemberVote.sample),
+            "MeasureSummary": fields(MeasureSummary.sample),
             "District": fields(District.sample),
             "Reps": fields(Reps.sample),
             "LatestAction": fields(LatestAction.sample),
@@ -70,8 +71,8 @@ struct ContractTests {
 
     @Test(arguments: [
         "Member", "VoteTotals", "Candidate", "Vote", "VoteDetail", "PartyTotals", "CandidateTotal",
-        "MemberPosition", "PartyLoyalty", "MemberDetail", "MemberVote", "District", "Reps",
-        "LatestAction", "CboEstimate", "BillAction", "Bill", "Nomination", "SourceStatus", "Error",
+        "MemberPosition", "PartyLoyalty", "MemberDetail", "MemberVote", "MeasureSummary", "District",
+        "Reps", "LatestAction", "CboEstimate", "BillAction", "Bill", "Nomination", "SourceStatus", "Error",
     ])
     func modelFieldsMatchItsSchema(name: String) throws {
         let model = try #require(Self.modelFields()[name], "no model registered for \(name)")

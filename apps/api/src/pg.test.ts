@@ -48,6 +48,12 @@ beforeAll(async () => {
       values ('119-pn-12-12', 119, 12, 12, 'PN12-12', 'Daniel Driscoll', 'Secretary of the Army', 'Department of Defense',
               'Daniel Driscoll, of North Carolina, to be Secretary of the Army, vice Christine Elizabeth Wormuth, resigned.',
               1, false, '2025-01-20', '2025-02-25', 'Confirmed by the Senate by Yea-Nay Vote. 66 - 28.');
+    insert into votes (id, chamber, congress, session, roll_number, question, state, yea, nay, result, bill_ref, occurred_at)
+      values ('senate-119-1-91', 'senate', 119, 1, 91, 'On the Nomination', 'final', 80, 10, 'Confirmed', 'PN900', '2025-02-26T16:15:00Z');
+    insert into nominations (id, congress, number, part, citation, nominee_name, position_title, organization,
+                             description, nominee_count, is_military, received_on, latest_action_on, latest_action_text)
+      values ('119-pn-900', 119, 900, 0, 'PN900', null, 'General', 'Army', null, 1, true, '2025-01-05', '2025-02-26', 'Confirmed.');
+    update votes set nomination_id = '119-pn-900' where id = 'senate-119-1-91';
     update votes set bill_id = '119-hr-1' where id = 'house-119-1-1';
     update votes set nomination_id = '119-pn-12-12' where id = 'senate-119-1-90';
     -- Five Democrats vote each time, so the bloc is big enough for a majority to mean something.
@@ -82,6 +88,9 @@ beforeAll(async () => {
       ('house-119-1-4', 'H000040', 'candidate', 'Jeffries'),
       ('house-119-1-4', 'H000010', 'candidate', 'Johnson'),
       ('house-119-1-4', 'H000011', 'candidate', 'Johnson');
+    insert into vote_positions (vote_id, member_id, position) values
+      ('senate-119-1-90', 'S000001', 'yea'),
+      ('senate-119-1-91', 'S000001', 'yea');
     insert into ingest_runs (source, started_at, finished_at, items, error) values
       ('members', '2025-01-01T00:00:00Z', '2025-01-01T00:01:00Z', 700, null),
       ('house_rollcalls', '2025-01-02T00:00:00Z', '2025-01-02T00:05:00Z', 10, null),
@@ -90,6 +99,12 @@ beforeAll(async () => {
   `);
   repos = pgRepositories(pg as unknown as Db);
 });
+
+/** Narrows an optional lookup in a test, failing loudly rather than silently skipping. */
+function try0<T>(value: T | undefined): T {
+  if (value === undefined) throw new Error("expected a row, found none");
+  return value;
+}
 
 describe("Postgres repositories", () => {
   it("returns the current House member and both senators for a district", async () => {
@@ -175,6 +190,41 @@ describe("Postgres repositories", () => {
       ["house-119-1-1", "yea"],
     ]);
     expect(await repos.members.recentVotes("H000037", 1)).toHaveLength(1);
+  });
+
+  it("names the measure on each row of a member's record, so a feed needs no extra request", async () => {
+    const votes = await repos.members.recentVotes("H000037", 10);
+    const onTheBill = try0(votes.find((v) => v.vote.id === "house-119-1-1"));
+    expect(onTheBill.measure).toEqual({
+      id: "119-hr-1",
+      kind: "bill",
+      citation: "H.R. 1",
+      // The short title, since this bill has one; otherwise the full title.
+      title: "Example Act",
+    });
+    // A procedural vote refers to no measure at all.
+    expect(try0(votes.find((v) => v.vote.id === "house-119-1-2")).measure).toBeNull();
+  });
+
+  it("names a nomination by its nominee, or by the post when it names nobody", async () => {
+    const votes = await repos.members.recentVotes("S000001", 10);
+    expect(try0(votes.find((v) => v.vote.id === "senate-119-1-90")).measure).toEqual({
+      id: "119-pn-12-12",
+      kind: "nomination",
+      citation: "PN12-12",
+      title: "Daniel Driscoll",
+    });
+    // Military nominations promote officers in bulk and carry no name.
+    expect(try0(votes.find((v) => v.vote.id === "senate-119-1-91")).measure).toEqual({
+      id: "119-pn-900",
+      kind: "nomination",
+      citation: "PN900",
+      title: "General, Army",
+    });
+  });
+
+  it("cites a bill the way its chamber does", async () => {
+    expect((await repos.bills.getBill("119-hr-1"))?.citation).toBe("H.R. 1");
   });
 
   it("breaks a question vote down by party, largest party first", async () => {

@@ -67,7 +67,14 @@ const app = createApp({
     membersFor: async (state, district) =>
       members.filter((m) => m.state === state && (m.chamber === "senate" || m.district === district)),
     recentVotes: async (id, limit) =>
-      id === "D000399" ? [{ vote: sample, position: "yea" as const, choice: null }].slice(0, limit) : [],
+      id === "D000399"
+        ? [{
+            vote: sample,
+            position: "yea" as const,
+            choice: null,
+            measure: { id: "119-hconres-14", kind: "bill" as const, citation: "H.Con.Res. 14", title: "FY2025 Budget" },
+          }].slice(0, limit)
+        : [],
     getMember: async (id) => members.find((m) => m.bioguideId === id) ?? null,
     partyLoyalty: async (id, party) => {
       loyaltyCalls.push(`${id}/${party}`);
@@ -78,7 +85,8 @@ const app = createApp({
     getBill: async (id) =>
       id === "119-hconres-14"
         ? {
-            id, congress: 119, type: "hconres", number: 14, title: "Establishing the congressional budget", shortTitle: null,
+            id, congress: 119, type: "hconres", number: 14, citation: "H.Con.Res. 14",
+            title: "Establishing the congressional budget", shortTitle: null,
             sponsor: null, introducedOn: "2025-02-18", originChamber: "house", policyArea: "Economics and Public Finance",
             summary: "This concurrent resolution establishes the budget.", summaryStage: "Introduced in House",
             latestAction: { on: "2025-05-20", text: "Star Print ordered." }, cboEstimates: [], actions: [], votes: [sample],
@@ -202,7 +210,14 @@ describe("API", () => {
   it("lists a member's recent votes", async () => {
     const res = await app.request("/v1/members/D000399/votes?limit=5");
     expect(res.status).toBe(200);
-    expect(await res.json()).toEqual({ votes: [{ vote: sample, position: "yea", choice: null }] });
+    expect(await res.json()).toEqual({
+      votes: [{
+        vote: sample,
+        position: "yea",
+        choice: null,
+        measure: { id: "119-hconres-14", kind: "bill", citation: "H.Con.Res. 14", title: "FY2025 Budget" },
+      }],
+    });
   });
 
   it("rejects malformed member IDs and limits", async () => {
@@ -273,14 +288,16 @@ describe("API", () => {
   it("keeps nullability off the shared components, except where every use is nullable", async () => {
     // zod-openapi hoists `nullable` onto a registered component when a nullable use is registered
     // before a non-nullable one, which would quietly make the component nullable everywhere it is
-    // referenced — including at uses that are not supposed to accept null. LatestAction is nullable
-    // at both of its uses, so carrying it on the component is correct there. Anything else showing
-    // up here needs checking against how it is actually used before the list is widened.
+    // referenced — including at uses that are not supposed to accept null. Both of these are
+    // nullable at every use they have, so carrying it on the component is correct for them:
+    // LatestAction on Bill and Nomination, MeasureSummary on MemberVote (a procedural vote refers
+    // to no measure). Anything else showing up here needs checking against how it is actually used
+    // before the list is widened.
     const doc = await (await app.request("/openapi.json")).json();
     const schemas: Record<string, { nullable?: boolean }> = doc.components.schemas;
     const hoisted = Object.entries(schemas)
       .filter(([, schema]) => schema.nullable)
       .map(([name]) => name);
-    expect(hoisted).toEqual(["LatestAction"]);
+    expect(hoisted.sort()).toEqual(["LatestAction", "MeasureSummary"]);
   });
 });

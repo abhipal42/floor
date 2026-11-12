@@ -2,6 +2,7 @@ import type {
   Bill,
   BillRepository,
   CandidateTotal,
+  MeasureSummary,
   Member,
   MemberRepository,
   MemberPosition,
@@ -80,6 +81,33 @@ const toMember = (r: MemberRow): Member => ({
   district: r.district,
   chamber: r.chamber,
 });
+
+/**
+ * How each chamber writes a bill number. Defined once because both `getBill` and the vote feed
+ * report it: if they formatted it separately, the same bill could appear as "H.R. 1013" on one
+ * screen and something else on another.
+ */
+const BILL_LABEL: Record<string, string> = {
+  hr: "H.R.",
+  s: "S.",
+  hres: "H.Res.",
+  sres: "S.Res.",
+  hjres: "H.J.Res.",
+  sjres: "S.J.Res.",
+  hconres: "H.Con.Res.",
+  sconres: "S.Con.Res.",
+};
+
+const billCitation = (type: string, number: number): string =>
+  `${BILL_LABEL[type] ?? type.toUpperCase()} ${number}`;
+
+/** What to call a nomination when it names no one, which military nominations do not. */
+const nominationTitle = (r: {
+  nominee_name: string | null;
+  position_title: string | null;
+  organization: string | null;
+}): string =>
+  r.nominee_name ?? ([r.position_title, r.organization].filter(Boolean).join(", ") || "Nomination");
 
 /**
  * Smallest party bloc that can have a meaningful majority on a vote, for `partyLoyalty`. Below this
@@ -172,6 +200,7 @@ export function pgRepositories(db: Db): {
           congress: b.congress,
           type: b.bill_type,
           number: b.number,
+          citation: billCitation(b.bill_type, b.number),
           title: b.title,
           shortTitle: b.short_title,
           sponsor: b.sponsor ? toMember(b.sponsor) : null,
@@ -306,15 +335,53 @@ export function pgRepositories(db: Db): {
         return rows.map(toMember);
       },
       async recentVotes(bioguideId, limit) {
-        const { rows } = await db.query<VoteRow & { position: MemberVote["position"]; choice: string | null }>(
-          `select ${VOTE_COLUMNS}, p.position, p.choice
-             from vote_positions p join votes v on v.id = p.vote_id
+        // The measure is joined rather than fetched per row: a feed of votes has to name what each
+        // one was about, and one request per card is not viable on the Home screen.
+        const { rows } = await db.query<
+          VoteRow & {
+            position: MemberVote["position"];
+            choice: string | null;
+            bill_type: string | null;
+            bill_number: number | null;
+            bill_short_title: string | null;
+            bill_title: string | null;
+            nomination_citation: string | null;
+            nominee_name: string | null;
+            position_title: string | null;
+            organization: string | null;
+          }
+        >(
+          `select ${VOTE_COLUMNS}, p.position, p.choice,
+                  b.bill_type, b.number as bill_number, b.short_title as bill_short_title, b.title as bill_title,
+                  n.citation as nomination_citation, n.nominee_name, n.position_title, n.organization
+             from vote_positions p
+             join votes v on v.id = p.vote_id
+             left join bills b on b.id = v.bill_id
+             left join nominations n on n.id = v.nomination_id
             where p.member_id = $1
             order by v.occurred_at desc nulls last, v.roll_number desc
             limit $2`,
           [bioguideId, limit],
         );
-        return rows.map((r) => ({ vote: toVote(r), position: r.position, choice: r.choice }));
+        return rows.map((r) => {
+          let measure: MeasureSummary | null = null;
+          if (r.bill_id && r.bill_type && r.bill_number != null) {
+            measure = {
+              id: r.bill_id,
+              kind: "bill",
+              citation: billCitation(r.bill_type, r.bill_number),
+              title: r.bill_short_title ?? r.bill_title ?? billCitation(r.bill_type, r.bill_number),
+            };
+          } else if (r.nomination_id && r.nomination_citation) {
+            measure = {
+              id: r.nomination_id,
+              kind: "nomination",
+              citation: r.nomination_citation,
+              title: nominationTitle(r),
+            };
+          }
+          return { vote: toVote(r), position: r.position, choice: r.choice, measure };
+        });
       },
       async getMember(bioguideId) {
         const { rows } = await db.query<MemberRow>(

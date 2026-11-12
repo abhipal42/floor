@@ -478,6 +478,39 @@
           "result"
         ]
       },
+      "MeasureSummary": {
+        "type": "object",
+        "nullable": true,
+        "properties": {
+          "id": {
+            "type": "string",
+            "example": "119-hr-1013"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "bill",
+              "nomination"
+            ]
+          },
+          "citation": {
+            "type": "string",
+            "description": "As the chamber cites it",
+            "example": "H.R. 1013"
+          },
+          "title": {
+            "type": "string",
+            "description": "A bill's short title where it has one, else its full title; a nomination's nominee, or the post for a military nomination that names nobody"
+          }
+        },
+        "required": [
+          "id",
+          "kind",
+          "citation",
+          "title"
+        ],
+        "description": "null for a procedural vote that refers to no measure, e.g. a motion to adjourn"
+      },
       "MemberVote": {
         "type": "object",
         "properties": {
@@ -491,12 +524,16 @@
             "type": "string",
             "nullable": true,
             "description": "Candidate named in a Speaker election"
+          },
+          "measure": {
+            "$ref": "#/components/schemas/MeasureSummary"
           }
         },
         "required": [
           "vote",
           "position",
-          "choice"
+          "choice",
+          "measure"
         ]
       },
       "LatestAction": {
@@ -579,6 +616,11 @@
           "number": {
             "type": "integer"
           },
+          "citation": {
+            "type": "string",
+            "description": "As the chamber cites it",
+            "example": "H.Con.Res. 14"
+          },
           "title": {
             "type": "string"
           },
@@ -650,6 +692,7 @@
           "congress",
           "type",
           "number",
+          "citation",
           "title",
           "shortTitle",
           "sponsor",

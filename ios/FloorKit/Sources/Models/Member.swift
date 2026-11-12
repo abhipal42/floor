@@ -70,19 +70,49 @@ public struct MemberDetail: Codable, Sendable, Hashable, Identifiable {
     }
 }
 
+/// Just enough about the bill or nomination a vote was on to label it in a list.
+///
+/// Carried on each row so a feed can name what each vote was about without a request per row.
+public struct MeasureSummary: Codable, Sendable, Hashable, Identifiable {
+    public enum Kind: String, Codable, Sendable, Hashable, CaseIterable {
+        case bill, nomination
+    }
+
+    public var id: String
+    public var kind: Kind
+    /// As the chamber cites it: `H.R. 1013`, `PN1093-3`.
+    public var citation: String
+    /// A bill's short title where it has one, else its full title; a nomination's nominee, or the
+    /// post for a military nomination that names nobody.
+    public var title: String
+
+    public init(id: String, kind: Kind, citation: String, title: String) {
+        self.id = id
+        self.kind = kind
+        self.citation = citation
+        self.title = title
+    }
+
+    /// `H.R. 1013 · Retirement Fairness Act`, as a card headline.
+    public var headline: String { "\(citation) · \(title)" }
+}
+
 /// One row of a member's voting record.
 public struct MemberVote: Codable, Sendable, Hashable, Identifiable {
     public var vote: Vote
     public var position: Position
     /// The candidate they named, on a Speaker election.
     public var choice: String?
+    /// nil for a procedural vote that refers to no measure, e.g. a motion to adjourn.
+    public var measure: MeasureSummary?
 
     public var id: String { vote.id }
 
-    public init(vote: Vote, position: Position, choice: String?) {
+    public init(vote: Vote, position: Position, choice: String?, measure: MeasureSummary?) {
         self.vote = vote
         self.position = position
         self.choice = choice
+        self.measure = measure
     }
 }
 

@@ -55,6 +55,9 @@ public struct Bill: Codable, Sendable, Hashable, Identifiable {
     /// `hr`, `s`, `hconres` and so on.
     public var type: String
     public var number: Int
+    /// As the chamber cites it, e.g. `H.Con.Res. 14`. Sent by the API rather than derived here, so
+    /// a bill cannot be cited one way in a feed and another on its own screen.
+    public var citation: String
     public var title: String
     /// nil when the bill has no short title of its own. Some appropriations bills carry short
     /// titles only for their divisions, which the API deliberately does not use, so clients must
@@ -75,7 +78,7 @@ public struct Bill: Codable, Sendable, Hashable, Identifiable {
     public var votes: [Vote]
 
     public init(
-        id: String, congress: Int, type: String, number: Int, title: String, shortTitle: String?,
+        id: String, congress: Int, type: String, number: Int, citation: String, title: String, shortTitle: String?,
         sponsor: Member?, introducedOn: String?, originChamber: Chamber?, policyArea: String?,
         summary: String?, summaryStage: String?, latestAction: LatestAction?,
         cboEstimates: [CboEstimate], actions: [BillAction], votes: [Vote]
@@ -84,6 +87,7 @@ public struct Bill: Codable, Sendable, Hashable, Identifiable {
         self.congress = congress
         self.type = type
         self.number = number
+        self.citation = citation
         self.title = title
         self.shortTitle = shortTitle
         self.sponsor = sponsor
@@ -100,23 +104,6 @@ public struct Bill: Codable, Sendable, Hashable, Identifiable {
 
     /// What to show as the bill's name: its short title where it has one, its full title otherwise.
     public var displayTitle: String { shortTitle ?? title }
-
-    /// How the chamber cites it, e.g. `H.Con.Res. 14`.
-    public var citation: String {
-        let label: String
-        switch type {
-        case "hr": label = "H.R."
-        case "s": label = "S."
-        case "hres": label = "H.Res."
-        case "sres": label = "S.Res."
-        case "hjres": label = "H.J.Res."
-        case "sjres": label = "S.J.Res."
-        case "hconres": label = "H.Con.Res."
-        case "sconres": label = "S.Con.Res."
-        default: label = type.uppercased()
-        }
-        return "\(label) \(number)"
-    }
 
     public var introducedOnDay: Date? { introducedOn.flatMap(Formats.day) }
 }

@@ -122,18 +122,12 @@ struct BillTests {
         #expect(bill.originChamber == .house)
     }
 
-    @Test func citesEachBillTypeTheWayTheChamberDoes() {
-        let cite = { (type: String) in
-            Bill(
-                id: "x", congress: 119, type: type, number: 1, title: "t", shortTitle: nil, sponsor: nil,
-                introducedOn: nil, originChamber: nil, policyArea: nil, summary: nil, summaryStage: nil,
-                latestAction: nil, cboEstimates: [], actions: [], votes: []
-            ).citation
-        }
-        #expect(cite("hr") == "H.R. 1")
-        #expect(cite("s") == "S. 1")
-        #expect(cite("hconres") == "H.Con.Res. 1")
-        #expect(cite("sjres") == "S.J.Res. 1")
+    /// The citation is sent by the API rather than derived here, so a bill cannot be cited one way
+    /// in a feed and another on its own screen. The formatting itself is covered server-side, in
+    /// `apps/api/src/pg.test.ts`.
+    @Test func takesItsCitationFromTheAPI() throws {
+        #expect(try fixture("bill", as: Bill.self).citation == "H.Con.Res. 14")
+        #expect(try fixture("bill-no-short-title", as: Bill.self).citation == "H.Con.Res. 21")
     }
 
     @Test func parsesCalendarDaysWithoutATimeZoneShift() throws {
@@ -184,6 +178,20 @@ struct MemberTests {
         let record = try fixture("member-votes", as: MemberVotes.self)
         #expect(!record.votes.isEmpty)
         #expect(record.votes.allSatisfy { !$0.vote.id.isEmpty })
+    }
+
+    /// Each row names its measure, so a feed can label every card without a request per row.
+    @Test func namesTheMeasureOnEachRow() throws {
+        let record = try fixture("member-votes", as: MemberVotes.self)
+        let first = try #require(record.votes.first)
+        let measure = try #require(first.measure)
+        #expect(measure.kind == .bill)
+        #expect(measure.id == first.vote.billId)
+        #expect(!measure.title.isEmpty)
+        #expect(measure.headline == "\(measure.citation) · \(measure.title)")
+        // A procedural vote refers to no measure at all.
+        #expect(MemberVote.sampleProcedural.measure == nil)
+        #expect(MemberVote.sampleProcedural.vote.billId == nil)
     }
 
     @Test func senatorsHaveNoDistrict() {

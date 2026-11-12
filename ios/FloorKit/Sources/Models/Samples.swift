@@ -86,8 +86,27 @@ public extension MemberDetail {
     static let sample = MemberDetail(member: .sample, partyLoyalty: .sample)
 }
 
+public extension MeasureSummary {
+    static let sample = MeasureSummary(
+        id: "119-hconres-14", kind: .bill, citation: "H.Con.Res. 14",
+        title: "Establishing the congressional budget for fiscal year 2025"
+    )
+}
+
 public extension MemberVote {
-    static let sample = MemberVote(vote: .sample, position: .nay, choice: nil)
+    static let sample = MemberVote(vote: .sample, position: .nay, choice: nil, measure: .sample)
+
+    /// A procedural vote refers to no measure.
+    static let sampleProcedural = MemberVote(
+        vote: Vote(
+            id: "house-119-1-5", kind: .question, chamber: .house, congress: 119, session: 1,
+            rollNumber: 5, question: "On Motion to Adjourn", billId: nil, nominationId: nil,
+            billRef: "ADJOURN", occurredAt: nil, state: .final, threshold: .majority,
+            totals: VoteTotals(yea: 201, nay: 210, present: 0, notVoting: 24), candidates: [],
+            result: "Failed"
+        ),
+        position: .nay, choice: nil, measure: nil
+    )
 }
 
 public extension MemberVotes {
@@ -121,7 +140,7 @@ public extension BillAction {
 
 public extension Bill {
     static let sample = Bill(
-        id: "119-hconres-14", congress: 119, type: "hconres", number: 14,
+        id: "119-hconres-14", congress: 119, type: "hconres", number: 14, citation: "H.Con.Res. 14",
         title: "Establishing the congressional budget for the United States Government for fiscal year 2025.",
         shortTitle: nil, sponsor: nil, introducedOn: "2025-02-18", originChamber: .house,
         policyArea: "Economics and Public Finance",
