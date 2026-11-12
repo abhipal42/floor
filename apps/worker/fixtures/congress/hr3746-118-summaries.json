@@ -1,0 +1,43 @@
+{
+  "pagination": {
+    "count": 4
+  },
+  "request": {
+    "billNumber": "3746",
+    "billType": "hr",
+    "billUrl": "https://api.congress.gov/v3/bill/118/hr/3746?format=json",
+    "congress": "118",
+    "contentType": "application/json",
+    "format": "json"
+  },
+  "summaries": [
+    {
+      "actionDate": "2023-05-29",
+      "actionDesc": "Introduced in House",
+      "text": " <p><b>Fiscal Responsibility Act of 2023</b></p> <p>This bill increases the federal debt limit, establishes new discretionary spending limits, rescinds unobligated funds, and expands work requirements for federal programs. </p> <p>Specifically, the bill suspends the federal debt limit through Januar… [truncated for fixture]",
+      "updateDate": "2023-05-31T00:29:33Z",
+      "versionCode": "00"
+    },
+    {
+      "actionDate": "2023-05-31",
+      "actionDesc": "Passed House",
+      "text": " <p><b>Fiscal Responsibility Act of 2023</b></p> <p>This bill increases the federal debt limit, establishes new discretionary spending limits, rescinds unobligated funds, expands work requirements for federal programs, and modifies other requirements related to the federal budget process. </p> <p>DI… [truncated for fixture]",
+      "updateDate": "2023-06-16T19:40:53Z",
+      "versionCode": "53"
+    },
+    {
+      "actionDate": "2023-06-01",
+      "actionDesc": "Passed Senate",
+      "text": " <p><b>Fiscal Responsibility Act of 2023</b></p> <p>This bill increases the federal debt limit, establishes new discretionary spending limits, rescinds unobligated funds, expands work requirements for federal programs, and modifies other requirements related to the federal budget process. </p> <p>DI… [truncated for fixture]",
+      "updateDate": "2023-06-16T19:43:11Z",
+      "versionCode": "55"
+    },
+    {
+      "actionDate": "2023-06-03",
+      "actionDesc": "Public Law",
+      "text": " <p><b>Fiscal Responsibility Act of 2023</b></p> <p>This act increases the federal debt limit, establishes new discretionary spending limits, rescinds unobligated funds, expands work requirements for federal programs, and modifies other requirements related to the federal budget process. </p> <p>DIV… [truncated for fixture]",
+      "updateDate": "2023-06-16T19:39:39Z",
+      "versionCode": "49"
+    }
+  ]
+}

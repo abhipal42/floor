@@ -2,7 +2,7 @@
 
 Last updated 2026-11-12. Read this first, then [`plan.md`](plan.md) for the full design and reasoning.
 
-**In one paragraph:** M0 (foundation) is done. M1 (data backbone) is done except for a bill spot-check and two deferred items (nominations; posting latency, which moves to M3). Staging Postgres holds every House and Senate roll call since January 2023, and every one matches the official totals. The API serves district lookup, member votes, votes, bills and data freshness from that database. The iOS app is still a skeleton (one scoreboard card on sample data). M2 builds the real app screens on this API.
+**In one paragraph:** M0 (foundation) is done. M1 (data backbone) is done except for two deferred items (nominations; posting latency, which moves to M3) and one chore: the bill spot-check found three Congress.gov mapping bugs, and although they are fixed in the worker, staging still holds the wrong values until a `bills --refresh` runs (see section 4). Staging Postgres holds every House and Senate roll call since January 2023, and every one matches the official totals. The API serves district lookup, member votes, votes, bills and data freshness from that database. The iOS app is still a skeleton (one scoreboard card on sample data). M2 builds the real app screens on this API.
 
 ---
 
@@ -111,7 +111,18 @@ Real data broke our first assumptions several times. Each case below is now hand
 6. **Measure references differ by chamber.** The House writes `H R 2207` / `H CON RES 14`; the Senate writes `H.R. 2207` / `S.J.Res. 10` / `PN1093-3`. `parseMeasureRef` normalizes both and recognizes nominations.
 7. **Never log Congress.gov URLs.** They contain the API key. `congressClient` errors print only the path.
 8. **Row-level security is on for every table.** Public tables are read-only via a `public read` policy, and only the service connection writes. `ingest_runs` has no public policy. Supabase's security advisor reports zero issues; re-check it after any migration.
-9. **Applying migrations to staging:** apply each new file in `supabase/migrations` in order (Supabase SQL editor or `supabase db push`). Tests run all migrations against PGlite, so a migration that breaks shows up in `npm run check` first.
+9. **Congress.gov short titles include titles for *portions* of a bill.** Big measures carry a short title per
+   division, tagged `… for portions of this bill`, at the same stage as the real one. Taking the first match made
+   H.R. 2670 (118th) read "Radiation Exposure Compensation Act Amendments" instead of "National Defense
+   Authorization Act for Fiscal Year 2024". `pickShortTitle` now drops portion titles. Bills whose only short
+   titles are portion titles (some appropriations bills) correctly end up with `short_title = null`, so clients
+   must fall back to `title`.
+10. **Summaries are ordered by stage, not by `updateDate`.** Congress.gov reindexes summaries in arbitrary order:
+   H.R. 3746 (118th) has its Public Law summary stamped three minutes *before* its Passed Senate one. Sort on
+   `actionDate`.
+11. **Congress.gov sub-resources page at 20 by default.** `/titles` was fetched without a limit, so bills with
+   more than 20 titles (H.R. 815 of the 118th has 44) were silently truncated. Pass `limit=250`, as `/actions` does.
+12. **Applying migrations to staging:** apply each new file in `supabase/migrations` in order (Supabase SQL editor or `supabase db push`). Tests run all migrations against PGlite, so a migration that breaks shows up in `npm run check` first.
 
 ---
 
@@ -121,7 +132,20 @@ Real data broke our first assumptions several times. Each case below is now hand
    ```sql
    select count(*) from votes where bill_id is null and bill_ref is not null and bill_ref !~ '^(PN|QUORUM|ADJOURN|Treaty)';
    ```
-2. **Spot-check 5 bills** from `/v1/bills/{id}` against congress.gov (title, sponsor, latest action, summary).
+2. ~~Spot-check 5 bills~~ **Done**, and it found three mapping bugs (lessons 9-11 above), now fixed with tests on
+   saved real responses. Title, sponsor, introduced date, policy area and latest action were correct on all five.
+   Measured against the API on two samples: a random 60 bills were 100% correct, but of the 58 largest bills
+   (omnibus, appropriations, NDAA, reconciliation) **36% had the wrong `short_title` and 16% the wrong
+   `summary_stage`** — exactly the bills the app will show most.
+   **Staging still holds those wrong values.** The fix only affects what is written, so the stored rows need
+   rebuilding, which is what `--refresh` is for (~1s per bill, so ~18 minutes for all 1,049):
+   ```bash
+   npm run ingest -w @floor/worker -- bills --refresh
+   ```
+   It re-fetches each stored bill and leaves `votes.bill_id` alone. Re-run the two sample checks afterwards.
+   One case is still imperfect: H.R. 815 (118th) was gutted and replaced by the Senate, and `pickShortTitle`
+   ranks "as Passed House" and "as Passed Senate" equally, so it keeps the House title. Ranking the chambers by
+   which acted last would fix it.
 3. **Nominations (deferred from M1).** About 900 Senate votes are on nominations (`PN…`). Add a `nominations` table and an ingest from Congress.gov `/nomination/{congress}/{number}` (nominee, position, agency), and link the votes. Follow the `bills.ts` pattern, including tests on saved real responses.
 4. **Posting-latency measurement (moved to M3).** We can only measure how long the Clerk and LIS take to post roll call files on a live session day with polling running.
 

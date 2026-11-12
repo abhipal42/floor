@@ -79,9 +79,20 @@ type Json = Record<string, unknown>;
 /** A list field from a Congress.gov response; sub-resources come back as `{ count, url }` links instead. */
 const list = (value: unknown): Json[] => (Array.isArray(value) ? (value as Json[]) : []);
 
-/** Prefers the most advanced short title: enacted, then passed, then reported, then introduced. */
+/**
+ * Prefers the most advanced short title: enacted, then passed, then reported, then introduced.
+ *
+ * Congress.gov also lists short titles for *portions* of a bill — the divisions and titles inside it. Those
+ * name a component, not the measure, and they tie with the real short title on stage, so whichever the API
+ * happened to list first used to win: H.R. 1 (119th) came back as "FEHB Protection Act of 2025" instead of
+ * "One Big Beautiful Bill Act", and H.R. 3746 (118th) as "Administrative Pay-As-You-Go Act of 2023" instead
+ * of "Fiscal Responsibility Act of 2023". They always carry "for portions of this bill" in the title type.
+ */
 export function pickShortTitle(titlesJson: Json): string | null {
-  const shorts = list(titlesJson["titles"]).filter((t) => /^short title/i.test(String(t["titleType"] ?? "")));
+  const shorts = list(titlesJson["titles"]).filter((t) => {
+    const type = String(t["titleType"] ?? "");
+    return /^short title/i.test(type) && !/portions of this bill/i.test(type);
+  });
   const rank = (t: Json) => {
     const type = String(t["titleType"]).toLowerCase();
     return type.includes("enacted") ? 0 : type.includes("passed") ? 1 : type.includes("reported") ? 2 : 3;
@@ -99,8 +110,12 @@ export function toBillRow(billJson: Json, summariesJson: Json, titlesJson: Json 
   const latest = b["latestAction"] as Json | undefined;
   const origin = String(b["originChamber"] ?? "").toLowerCase();
 
+  // Ordered by actionDate (the legislative stage), not updateDate: Congress.gov reindexes summaries in
+  // arbitrary order, so H.R. 3746 (118th) carries its Public Law summary stamped three minutes *before*
+  // its Passed Senate one. Sorting on updateDate therefore stored the stale summary. Sort is stable, so
+  // summaries sharing an actionDate keep the order the API returned them in.
   const summaries = list(summariesJson["summaries"]).slice();
-  summaries.sort((a, z) => String(a["updateDate"] ?? a["actionDate"]).localeCompare(String(z["updateDate"] ?? z["actionDate"])));
+  summaries.sort((a, z) => String(a["actionDate"] ?? "").localeCompare(String(z["actionDate"] ?? "")));
   const summary = summaries.at(-1);
 
   const cbo = list(b["cboCostEstimates"]).map((c) => ({
@@ -203,28 +218,37 @@ export function congressClient(apiKey: string, fetchImpl: typeof fetch = fetch):
 }
 
 /**
- * Loads every bill that a stored vote refers to but that isn't linked yet,
- * then links those votes to it.
+ * Loads every bill that a stored vote refers to but that isn't linked yet, then links those votes to it.
+ *
+ * With `refresh`, re-fetches bills already stored instead, leaving the vote links alone. Use it when a bill
+ * has moved on since it was loaded, or when a mapping fix means the stored rows need rebuilding.
  */
 export async function ingestVotedBills(
   db: Db,
   get: CongressGet,
-  opts: { limit?: number; log?: (msg: string) => void } = {},
+  opts: { limit?: number; refresh?: boolean; log?: (msg: string) => void } = {},
 ): Promise<{ bills: number; linkedVotes: number; failed: number }> {
   const finish = await startRun(db, "bills");
-  const { rows } = await db.query<{ congress: number; bill_ref: string }>(
-    "select distinct congress, bill_ref from votes where bill_id is null and bill_ref is not null order by congress, bill_ref",
-  );
 
   // Group the chambers' different spellings of the same bill.
   const byBill = new Map<string, { congress: number; type: BillType; number: number; refs: string[] }>();
-  for (const r of rows) {
-    const ref = parseMeasureRef(r.bill_ref);
-    if (ref?.kind !== "bill") continue;
-    const id = billId(r.congress, ref.type, ref.number);
-    const entry = byBill.get(id) ?? { congress: r.congress, type: ref.type, number: ref.number, refs: [] };
-    entry.refs.push(r.bill_ref);
-    byBill.set(id, entry);
+  if (opts.refresh) {
+    const { rows } = await db.query<{ id: string; congress: number; bill_type: BillType; number: number }>(
+      "select id, congress, bill_type, number from bills order by id",
+    );
+    for (const r of rows) byBill.set(r.id, { congress: r.congress, type: r.bill_type, number: r.number, refs: [] });
+  } else {
+    const { rows } = await db.query<{ congress: number; bill_ref: string }>(
+      "select distinct congress, bill_ref from votes where bill_id is null and bill_ref is not null order by congress, bill_ref",
+    );
+    for (const r of rows) {
+      const ref = parseMeasureRef(r.bill_ref);
+      if (ref?.kind !== "bill") continue;
+      const id = billId(r.congress, ref.type, ref.number);
+      const entry = byBill.get(id) ?? { congress: r.congress, type: ref.type, number: ref.number, refs: [] };
+      entry.refs.push(r.bill_ref);
+      byBill.set(id, entry);
+    }
   }
 
   let bills = 0;
@@ -239,17 +263,22 @@ export async function ingestVotedBills(
           get(path),
           get(`${path}/actions?limit=250`),
           get(`${path}/summaries`),
-          get(`${path}/titles`),
+          get(`${path}/titles?limit=250`),
         ]);
         await withRetry(() => upsertBill(db, toBillRow(bill, summaries, titles), toActionRows(actions)));
-        const { rows: linked } = await db.query<{ n: number }>(
-          `with u as (update votes set bill_id = $1 where congress = $2 and bill_ref = any($3::text[]) returning 1)
-           select count(*)::int as n from u`,
-          [id, b.congress, b.refs],
-        );
-        linkedVotes += linked[0]?.n ?? 0;
+        // A refresh has no refs to match: the votes are already linked, only the bill row is being rebuilt.
+        if (b.refs.length > 0) {
+          const { rows: linked } = await db.query<{ n: number }>(
+            `with u as (update votes set bill_id = $1 where congress = $2 and bill_ref = any($3::text[]) returning 1)
+             select count(*)::int as n from u`,
+            [id, b.congress, b.refs],
+          );
+          linkedVotes += linked[0]?.n ?? 0;
+          opts.log?.(`${id}: linked ${linked[0]?.n ?? 0} votes`);
+        } else {
+          opts.log?.(`${id}: refreshed`);
+        }
         bills++;
-        opts.log?.(`${id}: linked ${linked[0]?.n ?? 0} votes`);
       } catch (err) {
         // One missing or malformed bill shouldn't stop the rest; it stays unlinked and is retried next run.
         failed++;

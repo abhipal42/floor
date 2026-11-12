@@ -23,6 +23,9 @@ const bill = fixture("hconres14-bill.json");
 const actions = fixture("hconres14-actions.json");
 const summaries = fixture("hconres14-summaries.json");
 const titles = fixture("hconres14-titles.json");
+const hr1Titles = fixture("hr1-119-titles.json");
+// Real /summaries response; only the long summary bodies are shortened so the fixture stays small.
+const hr3746Summaries = fixture("hr3746-118-summaries.json");
 
 describe("parseMeasureRef", () => {
   it.each([
@@ -89,6 +92,31 @@ describe("Congress.gov mapping (real H.Con.Res. 14 responses)", () => {
     expect(pickShortTitle({ titles: { count: 3, url: "https://api.congress.gov/..." } })).toBeNull();
   });
 
+  it("ignores short titles that name only a portion of the bill (real H.R. 1, 119th)", () => {
+    // Congress.gov lists "FEHB Protection Act of 2025" as an enacted short title for a portion of H.R. 1.
+    // The measure itself is the One Big Beautiful Bill Act, and that is what the card must show.
+    expect(pickShortTitle(hr1Titles)).toBe("One Big Beautiful Bill Act");
+    expect(
+      pickShortTitle({
+        titles: [
+          { titleType: "Short Titles as Enacted for portions of this bill", title: "A Division Inside It Act" },
+          { titleType: "Short Title(s) as Passed House", title: "The Whole Bill Act" },
+        ],
+      }),
+    ).toBe("The Whole Bill Act");
+    // A bill whose only short titles describe portions has no short title of its own.
+    expect(
+      pickShortTitle({ titles: [{ titleType: "Short Titles as Enacted for portions of this bill", title: "Part Act" }] }),
+    ).toBeNull();
+  });
+
+  it("takes the summary from the latest legislative stage, not the latest reindex (real H.R. 3746, 118th)", () => {
+    // Congress.gov stamped this bill's Public Law summary three minutes BEFORE its Passed Senate one,
+    // so ordering by updateDate stored the stale "Passed Senate" text.
+    const row = toBillRow(bill, hr3746Summaries, titles);
+    expect(row.summary_stage).toBe("Public Law");
+  });
+
   it("converts summary HTML to text", () => {
     expect(htmlToText("<p>One&nbsp;&amp; two.</p><p>Three &ldquo;four&rdquo;</p>")).toBe('One & two.\n\nThree "four"');
   });
@@ -151,7 +179,7 @@ describe("ingestVotedBills", () => {
       if (path.startsWith("/bill/119/hr/9999")) throw new Error("Congress.gov /bill/119/hr/9999 returned HTTP 404");
       if (path.endsWith("/actions?limit=250")) return actions;
       if (path.endsWith("/summaries")) return summaries;
-      if (path.endsWith("/titles")) return titles;
+      if (path.endsWith("/titles?limit=250")) return titles;
       return bill;
     };
     const result = await ingestVotedBills(pg as unknown as Db, get);
@@ -174,6 +202,32 @@ describe("ingestVotedBills", () => {
 
     const { rows: run } = await pg.query<{ items: number; error: string }>("select items, error from ingest_runs where source = 'bills'");
     expect(run).toEqual([{ items: 1, error: "1 bills failed" }]);
+  });
+
+  it("refresh re-fetches stored bills and leaves the vote links alone", async () => {
+    const requested: string[] = [];
+    const get: CongressGet = async (path) => {
+      requested.push(path);
+      if (path.endsWith("/actions?limit=250")) return actions;
+      if (path.endsWith("/summaries")) return summaries;
+      if (path.endsWith("/titles?limit=250")) return titles;
+      return bill;
+    };
+    const before = await pg.query<{ id: string; bill_id: string | null }>("select id, bill_id from votes order by id");
+    const result = await ingestVotedBills(pg as unknown as Db, get, { refresh: true });
+
+    // The one stored bill is re-fetched; the unlinked H.R. 9999 that never loaded is not.
+    expect(result).toMatchObject({ bills: 1, linkedVotes: 0, failed: 0 });
+    expect(new Set(requested.map((p) => p.split("?")[0]))).toEqual(
+      new Set([
+        "/bill/119/hconres/14",
+        "/bill/119/hconres/14/actions",
+        "/bill/119/hconres/14/summaries",
+        "/bill/119/hconres/14/titles",
+      ]),
+    );
+    const after = await pg.query<{ id: string; bill_id: string | null }>("select id, bill_id from votes order by id");
+    expect(after.rows).toEqual(before.rows);
   });
 
   it("is idempotent: a second run only retries the bill that failed", async () => {
