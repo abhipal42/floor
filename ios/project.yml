@@ -15,6 +15,8 @@ targets:
       - package: FloorKit
         product: Models
       - package: FloorKit
+        product: APIClient
+      - package: FloorKit
         product: DesignSystem
     settings:
       base:

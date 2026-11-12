@@ -6,10 +6,12 @@ let package = Package(
     platforms: [.iOS("17.2"), .macOS(.v14)],
     products: [
         .library(name: "Models", targets: ["Models"]),
+        .library(name: "APIClient", targets: ["APIClient"]),
         .library(name: "DesignSystem", targets: ["DesignSystem"]),
     ],
     targets: [
         .target(name: "Models"),
+        .target(name: "APIClient", dependencies: ["Models"]),
         .target(name: "DesignSystem", dependencies: ["Models"]),
         .testTarget(
             name: "ModelsTests",
@@ -17,5 +19,8 @@ let package = Package(
             // Real API responses captured from staging; see ModelsTests/Fixtures.
             resources: [.copy("Fixtures")]
         ),
+        // Reads the same fixtures from the source tree rather than copying them into a second
+        // bundle, so there is one set of captured responses to keep current.
+        .testTarget(name: "APIClientTests", dependencies: ["APIClient"]),
     ]
 )
