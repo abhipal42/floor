@@ -6,13 +6,14 @@ import { pgRepositories, type Db } from "./pg.js";
 
 const CONGRESS = Number(process.env.CONGRESS ?? 119);
 
-function repositories(): Pick<AppDeps, "votes" | "members" | "bills" | "status"> {
+function repositories(): Pick<AppDeps, "votes" | "members" | "bills" | "nominations" | "status"> {
   if (!process.env.DATABASE_URL) {
     console.warn("DATABASE_URL is not set: serving empty data");
     return {
       votes: { getVote: async () => null },
       members: { membersFor: async () => [], recentVotes: async () => [] },
       bills: { getBill: async () => null },
+      nominations: { getNomination: async () => null },
       status: { lastRuns: async () => [] },
     };
   }

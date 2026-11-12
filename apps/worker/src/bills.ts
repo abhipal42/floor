@@ -74,10 +74,10 @@ export function htmlToText(html: string): string {
     .trim();
 }
 
-type Json = Record<string, unknown>;
+export type Json = Record<string, unknown>;
 
 /** A list field from a Congress.gov response; sub-resources come back as `{ count, url }` links instead. */
-const list = (value: unknown): Json[] => (Array.isArray(value) ? (value as Json[]) : []);
+export const list = (value: unknown): Json[] => (Array.isArray(value) ? (value as Json[]) : []);
 
 /**
  * Prefers the most advanced short title: enacted, then passed, then reported, then introduced.

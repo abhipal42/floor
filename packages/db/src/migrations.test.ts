@@ -33,6 +33,7 @@ describe("migrations", () => {
       "follows",
       "ingest_runs",
       "members",
+      "nominations",
       "profiles",
       "projections",
       "statements",

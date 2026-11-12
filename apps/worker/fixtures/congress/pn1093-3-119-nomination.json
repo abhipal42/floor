@@ -1,0 +1,42 @@
+{
+  "nomination": {
+    "actions": {
+      "count": 13,
+      "url": "https://api.congress.gov/v3/nomination/119/1093-3/actions?format=json"
+    },
+    "authorityDate": "2026-09-15",
+    "citation": "PN1093-3",
+    "committees": {
+      "count": 1,
+      "url": "https://api.congress.gov/v3/nomination/119/1093-3/committees?format=json"
+    },
+    "congress": 119,
+    "description": "Matthew R. Byrne, of Ohio, to be United States District Judge for the Southern District of Ohio, vice Michael H. Watson, retired.",
+    "latestAction": {
+      "actionDate": "2026-09-15",
+      "text": "Confirmed by the Senate by Yea-Nay Vote. 52 - 45. Record Vote Number: 233."
+    },
+    "nominationType": {
+      "isCivilian": true
+    },
+    "nominees": [
+      {
+        "nomineeCount": 1,
+        "ordinal": 1,
+        "organization": "The Judiciary",
+        "positionTitle": "United States District Judge for the Southern District of Ohio",
+        "url": "https://api.congress.gov/v3/nomination/119/1093-3/1?format=json"
+      }
+    ],
+    "number": 1093,
+    "partNumber": "03",
+    "receivedDate": "2026-06-15",
+    "updateDate": "2026-09-16T11:00:47Z"
+  },
+  "request": {
+    "congress": "119",
+    "contentType": "application/json",
+    "format": "json",
+    "number": "1093-3"
+  }
+}

@@ -11,6 +11,7 @@ const sample: Vote = {
   rollNumber: 100,
   question: "On Motion to Concur in the Senate Amendment",
   billId: "119-hconres-14",
+  nominationId: null,
   billRef: "H CON RES 14",
   occurredAt: "2025-04-10T15:08:00.000Z",
   state: "final",
@@ -19,8 +20,23 @@ const sample: Vote = {
   result: "Passed",
 };
 
+/** A Senate vote on a nomination rather than a bill, so `nominationId` is set and `billId` is not. */
+const nominationVote: Vote = {
+  ...sample,
+  id: "senate-119-2-233",
+  chamber: "senate",
+  session: 2,
+  rollNumber: 233,
+  question: "On the Nomination",
+  billId: null,
+  nominationId: "119-pn-1093-3",
+  billRef: "PN1093-3",
+  totals: { yea: 52, nay: 45, present: 0, notVoting: 3 },
+  result: "Nomination Confirmed",
+};
+
 const repo: VoteRepository = {
-  getVote: async (id) => (id === sample.id ? sample : null),
+  getVote: async (id) => (id === sample.id ? sample : id === nominationVote.id ? nominationVote : null),
 };
 
 const members: Member[] = [
@@ -45,6 +61,19 @@ const app = createApp({
             sponsor: null, introducedOn: "2025-02-18", originChamber: "house", policyArea: "Economics and Public Finance",
             summary: "This concurrent resolution establishes the budget.", summaryStage: "Introduced in House",
             latestAction: { on: "2025-05-20", text: "Star Print ordered." }, cboEstimates: [], actions: [], votes: [sample],
+          }
+        : null,
+  },
+  nominations: {
+    getNomination: async (id) =>
+      id === "119-pn-1093-3"
+        ? {
+            id, congress: 119, number: 1093, part: 3, citation: "PN1093-3", nomineeName: "Matthew R. Byrne",
+            positionTitle: "United States District Judge for the Southern District of Ohio",
+            organization: "The Judiciary", description: "Matthew R. Byrne, of Ohio, to be United States District Judge.",
+            nomineeCount: 1, isMilitary: false, receivedOn: "2026-06-15",
+            latestAction: { on: "2026-09-15", text: "Confirmed by the Senate by Yea-Nay Vote. 52 - 45." },
+            votes: [nominationVote],
           }
         : null,
   },
@@ -131,6 +160,25 @@ describe("API", () => {
     expect((await app.request("/v1/bills/HR2207")).status).toBe(400);
   });
 
+  it("returns a nomination with its votes, and validates nomination IDs", async () => {
+    const res = await app.request("/v1/nominations/119-pn-1093-3");
+    expect(res.status).toBe(200);
+    const nomination = await res.json();
+    expect(nomination.nomineeName).toBe("Matthew R. Byrne");
+    expect(nomination.organization).toBe("The Judiciary");
+    expect(nomination.votes).toEqual([nominationVote]);
+    // An unpartitioned nomination ID is valid too; a bill ID or a bare citation is not.
+    expect((await app.request("/v1/nominations/118-pn-1905")).status).toBe(404);
+    expect((await app.request("/v1/nominations/119-hr-1")).status).toBe(400);
+    expect((await app.request("/v1/nominations/PN1093-3")).status).toBe(400);
+  });
+
+  it("links a nomination vote to its nomination rather than a bill", async () => {
+    const res = await app.request("/v1/votes/senate-119-2-233");
+    expect(res.status).toBe(200);
+    expect(await res.json()).toMatchObject({ billId: null, nominationId: "119-pn-1093-3", billRef: "PN1093-3" });
+  });
+
   it("flags sources that haven't loaded successfully within their window", async () => {
     const res = await app.request("/v1/status");
     expect(res.status).toBe(200);
@@ -141,6 +189,7 @@ describe("API", () => {
         { source: "house_rollcalls", lastSuccessAt: "2026-11-11T20:00:00.000Z", lastError: null, stale: false },
         { source: "senate_rollcalls", lastSuccessAt: "2026-11-09T00:00:00.000Z", lastError: "HTTP 503", stale: true },
         { source: "bills", lastSuccessAt: null, lastError: null, stale: true },
+        { source: "nominations", lastSuccessAt: null, lastError: null, stale: true },
       ],
     });
   });
@@ -151,6 +200,9 @@ describe("API", () => {
     const doc = await res.json();
     expect(doc.info.title).toBe("Floor API");
     expect(Object.keys(doc.paths)).toContain("/v1/votes/{id}");
+    expect(Object.keys(doc.paths)).toContain("/v1/nominations/{id}");
     expect(doc.components.schemas.Vote.required).toContain("totals");
+    expect(doc.components.schemas.Vote.required).toContain("nominationId");
+    expect(doc.components.schemas.Nomination.required).toContain("citation");
   });
 });

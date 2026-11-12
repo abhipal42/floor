@@ -1,0 +1,47 @@
+{
+  "nomination": {
+    "actions": {
+      "count": 11,
+      "url": "https://api.congress.gov/v3/nomination/119/28/actions?format=json"
+    },
+    "authorityDate": "2026-05-07",
+    "citation": "PN28",
+    "committees": {
+      "count": 1,
+      "url": "https://api.congress.gov/v3/nomination/119/28/committees?format=json"
+    },
+    "congress": 119,
+    "hearings": {
+      "count": 1,
+      "url": "https://api.congress.gov/v3/nomination/119/28/hearings?format=json"
+    },
+    "isList": true,
+    "latestAction": {
+      "actionDate": "2025-04-11",
+      "text": "Confirmed by the Senate by Yea-Nay Vote. 59 - 26. Record Vote Number: 211."
+    },
+    "nominationType": {
+      "isMilitary": true
+    },
+    "nominees": [
+      {
+        "introText": "The following named officer for appointment to the permanent grade indicated in the Regular Air Force under the United States Constitution, article II, section 2, clause 2:",
+        "nomineeCount": 1,
+        "ordinal": 1,
+        "organization": "Air Force",
+        "positionTitle": "Major General",
+        "url": "https://api.congress.gov/v3/nomination/119/28/1?format=json"
+      }
+    ],
+    "number": 28,
+    "partNumber": "00",
+    "receivedDate": "2025-03-10",
+    "updateDate": "2026-05-08T11:00:28Z"
+  },
+  "request": {
+    "congress": "119",
+    "contentType": "application/json",
+    "format": "json",
+    "number": "28"
+  }
+}

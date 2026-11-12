@@ -4,6 +4,8 @@ import type {
   Member,
   MemberRepository,
   MemberVote,
+  Nomination,
+  NominationRepository,
   StatusRepository,
   Vote,
   VoteRepository,
@@ -23,6 +25,7 @@ interface VoteRow {
   session: number;
   roll_number: number | null;
   bill_id: string | null;
+  nomination_id: string | null;
   bill_ref: string | null;
   question: string;
   state: "scheduled" | "open" | "final";
@@ -55,6 +58,7 @@ const toVote = (r: VoteRow): Vote => ({
   rollNumber: r.roll_number,
   question: r.question,
   billId: r.bill_id,
+  nominationId: r.nomination_id,
   billRef: r.bill_ref,
   occurredAt: r.occurred_at ? new Date(r.occurred_at).toISOString() : null,
   state: r.state,
@@ -73,8 +77,9 @@ const toMember = (r: MemberRow): Member => ({
   chamber: r.chamber,
 });
 
-const VOTE_COLUMNS = `v.id, v.kind, v.candidates, v.chamber, v.congress, v.session, v.roll_number, v.bill_id, v.bill_ref, v.question,
-  v.state, v.threshold, v.yea, v.nay, v.present, v.not_voting, v.result, v.occurred_at`;
+const VOTE_COLUMNS = `v.id, v.kind, v.candidates, v.chamber, v.congress, v.session, v.roll_number, v.bill_id,
+  v.nomination_id, v.bill_ref, v.question, v.state, v.threshold, v.yea, v.nay, v.present, v.not_voting, v.result,
+  v.occurred_at`;
 
 interface BillRow {
   id: string;
@@ -94,6 +99,23 @@ interface BillRow {
   sponsor: MemberRow | null;
 }
 
+interface NominationRow {
+  id: string;
+  congress: number;
+  number: number;
+  part: number;
+  citation: string;
+  nominee_name: string | null;
+  position_title: string | null;
+  organization: string | null;
+  description: string | null;
+  nominee_count: number | null;
+  is_military: boolean;
+  received_on: Date | string | null;
+  latest_action_on: Date | string | null;
+  latest_action_text: string | null;
+}
+
 /** Dates from a `date` column, as YYYY-MM-DD regardless of driver. */
 const day = (d: Date | string | null): string | null =>
   d == null ? null : typeof d === "string" ? d.slice(0, 10) : d.toISOString().slice(0, 10);
@@ -102,6 +124,7 @@ export function pgRepositories(db: Db): {
   votes: VoteRepository;
   members: MemberRepository;
   bills: BillRepository;
+  nominations: NominationRepository;
   status: StatusRepository;
 } {
   return {
@@ -148,6 +171,42 @@ export function pgRepositories(db: Db): {
           actions: actions.map((a) => ({ actedOn: day(a.acted_on)!, chamber: a.chamber, text: a.text })),
           votes: votes.map(toVote),
         };
+      },
+    },
+    nominations: {
+      async getNomination(id) {
+        const { rows } = await db.query<NominationRow>(
+          `select id, congress, number, part, citation, nominee_name, position_title, organization, description,
+                  nominee_count, is_military, received_on, latest_action_on, latest_action_text
+             from nominations where id = $1`,
+          [id],
+        );
+        const n = rows[0];
+        if (!n) return null;
+        const { rows: votes } = await db.query<VoteRow>(
+          `select ${VOTE_COLUMNS} from votes v where v.nomination_id = $1 order by v.occurred_at desc nulls last`,
+          [id],
+        );
+        const nomination: Nomination = {
+          id: n.id,
+          congress: n.congress,
+          number: n.number,
+          part: n.part,
+          citation: n.citation,
+          nomineeName: n.nominee_name,
+          positionTitle: n.position_title,
+          organization: n.organization,
+          description: n.description,
+          nomineeCount: n.nominee_count,
+          isMilitary: n.is_military,
+          receivedOn: day(n.received_on),
+          latestAction:
+            n.latest_action_on && n.latest_action_text
+              ? { on: day(n.latest_action_on)!, text: n.latest_action_text }
+              : null,
+          votes: votes.map(toVote),
+        };
+        return nomination;
       },
     },
     status: {

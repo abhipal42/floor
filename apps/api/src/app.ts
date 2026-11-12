@@ -11,6 +11,7 @@ export const VoteSchema = z
     rollNumber: z.number().int().nullable(),
     question: z.string(),
     billId: z.string().nullable(),
+    nominationId: z.string().nullable().openapi({ example: "119-pn-1093-3" }),
     billRef: z.string().nullable().openapi({ example: "H CON RES 14" }),
     occurredAt: z.string().nullable().openapi({ example: "2025-04-10T15:08:00.000Z" }),
     state: z.enum(["scheduled", "open", "final"]),
@@ -105,6 +106,34 @@ export interface BillRepository {
   getBill(id: string): Promise<Bill | null>;
 }
 
+export const NominationSchema = z
+  .object({
+    id: z.string().openapi({ example: "119-pn-1093-3" }),
+    congress: z.number().int(),
+    number: z.number().int(),
+    part: z.number().int().openapi({ description: "0 unless the Senate split the nomination into parts" }),
+    citation: z.string().openapi({ example: "PN1093-3", description: "As the Senate cites it on the roll call" }),
+    nomineeName: z
+      .string()
+      .nullable()
+      .openapi({ description: "null for military nominations, which promote officers in bulk; show the position instead" }),
+    positionTitle: z.string().nullable().openapi({ example: "United States District Judge for the Southern District of Ohio" }),
+    organization: z.string().nullable().openapi({ example: "The Judiciary" }),
+    description: z.string().nullable().openapi({ description: "Congress.gov's full sentence, including the \"vice ...\" clause" }),
+    nomineeCount: z.number().int().nullable(),
+    isMilitary: z.boolean(),
+    receivedOn: z.string().nullable(),
+    latestAction: z.object({ on: z.string(), text: z.string() }).nullable(),
+    votes: z.array(VoteSchema),
+  })
+  .openapi("Nomination");
+
+export type Nomination = z.infer<typeof NominationSchema>;
+
+export interface NominationRepository {
+  getNomination(id: string): Promise<Nomination | null>;
+}
+
 export const SourceStatusSchema = z
   .object({
     source: z.string().openapi({ example: "house_rollcalls" }),
@@ -122,6 +151,7 @@ export const MAX_AGE_HOURS: Record<string, number> = {
   house_rollcalls: 24,
   senate_rollcalls: 24,
   bills: 48,
+  nominations: 48,
 };
 
 export interface StatusRepository {
@@ -133,6 +163,7 @@ export interface AppDeps {
   votes: VoteRepository;
   members: MemberRepository;
   bills: BillRepository;
+  nominations: NominationRepository;
   status: StatusRepository;
   now?: () => Date;
   geocode: (address: string) => Promise<DistrictMatch | null>;
@@ -217,6 +248,24 @@ const getBillRoute = createRoute({
   },
 });
 
+const getNominationRoute = createRoute({
+  method: "get",
+  path: "/v1/nominations/{id}",
+  summary: "A presidential nomination with every Senate vote on it",
+  request: {
+    params: z.object({
+      id: z
+        .string()
+        .regex(/^\d{2,3}-pn-\d+(-\d+)?$/, "Nomination IDs look like 119-pn-1093-3")
+        .openapi({ param: { name: "id", in: "path" }, example: "119-pn-1093-3" }),
+    }),
+  },
+  responses: {
+    200: { content: { "application/json": { schema: NominationSchema } }, description: "The nomination" },
+    404: { content: { "application/json": { schema: ErrorSchema } }, description: "No nomination with that ID" },
+  },
+});
+
 const getStatusRoute = createRoute({
   method: "get",
   path: "/v1/status",
@@ -274,6 +323,13 @@ export function createApp(deps: AppDeps) {
     const bill = await deps.bills.getBill(id);
     if (!bill) return c.json({ error: `No bill with ID ${id}` }, 404);
     return c.json(bill, 200);
+  });
+
+  app.openapi(getNominationRoute, async (c) => {
+    const { id } = c.req.valid("param");
+    const nomination = await deps.nominations.getNomination(id);
+    if (!nomination) return c.json({ error: `No nomination with ID ${id}` }, 404);
+    return c.json(nomination, 200);
   });
 
   app.openapi(getStatusRoute, async (c) => {

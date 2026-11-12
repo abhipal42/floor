@@ -1,0 +1,42 @@
+{
+  "nomination": {
+    "actions": {
+      "count": 12,
+      "url": "https://api.congress.gov/v3/nomination/118/1905/actions?format=json"
+    },
+    "authorityDate": "2024-12-03",
+    "citation": "PN1905",
+    "committees": {
+      "count": 1,
+      "url": "https://api.congress.gov/v3/nomination/118/1905/committees?format=json"
+    },
+    "congress": 118,
+    "description": "Gail A. Weilheimer, of Pennsylvania, to be United States District Judge for the Eastern District of Pennsylvania, vice Gene E. K. Pratter, deceased.",
+    "latestAction": {
+      "actionDate": "2024-12-03",
+      "text": "Confirmed by the Senate by Yea-Nay Vote. 50 - 48. Record Vote Number: 308."
+    },
+    "nominationType": {
+      "isCivilian": true
+    },
+    "nominees": [
+      {
+        "nomineeCount": 1,
+        "ordinal": 1,
+        "organization": "The Judiciary",
+        "positionTitle": "United States District Judge for the Eastern District of Pennsylvania",
+        "url": "https://api.congress.gov/v3/nomination/118/1905/1?format=json"
+      }
+    ],
+    "number": 1905,
+    "partNumber": "00",
+    "receivedDate": "2024-07-08",
+    "updateDate": "2024-12-04T05:14:14Z"
+  },
+  "request": {
+    "congress": "118",
+    "contentType": "application/json",
+    "format": "json",
+    "number": "1905"
+  }
+}

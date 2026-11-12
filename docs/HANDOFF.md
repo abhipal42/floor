@@ -2,7 +2,7 @@
 
 Last updated 2026-11-12. Read this first, then [`plan.md`](plan.md) for the full design and reasoning.
 
-**In one paragraph:** M0 (foundation) is done. M1 (data backbone) is done except for two deferred items (nominations; posting latency, which moves to M3) and one chore: the bill spot-check found three Congress.gov mapping bugs, and although they are fixed in the worker, staging still holds the wrong values until a `bills --refresh` runs (see section 4). Staging Postgres holds every House and Senate roll call since January 2023, and every one matches the official totals. The API serves district lookup, member votes, votes, bills and data freshness from that database. The iOS app is still a skeleton (one scoreboard card on sample data). M2 builds the real app screens on this API.
+**In one paragraph:** M0 (foundation) is done. M1 (data backbone) is done except for posting latency, which moves to M3, and one chore: the bill spot-check found three Congress.gov mapping bugs, and although they are fixed in the worker, staging still holds the wrong values until a `bills --refresh` runs (see section 4). Staging Postgres holds every House and Senate roll call since January 2023, and every one matches the official totals; every vote now has a subject attached, bills and nominations alike. The API serves district lookup, member votes, votes, bills, nominations and data freshness from that database. The iOS app is still a skeleton (one scoreboard card on sample data). M2 builds the real app screens on this API.
 
 ---
 
@@ -23,7 +23,7 @@ Last updated 2026-11-12. Read this first, then [`plan.md`](plan.md) for the full
 git clone https://github.com/abhipal42/floor.git && cd floor
 npm install
 cp .env.example .env    # then fill in the two values (see below)
-npm run check           # lint + typecheck + 81 tests; must pass before every push
+npm run check           # lint + typecheck + 103 tests; must pass before every push
 ```
 
 `.env` (never committed):
@@ -39,6 +39,7 @@ npm run ingest -w @floor/worker -- members                        # refresh memb
 npm run ingest -w @floor/worker -- rollcalls house 119 2          # new House votes this session (resumes automatically)
 npm run ingest -w @floor/worker -- rollcalls senate 119 2         # same for the Senate
 npm run ingest -w @floor/worker -- bills                          # load bills that votes refer to (only missing ones)
+npm run ingest -w @floor/worker -- nominations                    # load nominations that Senate votes refer to
 ```
 
 iOS (needs a Mac with Xcode 16+): `brew install xcodegen && cd ios && xcodegen && open Floor.xcodeproj`. CI builds it on a macOS runner on every push.
@@ -53,8 +54,8 @@ iOS (needs a Mac with Xcode 16+): `brew install xcodegen && cd ios && xcodegen &
 |---|---|---|
 | `packages/shared` | Types + roll call parsers (House Clerk XML, Senate LIS XML) | `src/rollcall.ts`, fixtures in `fixtures/` (real government files) |
 | `packages/db` | Migration loader used by tests | `src/migrations.test.ts` |
-| `supabase/migrations` | Postgres schema (applied to staging in filename order) | 6 migrations, all applied to staging |
-| `apps/worker` | Ingest CLI: members, roll calls, bills | `src/cli.ts`, `rollcalls.ts`, `bills.ts`, `members.ts`, `db.ts` |
+| `supabase/migrations` | Postgres schema (applied to staging in filename order) | 7 migrations, all applied to staging |
+| `apps/worker` | Ingest CLI: members, roll calls, bills, nominations | `src/cli.ts`, `rollcalls.ts`, `bills.ts`, `nominations.ts`, `members.ts`, `db.ts` |
 | `apps/api` | Hono REST API with OpenAPI at `/openapi.json` | `src/app.ts` (routes + schemas), `pg.ts` (Postgres), `district.ts` (Census) |
 | `ios/` | SwiftUI app (XcodeGen), `FloorKit` package (`Models`, `DesignSystem`) | `FloorKit/Sources/Models/Vote.swift`, `DesignSystem/ScoreboardCard.swift` |
 | `.github/workflows/ci.yml` | Node job (lint/typecheck/tests) + macOS job (Swift tests + simulator build) | |
@@ -68,6 +69,7 @@ iOS (needs a Mac with Xcode 16+): `brew install xcodegen && cd ios && xcodegen &
 | `GET /v1/members/{bioguideId}/votes?limit=` | A member's recent votes with their position (and candidate, for Speaker elections) |
 | `GET /v1/votes/{id}` | One vote: totals, threshold, kind, bill link. IDs look like `house-119-1-100` |
 | `GET /v1/bills/{id}` | Title, short title, CRS summary, sponsor, policy area, CBO estimates, last 30 actions, every vote on it. IDs look like `119-hr-2207` |
+| `GET /v1/nominations/{id}` | Nominee, position, agency, received and latest action, every Senate vote on it. IDs look like `119-pn-1093-3` |
 | `GET /v1/status` | Last successful run and last error per ingest source, with `stale` flags |
 | `GET /openapi.json` | The contract. Generate Swift types from it in M2. |
 
@@ -76,9 +78,10 @@ iOS (needs a Mac with Xcode 16+): `brew install xcodegen && cd ios && xcodegen &
 | Table | Rows | Notes |
 |---|---|---|
 | `members` | 716 | Everyone serving now, plus anyone whose last term ended after 2022-11-01 |
-| `votes` | 3,532 | House + Senate, 118th–119th Congress, Jan 3 2023 → Nov 11 2026. 20 are Speaker elections (`kind = 'election'`) |
+| `votes` | 3,532 | House + Senate, 118th–119th Congress, Jan 3 2023 → Nov 11 2026. 20 are Speaker elections (`kind = 'election'`). Every vote with a measure reference is linked to a bill or a nomination |
 | `vote_positions` | 995,806 | Verified: every vote's positions add up to its official totals; no vote lacks positions |
 | `bills` / `actions` | 1,049 / 19,714 | Every bill a vote refers to; 976 have a CRS summary. All 2,319 votes on bills are linked (`votes.bill_id`) |
+| `nominations` | 448 | Every nomination a vote refers to; 201 are parts of a split nomination, 10 are military (no named nominee). All 905 nomination votes are linked (`votes.nomination_id`) |
 | `ingest_runs` | | Every ingest run with item count and error, which feeds `/v1/status` |
 
 Verification query (should return zeros for the last four columns):
@@ -122,7 +125,15 @@ Real data broke our first assumptions several times. Each case below is now hand
    `actionDate`.
 11. **Congress.gov sub-resources page at 20 by default.** `/titles` was fetched without a limit, so bills with
    more than 20 titles (H.R. 815 of the 118th has 44) were silently truncated. Pass `limit=250`, as `/actions` does.
-12. **Applying migrations to staging:** apply each new file in `supabase/migrations` in order (Supabase SQL editor or `supabase db push`). Tests run all migrations against PGlite, so a migration that breaks shows up in `npm run check` first.
+12. **A nomination's parts are separate Congress.gov records.** The Senate cites a split nomination as
+   `PN1093-3`, and `/nomination/119/1093` is *not* that nominee — it is the undivided original, with no
+   actions and no `latestAction`. The part is its own record at `/nomination/119/1093-3`, whose `partNumber`
+   is the zero-padded `"03"`. Fetching the base number instead would attach the wrong nominee to the vote.
+13. **Military nominations name no nominee.** They promote officers in bulk, so they carry no `description`
+   at all — only `nominees[].positionTitle` ("Major General"), `organization` ("Air Force") and an
+   `introText`. `nominations.nominee_name` is null for those, so clients must fall back to position and
+   organization.
+14. **Applying migrations to staging:** apply each new file in `supabase/migrations` in order (Supabase SQL editor or `supabase db push`). Tests run all migrations against PGlite, so a migration that breaks shows up in `npm run check` first.
 
 ---
 
@@ -146,7 +157,15 @@ Real data broke our first assumptions several times. Each case below is now hand
    One case is still imperfect: H.R. 815 (118th) was gutted and replaced by the Senate, and `pickShortTitle`
    ranks "as Passed House" and "as Passed Senate" equally, so it keeps the House title. Ranking the chambers by
    which acted last would fix it.
-3. **Nominations (deferred from M1).** About 900 Senate votes are on nominations (`PN…`). Add a `nominations` table and an ingest from Congress.gov `/nomination/{congress}/{number}` (nominee, position, agency), and link the votes. Follow the `bills.ts` pattern, including tests on saved real responses.
+3. ~~Nominations~~ **Done** (448 nominations, 905 votes linked, 0 failures). `nominations.ts` follows the
+   `bills.ts` pattern, with the same `--refresh` mode and tests on saved real responses, and the API exposes
+   `/v1/nominations/{id}`. As new Senate votes arrive, re-run it; this should always return `0`:
+   ```sql
+   select count(*) from votes where nomination_id is null and bill_ref ~ '^PN';
+   ```
+   Checked beyond that count: Congress.gov stamps the confirmation vote's number into the nomination's latest
+   action, and for all 446 nominations that carry one, that exact roll call is the one we linked — so the part
+   mapping (lesson 12) is right across the whole set, not just the samples.
 4. **Posting-latency measurement (moved to M3).** We can only measure how long the Clerk and LIS take to post roll call files on a live session day with polling running.
 
 ---

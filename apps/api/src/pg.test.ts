@@ -23,7 +23,8 @@ beforeAll(async () => {
       ('S000003', 'Sen', 'Elsewhere', 'D', 'WA', null, 'senate', '2025-01-03', '2099-01-03');
     insert into votes (id, chamber, congress, session, roll_number, question, state, yea, nay, not_voting, result, bill_ref, occurred_at) values
       ('house-119-1-1', 'house', 119, 1, 1, 'On Passage', 'final', 219, 208, 8, 'Passed', 'H R 1', '2025-01-10T15:00:00Z'),
-      ('house-119-1-2', 'house', 119, 1, 2, 'On Motion to Recommit', 'final', 200, 225, 10, 'Failed', null, '2025-01-11T15:00:00Z');
+      ('house-119-1-2', 'house', 119, 1, 2, 'On Motion to Recommit', 'final', 200, 225, 10, 'Failed', null, '2025-01-11T15:00:00Z'),
+      ('senate-119-1-90', 'senate', 119, 1, 90, 'On the Nomination', 'final', 66, 28, 6, 'Nomination Confirmed', 'PN12-12', '2025-02-25T16:15:00Z');
     insert into bills (id, congress, bill_type, number, title, short_title, sponsor_id, introduced_on, origin_chamber,
                        policy_area, summary, summary_stage, latest_action_on, latest_action_text, cbo_estimates)
       values ('119-hr-1', 119, 'hr', 1, 'To provide for reconciliation', 'Example Act', 'H000037', '2025-01-05', 'house',
@@ -32,7 +33,13 @@ beforeAll(async () => {
     insert into actions (bill_id, acted_on, chamber, text) values
       ('119-hr-1', '2025-01-05', 'house', 'Introduced in House'),
       ('119-hr-1', '2025-01-10', 'house', 'Passed House.');
+    insert into nominations (id, congress, number, part, citation, nominee_name, position_title, organization,
+                             description, nominee_count, is_military, received_on, latest_action_on, latest_action_text)
+      values ('119-pn-12-12', 119, 12, 12, 'PN12-12', 'Daniel Driscoll', 'Secretary of the Army', 'Department of Defense',
+              'Daniel Driscoll, of North Carolina, to be Secretary of the Army, vice Christine Elizabeth Wormuth, resigned.',
+              1, false, '2025-01-20', '2025-02-25', 'Confirmed by the Senate by Yea-Nay Vote. 66 - 28.');
     update votes set bill_id = '119-hr-1' where id = 'house-119-1-1';
+    update votes set nomination_id = '119-pn-12-12' where id = 'senate-119-1-90';
     insert into vote_positions (vote_id, member_id, position) values
       ('house-119-1-1', 'H000037', 'yea'),
       ('house-119-1-2', 'H000037', 'nay');
@@ -62,6 +69,7 @@ describe("Postgres repositories", () => {
       rollNumber: 1,
       question: "On Passage",
       billId: "119-hr-1",
+      nominationId: null,
       billRef: "H R 1",
       occurredAt: "2025-01-10T15:00:00.000Z",
       state: "final",
@@ -89,6 +97,27 @@ describe("Postgres repositories", () => {
     });
     expect(bill?.votes.map((v) => v.id)).toEqual(["house-119-1-1"]);
     expect(await repos.bills.getBill("119-hr-999")).toBeNull();
+  });
+
+  it("reads a nomination with its nominee, position and votes", async () => {
+    const nomination = await repos.nominations.getNomination("119-pn-12-12");
+    expect(nomination).toMatchObject({
+      id: "119-pn-12-12",
+      congress: 119,
+      number: 12,
+      part: 12,
+      citation: "PN12-12",
+      nomineeName: "Daniel Driscoll",
+      positionTitle: "Secretary of the Army",
+      organization: "Department of Defense",
+      nomineeCount: 1,
+      isMilitary: false,
+      receivedOn: "2025-01-20",
+      latestAction: { on: "2025-02-25", text: "Confirmed by the Senate by Yea-Nay Vote. 66 - 28." },
+    });
+    expect(nomination?.votes.map((v) => v.id)).toEqual(["senate-119-1-90"]);
+    expect(nomination?.votes[0]?.nominationId).toBe("119-pn-12-12");
+    expect(await repos.nominations.getNomination("119-pn-9999")).toBeNull();
   });
 
   it("reports the last successful run and the latest error per source", async () => {
