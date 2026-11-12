@@ -1,3 +1,5 @@
+export * from "./rollcall.js";
+
 export type Chamber = "house" | "senate";
 
 export type VotePosition = "yea" | "nay" | "present" | "not_voting";
