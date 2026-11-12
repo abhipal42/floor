@@ -68,6 +68,19 @@ describe("migrations", () => {
     ).rejects.toThrow();
   });
 
+  it("enable row level security on every public table, with read-only policies on shared data", async () => {
+    const { rows: off } = await db.query<{ relname: string }>(
+      `select c.relname from pg_class c join pg_namespace n on n.oid = c.relnamespace
+        where n.nspname = 'public' and c.relkind = 'r' and not c.relrowsecurity`,
+    );
+    expect(off).toEqual([]);
+    const { rows: writable } = await db.query<{ tablename: string }>(
+      `select tablename from pg_policies
+        where schemaname = 'public' and policyname = 'public read' and cmd <> 'SELECT'`,
+    );
+    expect(writable).toEqual([]);
+  });
+
   it("enable row level security on every per-user table", async () => {
     const { rows } = await db.query<{ relname: string; relrowsecurity: boolean }>(
       "select relname, relrowsecurity from pg_class where relname in ('profiles', 'follows', 'devices') order by 1",
