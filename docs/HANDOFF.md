@@ -239,7 +239,21 @@ The working rhythm so far: break each milestone into tasks. For each task, write
 - **Bill screen:** short title, CRS summary, sponsor, CBO links, the "Path to law" stepper built from actions, and votes on the bill.
 - **Rep screen:** recent votes, and votes with/against party from `/v1/members/{id}`. Show nothing when `partyLoyalty.votes` is 0 (see lesson 15).
 - SwiftData cache for offline; snapshot tests for each card state.
-- **Backend for M2:** deploy the API (plan: Hono on Vercel, or a container alongside the worker) and point the app at it. Add CORS and rate limiting on `/v1/reps`.
+- **Backend for M2:** ~~CORS and rate limiting~~ **Done**, and the API is **deployed**:
+  <https://floor-api.vercel.app> (Vercel project `floor-api`, team Abtanix Labs, root directory
+  `apps/api`, Node 22, framework detection **off**). Two things that cost a deploy each, so do not
+  undo them: Vercel's Hono preset only looks for an entrypoint under `src/` that imports `hono`
+  directly and never sees `api/`, hence framework `null` plus `vercel.json`; and the handler must use
+  `@hono/node-server/vercel`, not `hono/vercel` — the latter returns a fetch-style handler while the
+  Node runtime calls `(req, res)`, so every request hangs to the function timeout.
+  **Still to do:** set `DATABASE_URL` in the Vercel project. Until then the deployment serves empty
+  data by design — `/health` is fine and `/v1/status` reports `ok: false` with every source stale,
+  rather than 500s. Use Supabase's **pooler** connection string, not the direct `db.<ref>:5432` host:
+  a function that scales out will otherwise exhaust the database's connection limit. Optionally set
+  `ALLOWED_ORIGINS` (comma-separated) for a future web client; unset means no browser origin may read
+  a response, which does not affect the iOS app.
+  **Worth doing before this is public for real:** the API only ever reads, so give it a read-only
+  Postgres role rather than the service connection, which bypasses RLS and can write.
 - **Exit:** TestFlight build where a tester enters their address and sees yesterday's votes by their reps.
 
 **The designs.** The canvas has two pages and launches on **v2 · Live + impact**, so that is the
