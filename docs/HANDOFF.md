@@ -2,7 +2,10 @@
 
 Last updated 2026-11-12. Read this first, then [`plan.md`](plan.md) for the full design and reasoning.
 
-**In one paragraph:** M0 (foundation) is done. M1 (data backbone) is done; the one item still open against it, measured posting latency, has moved to M3, because it can only be taken on a live session day with polling running. Staging Postgres holds every House and Senate roll call since January 2023, and every one matches the official totals; every vote now has a subject attached, bills and nominations alike. The API serves district lookup, member votes, votes, bills, nominations and data freshness from that database, and now also the per-party breakdown of a vote, your own delegation's positions on it, and a member's party-loyalty record. The iOS app is still a skeleton (one scoreboard card on sample data). **M2 is in progress:** the API contract it needs is complete, and the iOS `Models` package is written against it and tested on real staging responses. The screens are next.
+**In one paragraph:** M0 (foundation) is done. M1 (data backbone) is done; the one item still open against it, measured posting latency, has moved to M3, because it can only be taken on a live session day with polling running. Staging Postgres holds every House and Senate roll call since January 2023, and every one matches the official totals; every vote now has a subject attached, bills and nominations alike. The API serves district lookup, member votes, votes, bills, nominations and data freshness from that database, and now also the per-party breakdown of a vote, your own delegation's positions on it, and a member's party-loyalty record. The iOS app is still a skeleton (one scoreboard card on sample data). **M2 is nearly done:** the API is deployed at <https://floor-api.vercel.app> and a Release build of
+the app runs the whole flow against it — onboarding to a real district, then Home, Vote, Bill and
+Rep. Four items remain, listed at the top of the M2 section: the Speaker election card on Home, a
+SwiftData offline cache, snapshot tests, and TestFlight distribution.
 
 ---
 
@@ -213,6 +216,27 @@ The working rhythm so far: break each milestone into tasks. For each task, write
 ### M2: iOS core on real data
 **Goal:** a TestFlight build that shows how your reps voted, from real data. No live updates yet.
 
+> **M2 is not finished.** The app works end to end against the deployed API — onboarding, Home,
+> Vote, Bill and Rep, all on real data — but four items from the list below are still open:
+>
+> 1. **The Speaker election card on Home.** Built on the Vote screen, never on the feed. `HomeView`
+>    hands every vote to `ScoreboardCard`, and a Speaker ballot has `yea: 0, nay: 0`, so it renders
+>    as "0 … Final … 0, Needs 1" — a meaningless card, under a row summary that is correct
+>    ("Doggett voted Jeffries"), which makes it look like bad data rather than a missing variant.
+>    Rare today (one member has a ballot in their last 25 votes) but it is the top of every feed in
+>    January of a new Congress, fifteen times over in a contested one. Smallest of the four and the
+>    only one that is visibly wrong.
+> 2. **SwiftData offline cache.** Not started.
+> 3. **Snapshot tests per card state.** Not started; filed as
+>    [#1](https://github.com/abhipal42/floor/issues/1) with the states to cover and the
+>    Xcode-version tension against running CI on `macos-latest`.
+> 4. **TestFlight distribution.** Needs an Apple Developer account, signing and the upload. The
+>    build itself is proven: see **Exit** below.
+>
+> One judgement call to be aware of: the Onboarding bullet reads *an address field (**or** "use my
+> location" …)*, and only the address field is built. Read strictly that satisfies the bullet; if
+> you want both, it is unbuilt work and not tracked anywhere.
+
 - ~~Complete the API contract the screens need~~ **Done.** The Vote screen's party breakdown and
   delegation positions, and the Rep screen's party-loyalty record, did not exist and would have
   meant generating Swift models twice. `/v1/votes/{id}` now returns `partyTotals`,
@@ -229,16 +253,49 @@ The working rhythm so far: break each milestone into tasks. For each task, write
   old `Vote.swift` is caught in CI instead of on a phone. Tests decode nine real staging responses in
   `Tests/ModelsTests/Fixtures/`. **If you ever do want generation,** the contract is already factored
   for it (lesson: 25 named components, no inline enums), so it is one command away.
-- `APIClient` package: URLSession client for the seven routes; base URL from build config (staging vs. prod). `Models` has no networking in it and no dependencies, so this is the only place URLSession appears.
-- **Onboarding:** an address field (or "use my location" → reverse geocode → address) → `/v1/reps` → save state, district and member IDs locally. Never send the address anywhere except the API call.
-- **Home:** your delegation strip, then recent final votes for your reps (`/v1/members/{id}/votes`), using `ScoreboardCard`. Add the Speaker election card variant, which `candidateTotals` now feeds.
-- **Fix `ScoreboardCard` before building Home.** `score()` renders a 48pt condensed number inside a
-  five-child `HStack`; at 402pt width SwiftUI breaks each number across lines, so 216 renders as
-  2/1/6 stacked vertically. Needs `.lineLimit(1)` and a `.minimumScaleFactor()`.
-- **Vote detail:** totals, threshold bar, party breakdown, how each of your reps voted — all from one `/v1/votes/{id}?members=` call.
-- **Bill screen:** short title, CRS summary, sponsor, CBO links, the "Path to law" stepper built from actions, and votes on the bill.
-- **Rep screen:** recent votes, and votes with/against party from `/v1/members/{id}`. Show nothing when `partyLoyalty.votes` is 0 (see lesson 15).
-- SwiftData cache for offline; snapshot tests for each card state.
+- ~~`APIClient` package~~ **Done.** URLSession client for the seven routes; `Models` has no
+  networking and no dependencies, so this is the only place URLSession appears. The base URL comes
+  from the build configuration: Debug talks to `localhost:8787`, Release to the deployment, via a
+  generated `Info.plist` key `FloorAPIBaseURL`. Twelve tests drive it through a stubbed
+  `URLProtocol`; six more run against a real server and are skipped unless `FLOOR_API_URL` is set:
+  `npm run dev -w @floor/api` then
+  `FLOOR_API_URL=http://localhost:8787 swift test --package-path ios/FloorKit`.
+- ~~**Onboarding**~~ **Done** (address field only; see the note above about "use my location").
+  Resolves through `/v1/reps`, shows who it found, and stores the district and members only once
+  confirmed. The address is used for one request and dropped — it is not part of `Delegation`, so it
+  never reaches disk, and a test encodes a saved record to assert the typed address does not appear
+  in it.
+- ~~**Home**~~ **Done, except the election variant.** Delegation strip, chamber filter, and the
+  merged feed of recent votes. One request per member in parallel, grouped by vote so two senators
+  on one roll call make one card carrying both positions. **Still to do:** the Speaker election card
+  variant that `candidateTotals` feeds — see item 1 above.
+- ~~**Fix `ScoreboardCard`**~~ **Done.** The row is a fixed 56pt side, a flexible score, a fixed
+  92pt status and the mirror; default `HStack` spacing added 32pt across four gaps, leaving each
+  score about 69pt where "216" needs nearer 79, so it wrapped to 2/1/6 stacked. Gaps are now zero
+  and the score takes `lineLimit(1)` with a `minimumScaleFactor`, so it cannot stack again whatever
+  the totals. The header was clipping mid-word too, so the chamber and the question are now separate
+  lines.
+- ~~**Vote detail**~~ **Done.** Totals, threshold bar, each party's split beneath its score, your
+  own members' positions, and the whole roll by party — one `/v1/votes/{id}?members=` call. A
+  Speaker election gets its own board and says plainly when a ballot elected nobody.
+- ~~**Bill screen**~~ **Done.** Short title, CRS summary, sponsor, policy area, CBO links, votes,
+  and the "Path to law" stepper. The stepper reads the actions Congress.gov marks with **no
+  chamber** — its own summary labels (`Introduced in House`, `Passed/agreed to in Senate: …`,
+  `Failed of passage/not agreed to in House …`, `Became Public Law No: …`) — which is far steadier
+  than the free-text actions. Two traps it handles: the action list is capped at 30 so a
+  long-running bill loses its introduction off the end (`introducedOn` is the authority), and bill
+  actions lag their votes, so a chamber's own roll call settles passage when the marker has not
+  landed yet.
+- ~~**Rep screen**~~ **Done.** Party unity, crossovers and recent votes, each row saying whether
+  they sided with the outcome. The screen spells out the denominator — votes where their party had a
+  clear majority, not every vote cast — because a bare percentage invites the wrong reading, and
+  shows a sentence rather than a figure when `partyLoyalty.votes` is 0 (lesson 15).
+- **SwiftData cache for offline — not started.** Items 2 and 3 above.
+- **Snapshot tests for each card state — not started**, filed as
+  [#1](https://github.com/abhipal42/floor/issues/1). Worth knowing why it matters here: every layout
+  bug in this milestone — the stacked digits, a duplicated title, a date rendering a day early — was
+  caught by eye on a simulator screenshot, not by a test, and the unit tests cannot reach that
+  layer.
 - **Backend for M2:** ~~CORS and rate limiting~~ **Done**, and the API is **deployed**:
   <https://floor-api.vercel.app> (Vercel project `floor-api`, team Abtanix Labs, root directory
   `apps/api`, Node 22, framework detection **off**). Two things that cost a deploy each, so do not
