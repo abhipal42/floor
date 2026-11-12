@@ -9,6 +9,7 @@ let package = Package(
         .library(name: "APIClient", targets: ["APIClient"]),
         .library(name: "Onboarding", targets: ["Onboarding"]),
         .library(name: "VoteScreen", targets: ["VoteScreen"]),
+        .library(name: "BillScreen", targets: ["BillScreen"]),
         .library(name: "Home", targets: ["Home"]),
         .library(name: "DesignSystem", targets: ["DesignSystem"]),
     ],
@@ -18,7 +19,11 @@ let package = Package(
         .target(name: "DesignSystem", dependencies: ["Models"]),
         .target(name: "Onboarding", dependencies: ["Models", "APIClient", "DesignSystem"]),
         .target(name: "VoteScreen", dependencies: ["Models", "APIClient", "DesignSystem"]),
-        .target(name: "Home", dependencies: ["Models", "APIClient", "DesignSystem", "Onboarding", "VoteScreen"]),
+        .target(name: "BillScreen", dependencies: ["Models", "APIClient", "DesignSystem"]),
+        .target(
+            name: "Home",
+            dependencies: ["Models", "APIClient", "DesignSystem", "Onboarding", "VoteScreen", "BillScreen"]
+        ),
         .testTarget(
             name: "ModelsTests",
             dependencies: ["Models"],
@@ -32,5 +37,6 @@ let package = Package(
         .testTarget(name: "HomeTests", dependencies: ["Home"]),
         // Reads ModelsTests' captured responses from the source tree, as APIClientTests does.
         .testTarget(name: "VoteScreenTests", dependencies: ["VoteScreen"]),
+        .testTarget(name: "BillScreenTests", dependencies: ["BillScreen"]),
     ]
 )

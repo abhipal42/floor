@@ -61,6 +61,16 @@ public enum Formats {
             .parse(string)
     }
 
+    /// A calendar day rendered for display, e.g. `Nov 11, 2026`.
+    ///
+    /// Formatted in UTC, not the reader's zone. `day(_:)` parses `2026-11-11` to midnight UTC, and
+    /// formatting that locally west of Greenwich renders it as the 10th — a legislative day is a
+    /// date, not an instant, and must not drift with where the reader is standing.
+    public static func dayText(_ string: String) -> String? {
+        guard let date = day(string) else { return nil }
+        return date.formatted(Date.FormatStyle(date: .abbreviated, time: .omitted, timeZone: .gmt))
+    }
+
     /// An ISO 8601 instant, with or without fractional seconds.
     public static func instant(_ string: String) -> Date? {
         if let date = try? Date.ISO8601FormatStyle(includingFractionalSeconds: true).parse(string) {

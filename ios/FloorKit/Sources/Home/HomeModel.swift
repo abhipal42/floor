@@ -1,6 +1,7 @@
 import APIClient
 import Foundation
 import Models
+import BillScreen
 import Onboarding
 import VoteScreen
 
@@ -91,9 +92,20 @@ public final class HomeModel {
         self.perMember = perMember
     }
 
-    /// The screen for one card, built here so the API client stays private to this model.
-    public func voteScreen(for item: FeedItem) -> VoteScreenModel {
-        VoteScreenModel(voteId: item.vote.id, memberIds: delegation.memberIds, api: api)
+    /// Where a tap can lead from Home. Value-based navigation, so the vote and bill screens can
+    /// push each other without either package depending on the other.
+    public enum Route: Hashable, Sendable {
+        case vote(id: String)
+        case bill(id: String)
+    }
+
+    /// Screens are built here so the API client stays private to this model.
+    public func voteScreen(id: String) -> VoteScreenModel {
+        VoteScreenModel(voteId: id, memberIds: delegation.memberIds, api: api)
+    }
+
+    public func billScreen(id: String) -> BillScreenModel {
+        BillScreenModel(billId: id, api: api)
     }
 
     public var visibleItems: [FeedItem] {

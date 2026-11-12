@@ -130,6 +130,14 @@ struct BillTests {
         #expect(try fixture("bill-no-short-title", as: Bill.self).citation == "H.Con.Res. 21")
     }
 
+    /// A legislative day is a date, not an instant. Parsed to midnight UTC and then formatted in
+    /// a zone west of Greenwich, it renders as the day before.
+    @Test func rendersACalendarDayWithoutDriftingAZoneWest() {
+        #expect(Formats.dayText("2026-11-11") == "Nov 11, 2026")
+        #expect(Formats.dayText("2025-01-01") == "Jan 1, 2025")
+        #expect(Formats.dayText("not a day") == nil)
+    }
+
     @Test func parsesCalendarDaysWithoutATimeZoneShift() throws {
         let bill = try fixture("bill", as: Bill.self)
         let day = try #require(bill.introducedOnDay)

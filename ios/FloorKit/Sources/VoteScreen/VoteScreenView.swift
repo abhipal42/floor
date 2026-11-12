@@ -10,9 +10,14 @@ import SwiftUI
 /// pending-member count, projection and "what it means for you" block are M3 and M4.
 public struct VoteScreenView: View {
     @State private var model: VoteScreenModel
+    private let onOpenMeasure: (MeasureSummary) -> Void
 
-    public init(model: VoteScreenModel) {
+    /// - Parameter onOpenMeasure: pushes the bill or nomination this vote was on. Passed in rather
+    ///   than linked directly so this package need not depend on the bill screen, which links back
+    ///   to votes.
+    public init(model: VoteScreenModel, onOpenMeasure: @escaping (MeasureSummary) -> Void = { _ in }) {
         _model = State(initialValue: model)
+        self.onOpenMeasure = onOpenMeasure
     }
 
     public var body: some View {
@@ -54,6 +59,9 @@ public struct VoteScreenView: View {
                         yourMembers(detail)
                     }
                     partyTable(detail)
+                    if let measure = detail.measure {
+                        measureLink(measure)
+                    }
                 }
                 .padding(.horizontal, 16)
                 .padding(.vertical, 18)
@@ -312,6 +320,34 @@ public struct VoteScreenView: View {
             .background(Palette.card, in: .rect(cornerRadius: 18))
             .overlay(RoundedRectangle(cornerRadius: 18).stroke(Palette.cardBorder, lineWidth: 1))
         }
+    }
+
+    private func measureLink(_ measure: MeasureSummary) -> some View {
+        Button { onOpenMeasure(measure) } label: {
+            HStack(spacing: 10) {
+                Image(systemName: measure.kind == .bill ? "doc.text" : "person.crop.square")
+                    .font(.system(size: 14))
+                    .foregroundStyle(Palette.accent)
+                VStack(alignment: .leading, spacing: 1) {
+                    Text(measure.kind == .bill ? "The bill" : "The nomination")
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundStyle(Palette.text)
+                    Text(measure.citation)
+                        .font(.system(size: 12))
+                        .foregroundStyle(Palette.textMuted)
+                }
+                Spacer(minLength: 8)
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 11, weight: .bold))
+                    .foregroundStyle(Palette.textMuted)
+            }
+            .padding(14)
+            .background(Palette.card, in: .rect(cornerRadius: 16))
+        }
+        .buttonStyle(.plain)
+        // A nomination has no screen yet, so only offer the one that does.
+        .disabled(measure.kind != .bill)
+        .opacity(measure.kind == .bill ? 1 : 0.5)
     }
 
     private func cell(_ label: String, _ value: Int, _ color: Color) -> some View {

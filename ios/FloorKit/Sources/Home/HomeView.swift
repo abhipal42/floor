@@ -2,6 +2,7 @@ import APIClient
 import DesignSystem
 import Models
 import Onboarding
+import BillScreen
 import SwiftUI
 import VoteScreen
 
@@ -11,6 +12,7 @@ import VoteScreen
 /// the live strip, the projection row and the "For you" block are M3 and M4.
 public struct HomeView: View {
     @State private var model: HomeModel
+    @State private var path: [HomeModel.Route] = []
     private let onChangeAddress: () -> Void
 
     public init(model: HomeModel, onChangeAddress: @escaping () -> Void) {
@@ -19,7 +21,7 @@ public struct HomeView: View {
     }
 
     public var body: some View {
-        NavigationStack {
+        NavigationStack(path: $path) {
             ZStack {
                 background
                 ScrollView {
@@ -34,6 +36,22 @@ public struct HomeView: View {
                 .refreshable { await model.load() }
             }
             .hideNavigationBar()
+            .navigationDestination(for: HomeModel.Route.self) { route in
+                switch route {
+                case let .vote(id):
+                    VoteScreenView(model: model.voteScreen(id: id)) { measure in
+                        if measure.kind == .bill { path.append(.bill(id: measure.id)) }
+                    }
+                    .navigationTitle("Vote")
+                    .inlineNavigationTitle()
+                case let .bill(id):
+                    BillScreenView(model: model.billScreen(id: id)) { vote in
+                        path.append(.vote(id: vote.id))
+                    }
+                    .navigationTitle("Bill")
+                    .inlineNavigationTitle()
+                }
+            }
         }
         .tint(Palette.accent)
         .task { if model.items.isEmpty { await model.load() } }
@@ -177,11 +195,7 @@ public struct HomeView: View {
                 VStack(spacing: 10) {
                     sectionTitle
                     ForEach(model.visibleItems) { item in
-                        NavigationLink {
-                            VoteScreenView(model: model.voteScreen(for: item))
-                                .navigationTitle(item.measure?.citation ?? "Vote")
-                                .inlineNavigationTitle()
-                        } label: {
+                        NavigationLink(value: HomeModel.Route.vote(id: item.vote.id)) {
                             card(item)
                         }
                         .buttonStyle(.plain)
