@@ -12,3 +12,9 @@ ios/*.xcodeproj/
 ios/DerivedData/
 ios/build/
 xcuserdata/
+
+# Local agent tooling
+.agents/
+.claude/
+.mcp.json
+skills-lock.json
