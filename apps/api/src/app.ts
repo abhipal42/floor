@@ -579,14 +579,25 @@ export function createApp(deps: AppDeps) {
 
   app.openapi(getStatusRoute, async (c) => {
     const now = (deps.now ?? (() => new Date()))().getTime();
-    const runs = new Map((await deps.status.lastRuns()).map((r) => [r.source, r]));
+    // This route's whole job is to say whether the data is healthy, so it must answer even when the
+    // database is the thing that is unwell. 500ing here would tell a monitor only that something
+    // broke; `ok: false` with the reason on every source says what.
+    let lastRuns: Awaited<ReturnType<StatusRepository["lastRuns"]>>;
+    let unreachable: string | null = null;
+    try {
+      lastRuns = await deps.status.lastRuns();
+    } catch (error) {
+      lastRuns = [];
+      unreachable = error instanceof Error ? error.message : "The database could not be reached";
+    }
+    const runs = new Map(lastRuns.map((r) => [r.source, r]));
     const sources: SourceStatus[] = Object.entries(MAX_AGE_HOURS).map(([source, hours]) => {
       const run = runs.get(source);
       const last = run?.lastSuccessAt ?? null;
       return {
         source,
         lastSuccessAt: last ? last.toISOString() : null,
-        lastError: run?.lastError ?? null,
+        lastError: unreachable ?? run?.lastError ?? null,
         stale: !last || now - last.getTime() > hours * 3_600_000,
       };
     });

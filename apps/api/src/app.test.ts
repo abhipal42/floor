@@ -270,6 +270,35 @@ describe("API", () => {
     });
   });
 
+  it("still answers when the database itself is unreachable", async () => {
+    // The route exists to report data health, so a database failure is the case it must handle,
+    // not the case that takes it down. A monitor needs `ok: false` and a reason, not a 500.
+    const broken = createApp({
+      votes: repo,
+      members: {
+        membersFor: async () => [],
+        recentVotes: async () => [],
+        getMember: async () => null,
+        partyLoyalty: async () => ({ votes: 0, withParty: 0, againstParty: 0 }),
+      },
+      bills: { getBill: async () => null },
+      nominations: { getNomination: async () => null },
+      status: {
+        lastRuns: async () => {
+          throw new Error("getaddrinfo ENOTFOUND db.example.supabase.co");
+        },
+      },
+      geocode: async () => null,
+    });
+    const res = await broken.request("/v1/status");
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.ok).toBe(false);
+    expect(body.sources).toHaveLength(5);
+    expect(body.sources.every((s: { stale: boolean }) => s.stale)).toBe(true);
+    expect(body.sources[0].lastError).toMatch(/ENOTFOUND/);
+  });
+
   it("publishes an OpenAPI document that describes the vote route and schema", async () => {
     const res = await app.request("/openapi.json");
     expect(res.status).toBe(200);
