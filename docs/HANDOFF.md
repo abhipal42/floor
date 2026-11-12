@@ -2,7 +2,7 @@
 
 Last updated 2026-11-12. Read this first, then [`plan.md`](plan.md) for the full design and reasoning.
 
-**In one paragraph:** M0 (foundation) is done. M1 (data backbone) is done; the one item still open against it, measured posting latency, has moved to M3, because it can only be taken on a live session day with polling running. Staging Postgres holds every House and Senate roll call since January 2023, and every one matches the official totals; every vote now has a subject attached, bills and nominations alike. The API serves district lookup, member votes, votes, bills, nominations and data freshness from that database. The iOS app is still a skeleton (one scoreboard card on sample data). M2 builds the real app screens on this API.
+**In one paragraph:** M0 (foundation) is done. M1 (data backbone) is done; the one item still open against it, measured posting latency, has moved to M3, because it can only be taken on a live session day with polling running. Staging Postgres holds every House and Senate roll call since January 2023, and every one matches the official totals; every vote now has a subject attached, bills and nominations alike. The API serves district lookup, member votes, votes, bills, nominations and data freshness from that database, and now also the per-party breakdown of a vote, your own delegation's positions on it, and a member's party-loyalty record. The iOS app is still a skeleton (one scoreboard card on sample data). **M2 is in progress:** the API contract it needs is complete, so Swift models can be generated from `/openapi.json` once and not twice.
 
 ---
 
@@ -66,8 +66,9 @@ iOS (needs a Mac with Xcode 16+): `brew install xcodegen && cd ios && xcodegen &
 | Route | Returns |
 |---|---|
 | `GET /v1/reps?address=` | District (119th Congress map) + House member + senators. The address goes only to the Census geocoder and isn't stored or logged. |
+| `GET /v1/members/{id}` | A member, plus how often they sided with their own party's majority |
 | `GET /v1/members/{bioguideId}/votes?limit=` | A member's recent votes with their position (and candidate, for Speaker elections) |
-| `GET /v1/votes/{id}` | One vote: totals, threshold, kind, bill link. IDs look like `house-119-1-100` |
+| `GET /v1/votes/{id}` | One vote: totals, threshold, kind, bill link, **per-party breakdown**, and for a Speaker election **which candidate each party backed**. `?members=A000370,C001098` (up to ten) also returns those members' own positions, so the vote screen loads your delegation in one round trip. IDs look like `house-119-1-100` |
 | `GET /v1/bills/{id}` | Title, short title, CRS summary, sponsor, policy area, CBO estimates, last 30 actions, every vote on it. IDs look like `119-hr-2207` |
 | `GET /v1/nominations/{id}` | Nominee, position, agency, received and latest action, every Senate vote on it. IDs look like `119-pn-1093-3` |
 | `GET /v1/status` | Last successful run and last error per ingest source, with `stale` flags |
@@ -77,7 +78,7 @@ iOS (needs a Mac with Xcode 16+): `brew install xcodegen && cd ios && xcodegen &
 
 | Table | Rows | Notes |
 |---|---|---|
-| `members` | 716 | Everyone serving now, plus anyone whose last term ended after 2022-11-01 |
+| `members` | 716 | Everyone serving now, plus anyone whose last term ended after 2022-11-01. One party is corrected on ingest; see lesson 14 |
 | `votes` | 3,532 | House + Senate, 118th–119th Congress, Jan 3 2023 → Nov 11 2026. 20 are Speaker elections (`kind = 'election'`). Every vote with a measure reference is linked to a bill or a nomination |
 | `vote_positions` | 995,806 | Verified: every vote's positions add up to its official totals; no vote lacks positions |
 | `bills` / `actions` | 1,049 / 19,714 | Every bill a vote refers to; 976 have a CRS summary. All 2,319 votes on bills are linked (`votes.bill_id`) |
@@ -133,7 +134,22 @@ Real data broke our first assumptions several times. Each case below is now hand
    at all — only `nominees[].positionTitle` ("Major General"), `organization` ("Air Force") and an
    `introText`. `nominations.nominee_name` is null for those, so clients must fall back to position and
    organization.
-14. **Applying migrations to staging:** apply each new file in `supabase/migrations` in order (Supabase SQL editor or `supabase db push`). Tests run all migrations against PGlite, so a migration that breaks shows up in `npm run check` first.
+14. **congress-legislators had a member's party wrong.** It lists Kevin Kiley (CA-3) as
+   "Independent" for the 119th Congress; his 118th-term entry says "Republican", he voted for
+   McCarthy in the January 2023 Speaker election, and he sides with the House Republican majority on
+   88% of the 1,879 roll calls we hold against 42% with the Democrats. As the only "I" member in the
+   House he put a spurious one-vote third-party row on the party breakdown of nearly every House
+   vote. `PARTY_OVERRIDES` in `members.ts` corrects him, keyed by Bioguide ID **and term start** so
+   the override lapses at his next term instead of outliving the upstream error. Genuine
+   independents are untouched. Re-run `ingest members` after changing it. Worth reporting upstream.
+15. **Party loyalty is meaningless for a party of one.** "Voted with their party" compares a member
+   with the majority of their own party, so for an independent it compares them with themselves and
+   always reads 100%. `partyLoyalty` therefore skips any vote where fewer than five of the member's
+   party voted, as well as votes where the party split evenly. Sanders and King come back with
+   `votes = 0`, and clients must show no figure rather than a figure that means nothing. If we ever
+   want a real number for them it needs a notion of which caucus they sit with — the data says both
+   vote with the Democratic majority about 92% of the time.
+16. **Applying migrations to staging:** apply each new file in `supabase/migrations` in order (Supabase SQL editor or `supabase db push`). Tests run all migrations against PGlite, so a migration that breaks shows up in `npm run check` first.
 
 ---
 
@@ -179,13 +195,21 @@ The working rhythm so far: break each milestone into tasks. For each task, write
 ### M2: iOS core on real data
 **Goal:** a TestFlight build that shows how your reps voted, from real data. No live updates yet.
 
-- Generate Swift `Models` from `/openapi.json` (swift-openapi-generator) and replace the hand-written `Vote.swift`, keeping its tests.
+- ~~Complete the API contract the screens need~~ **Done.** The Vote screen's party breakdown and
+  delegation positions, and the Rep screen's party-loyalty record, did not exist and would have
+  meant generating Swift models twice. `/v1/votes/{id}` now returns `partyTotals`,
+  `candidateTotals` and `positions`, and `/v1/members/{id}` is new. `Vote` itself is unchanged, so
+  the vote lists inside Bill and Nomination stay cheap.
+- Generate Swift `Models` from `/openapi.json` (swift-openapi-generator) and replace the hand-written `Vote.swift`, keeping its tests. **Note:** the hand-written `Vote.swift` is already stale — it has no `kind`, `nominationId`, `billRef`, `occurredAt` or `candidates`, and the Speaker election card cannot be built without the first and last of those.
 - `APIClient` package: URLSession client for the five routes; base URL from build config (staging vs. prod).
 - **Onboarding:** an address field (or "use my location" → reverse geocode → address) → `/v1/reps` → save state, district and member IDs locally. Never send the address anywhere except the API call.
-- **Home:** your delegation strip, then recent final votes for your reps (`/v1/members/{id}/votes`), using `ScoreboardCard`. Add the Speaker election card variant.
-- **Vote detail:** totals, threshold bar, party breakdown, how each of your reps voted.
+- **Home:** your delegation strip, then recent final votes for your reps (`/v1/members/{id}/votes`), using `ScoreboardCard`. Add the Speaker election card variant, which `candidateTotals` now feeds.
+- **Fix `ScoreboardCard` before building Home.** `score()` renders a 48pt condensed number inside a
+  five-child `HStack`; at 402pt width SwiftUI breaks each number across lines, so 216 renders as
+  2/1/6 stacked vertically. Needs `.lineLimit(1)` and a `.minimumScaleFactor()`.
+- **Vote detail:** totals, threshold bar, party breakdown, how each of your reps voted — all from one `/v1/votes/{id}?members=` call.
 - **Bill screen:** short title, CRS summary, sponsor, CBO links, the "Path to law" stepper built from actions, and votes on the bill.
-- **Rep screen:** recent votes, and votes with/against party (computable from `vote_positions`).
+- **Rep screen:** recent votes, and votes with/against party from `/v1/members/{id}`. Show nothing when `partyLoyalty.votes` is 0 (see lesson 15).
 - SwiftData cache for offline; snapshot tests for each card state.
 - **Backend for M2:** deploy the API (plan: Hono on Vercel, or a container alongside the worker) and point the app at it. Add CORS and rate limiting on `/v1/reps`.
 - **Exit:** TestFlight build where a tester enters their address and sees yesterday's votes by their reps.
