@@ -1,0 +1,32 @@
+name: Floor
+options:
+  bundleIdPrefix: app.floor
+  deploymentTarget:
+    iOS: "17.2"
+packages:
+  FloorKit:
+    path: FloorKit
+targets:
+  Floor:
+    type: application
+    platform: iOS
+    sources: [Floor]
+    dependencies:
+      - package: FloorKit
+        product: Models
+      - package: FloorKit
+        product: DesignSystem
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: app.floor.ios
+        GENERATE_INFOPLIST_FILE: YES
+        INFOPLIST_KEY_UILaunchScreen_Generation: YES
+        INFOPLIST_KEY_CFBundleDisplayName: Floor
+        SWIFT_VERSION: "6.0"
+        MARKETING_VERSION: "0.1.0"
+        CURRENT_PROJECT_VERSION: "1"
+schemes:
+  Floor:
+    build:
+      targets:
+        Floor: all
