@@ -7,7 +7,15 @@ import { beforeAll, describe, expect, it } from "vitest";
 import type { Db } from "./db.js";
 import { upsertMembers } from "./db.js";
 import { toMemberRows, type LegislatorEntry } from "./members.js";
-import { fetchRollCall, houseRollUrl, ingestRollCalls, senateRollUrl, yearOf, type FetchText } from "./rollcalls.js";
+import {
+  fetchRollCall,
+  houseRollUrl,
+  ingestRollCalls,
+  senateRollUrl,
+  withRetry,
+  yearOf,
+  type FetchText,
+} from "./rollcalls.js";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const read = (p: string) => readFileSync(join(here, p), "utf8");
@@ -80,6 +88,30 @@ describe("roll call URLs", () => {
   it("raises on server errors instead of silently stopping", async () => {
     const down: FetchText = async () => ({ status: 503, text: "" });
     await expect(fetchRollCall("senate", 119, 1, 1, down)).rejects.toThrow(/HTTP 503/);
+  });
+});
+
+describe("withRetry", () => {
+  const pgError = (code: string) => Object.assign(new Error(code), { code });
+
+  it("retries deadlocks and serialization failures", async () => {
+    let calls = 0;
+    const result = await withRetry(async () => {
+      calls++;
+      if (calls < 3) throw pgError(calls === 1 ? "40P01" : "40001");
+      return "ok";
+    }, 4, 1);
+    expect(result).toBe("ok");
+    expect(calls).toBe(3);
+  });
+
+  it("gives up after the last attempt and doesn't retry other errors", async () => {
+    let calls = 0;
+    await expect(withRetry(async () => { calls++; throw pgError("40P01"); }, 3, 1)).rejects.toThrow("40P01");
+    expect(calls).toBe(3);
+    calls = 0;
+    await expect(withRetry(async () => { calls++; throw pgError("23505"); }, 3, 1)).rejects.toThrow("23505");
+    expect(calls).toBe(1);
   });
 });
 

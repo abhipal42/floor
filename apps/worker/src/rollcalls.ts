@@ -35,6 +35,21 @@ export async function fetchRollCall(
   return chamber === "house" ? parseHouseRollCall(text) : parseSenateRollCall(text);
 }
 
+/** Postgres errors that succeed when the statement is simply run again. */
+const TRANSIENT = new Set(["40P01", "40001"]); // deadlock_detected, serialization_failure
+
+export async function withRetry<T>(fn: () => Promise<T>, attempts = 4, baseDelayMs = 200): Promise<T> {
+  for (let i = 1; ; i++) {
+    try {
+      return await fn();
+    } catch (err) {
+      const code = (err as { code?: string }).code;
+      if (!code || !TRANSIENT.has(code) || i >= attempts) throw err;
+      await new Promise((r) => setTimeout(r, baseDelayMs * i));
+    }
+  }
+}
+
 /**
  * Ingests roll calls for one chamber session, starting after the last stored roll
  * (or at `from`) and stopping at the first one that isn't published.
@@ -54,7 +69,7 @@ export async function ingestRollCalls(
     while (opts.limit === undefined || stored < opts.limit) {
       const rc = await fetchRollCall(chamber, congress, session, roll, opts.fetchText);
       if (!rc) break;
-      const result = await upsertRollCall(db, rc);
+      const result = await withRetry(() => upsertRollCall(db, rc));
       skippedPositions += result.skipped;
       stored++;
       opts.log?.(`${result.id}: ${rc.totals.yea}-${rc.totals.nay}, ${result.stored} positions`);
