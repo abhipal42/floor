@@ -1,5 +1,5 @@
 import { parseHouseRollCall, parseSenateRollCall, type Chamber, type RollCall } from "@floor/shared";
-import { lastRollNumber, startRun, upsertRollCall, type Db } from "./db.js";
+import { lastRollNumber, rollsMissingPositions, startRun, upsertRollCall, type Db } from "./db.js";
 
 export type FetchText = (url: string) => Promise<{ status: number; text: string }>;
 
@@ -66,6 +66,14 @@ export async function ingestRollCalls(
   let stored = 0;
   let skippedPositions = 0;
   try {
+    // Repair votes saved without positions (for example, by an interrupted older run).
+    for (const missing of await rollsMissingPositions(db, chamber, congress, session)) {
+      const rc = await fetchRollCall(chamber, congress, session, missing, opts.fetchText);
+      if (!rc) continue;
+      const result = await withRetry(() => upsertRollCall(db, rc));
+      opts.log?.(`repaired ${result.id}: ${result.stored} positions`);
+    }
+
     while (opts.limit === undefined || stored < opts.limit) {
       const rc = await fetchRollCall(chamber, congress, session, roll, opts.fetchText);
       if (!rc) break;

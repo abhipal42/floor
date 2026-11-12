@@ -32,42 +32,54 @@ export const voteId = (rc: Pick<RollCall, "chamber" | "congress" | "session" | "
  */
 export async function upsertRollCall(db: Db, rc: RollCall): Promise<{ id: string; stored: number; skipped: number }> {
   const id = voteId(rc);
-  await db.query(
-    `insert into votes (id, chamber, congress, session, roll_number, question, threshold, state,
-                        yea, nay, present, not_voting, result, bill_ref, occurred_at, closed_at, kind, candidates)
-     values ($1, $2, $3, $4, $5, $6, $7, 'final', $8, $9, $10, $11, $12, $13,
-             ($14::timestamp at time zone 'America/New_York'), ($14::timestamp at time zone 'America/New_York'),
-             $15, $16::jsonb)
-     on conflict (id) do update set
-       question = excluded.question, threshold = excluded.threshold, state = 'final',
-       yea = excluded.yea, nay = excluded.nay, present = excluded.present, not_voting = excluded.not_voting,
-       result = excluded.result, bill_ref = excluded.bill_ref,
-       occurred_at = excluded.occurred_at, closed_at = excluded.closed_at,
-       kind = excluded.kind, candidates = excluded.candidates`,
-    [
-      id, rc.chamber, rc.congress, rc.session, rc.rollNumber, rc.question, rc.threshold,
-      rc.totals.yea, rc.totals.nay, rc.totals.present, rc.totals.notVoting, rc.result,
-      rc.billRef, rc.occurredAtEastern, rc.kind, JSON.stringify(rc.candidates),
-    ],
-  );
-
   const joinOn = rc.chamber === "house" ? "m.bioguide_id = p.member_id" : "m.ids->>'lis' = p.member_id";
   const positions = rc.positions.map((p) => ({ member_id: p.memberId, position: p.position, choice: p.choice ?? null }));
+
+  // One statement, so a vote and its positions land together or not at all.
   const { rows } = await db.query<{ stored: number }>(
-    `with input as (
-       select * from jsonb_to_recordset($2::jsonb) as p(member_id text, position text, choice text)
+    `with v as (
+       insert into votes (id, chamber, congress, session, roll_number, question, threshold, state,
+                          yea, nay, present, not_voting, result, bill_ref, occurred_at, closed_at, kind, candidates)
+       values ($1, $2, $3, $4, $5, $6, $7, 'final', $8, $9, $10, $11, $12, $13,
+               ($14::timestamp at time zone 'America/New_York'), ($14::timestamp at time zone 'America/New_York'),
+               $15, $16::jsonb)
+       on conflict (id) do update set
+         question = excluded.question, threshold = excluded.threshold, state = 'final',
+         yea = excluded.yea, nay = excluded.nay, present = excluded.present, not_voting = excluded.not_voting,
+         result = excluded.result, bill_ref = excluded.bill_ref,
+         occurred_at = excluded.occurred_at, closed_at = excluded.closed_at,
+         kind = excluded.kind, candidates = excluded.candidates
+       returning id
+     ), input as (
+       select * from jsonb_to_recordset($17::jsonb) as p(member_id text, position text, choice text)
      ), ins as (
        insert into vote_positions (vote_id, member_id, position, choice)
-       select $1, m.bioguide_id, p.position::vote_position, p.choice
-         from input p join members m on ${joinOn}
+       select v.id, m.bioguide_id, p.position::vote_position, p.choice
+         from v cross join input p join members m on ${joinOn}
        on conflict (vote_id, member_id) do update set position = excluded.position, choice = excluded.choice
        returning 1
      )
      select count(*)::int as stored from ins`,
-    [id, JSON.stringify(positions)],
+    [
+      id, rc.chamber, rc.congress, rc.session, rc.rollNumber, rc.question, rc.threshold,
+      rc.totals.yea, rc.totals.nay, rc.totals.present, rc.totals.notVoting, rc.result,
+      rc.billRef, rc.occurredAtEastern, rc.kind, JSON.stringify(rc.candidates), JSON.stringify(positions),
+    ],
   );
   const stored = rows[0]?.stored ?? 0;
   return { id, stored, skipped: positions.length - stored };
+}
+
+/** Roll numbers in a session whose vote row exists but has no member positions. */
+export async function rollsMissingPositions(db: Db, chamber: string, congress: number, session: number): Promise<number[]> {
+  const { rows } = await db.query<{ roll_number: number }>(
+    `select v.roll_number from votes v
+      where v.chamber = $1 and v.congress = $2 and v.session = $3 and v.state = 'final'
+        and not exists (select 1 from vote_positions p where p.vote_id = v.id)
+      order by v.roll_number`,
+    [chamber, congress, session],
+  );
+  return rows.map((r) => r.roll_number);
 }
 
 /** Highest roll number already stored for a chamber session, or 0. */

@@ -156,6 +156,15 @@ describe("ingestRollCalls", () => {
     expect(pos).toEqual([{ position: "candidate", choice: "Jeffries" }]);
   });
 
+  it("refetches positions for a vote that was saved without them", async () => {
+    await pg.exec("delete from vote_positions where vote_id = 'senate-119-1-100'");
+    const logs: string[] = [];
+    await ingestRollCalls(db, "senate", 119, 1, { fetchText: fakeFetch, log: (m) => logs.push(m) });
+    expect(logs).toContain("repaired senate-119-1-100: 2 positions");
+    const { rows } = await pg.query<{ n: number }>("select count(*)::int as n from vote_positions where vote_id = 'senate-119-1-100'");
+    expect(rows[0]?.n).toBe(2);
+  });
+
   it("resumes after the last stored roll and logs the run", async () => {
     const result = await ingestRollCalls(db, "house", 119, 1, { fetchText: fakeFetch });
     expect(result).toEqual({ stored: 0, lastRoll: 100, skippedPositions: 0 });
@@ -166,6 +175,7 @@ describe("ingestRollCalls", () => {
       { source: "house_rollcalls", items: 1, error: null },
       { source: "senate_rollcalls", items: 1, error: null },
       { source: "house_rollcalls", items: 1, error: null },
+      { source: "senate_rollcalls", items: 0, error: null },
       { source: "house_rollcalls", items: 0, error: null },
     ]);
   });

@@ -36,9 +36,11 @@ const PARTY: Record<string, string> = { Democrat: "D", Republican: "R", Independ
 /**
  * Converts congress-legislators entries to member rows using each member's latest term.
  * Members whose latest term ended before `servedSince` are dropped, so historical data
- * only adds people who could appear in the roll calls we backfill.
+ * only adds people who could appear in the roll calls we backfill. The default reaches
+ * back before the 118th Congress because the Clerk can list members-elect who died
+ * before being sworn in (Rep. McEachin is on the first roll call of 2023).
  */
-export function toMemberRows(entries: LegislatorEntry[], servedSince = "2023-01-03"): MemberRow[] {
+export function toMemberRows(entries: LegislatorEntry[], servedSince = "2022-11-01"): MemberRow[] {
   const rows: MemberRow[] = [];
   for (const e of entries) {
     const term = e.terms.at(-1);
