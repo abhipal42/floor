@@ -1,0 +1,200 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Floor — Congress, called like a game</title>
+<meta name="description" content="Every House and Senate vote as a final score: the box score by party, how your three members played it, how far each bill has driven toward law, and who's paying for the team. Nonpartisan and informational only.">
+<meta name="theme-color" content="#07080A">
+<meta name="color-scheme" content="dark">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Floor">
+<meta property="og:title" content="Floor — Congress, called like a game">
+<meta property="og:description" content="Every House and Senate vote as a final score. The box score by party, how your three members played it, and how far each bill has driven toward law.">
+<meta name="twitter:card" content="summary">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:ital,wght@0,600;0,700;0,800;1,800;1,900&amp;family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="styles.css">
+<script type="module" src="js/main.js"></script>
+</head>
+<body>
+<a class="skip" href="#finals">Skip to the finals</a>
+
+<header class="site-head" id="site-head">
+  <div class="wrap site-head__in">
+    <a href="#top" class="logo">FLOOR</a>
+    <nav aria-label="Sections" class="site-nav">
+      <a href="#finals">Finals</a>
+      <a href="#law">Road to law</a>
+      <a href="#explained">Explained</a>
+      <a href="#scout">Your reps</a>
+      <a href="#cards">Players</a>
+      <a href="#money">Money</a>
+      <a href="#portfolio">Portfolio</a>
+      <a href="#get" class="site-nav__cta">Get the app</a>
+    </nav>
+  </div>
+</header>
+
+<main>
+<section id="top" class="wrap hero" aria-labelledby="hero-title">
+  <div class="hero__copy">
+    <h1 id="hero-title" class="hero__title">Congress,<br>called like<br><span class="hl" data-reveal>a game.</span></h1>
+    <p class="hero__lede">Every House and Senate vote as a final score. The box score by party, how your three members played it, how far each bill has driven toward law — and who's paying for the team.</p>
+    <div class="hero__ctas">
+      <span class="cool"><a href="#get" class="cool__btn">Get the iPhone beta</a></span>
+      <a href="#finals" class="hero__more">Watch five finals ↓</a>
+    </div>
+    <div class="hero__stats" id="hero-stats"></div>
+  </div>
+  <div class="hero__board">
+    <div class="flap" id="flap" role="img"></div>
+  </div>
+</section>
+
+<div class="ticker" id="ticker" role="region" aria-label="Latest finals"></div>
+
+<section id="finals" class="wrap split" aria-labelledby="finals-title">
+  <div class="split__copy">
+    <span class="kicker">01 · CATCH UP</span>
+    <h2 id="finals-title" class="h2">Five finals<br>worth knowing.</h2>
+    <p class="lede">The votes you'd hear about at the bar, one card at a time: the rule it had to beat, the score, the twist, and where your three landed. In the app, the deck is rebuilt every week from your members' votes.</p>
+  </div>
+  <div class="split__deck" id="deck"></div>
+</section>
+
+<section id="law" class="band" aria-labelledby="law-title">
+  <div class="wrap band__in">
+    <div class="sec-head">
+      <div class="sec-head__title"><span class="kicker">02 · HOW BILLS PASS</span>
+      <h2 id="law-title" class="h2">Six levels<br>to law.</h2></div>
+      <p class="lede">Every bill plays the same map. Three of the levels are boss fights a simple majority can't win. Scroll — the levels stack as you clear them.</p>
+    </div>
+    <div class="levels" id="levels"></div>
+
+    <div class="drive" id="drive">
+      <div class="drive__head">
+        <h3 class="h3" id="drive-title">The drive chart</h3>
+        <div role="tablist" aria-label="Bills" class="tabs" id="drive-tabs"></div>
+      </div>
+      <div class="drive__card card" id="drive-panel" role="tabpanel" aria-labelledby="drive-title"></div>
+      <p class="fine">Floor shows where a bill is, from Congress.gov and the clerks' roll calls — never a guess at where it ends up.</p>
+    </div>
+  </div>
+</section>
+
+<section id="explained" class="wrap stack explained" aria-labelledby="explained-title">
+  <div class="sec-head">
+    <div class="sec-head__title"><span class="kicker kicker--ai">03 · BILLS, EXPLAINED</span>
+    <h2 id="explained-title" class="h2">The playbook,<br>in plain English.</h2></div>
+    <p class="lede">Floor's AI reads the official Library of Congress summary and turns it into four lines you'll actually read — and every line points back to the paragraph it came from.</p>
+  </div>
+  <div id="explain"></div>
+</section>
+
+<section id="scout" class="wrap stack" aria-labelledby="scout-title">
+  <div class="sec-head">
+    <div class="sec-head__title"><span class="kicker">04 · YOUR REPS</span>
+    <h2 id="scout-title" class="h2">Scouting report.</h2></div>
+    <div role="tablist" aria-label="Your members" class="tabs" id="scout-tabs"></div>
+  </div>
+  <div class="scout" id="scout-panel" role="tabpanel" aria-labelledby="scout-title"></div>
+</section>
+
+<section id="cards" class="band" aria-labelledby="cards-title">
+  <div class="wrap band__in">
+    <div class="players">
+      <div class="players__copy">
+        <span class="kicker">05 · THE PLAYERS</span>
+        <h2 id="cards-title" class="h2">Every member<br>has a stat line.</h2>
+        <p class="lede">535 cards, one for every seat. A card's tier comes from one thing only: how often they break with their own party.</p>
+        <div class="fsel card" id="fan-sel" aria-live="polite"></div>
+      </div>
+      <div class="fan" id="fan" role="group" aria-label="Member cards"></div>
+    </div>
+
+    <div class="board">
+      <div class="board__head">
+        <h3 class="h3 h3--sm" id="board-title">Maverick leaderboard</h3>
+        <div role="tablist" aria-label="Chamber" class="seg" id="board-tabs"></div>
+      </div>
+      <div class="board__box" id="board-panel" role="tabpanel" aria-labelledby="board-title">
+        <div class="scroll-x" tabindex="0" aria-label="Maverick leaderboard, scrolls sideways">
+          <table class="board__table">
+            <thead><tr><th scope="col" class="c-rk">RK</th><th scope="col">PLAYER</th><th scope="col">SEAT</th><th scope="col" class="c-unity">WITH PARTY</th><th scope="col" class="c-x">CROSSOVERS</th></tr></thead>
+            <tbody id="board-rows"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="money" class="wrap stack" aria-labelledby="money-title">
+  <div class="sec-head">
+    <div class="sec-head__title"><span class="kicker">06 · WHO FUNDS THEM</span>
+    <h2 id="money-title" class="h2">Who's in<br>their corner.</h2></div>
+    <div role="tablist" aria-label="Your members" class="tabs" id="money-tabs"></div>
+  </div>
+  <div class="money" id="money-panel" role="tabpanel" aria-labelledby="money-title"></div>
+  <p class="fine">Source: Federal Election Commission filings for each member's principal campaign committee. Small-dollar means unitemized gifts under $200. Floor shows committees and totals — never individual donors' names.</p>
+  <div class="context-wrap">
+    <h3 class="h3 h3--sm">Who's giving, explained</h3>
+    <div id="context"></div>
+  </div>
+</section>
+
+<section id="portfolio" class="band" aria-labelledby="portfolio-title">
+  <div class="wrap band__in band__in--tight">
+    <div class="sec-head">
+      <div class="sec-head__title"><span class="kicker">07 · THE PORTFOLIO</span>
+      <h2 id="portfolio-title" class="h2">What they own.<br>What they trade.</h2></div>
+      <p class="lede">Every member files what they own each year, and every stock trade within 45 days. Floor reads the filings so you can see the money — in the ranges they report, never a number they didn't.</p>
+    </div>
+    <div class="pf" id="pf"></div>
+  </div>
+</section>
+
+<section id="live" class="band" aria-labelledby="live-title">
+  <div class="wrap live">
+    <div class="live__copy">
+      <span class="kicker kicker--live"><span class="live-dot pulse" aria-hidden="true"></span>08 · LIVE · COMING NEXT</span>
+      <h2 id="live-title" class="h2">The game,<br>on your phone.</h2>
+      <p class="lede">A Live Activity the moment a vote opens. Your members' calls the minute the roll posts. The final in your Dynamic Island before the gavel echoes.</p>
+      <span class="fine">Preview of a feature in development. Scores below replay H.R. 1013.</span>
+    </div>
+    <div class="live__phone">
+      <div class="phone">
+        <div class="phone__screen" id="phone"></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="get" class="get" aria-labelledby="get-title">
+  <div class="wrap get__in">
+    <div class="get__copy">
+      <h2 id="get-title" class="h2 h2--get">Pull your three.</h2>
+      <p>Enter your address once. Floor finds your representative and both senators, keeps the district, and drops the street.</p>
+    </div>
+    <form class="get__form" id="get-form" novalidate>
+      <label for="flAddr">Your address</label>
+      <input id="flAddr" name="address" type="text" autocomplete="street-address" placeholder="Street address">
+      <label for="flEm">Email for the iPhone beta</label>
+      <div class="get__row">
+        <input id="flEm" name="email" type="email" autocomplete="email" placeholder="you@example.com">
+        <button type="submit">Deal me in</button>
+      </div>
+      <p class="get__msg" id="get-msg" role="status" aria-live="polite"></p>
+    </form>
+  </div>
+</section>
+</main>
+
+<footer class="wrap foot">
+  <span>Floor · nonpartisan and informational only · House Clerk, Senate, Congress.gov, FEC, U.S. Census · AI summaries cite their sources and may contain errors</span><span><a href="#">[PRIVACY]</a> · <a href="#">[CONTACT]</a></span>
+</footer>
+</body>
+</html>

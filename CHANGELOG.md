@@ -5,34 +5,30 @@
 `VERSION`, is new relative to `main`, and increases monotonically. A MINOR bump
 is a milestone and ships a retro under `docs/retros/`.
 
-Before this file existed (2026-11-11 → 2026-11-12) the history is the commit log
-on `main`; the 0.1.0 entry below summarises it rather than listing every commit.
+Older series live in [`docs/changelog/`](docs/changelog) (0.1.x: [`0.1.md`](docs/changelog/0.1.md)).
+Before 0.1.0 the history is the commit log on `main`.
 
-## 0.1.0 — 2026-11-12
+## 0.2.0 — 2026-11-12
 
-M0 and M1 done, M2 in progress. Retro: [`docs/retros/0.1.0-m0-m1.md`](docs/retros/0.1.0-m0-m1.md).
+The web landing page. Retro: [`docs/retros/0.2.0-landing-page.md`](docs/retros/0.2.0-landing-page.md).
 
 ### Added
 
-- **Shipping guards** from the RIA template (`.github/scripts/guards.sh`, `guards.yml`, template
-  2.0.0): changelog, docs, tests, version-sync (`VERSION` ↔ `ios/project.yml`), bump-level, retro,
-  retro follow-ups, PR title, workflow injection. Configured for this layout in
-  `.github/scripts/guards.conf`. Dependabot for GitHub Actions, a PR template, `VERSION`, this
-  changelog, `docs/retros/` and a `CLAUDE.md` for agents.
-- **M0 — foundation.** npm workspace (TypeScript, ESLint, Vitest), Postgres schema in
-  `supabase/migrations` tested against PGlite, Hono API with a committed OpenAPI contract, XcodeGen
-  iOS project, CI on Node and macOS.
-- **M1 — data backbone.** House Clerk and Senate LIS roll call parsers; ingest CLI for members,
-  roll calls, bills and nominations; every House and Senate roll call since January 2023 in staging,
-  each matching its official totals; district lookup through the Census geocoder; `/v1/status`
-  freshness.
-- **M2 so far.** API routes for reps, members (with party loyalty), member votes, votes (party
-  breakdown, Speaker candidates, delegation positions), bills and nominations; CORS and rate
-  limiting; deployed at <https://floor-api.vercel.app>. iOS: hand-written `Models` checked against
-  the contract, `APIClient`, Onboarding, Home, Vote, Bill (path-to-law stepper) and Rep screens.
+- **`apps/web` (`@floor/web`)** — Floor's landing page, built to the locked design canvas
+  (<https://claude.ai/artifact/FKWYDhCej75UPy94csYLsU>): static HTML, CSS and TypeScript compiled with
+  the repo's `tsc`, no framework and no new dependencies. Sections: a split-flap finals board, a
+  five-finals story deck, the six levels to law with a drive chart, AI bill explainers that cite the
+  CRS summary paragraph by paragraph, a scouting report with each member's last 40 roll calls, player
+  cards and a maverick leaderboard, campaign funding from FEC filings with donor context ("context,
+  not cause"), a portfolio from House financial disclosures (reported ranges only), and a Live
+  Activity preview.
+- Every figure on the page lives in one typed snapshot (`apps/web/src/data.ts`) with its source and
+  date, and tests check it against itself: party splits sum to totals, grid counts match the stated
+  records, funding segments sum to totals, every AI point cites a paragraph that exists.
+- CI builds the site (`npm run build -w @floor/web`) in the node job.
 
 ### Changed
 
-- Docs brought up to date: test counts, the iOS module list, Swift models being hand-written rather
-  than generated, and the README's milestone status.
-- `.gitignore` ignores every `.env*` variant, not only `.env` and `.env.*`.
+- `CHANGELOG.md` keeps one MINOR series; 0.1.x moved to `docs/changelog/0.1.md`.
+- `CLAUDE.md` gains the product rules the design rounds settled (informational only, context not
+  cause, ranges not net worth, AI labelled and cited, no donor names).

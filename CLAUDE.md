@@ -48,6 +48,24 @@ A change of design, stack or milestone also updates `docs/plan.md` **and** `docs
 mirror each other. When something a doc says stops being true, fix the doc rather than adding a
 correction somewhere else.
 
+## Product rules (settled 2026-11-12, during the landing page rounds)
+
+These are product decisions, not style. Each one was a correction to a design that got it wrong.
+
+- **Informational only.** Floor never lets anyone pick, predict, guess or bet on an outcome — no
+  pick'em, no odds to act on. Gamified *presentation* (scoreboards, box scores, player cards,
+  streaks for catching up) is wanted; gamified *participation in outcomes* is not.
+- **Context, not cause.** Donor context says who a donor is, what they lobby on, and which of the
+  member's votes touch the same topic — side by side. Never that money explains a vote, or the
+  reverse. Every donor gets the same treatment.
+- **Ranges, not net worth.** Financial disclosures report value bands and leave out homes. Show the
+  reported ranges and say why; never print a single net-worth figure.
+- **AI is labelled and cited.** Every AI-written line carries an AI label, points at the source it
+  came from (the CRS summary paragraph, the filing), and says it may contain errors. A claim that
+  can't be tied to a source is cut, not softened.
+- **No individual donors' names**, even though the FEC publishes them.
+- **Real data or a visible placeholder.** Never an invented number, quote or example.
+
 ## Things that are easy to get wrong
 
 - **Never log Congress.gov URLs** — they carry the API key (lesson 7).
