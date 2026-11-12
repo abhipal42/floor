@@ -246,15 +246,31 @@ The working rhythm so far: break each milestone into tasks. For each task, write
   directly and never sees `api/`, hence framework `null` plus `vercel.json`; and the handler must use
   `@hono/node-server/vercel`, not `hono/vercel` — the latter returns a fetch-style handler while the
   Node runtime calls `(req, res)`, so every request hangs to the function timeout.
-  **Still to do:** set `DATABASE_URL` in the Vercel project. Until then the deployment serves empty
-  data by design — `/health` is fine and `/v1/status` reports `ok: false` with every source stale,
-  rather than 500s. Use Supabase's **pooler** connection string, not the direct `db.<ref>:5432` host:
-  a function that scales out will otherwise exhaust the database's connection limit. Optionally set
-  `ALLOWED_ORIGINS` (comma-separated) for a future web client; unset means no browser origin may read
-  a response, which does not affect the iOS app.
+  `DATABASE_URL` is set and the deployment serves real data; `/v1/status` reports `ok: true`.
+  Three things about that variable, each of which cost a failed deploy:
+  - **It must be the pooler string, and the username differs too.** Not
+    `postgres@db.<ref>.supabase.co:5432` — that host does not resolve from Vercel at all (Supabase's
+    direct connections are IPv6-only), so it fails with `ENOTFOUND` rather than a timeout. Use
+    `postgres.<ref>@aws-1-us-east-1.pooler.supabase.com:6543`.
+  - **It is `aws-1`, not `aws-0`.** Supabase's docs and most examples show `aws-0-us-east-1` for this
+    region; that host exists but rejects the tenant with "tenant/user not found".
+  - **Changing it needs a redeploy.** Vercel bakes environment variables into a deployment at build
+    time, so an existing deployment keeps the environment it was built with.
+
+  Optionally set `ALLOWED_ORIGINS` (comma-separated) for a future web client; unset means no browser
+  origin may read a response, which does not affect the iOS app.
+
+  **Latency:** `/v1/members/{id}` is the slowest route — about 0.7s warm but **7s on a cold start**,
+  because the party-loyalty query scans `vote_positions` (996k rows) and recomputes each party's
+  majority per vote. The Rep screen wears that as a spinner. A materialised per-member tally is the
+  fix if it starts to bite; the function timeout is 15s, so there is headroom but not a lot.
   **Worth doing before this is public for real:** the API only ever reads, so give it a read-only
   Postgres role rather than the service connection, which bypasses RLS and can write.
 - **Exit:** TestFlight build where a tester enters their address and sees yesterday's votes by their reps.
+  **Everything but the distribution is done:** a Release build of the app, pointed at
+  <https://floor-api.vercel.app> by its build configuration, runs the whole flow — onboarding to a
+  real district, Home, Vote, Bill and Rep — against the deployment with no local server. What is
+  left is an Apple Developer account, signing and the upload itself.
 
 **The designs.** The canvas has two pages and launches on **v2 · Live + impact**, so that is the
 direction: its four phone artboards are `Home` (Floor scoreboard), `Matchup` (→ Vote detail), `Bill`
