@@ -4,7 +4,8 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "tsx --env-file-if-exists=../../.env src/server.ts"
+    "dev": "tsx --env-file-if-exists=../../.env src/server.ts",
+    "openapi": "tsx src/openapi.ts openapi.json"
   },
   "dependencies": {
     "@floor/db": "^0.0.0",

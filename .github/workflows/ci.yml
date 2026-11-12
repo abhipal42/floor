@@ -15,6 +15,10 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run check
+      - name: Committed OpenAPI document matches the routes
+        run: |
+          npm run openapi -w @floor/api
+          git diff --exit-code -- apps/api/openapi.json
 
   ios:
     runs-on: macos-15

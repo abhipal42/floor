@@ -1,0 +1,1069 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "Floor API",
+    "version": "0.1.0"
+  },
+  "components": {
+    "schemas": {
+      "VoteKind": {
+        "type": "string",
+        "enum": [
+          "question",
+          "election"
+        ],
+        "description": "election = Speaker election (candidate votes)"
+      },
+      "Chamber": {
+        "type": "string",
+        "enum": [
+          "house",
+          "senate"
+        ]
+      },
+      "VoteState": {
+        "type": "string",
+        "enum": [
+          "scheduled",
+          "open",
+          "final"
+        ]
+      },
+      "VoteThreshold": {
+        "type": "string",
+        "enum": [
+          "majority",
+          "three_fifths_sworn",
+          "two_thirds"
+        ]
+      },
+      "VoteTotals": {
+        "type": "object",
+        "properties": {
+          "yea": {
+            "type": "integer"
+          },
+          "nay": {
+            "type": "integer"
+          },
+          "present": {
+            "type": "integer"
+          },
+          "notVoting": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "yea",
+          "nay",
+          "present",
+          "notVoting"
+        ]
+      },
+      "Candidate": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "example": "Jeffries"
+          },
+          "total": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "name",
+          "total"
+        ]
+      },
+      "PartyTotals": {
+        "type": "object",
+        "properties": {
+          "party": {
+            "type": "string",
+            "example": "D"
+          },
+          "yea": {
+            "type": "integer"
+          },
+          "nay": {
+            "type": "integer"
+          },
+          "present": {
+            "type": "integer"
+          },
+          "notVoting": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "party",
+          "yea",
+          "nay",
+          "present",
+          "notVoting"
+        ]
+      },
+      "CandidateTotal": {
+        "type": "object",
+        "properties": {
+          "party": {
+            "type": "string",
+            "example": "D"
+          },
+          "candidate": {
+            "type": "string",
+            "example": "Jeffries"
+          },
+          "total": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "party",
+          "candidate",
+          "total"
+        ]
+      },
+      "Member": {
+        "type": "object",
+        "properties": {
+          "bioguideId": {
+            "type": "string",
+            "example": "A000370"
+          },
+          "firstName": {
+            "type": "string"
+          },
+          "lastName": {
+            "type": "string"
+          },
+          "party": {
+            "type": "string",
+            "example": "D"
+          },
+          "state": {
+            "type": "string",
+            "example": "NC"
+          },
+          "district": {
+            "type": "integer",
+            "nullable": true
+          },
+          "chamber": {
+            "$ref": "#/components/schemas/Chamber"
+          }
+        },
+        "required": [
+          "bioguideId",
+          "firstName",
+          "lastName",
+          "party",
+          "state",
+          "district",
+          "chamber"
+        ]
+      },
+      "Position": {
+        "type": "string",
+        "enum": [
+          "yea",
+          "nay",
+          "present",
+          "not_voting",
+          "candidate"
+        ],
+        "description": "candidate is only used on Speaker elections"
+      },
+      "MemberPosition": {
+        "type": "object",
+        "properties": {
+          "member": {
+            "$ref": "#/components/schemas/Member"
+          },
+          "position": {
+            "$ref": "#/components/schemas/Position"
+          },
+          "choice": {
+            "type": "string",
+            "nullable": true,
+            "description": "Candidate named in a Speaker election"
+          }
+        },
+        "required": [
+          "member",
+          "position",
+          "choice"
+        ]
+      },
+      "VoteDetail": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "example": "house-119-1-100"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/VoteKind"
+          },
+          "chamber": {
+            "$ref": "#/components/schemas/Chamber"
+          },
+          "congress": {
+            "type": "integer"
+          },
+          "session": {
+            "type": "integer"
+          },
+          "rollNumber": {
+            "type": "integer",
+            "nullable": true
+          },
+          "question": {
+            "type": "string"
+          },
+          "billId": {
+            "type": "string",
+            "nullable": true
+          },
+          "nominationId": {
+            "type": "string",
+            "nullable": true,
+            "example": "119-pn-1093-3"
+          },
+          "billRef": {
+            "type": "string",
+            "nullable": true,
+            "example": "H CON RES 14"
+          },
+          "occurredAt": {
+            "type": "string",
+            "nullable": true,
+            "example": "2025-04-10T15:08:00.000Z"
+          },
+          "state": {
+            "$ref": "#/components/schemas/VoteState"
+          },
+          "threshold": {
+            "$ref": "#/components/schemas/VoteThreshold"
+          },
+          "totals": {
+            "$ref": "#/components/schemas/VoteTotals"
+          },
+          "candidates": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Candidate"
+            }
+          },
+          "result": {
+            "type": "string",
+            "nullable": true
+          },
+          "partyTotals": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PartyTotals"
+            },
+            "description": "Per-party counts. An election reports its party split in candidateTotals instead."
+          },
+          "candidateTotals": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CandidateTotal"
+            },
+            "description": "Which candidate each party voted for. Only populated when kind = election."
+          },
+          "positions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/MemberPosition"
+            },
+            "description": "How the members named in ?members= voted. Empty when the query names none."
+          }
+        },
+        "required": [
+          "id",
+          "kind",
+          "chamber",
+          "congress",
+          "session",
+          "rollNumber",
+          "question",
+          "billId",
+          "nominationId",
+          "billRef",
+          "occurredAt",
+          "state",
+          "threshold",
+          "totals",
+          "candidates",
+          "result",
+          "partyTotals",
+          "candidateTotals",
+          "positions"
+        ]
+      },
+      "Error": {
+        "type": "object",
+        "properties": {
+          "error": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "error"
+        ]
+      },
+      "PartyLoyalty": {
+        "type": "object",
+        "properties": {
+          "votes": {
+            "type": "integer",
+            "description": "Yea/nay votes counted: those where the member voted yea or nay and their party was not itself tied"
+          },
+          "withParty": {
+            "type": "integer"
+          },
+          "againstParty": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "votes",
+          "withParty",
+          "againstParty"
+        ]
+      },
+      "MemberDetail": {
+        "type": "object",
+        "properties": {
+          "member": {
+            "$ref": "#/components/schemas/Member"
+          },
+          "partyLoyalty": {
+            "$ref": "#/components/schemas/PartyLoyalty"
+          }
+        },
+        "required": [
+          "member",
+          "partyLoyalty"
+        ]
+      },
+      "District": {
+        "type": "object",
+        "properties": {
+          "congress": {
+            "type": "integer"
+          },
+          "state": {
+            "type": "string",
+            "example": "TX"
+          },
+          "district": {
+            "type": "integer"
+          },
+          "countyFips": {
+            "type": "string",
+            "nullable": true,
+            "example": "48453"
+          }
+        },
+        "required": [
+          "congress",
+          "state",
+          "district",
+          "countyFips"
+        ]
+      },
+      "Reps": {
+        "type": "object",
+        "properties": {
+          "district": {
+            "$ref": "#/components/schemas/District"
+          },
+          "members": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Member"
+            }
+          }
+        },
+        "required": [
+          "district",
+          "members"
+        ]
+      },
+      "Vote": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "example": "house-119-1-100"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/VoteKind"
+          },
+          "chamber": {
+            "$ref": "#/components/schemas/Chamber"
+          },
+          "congress": {
+            "type": "integer"
+          },
+          "session": {
+            "type": "integer"
+          },
+          "rollNumber": {
+            "type": "integer",
+            "nullable": true
+          },
+          "question": {
+            "type": "string"
+          },
+          "billId": {
+            "type": "string",
+            "nullable": true
+          },
+          "nominationId": {
+            "type": "string",
+            "nullable": true,
+            "example": "119-pn-1093-3"
+          },
+          "billRef": {
+            "type": "string",
+            "nullable": true,
+            "example": "H CON RES 14"
+          },
+          "occurredAt": {
+            "type": "string",
+            "nullable": true,
+            "example": "2025-04-10T15:08:00.000Z"
+          },
+          "state": {
+            "$ref": "#/components/schemas/VoteState"
+          },
+          "threshold": {
+            "$ref": "#/components/schemas/VoteThreshold"
+          },
+          "totals": {
+            "$ref": "#/components/schemas/VoteTotals"
+          },
+          "candidates": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Candidate"
+            }
+          },
+          "result": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "required": [
+          "id",
+          "kind",
+          "chamber",
+          "congress",
+          "session",
+          "rollNumber",
+          "question",
+          "billId",
+          "nominationId",
+          "billRef",
+          "occurredAt",
+          "state",
+          "threshold",
+          "totals",
+          "candidates",
+          "result"
+        ]
+      },
+      "MemberVote": {
+        "type": "object",
+        "properties": {
+          "vote": {
+            "$ref": "#/components/schemas/Vote"
+          },
+          "position": {
+            "$ref": "#/components/schemas/Position"
+          },
+          "choice": {
+            "type": "string",
+            "nullable": true,
+            "description": "Candidate named in a Speaker election"
+          }
+        },
+        "required": [
+          "vote",
+          "position",
+          "choice"
+        ]
+      },
+      "LatestAction": {
+        "type": "object",
+        "nullable": true,
+        "properties": {
+          "on": {
+            "type": "string",
+            "example": "2025-05-20"
+          },
+          "text": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "on",
+          "text"
+        ]
+      },
+      "CboEstimate": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string"
+          },
+          "url": {
+            "type": "string"
+          },
+          "pubDate": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "title",
+          "url",
+          "pubDate"
+        ]
+      },
+      "BillAction": {
+        "type": "object",
+        "properties": {
+          "actedOn": {
+            "type": "string",
+            "example": "2025-05-20"
+          },
+          "chamber": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Chamber"
+              },
+              {
+                "nullable": true
+              }
+            ]
+          },
+          "text": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "actedOn",
+          "chamber",
+          "text"
+        ]
+      },
+      "Bill": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "example": "119-hconres-14"
+          },
+          "congress": {
+            "type": "integer"
+          },
+          "type": {
+            "type": "string",
+            "example": "hconres"
+          },
+          "number": {
+            "type": "integer"
+          },
+          "title": {
+            "type": "string"
+          },
+          "shortTitle": {
+            "type": "string",
+            "nullable": true
+          },
+          "sponsor": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Member"
+              },
+              {
+                "nullable": true
+              }
+            ]
+          },
+          "introducedOn": {
+            "type": "string",
+            "nullable": true
+          },
+          "originChamber": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Chamber"
+              },
+              {
+                "nullable": true
+              }
+            ]
+          },
+          "policyArea": {
+            "type": "string",
+            "nullable": true
+          },
+          "summary": {
+            "type": "string",
+            "nullable": true,
+            "description": "Latest Congressional Research Service summary, plain text"
+          },
+          "summaryStage": {
+            "type": "string",
+            "nullable": true
+          },
+          "latestAction": {
+            "$ref": "#/components/schemas/LatestAction"
+          },
+          "cboEstimates": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CboEstimate"
+            }
+          },
+          "actions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/BillAction"
+            }
+          },
+          "votes": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Vote"
+            }
+          }
+        },
+        "required": [
+          "id",
+          "congress",
+          "type",
+          "number",
+          "title",
+          "shortTitle",
+          "sponsor",
+          "introducedOn",
+          "originChamber",
+          "policyArea",
+          "summary",
+          "summaryStage",
+          "latestAction",
+          "cboEstimates",
+          "actions",
+          "votes"
+        ]
+      },
+      "Nomination": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "example": "119-pn-1093-3"
+          },
+          "congress": {
+            "type": "integer"
+          },
+          "number": {
+            "type": "integer"
+          },
+          "part": {
+            "type": "integer",
+            "description": "0 unless the Senate split the nomination into parts"
+          },
+          "citation": {
+            "type": "string",
+            "description": "As the Senate cites it on the roll call",
+            "example": "PN1093-3"
+          },
+          "nomineeName": {
+            "type": "string",
+            "nullable": true,
+            "description": "null for military nominations, which promote officers in bulk; show the position instead"
+          },
+          "positionTitle": {
+            "type": "string",
+            "nullable": true,
+            "example": "United States District Judge for the Southern District of Ohio"
+          },
+          "organization": {
+            "type": "string",
+            "nullable": true,
+            "example": "The Judiciary"
+          },
+          "description": {
+            "type": "string",
+            "nullable": true,
+            "description": "Congress.gov's full sentence, including the \"vice ...\" clause"
+          },
+          "nomineeCount": {
+            "type": "integer",
+            "nullable": true
+          },
+          "isMilitary": {
+            "type": "boolean"
+          },
+          "receivedOn": {
+            "type": "string",
+            "nullable": true
+          },
+          "latestAction": {
+            "$ref": "#/components/schemas/LatestAction"
+          },
+          "votes": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Vote"
+            }
+          }
+        },
+        "required": [
+          "id",
+          "congress",
+          "number",
+          "part",
+          "citation",
+          "nomineeName",
+          "positionTitle",
+          "organization",
+          "description",
+          "nomineeCount",
+          "isMilitary",
+          "receivedOn",
+          "latestAction",
+          "votes"
+        ]
+      },
+      "SourceStatus": {
+        "type": "object",
+        "properties": {
+          "source": {
+            "type": "string",
+            "example": "house_rollcalls"
+          },
+          "lastSuccessAt": {
+            "type": "string",
+            "nullable": true
+          },
+          "lastError": {
+            "type": "string",
+            "nullable": true
+          },
+          "stale": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "source",
+          "lastSuccessAt",
+          "lastError",
+          "stale"
+        ]
+      }
+    },
+    "parameters": {}
+  },
+  "paths": {
+    "/v1/votes/{id}": {
+      "get": {
+        "summary": "Get a vote with its totals, party breakdown and named members' positions",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^(house|senate)-\\d+-\\d-\\d+$",
+              "example": "house-119-1-100"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^[A-Z]\\d{6}(,[A-Z]\\d{6})*$",
+              "description": "Return these members' own positions on the vote — your delegation, for the vote screen.",
+              "example": "D000399,C001098"
+            },
+            "required": false,
+            "name": "members",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The vote",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VoteDetail"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No vote with that ID",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/members/{id}": {
+      "get": {
+        "summary": "A member and how often they vote with their own party",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^[A-Z]\\d{6}$",
+              "example": "A000370"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The member",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MemberDetail"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No member with that ID",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/reps": {
+      "get": {
+        "summary": "Find your district and members of Congress from an address",
+        "description": "The address is sent to the U.S. Census geocoder and is not stored or logged.",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 5,
+              "maxLength": 200,
+              "example": "1100 Congress Ave, Austin, TX 78701"
+            },
+            "required": true,
+            "name": "address",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Your district and members",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Reps"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Address not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/members/{id}/votes": {
+      "get": {
+        "summary": "A member's most recent votes and how they voted",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^[A-Z]\\d{6}$",
+              "example": "A000370"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20
+            },
+            "required": false,
+            "name": "limit",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Votes, newest first",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "votes": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/MemberVote"
+                      }
+                    }
+                  },
+                  "required": [
+                    "votes"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/bills/{id}": {
+      "get": {
+        "summary": "A bill with its summary, sponsor, recent actions and every vote on it",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d{2,3}-(hr|hres|hjres|hconres|s|sres|sjres|sconres)-\\d+$",
+              "example": "119-hconres-14"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The bill",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Bill"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No bill with that ID",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/nominations/{id}": {
+      "get": {
+        "summary": "A presidential nomination with every Senate vote on it",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d{2,3}-pn-\\d+(-\\d+)?$",
+              "example": "119-pn-1093-3"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The nomination",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Nomination"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No nomination with that ID",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/status": {
+      "get": {
+        "summary": "Data freshness for each ingest source",
+        "responses": {
+          "200": {
+            "description": "ok is false when any source is stale",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "ok": {
+                      "type": "boolean"
+                    },
+                    "sources": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/SourceStatus"
+                      }
+                    }
+                  },
+                  "required": [
+                    "ok",
+                    "sources"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

@@ -1,11 +1,71 @@
 import { OpenAPIHono, createRoute, z } from "@hono/zod-openapi";
 import type { DistrictMatch } from "./district.js";
 
+/*
+ * The enums below are registered as their own components so the OpenAPI document refers to each by
+ * $ref instead of inlining a fresh copy per schema. Inlined, a generator emits one Swift type per
+ * occurrence — Vote.chamber and Member.chamber would be different, incompatible enums — so these
+ * stay shared even though each is only a handful of strings.
+ */
+export const ChamberSchema = z.enum(["house", "senate"]).openapi("Chamber");
+
+export const VoteKindSchema = z
+  .enum(["question", "election"])
+  .openapi("VoteKind", { description: "election = Speaker election (candidate votes)" });
+
+export const VoteStateSchema = z.enum(["scheduled", "open", "final"]).openapi("VoteState");
+
+export const VoteThresholdSchema = z
+  .enum(["majority", "three_fifths_sworn", "two_thirds"])
+  .openapi("VoteThreshold");
+
+export const PositionSchema = z
+  .enum(["yea", "nay", "present", "not_voting", "candidate"])
+  .openapi("Position", { description: "candidate is only used on Speaker elections" });
+
+export type Chamber = z.infer<typeof ChamberSchema>;
+export type Position = z.infer<typeof PositionSchema>;
+
+/*
+ * Likewise the object shapes below. Inline, a generator names them after where they appear —
+ * Bill.actions became `Bill.ActionsPayloadPayload` — and a shape used twice (latestAction, on both
+ * Bill and Nomination) becomes two unrelated types.
+ */
+export const VoteTotalsSchema = z
+  .object({
+    yea: z.number().int(),
+    nay: z.number().int(),
+    present: z.number().int(),
+    notVoting: z.number().int(),
+  })
+  .openapi("VoteTotals");
+
+export const CandidateSchema = z
+  .object({ name: z.string().openapi({ example: "Jeffries" }), total: z.number().int() })
+  .openapi("Candidate");
+
+export const LatestActionSchema = z
+  .object({ on: z.string().openapi({ example: "2025-05-20" }), text: z.string() })
+  .openapi("LatestAction");
+
+export const CboEstimateSchema = z
+  .object({ title: z.string(), url: z.string(), pubDate: z.string() })
+  .openapi("CboEstimate");
+
+export const DistrictSchema = z
+  .object({
+    congress: z.number().int(),
+    state: z.string().openapi({ example: "TX" }),
+    district: z.number().int(),
+    countyFips: z.string().nullable().openapi({ example: "48453" }),
+  })
+  .openapi("District");
+
 export const VoteSchema = z
   .object({
     id: z.string().openapi({ example: "house-119-1-100" }),
-    kind: z.enum(["question", "election"]).openapi({ description: "election = Speaker election (candidate votes)" }),
-    chamber: z.enum(["house", "senate"]),
+    kind: VoteKindSchema,
+    chamber: ChamberSchema,
     congress: z.number().int(),
     session: z.number().int(),
     rollNumber: z.number().int().nullable(),
@@ -14,15 +74,10 @@ export const VoteSchema = z
     nominationId: z.string().nullable().openapi({ example: "119-pn-1093-3" }),
     billRef: z.string().nullable().openapi({ example: "H CON RES 14" }),
     occurredAt: z.string().nullable().openapi({ example: "2025-04-10T15:08:00.000Z" }),
-    state: z.enum(["scheduled", "open", "final"]),
-    threshold: z.enum(["majority", "three_fifths_sworn", "two_thirds"]),
-    totals: z.object({
-      yea: z.number().int(),
-      nay: z.number().int(),
-      present: z.number().int(),
-      notVoting: z.number().int(),
-    }),
-    candidates: z.array(z.object({ name: z.string(), total: z.number().int() })),
+    state: VoteStateSchema,
+    threshold: VoteThresholdSchema,
+    totals: VoteTotalsSchema,
+    candidates: z.array(CandidateSchema),
     result: z.string().nullable(),
   })
   .openapi("Vote");
@@ -37,7 +92,7 @@ export const MemberSchema = z
     party: z.string().openapi({ example: "D" }),
     state: z.string().openapi({ example: "NC" }),
     district: z.number().int().nullable(),
-    chamber: z.enum(["house", "senate"]),
+    chamber: ChamberSchema,
   })
   .openapi("Member");
 
@@ -68,7 +123,7 @@ export type CandidateTotal = z.infer<typeof CandidateTotalSchema>;
 export const MemberPositionSchema = z
   .object({
     member: MemberSchema,
-    position: z.enum(["yea", "nay", "present", "not_voting", "candidate"]),
+    position: PositionSchema,
     choice: z.string().nullable().openapi({ description: "Candidate named in a Speaker election" }),
   })
   .openapi("MemberPosition");
@@ -116,12 +171,7 @@ export type VoteDetail = z.infer<typeof VoteDetailSchema>;
 
 const RepsSchema = z
   .object({
-    district: z.object({
-      congress: z.number().int(),
-      state: z.string(),
-      district: z.number().int(),
-      countyFips: z.string().nullable(),
-    }),
+    district: DistrictSchema,
     members: z.array(MemberSchema),
   })
   .openapi("Reps");
@@ -129,7 +179,7 @@ const RepsSchema = z
 export const MemberVoteSchema = z
   .object({
     vote: VoteSchema,
-    position: z.enum(["yea", "nay", "present", "not_voting", "candidate"]),
+    position: PositionSchema,
     choice: z.string().nullable().openapi({ description: "Candidate named in a Speaker election" }),
   })
   .openapi("MemberVote");
@@ -159,6 +209,14 @@ export interface MemberRepository {
   partyLoyalty(bioguideId: string, party: string): Promise<PartyLoyalty>;
 }
 
+export const BillActionSchema = z
+  .object({
+    actedOn: z.string().openapi({ example: "2025-05-20" }),
+    chamber: ChamberSchema.nullable(),
+    text: z.string(),
+  })
+  .openapi("BillAction");
+
 export const BillSchema = z
   .object({
     id: z.string().openapi({ example: "119-hconres-14" }),
@@ -169,13 +227,13 @@ export const BillSchema = z
     shortTitle: z.string().nullable(),
     sponsor: MemberSchema.nullable(),
     introducedOn: z.string().nullable(),
-    originChamber: z.enum(["house", "senate"]).nullable(),
+    originChamber: ChamberSchema.nullable(),
     policyArea: z.string().nullable(),
     summary: z.string().nullable().openapi({ description: "Latest Congressional Research Service summary, plain text" }),
     summaryStage: z.string().nullable(),
-    latestAction: z.object({ on: z.string(), text: z.string() }).nullable(),
-    cboEstimates: z.array(z.object({ title: z.string(), url: z.string(), pubDate: z.string() })),
-    actions: z.array(z.object({ actedOn: z.string(), chamber: z.enum(["house", "senate"]).nullable(), text: z.string() })),
+    latestAction: LatestActionSchema.nullable(),
+    cboEstimates: z.array(CboEstimateSchema),
+    actions: z.array(BillActionSchema),
     votes: z.array(VoteSchema),
   })
   .openapi("Bill");
@@ -203,7 +261,7 @@ export const NominationSchema = z
     nomineeCount: z.number().int().nullable(),
     isMilitary: z.boolean(),
     receivedOn: z.string().nullable(),
-    latestAction: z.object({ on: z.string(), text: z.string() }).nullable(),
+    latestAction: LatestActionSchema.nullable(),
     votes: z.array(VoteSchema),
   })
   .openapi("Nomination");
