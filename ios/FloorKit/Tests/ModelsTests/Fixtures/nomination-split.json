@@ -1,0 +1,66 @@
+{
+    "id": "119-pn-1093-3",
+    "congress": 119,
+    "number": 1093,
+    "part": 3,
+    "citation": "PN1093-3",
+    "nomineeName": "Matthew R. Byrne",
+    "positionTitle": "United States District Judge for the Southern District of Ohio",
+    "organization": "The Judiciary",
+    "description": "Matthew R. Byrne, of Ohio, to be United States District Judge for the Southern District of Ohio, vice Michael H. Watson, retired.",
+    "nomineeCount": 1,
+    "isMilitary": false,
+    "receivedOn": "2026-06-15",
+    "latestAction": {
+        "on": "2026-09-15",
+        "text": "Confirmed by the Senate by Yea-Nay Vote. 52 - 45. Record Vote Number: 233."
+    },
+    "votes": [
+        {
+            "id": "senate-119-2-233",
+            "kind": "question",
+            "candidates": [],
+            "chamber": "senate",
+            "congress": 119,
+            "session": 2,
+            "rollNumber": 233,
+            "question": "On the Nomination",
+            "billId": null,
+            "nominationId": "119-pn-1093-3",
+            "billRef": "PN1093-3",
+            "occurredAt": "2026-09-15T15:15:00.000Z",
+            "state": "final",
+            "threshold": "majority",
+            "totals": {
+                "yea": 52,
+                "nay": 45,
+                "present": 0,
+                "notVoting": 3
+            },
+            "result": "Nomination Confirmed"
+        },
+        {
+            "id": "senate-119-2-232",
+            "kind": "question",
+            "candidates": [],
+            "chamber": "senate",
+            "congress": 119,
+            "session": 2,
+            "rollNumber": 232,
+            "question": "On the Cloture Motion",
+            "billId": null,
+            "nominationId": "119-pn-1093-3",
+            "billRef": "PN1093-3",
+            "occurredAt": "2026-09-14T21:31:00.000Z",
+            "state": "final",
+            "threshold": "majority",
+            "totals": {
+                "yea": 47,
+                "nay": 46,
+                "present": 0,
+                "notVoting": 7
+            },
+            "result": "Cloture Motion Agreed to"
+        }
+    ]
+}

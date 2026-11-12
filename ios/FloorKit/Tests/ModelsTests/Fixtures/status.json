@@ -1,0 +1,35 @@
+{
+    "ok": true,
+    "sources": [
+        {
+            "source": "members",
+            "lastSuccessAt": "2026-11-12T14:07:22.993Z",
+            "lastError": null,
+            "stale": false
+        },
+        {
+            "source": "house_rollcalls",
+            "lastSuccessAt": "2026-11-12T04:30:09.324Z",
+            "lastError": "Unknown vote position: \"Jeffries\"",
+            "stale": false
+        },
+        {
+            "source": "senate_rollcalls",
+            "lastSuccessAt": "2026-11-12T04:28:40.578Z",
+            "lastError": "deadlock detected",
+            "stale": false
+        },
+        {
+            "source": "bills",
+            "lastSuccessAt": "2026-11-12T06:43:29.995Z",
+            "lastError": null,
+            "stale": false
+        },
+        {
+            "source": "nominations",
+            "lastSuccessAt": "2026-11-12T06:37:15.438Z",
+            "lastError": null,
+            "stale": false
+        }
+    ]
+}

@@ -1,0 +1,68 @@
+{
+    "id": "house-119-1-100",
+    "kind": "question",
+    "candidates": [],
+    "chamber": "house",
+    "congress": 119,
+    "session": 1,
+    "rollNumber": 100,
+    "question": "On Motion to Concur in the Senate Amendment",
+    "billId": "119-hconres-14",
+    "nominationId": null,
+    "billRef": "H CON RES 14",
+    "occurredAt": "2025-04-10T15:08:00.000Z",
+    "state": "final",
+    "threshold": "majority",
+    "totals": {
+        "yea": 216,
+        "nay": 214,
+        "present": 0,
+        "notVoting": 3
+    },
+    "result": "Passed",
+    "partyTotals": [
+        {
+            "party": "R",
+            "yea": 216,
+            "nay": 2,
+            "present": 0,
+            "notVoting": 2
+        },
+        {
+            "party": "D",
+            "yea": 0,
+            "nay": 212,
+            "present": 0,
+            "notVoting": 1
+        }
+    ],
+    "candidateTotals": [],
+    "positions": [
+        {
+            "member": {
+                "bioguideId": "A000370",
+                "firstName": "Alma",
+                "lastName": "Adams",
+                "party": "D",
+                "state": "NC",
+                "district": 12,
+                "chamber": "house"
+            },
+            "position": "nay",
+            "choice": null
+        },
+        {
+            "member": {
+                "bioguideId": "K000401",
+                "firstName": "Kevin",
+                "lastName": "Kiley",
+                "party": "R",
+                "state": "CA",
+                "district": 3,
+                "chamber": "house"
+            },
+            "position": "yea",
+            "choice": null
+        }
+    ]
+}

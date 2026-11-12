@@ -269,4 +269,18 @@ describe("API", () => {
     expect(doc.components.schemas.Vote.required).toContain("nominationId");
     expect(doc.components.schemas.Nomination.required).toContain("citation");
   });
+
+  it("keeps nullability off the shared components, except where every use is nullable", async () => {
+    // zod-openapi hoists `nullable` onto a registered component when a nullable use is registered
+    // before a non-nullable one, which would quietly make the component nullable everywhere it is
+    // referenced — including at uses that are not supposed to accept null. LatestAction is nullable
+    // at both of its uses, so carrying it on the component is correct there. Anything else showing
+    // up here needs checking against how it is actually used before the list is widened.
+    const doc = await (await app.request("/openapi.json")).json();
+    const schemas: Record<string, { nullable?: boolean }> = doc.components.schemas;
+    const hoisted = Object.entries(schemas)
+      .filter(([, schema]) => schema.nullable)
+      .map(([name]) => name);
+    expect(hoisted).toEqual(["LatestAction"]);
+  });
 });

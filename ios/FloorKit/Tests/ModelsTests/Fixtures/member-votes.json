@@ -1,0 +1,85 @@
+{
+    "votes": [
+        {
+            "vote": {
+                "id": "house-119-2-321",
+                "kind": "question",
+                "candidates": [],
+                "chamber": "house",
+                "congress": 119,
+                "session": 2,
+                "rollNumber": 321,
+                "question": "On Passage",
+                "billId": "119-hr-1013",
+                "nominationId": null,
+                "billRef": "H R 1013",
+                "occurredAt": "2026-11-11T19:43:00.000Z",
+                "state": "final",
+                "threshold": "majority",
+                "totals": {
+                    "yea": 295,
+                    "nay": 128,
+                    "present": 0,
+                    "notVoting": 10
+                },
+                "result": "Passed"
+            },
+            "position": "nay",
+            "choice": null
+        },
+        {
+            "vote": {
+                "id": "house-119-2-320",
+                "kind": "question",
+                "candidates": [],
+                "chamber": "house",
+                "congress": 119,
+                "session": 2,
+                "rollNumber": 320,
+                "question": "On Motion to Discharge",
+                "billId": "119-hres-1247",
+                "nominationId": null,
+                "billRef": "H RES 1247",
+                "occurredAt": "2026-11-11T18:04:00.000Z",
+                "state": "final",
+                "threshold": "majority",
+                "totals": {
+                    "yea": 245,
+                    "nay": 175,
+                    "present": 0,
+                    "notVoting": 13
+                },
+                "result": "Passed"
+            },
+            "position": "yea",
+            "choice": null
+        },
+        {
+            "vote": {
+                "id": "house-119-2-319",
+                "kind": "question",
+                "candidates": [],
+                "chamber": "house",
+                "congress": 119,
+                "session": 2,
+                "rollNumber": 319,
+                "question": "On Agreeing to the Resolution",
+                "billId": "119-hres-1650",
+                "nominationId": null,
+                "billRef": "H RES 1650",
+                "occurredAt": "2026-11-10T23:20:00.000Z",
+                "state": "final",
+                "threshold": "majority",
+                "totals": {
+                    "yea": 215,
+                    "nay": 209,
+                    "present": 0,
+                    "notVoting": 9
+                },
+                "result": "Passed"
+            },
+            "position": "nay",
+            "choice": null
+        }
+    ]
+}

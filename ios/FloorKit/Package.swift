@@ -11,6 +11,11 @@ let package = Package(
     targets: [
         .target(name: "Models"),
         .target(name: "DesignSystem", dependencies: ["Models"]),
-        .testTarget(name: "ModelsTests", dependencies: ["Models"]),
+        .testTarget(
+            name: "ModelsTests",
+            dependencies: ["Models"],
+            // Real API responses captured from staging; see ModelsTests/Fixtures.
+            resources: [.copy("Fixtures")]
+        ),
     ]
 )

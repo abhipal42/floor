@@ -1,0 +1,114 @@
+{
+    "id": "118-hconres-21",
+    "congress": 118,
+    "type": "hconres",
+    "number": 21,
+    "title": "Directing the President, pursuant to section 5(c) of the War Powers Resolution, to remove the United States Armed Forces from Syria.",
+    "shortTitle": null,
+    "sponsor": {
+        "bioguideId": "G000578",
+        "firstName": "Matt",
+        "lastName": "Gaetz",
+        "party": "R",
+        "state": "FL",
+        "district": 1,
+        "chamber": "house"
+    },
+    "introducedOn": "2023-03-01",
+    "originChamber": "house",
+    "policyArea": "International Affairs",
+    "summary": "This concurrent resolution directs the President to remove the U.S. Armed Forces from Syria within 180 days of the adoption of this concurrent resolution.",
+    "summaryStage": "Introduced in House",
+    "latestAction": {
+        "on": "2023-03-08",
+        "text": "Motion to reconsider laid on the table Agreed to without objection."
+    },
+    "cboEstimates": [],
+    "actions": [
+        {
+            "actedOn": "2023-03-08",
+            "chamber": "house",
+            "text": "Motion to reconsider laid on the table Agreed to without objection."
+        },
+        {
+            "actedOn": "2023-03-08",
+            "chamber": "house",
+            "text": "On agreeing to the resolution Failed by the Yeas and Nays: 103 - 321 (Roll no. 136)."
+        },
+        {
+            "actedOn": "2023-03-08",
+            "chamber": null,
+            "text": "Failed of passage/not agreed to in House On agreeing to the resolution Failed by the Yeas and Nays: 103 - 321 (Roll no. 136)."
+        },
+        {
+            "actedOn": "2023-03-08",
+            "chamber": "house",
+            "text": "Considered as unfinished business. (consideration: CR H1194-1195)"
+        },
+        {
+            "actedOn": "2023-03-08",
+            "chamber": "house",
+            "text": "POSTPONED PROCEEDINGS - At the conclusion of debate on H. Con. Res. 21, the Chair put the question on agreeing to the resolution and by voice vote announced that the noes had prevailed. Mr. Gaetz demanded the yeas and nays and the Chair postponed further proceedings on agreeing to the resolution until a time to be announced."
+        },
+        {
+            "actedOn": "2023-03-08",
+            "chamber": "house",
+            "text": "The previous question was ordered pursuant to a previous order of the House."
+        },
+        {
+            "actedOn": "2023-03-08",
+            "chamber": "house",
+            "text": "DEBATE - Pursuant to a previous order of the House, the House proceeded with one hour of debate on H. Con. Res. 21."
+        },
+        {
+            "actedOn": "2023-03-08",
+            "chamber": "house",
+            "text": "Considered pursuant to a previous order. (consideration: CR H1173-1180; text: CR H1173)"
+        },
+        {
+            "actedOn": "2023-03-08",
+            "chamber": "house",
+            "text": "Consideration initiated pursuant to a previous order."
+        },
+        {
+            "actedOn": "2023-03-08",
+            "chamber": "house",
+            "text": "ORDER OF PROCEDURE - Mr. Massie asked for unanimous consent that it be in order at any time to consider H.Con.Res. 21 in the House if called up by the chair of the Committee on Foreign Affairs or his designee; that the concurrent resolution be considered as read; that the previous question be considered as ordered on the concurrent resolution to adoption without intervening motion except for one hour of debate equally divided among and controlled by Representative McCaul, Representative Meeks, and Representative Gaetz or their respective designees; and that the provisions of section 7 of the War Powers, Resolution, 50 U.S.C 1546, shall not apply to H.Con.Res. 20. Agreed to without objection."
+        },
+        {
+            "actedOn": "2023-03-01",
+            "chamber": "house",
+            "text": "Referred to the House Committee on Foreign Affairs."
+        },
+        {
+            "actedOn": "2023-03-01",
+            "chamber": null,
+            "text": "Introduced in House"
+        }
+    ],
+    "votes": [
+        {
+            "id": "house-118-1-136",
+            "kind": "question",
+            "candidates": [],
+            "chamber": "house",
+            "congress": 118,
+            "session": 1,
+            "rollNumber": 136,
+            "question": "On Agreeing to the Resolution",
+            "billId": "118-hconres-21",
+            "nominationId": null,
+            "billRef": "H CON RES 21",
+            "occurredAt": "2023-03-08T22:56:00.000Z",
+            "state": "final",
+            "threshold": "majority",
+            "totals": {
+                "yea": 103,
+                "nay": 321,
+                "present": 0,
+                "notVoting": 11
+            },
+            "result": "Failed"
+        }
+    ]
+}

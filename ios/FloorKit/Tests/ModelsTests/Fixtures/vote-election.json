@@ -1,0 +1,81 @@
+{
+    "id": "house-118-1-10",
+    "kind": "election",
+    "candidates": [
+        {
+            "name": "Jeffries",
+            "total": 212
+        },
+        {
+            "name": "McCarthy",
+            "total": 201
+        },
+        {
+            "name": "Donalds",
+            "total": 17
+        },
+        {
+            "name": "Hern",
+            "total": 2
+        },
+        {
+            "name": "Donald J. Trump",
+            "total": 1
+        }
+    ],
+    "chamber": "house",
+    "congress": 118,
+    "session": 1,
+    "rollNumber": 10,
+    "question": "Election of the Speaker",
+    "billId": null,
+    "nominationId": null,
+    "billRef": null,
+    "occurredAt": "2023-01-05T20:01:00.000Z",
+    "state": "final",
+    "threshold": "majority",
+    "totals": {
+        "yea": 0,
+        "nay": 0,
+        "present": 1,
+        "notVoting": 0
+    },
+    "result": "Jeffries",
+    "partyTotals": [
+        {
+            "party": "R",
+            "yea": 0,
+            "nay": 0,
+            "present": 1,
+            "notVoting": 0
+        }
+    ],
+    "candidateTotals": [
+        {
+            "party": "D",
+            "candidate": "Jeffries",
+            "total": 212
+        },
+        {
+            "party": "R",
+            "candidate": "McCarthy",
+            "total": 201
+        },
+        {
+            "party": "R",
+            "candidate": "Donalds",
+            "total": 17
+        },
+        {
+            "party": "R",
+            "candidate": "Hern",
+            "total": 2
+        },
+        {
+            "party": "R",
+            "candidate": "Donald J. Trump",
+            "total": 1
+        }
+    ],
+    "positions": []
+}

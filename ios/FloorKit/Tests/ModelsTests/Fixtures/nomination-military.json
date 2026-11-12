@@ -1,0 +1,66 @@
+{
+    "id": "118-pn-537",
+    "congress": 118,
+    "number": 537,
+    "part": 0,
+    "citation": "PN537",
+    "nomineeName": null,
+    "positionTitle": "General",
+    "organization": "Army",
+    "description": null,
+    "nomineeCount": 1,
+    "isMilitary": true,
+    "receivedOn": "2023-04-20",
+    "latestAction": {
+        "on": "2023-09-21",
+        "text": "Confirmed by the Senate by Yea-Nay Vote. 96 - 1. Record Vote Number: 237."
+    },
+    "votes": [
+        {
+            "id": "senate-118-1-237",
+            "kind": "question",
+            "candidates": [],
+            "chamber": "senate",
+            "congress": 118,
+            "session": 1,
+            "rollNumber": 237,
+            "question": "On the Nomination",
+            "billId": null,
+            "nominationId": "118-pn-537",
+            "billRef": "PN537",
+            "occurredAt": "2023-09-21T15:45:00.000Z",
+            "state": "final",
+            "threshold": "majority",
+            "totals": {
+                "yea": 96,
+                "nay": 1,
+                "present": 0,
+                "notVoting": 3
+            },
+            "result": "Nomination Confirmed"
+        },
+        {
+            "id": "senate-118-1-236",
+            "kind": "question",
+            "candidates": [],
+            "chamber": "senate",
+            "congress": 118,
+            "session": 1,
+            "rollNumber": 236,
+            "question": "On the Cloture Motion",
+            "billId": null,
+            "nominationId": "118-pn-537",
+            "billRef": "PN537",
+            "occurredAt": "2023-09-20T23:22:00.000Z",
+            "state": "final",
+            "threshold": "majority",
+            "totals": {
+                "yea": 92,
+                "nay": 1,
+                "present": 0,
+                "notVoting": 7
+            },
+            "result": "Cloture Motion Agreed to"
+        }
+    ]
+}

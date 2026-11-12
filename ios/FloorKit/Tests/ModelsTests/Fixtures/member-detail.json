@@ -1,0 +1,16 @@
+{
+    "member": {
+        "bioguideId": "A000370",
+        "firstName": "Alma",
+        "lastName": "Adams",
+        "party": "D",
+        "state": "NC",
+        "district": 12,
+        "chamber": "house"
+    },
+    "partyLoyalty": {
+        "votes": 1871,
+        "withParty": 1847,
+        "againstParty": 24
+    }
+}

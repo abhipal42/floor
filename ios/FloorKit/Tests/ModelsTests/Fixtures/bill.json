@@ -1,0 +1,364 @@
+{
+    "id": "119-hconres-14",
+    "congress": 119,
+    "type": "hconres",
+    "number": 14,
+    "title": "Establishing the congressional budget for the United States Government for fiscal year 2025 and setting forth the appropriate budgetary levels for fiscal years 2026 through 2034.",
+    "shortTitle": null,
+    "sponsor": {
+        "bioguideId": "A000375",
+        "firstName": "Jodey",
+        "lastName": "Arrington",
+        "party": "R",
+        "state": "TX",
+        "district": 19,
+        "chamber": "house"
+    },
+    "introducedOn": "2025-02-18",
+    "originChamber": "house",
+    "policyArea": "Economics and Public Finance",
+    "summary": "This concurrent resolution establishes the congressional budget for the federal government for FY2025, sets forth budgetary levels for FY2026-FY2034, and provides reconciliation instructions for legislation that increases or decreases the deficit and increases the statutory debt limit by specified amounts.\n\nThe resolution recommends levels and amounts for FY2025-FY2034 for\n\u2022 federal revenues,\n\u2022 new budget authority,\n\u2022 budget outlays,\n\u2022 deficits,\n\u2022 debt subject to limit,\n\u2022 debt held by the public, and\n\u2022 the major functional categories of spending.The resolution includes reconciliation instructions that direct 11 House committees to submit legislation that will increase or decrease the deficit over FY2025-FY2034 and increase the statutory debt limit by specified amounts. The committees must submit the legislation to the House Budget Committee by March 27, 2025.\n\n(Under current law, reconciliation bills are considered by Congress using expedited legislative procedures that prevent a filibuster and restrict amendments in the Senate.)\n\nIn addition, the resolution establishes a reserve fund that allows certain adjustments to committee allocations and other budgetary levels to accommodate reconciliation legislation.\n\nThe resolution also requires the maximum deficit increase permitted by the reconciliation instruction for the House Ways and Means Committee ($4.5 trillion in the resolution) to be reduced if the proposals submitted by certain committees do not achieve a total of at least $2 trillion in net deficit reduction (or increased if more than $2 trillion in deficit reduction is achieved).\n\nFinally, the resolution sets forth budget enforcement procedures that address issues such as adjustments to committee allocations and the budgetary treatment of the discretionary administrative expenses for the Social Security Administration and the U.S. Postal Service.",
+    "summaryStage": "Introduced in House",
+    "latestAction": {
+        "on": "2025-05-20",
+        "text": "Star Print ordered on the reported concurrent resolution."
+    },
+    "cboEstimates": [
+        {
+            "url": "https://www.cbo.gov/publication/61368",
+            "title": "CBO\u2019s Review of the Reconciliation Recommendations of the House Committee on the Judiciary",
+            "pubDate": "2025-04-28T19:23:00Z"
+        },
+        {
+            "url": "https://www.cbo.gov/publication/61372",
+            "title": "Reconciliation Recommendations of the House Committee on Armed Services ",
+            "pubDate": "2025-05-05T18:54:00Z"
+        },
+        {
+            "url": "https://www.cbo.gov/publication/61379",
+            "title": "Reconciliation Recommendations of the House Committee on Financial Services",
+            "pubDate": "2025-05-07T19:39:00Z"
+        },
+        {
+            "url": "https://www.cbo.gov/publication/61384",
+            "title": "Reconciliation Recommendations of the House Committee on Homeland Security ",
+            "pubDate": "2025-05-09T19:42:00Z"
+        },
+        {
+            "url": "https://www.cbo.gov/publication/61381",
+            "title": "Reconciliation Recommendations of the House Committee on Oversight and Government Reform",
+            "pubDate": "2025-05-13T17:46:00Z"
+        },
+        {
+            "url": "https://www.cbo.gov/publication/61400",
+            "title": "Reconciliation Recommendations of the House Committee on Transportation and Infrastructure ",
+            "pubDate": "2025-05-13T20:33:00Z"
+        },
+        {
+            "url": "https://www.cbo.gov/publication/61403",
+            "title": "CBO\u2019s Review of the Reconciliation Recommendations of the House Committee on Natural Resources",
+            "pubDate": "2025-05-13T21:08:00Z"
+        },
+        {
+            "url": "https://www.cbo.gov/publication/61401",
+            "title": "CBO\u2019s Review of the Reconciliation Recommendations of the House Committee on Education and Workforce",
+            "pubDate": "2025-05-13T21:08:00Z"
+        },
+        {
+            "url": "https://www.cbo.gov/publication/61405",
+            "title": "CBO\u2019s Review of the Reconciliation Recommendations of the House Committee on Agriculture",
+            "pubDate": "2025-05-14T12:10:00Z"
+        },
+        {
+            "url": "https://www.cbo.gov/publication/61408",
+            "title": "Information About Reconciliation Legislation Passed by Several Committees of the House of Representatives",
+            "pubDate": "2025-05-15T13:55:00Z"
+        },
+        {
+            "url": "https://www.cbo.gov/publication/61412",
+            "title": "Reconciliation Recommendations of the House Committee on Education and Workforce ",
+            "pubDate": "2025-05-15T23:19:00Z"
+        },
+        {
+            "url": "https://www.cbo.gov/publication/61414",
+            "title": "CBO\u2019s Review of the Reconciliation Recommendations of the House Committee on Ways and Means",
+            "pubDate": "2025-05-16T17:53:00Z"
+        },
+        {
+            "url": "https://www.cbo.gov/publication/61415",
+            "title": "Reconciliation Recommendations of the House Committee on Natural Resources ",
+            "pubDate": "2025-05-19T19:37:00Z"
+        },
+        {
+            "url": "https://www.cbo.gov/publication/61419",
+            "title": "Reconciliation Recommendations of the House Committee on the Judiciary",
+            "pubDate": "2025-05-19T21:36:00Z"
+        },
+        {
+            "url": "https://www.cbo.gov/publication/61420",
+            "title": "Estimated Budgetary Effects of a Bill to Provide for Reconciliation Pursuant to Title II of H. Con. Res. 14, the One Big Beautiful Bill Act",
+            "pubDate": "2025-05-20T15:11:00Z"
+        },
+        {
+            "url": "https://www.cbo.gov/publication/61426",
+            "title": "Potential Effects on the Supplemental Nutrition Assistance Program of Reconciliation Recommendations Pursuant to H. Con. Res. 14",
+            "pubDate": "2025-05-22T21:15:00Z"
+        },
+        {
+            "url": "https://www.cbo.gov/publication/61838",
+            "title": "Public Law 119-21, to Provide for Reconciliation Pursuant to Title II of H. Con. Res. 14  Title IV, Committee on Commerce, Science, and Transportation  Section 40002, Spectrum Auctions",
+            "pubDate": "2025-10-28T15:54:00Z"
+        },
+        {
+            "url": "https://www.cbo.gov/publication/61837",
+            "title": "Public Law 119-21, to Provide for Reconciliation Pursuant to Title II of H. Con. Res. 14 Title VII, Finance, Subtitle B, Health, Chapter 1, Medicaid  ",
+            "pubDate": "2025-10-28T19:28:00Z"
+        }
+    ],
+    "actions": [
+        {
+            "actedOn": "2025-05-20",
+            "chamber": "senate",
+            "text": "Star Print ordered on the reported concurrent resolution."
+        },
+        {
+            "actedOn": "2025-04-10",
+            "chamber": "house",
+            "text": "Motion to reconsider laid on the table Agreed to without objection."
+        },
+        {
+            "actedOn": "2025-04-10",
+            "chamber": "house",
+            "text": "On motion that the House agree to the Senate amendment Agreed to by the Yeas and Nays: 216 - 214 (Roll no. 100). (text: 4/9/2025 CR H1533-1540)"
+        },
+        {
+            "actedOn": "2025-04-10",
+            "chamber": null,
+            "text": "Resolving differences -- House actions: On motion that the House agree to the Senate amendment Agreed to by the Yeas and Nays: 216 - 214 (Roll no. 100)."
+        },
+        {
+            "actedOn": "2025-04-10",
+            "chamber": "house",
+            "text": "Pursuant to clause 1(c) of rule XIX, the House resumed consideration of H. Con. Res. 14. (consideration: CR H1579-1580)"
+        },
+        {
+            "actedOn": "2025-04-09",
+            "chamber": "house",
+            "text": "POSTPONED PROCEEDINGS - Pursuant to clause 1(c) of rule XIX, the Chair announced further proceedings on H. Con. Res. 14 would be postponed."
+        },
+        {
+            "actedOn": "2025-04-09",
+            "chamber": "house",
+            "text": "The previous question was ordered pursuant to the rule."
+        },
+        {
+            "actedOn": "2025-04-09",
+            "chamber": "house",
+            "text": "DEBATE - Pursuant to the provisions of H. Res. 313, the House proceeded with one hour of debate on the motion to agree to the Senate amendment to H. Con. Res. 14."
+        },
+        {
+            "actedOn": "2025-04-09",
+            "chamber": "house",
+            "text": "Mr. Arrington moved that the House agree to the Senate amendment to H. Con. Res. 14."
+        },
+        {
+            "actedOn": "2025-04-09",
+            "chamber": "house",
+            "text": "Mr. Arrington moved that the House agree to the Senate amendment. (consideration: CR H1533-1550)"
+        },
+        {
+            "actedOn": "2025-04-09",
+            "chamber": "house",
+            "text": "Pursuant to the provisions of H. Res. 313, Mr. Arrington called up the Senate amendment to H. Con. Res. 14."
+        },
+        {
+            "actedOn": "2025-04-07",
+            "chamber": "senate",
+            "text": "Message on Senate action sent to the House."
+        },
+        {
+            "actedOn": "2025-04-05",
+            "chamber": "senate",
+            "text": "Resolution agreed to in Senate with an amendment by Yea-Nay Vote. 51 - 48. Record Vote Number: 191."
+        },
+        {
+            "actedOn": "2025-04-05",
+            "chamber": null,
+            "text": "Passed/agreed to in Senate: Resolution agreed to in Senate with an amendment by Yea-Nay Vote. 51 - 48. Record Vote Number: 191."
+        },
+        {
+            "actedOn": "2025-04-04",
+            "chamber": "senate",
+            "text": "Considered by Senate. (consideration: CR S2275-2360)"
+        },
+        {
+            "actedOn": "2025-04-03",
+            "chamber": "senate",
+            "text": "Measure laid before Senate by motion. (consideration: CR S2159-2168)"
+        },
+        {
+            "actedOn": "2025-04-03",
+            "chamber": "senate",
+            "text": "Motion to proceed to consideration of measure agreed to in Senate by Yea-Nay Vote. 52 - 48. Record Vote Number: 169."
+        },
+        {
+            "actedOn": "2025-04-03",
+            "chamber": "senate",
+            "text": "Motion to proceed to consideration of measure made in Senate. (CR S2159)"
+        },
+        {
+            "actedOn": "2025-04-02",
+            "chamber": "senate",
+            "text": "Received in the Senate. Placed on Senate Legislative Calendar under General Orders. Calendar No. 38."
+        },
+        {
+            "actedOn": "2025-02-25",
+            "chamber": "house",
+            "text": "On agreeing to the resolution, as amended Agreed to by the Yeas and Nays: 217 - 215 (Roll no. 50). (text: CR H818-823)"
+        },
+        {
+            "actedOn": "2025-02-25",
+            "chamber": null,
+            "text": "Passed/agreed to in House: On agreeing to the resolution, as amended Agreed to by the Yeas and Nays: 217 - 215 (Roll no. 50). (text: CR H818-823)"
+        },
+        {
+            "actedOn": "2025-02-25",
+            "chamber": "house",
+            "text": "Considered as unfinished business. (consideration: CR H824-825)"
+        },
+        {
+            "actedOn": "2025-02-25",
+            "chamber": "house",
+            "text": "Pursuant to clause 1(c) of rule XIX, the House resumed consideration of H. Con. Res. 14."
+        },
+        {
+            "actedOn": "2025-02-25",
+            "chamber": "house",
+            "text": "POSTPONED PROCEEDINGS - The Chair announced pursuant to clause 1(c) of rule XIX, further consideration on H. Con. Res. 14 is postponed."
+        },
+        {
+            "actedOn": "2025-02-25",
+            "chamber": "house",
+            "text": "The previous question was ordered pursuant to the rule."
+        },
+        {
+            "actedOn": "2025-02-25",
+            "chamber": "house",
+            "text": "The House rose from the Committee of the Whole House on the state of the Union to report H. Con. Res. 14."
+        },
+        {
+            "actedOn": "2025-02-25",
+            "chamber": "house",
+            "text": "GENERAL DEBATE - The Committee of the Whole proceeded with three hours of general debate on H. Con. Res. 14."
+        },
+        {
+            "actedOn": "2025-02-25",
+            "chamber": "house",
+            "text": "The Speaker designated the Honorable Steve Womack to act as Chairman of the Committee."
+        },
+        {
+            "actedOn": "2025-02-25",
+            "chamber": "house",
+            "text": "House resolved itself into the Committee of the Whole House on the state of the Union pursuant to H. Res. 161 and Rule XVIII."
+        },
+        {
+            "actedOn": "2025-02-25",
+            "chamber": "house",
+            "text": "Rule provides for consideration of H.J. Res. 20, H.J. Res. 35 and H. Con. Res. 14. The resolution provides for consideration of two joint resolutions, H.J.Res.20, under a closed rule and H.J.Res. 35, under a closed rule. Also, the resolution provides for consideration of H. Con. Res. 14, under a closed rule. The joint resolutions are debated for one hour each and the concurrent resolution is debated for 3 hours."
+        }
+    ],
+    "votes": [
+        {
+            "id": "house-119-1-100",
+            "kind": "question",
+            "candidates": [],
+            "chamber": "house",
+            "congress": 119,
+            "session": 1,
+            "rollNumber": 100,
+            "question": "On Motion to Concur in the Senate Amendment",
+            "billId": "119-hconres-14",
+            "nominationId": null,
+            "billRef": "H CON RES 14",
+            "occurredAt": "2025-04-10T15:08:00.000Z",
+            "state": "final",
+            "threshold": "majority",
+            "totals": {
+                "yea": 216,
+                "nay": 214,
+                "present": 0,
+                "notVoting": 3
+            },
+            "result": "Passed"
+        },
+        {
+            "id": "senate-119-1-191",
+            "kind": "question",
+            "candidates": [],
+            "chamber": "senate",
+            "congress": 119,
+            "session": 1,
+            "rollNumber": 191,
+            "question": "On the Concurrent Resolution",
+            "billId": "119-hconres-14",
+            "nominationId": null,
+            "billRef": "H.Con.Res. 14",
+            "occurredAt": "2025-04-05T06:26:00.000Z",
+            "state": "final",
+            "threshold": "majority",
+            "totals": {
+                "yea": 51,
+                "nay": 48,
+                "present": 0,
+                "notVoting": 1
+            },
+            "result": "Concurrent Resolution Agreed to"
+        },
+        {
+            "id": "senate-119-1-169",
+            "kind": "question",
+            "candidates": [],
+            "chamber": "senate",
+            "congress": 119,
+            "session": 1,
+            "rollNumber": 169,
+            "question": "On the Motion to Proceed",
+            "billId": "119-hconres-14",
+            "nominationId": null,
+            "billRef": "H.Con.Res. 14",
+            "occurredAt": "2025-04-03T22:17:00.000Z",
+            "state": "final",
+            "threshold": "majority",
+            "totals": {
+                "yea": 52,
+                "nay": 48,
+                "present": 0,
+                "notVoting": 0
+            },
+            "result": "Motion to Proceed Agreed to"
+        },
+        {
+            "id": "house-119-1-50",
+            "kind": "question",
+            "candidates": [],
+            "chamber": "house",
+            "congress": 119,
+            "session": 1,
+            "rollNumber": 50,
+            "question": "On Agreeing to the Resolution, as Amended",
+            "billId": "119-hconres-14",
+            "nominationId": null,
+            "billRef": "H CON RES 14",
+            "occurredAt": "2025-02-26T01:19:00.000Z",
+            "state": "final",
+            "threshold": "majority",
+            "totals": {
+                "yea": 217,
+                "nay": 215,
+                "present": 0,
+                "notVoting": 1
+            },
+            "result": "Passed"
+        }
+    ]
+}
