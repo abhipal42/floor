@@ -1,0 +1,22 @@
+{
+ "pagination": {
+  "count": 1
+ },
+ "request": {
+  "billNumber": "14",
+  "billType": "hconres",
+  "billUrl": "https://api.congress.gov/v3/bill/119/hconres/14?format=json",
+  "congress": "119",
+  "contentType": "application/json",
+  "format": "json"
+ },
+ "summaries": [
+  {
+   "actionDate": "2025-02-18",
+   "actionDesc": "Introduced in House",
+   "text": "<p>This concurrent resolution establishes the congressional budget for the federal government for FY2025, sets forth budgetary levels for FY2026-FY2034, and provides reconciliation instructions for legislation that increases or decreases the deficit and increases the statutory debt limit by specified amounts.&nbsp;</p><p>The resolution recommends levels and amounts for FY2025-FY2034 for</p><ul><li>federal revenues,</li><li>new budget authority,</li><li>budget outlays,</li><li>deficits,</li><li>debt subject to limit,&nbsp;</li><li>debt held by the public, and</li><li>the major functional categories of spending.</li></ul><p>The resolution includes reconciliation instructions that direct 11 House committees to submit legislation that will increase or decrease the deficit over FY2025-FY2034 and increase the statutory debt limit by specified amounts. The committees must submit the legislation to the House Budget Committee by March 27, 2025.&nbsp;</p><p>(Under current law, reconciliation bills are considered by Congress using expedited legislative procedures that prevent a filibuster and restrict amendments in the Senate.)</p><p>In addition, the resolution establishes a reserve fund that allows certain adjustments to committee allocations and other budgetary levels to accommodate reconciliation legislation.</p><p>The resolution also requires the maximum deficit increase permitted by the reconciliation instruction for the House Ways and Means Committee ($4.5 trillion in the resolution) to be reduced if the proposals submitted by certain committees do not achieve a total of at least $2 trillion in net deficit reduction (or increased if more than $2 trillion in deficit reduction is achieved).&nbsp;</p><p>Finally, the resolution sets forth budget enforcement procedures that address issues such as adjustments to committee allocations and the budgetary treatment of the discretionary administrative expenses for the Social Security Administration and the U.S. Postal Service.&nbsp;</p>",
+   "updateDate": "2025-02-25T13:56:08Z",
+   "versionCode": "00"
+  }
+ ]
+}

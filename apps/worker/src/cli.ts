@@ -3,10 +3,12 @@ import type { Chamber } from "@floor/shared";
 import { startRun, upsertMembers, type Db } from "./db.js";
 import { CURRENT_URL, HISTORICAL_URL, toMemberRows, type LegislatorEntry } from "./members.js";
 import { ingestRollCalls } from "./rollcalls.js";
+import { congressClient, ingestVotedBills } from "./bills.js";
 
 const USAGE = `Usage:
   npm run ingest -w @floor/worker -- members
   npm run ingest -w @floor/worker -- rollcalls <house|senate> <congress> <session> [fromRoll]
+  npm run ingest -w @floor/worker -- bills [limit]     (bills that stored votes refer to; needs CONGRESS_API_KEY)
 
 Reads DATABASE_URL from the environment (use the Supabase service connection string).`;
 
@@ -42,6 +44,13 @@ async function main() {
         log: (msg) => console.log(msg),
       });
       console.log(`Stored ${result.stored} roll calls (last: ${result.lastRoll}); ${result.skippedPositions} positions for unknown members`);
+    } else if (command === "bills") {
+      if (!process.env.CONGRESS_API_KEY) throw new Error("Set CONGRESS_API_KEY in .env (free key: https://api.data.gov/signup)");
+      const result = await ingestVotedBills(db, congressClient(process.env.CONGRESS_API_KEY), {
+        limit: args[0] ? Number(args[0]) : undefined,
+        log: (msg) => console.log(msg),
+      });
+      console.log(`Loaded ${result.bills} bills, linked ${result.linkedVotes} votes, ${result.failed} failed`);
     } else {
       throw new Error(USAGE);
     }
