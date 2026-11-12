@@ -78,6 +78,33 @@ export interface MemberRepository {
   recentVotes(bioguideId: string, limit: number): Promise<MemberVote[]>;
 }
 
+export const BillSchema = z
+  .object({
+    id: z.string().openapi({ example: "119-hconres-14" }),
+    congress: z.number().int(),
+    type: z.string().openapi({ example: "hconres" }),
+    number: z.number().int(),
+    title: z.string(),
+    shortTitle: z.string().nullable(),
+    sponsor: MemberSchema.nullable(),
+    introducedOn: z.string().nullable(),
+    originChamber: z.enum(["house", "senate"]).nullable(),
+    policyArea: z.string().nullable(),
+    summary: z.string().nullable().openapi({ description: "Latest Congressional Research Service summary, plain text" }),
+    summaryStage: z.string().nullable(),
+    latestAction: z.object({ on: z.string(), text: z.string() }).nullable(),
+    cboEstimates: z.array(z.object({ title: z.string(), url: z.string(), pubDate: z.string() })),
+    actions: z.array(z.object({ actedOn: z.string(), chamber: z.enum(["house", "senate"]).nullable(), text: z.string() })),
+    votes: z.array(VoteSchema),
+  })
+  .openapi("Bill");
+
+export type Bill = z.infer<typeof BillSchema>;
+
+export interface BillRepository {
+  getBill(id: string): Promise<Bill | null>;
+}
+
 export const SourceStatusSchema = z
   .object({
     source: z.string().openapi({ example: "house_rollcalls" }),
@@ -94,6 +121,7 @@ export const MAX_AGE_HOURS: Record<string, number> = {
   members: 48,
   house_rollcalls: 24,
   senate_rollcalls: 24,
+  bills: 48,
 };
 
 export interface StatusRepository {
@@ -104,6 +132,7 @@ export interface StatusRepository {
 export interface AppDeps {
   votes: VoteRepository;
   members: MemberRepository;
+  bills: BillRepository;
   status: StatusRepository;
   now?: () => Date;
   geocode: (address: string) => Promise<DistrictMatch | null>;
@@ -170,6 +199,24 @@ const getMemberVotesRoute = createRoute({
   },
 });
 
+const getBillRoute = createRoute({
+  method: "get",
+  path: "/v1/bills/{id}",
+  summary: "A bill with its summary, sponsor, recent actions and every vote on it",
+  request: {
+    params: z.object({
+      id: z
+        .string()
+        .regex(/^\d{2,3}-(hr|hres|hjres|hconres|s|sres|sjres|sconres)-\d+$/, "Bill IDs look like 119-hr-2207")
+        .openapi({ param: { name: "id", in: "path" }, example: "119-hconres-14" }),
+    }),
+  },
+  responses: {
+    200: { content: { "application/json": { schema: BillSchema } }, description: "The bill" },
+    404: { content: { "application/json": { schema: ErrorSchema } }, description: "No bill with that ID" },
+  },
+});
+
 const getStatusRoute = createRoute({
   method: "get",
   path: "/v1/status",
@@ -220,6 +267,13 @@ export function createApp(deps: AppDeps) {
     const { id } = c.req.valid("param");
     const { limit } = c.req.valid("query");
     return c.json({ votes: await deps.members.recentVotes(id, limit) }, 200);
+  });
+
+  app.openapi(getBillRoute, async (c) => {
+    const { id } = c.req.valid("param");
+    const bill = await deps.bills.getBill(id);
+    if (!bill) return c.json({ error: `No bill with ID ${id}` }, 404);
+    return c.json(bill, 200);
   });
 
   app.openapi(getStatusRoute, async (c) => {

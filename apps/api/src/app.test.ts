@@ -37,6 +37,17 @@ const app = createApp({
     recentVotes: async (id, limit) =>
       id === "D000399" ? [{ vote: sample, position: "yea" as const, choice: null }].slice(0, limit) : [],
   },
+  bills: {
+    getBill: async (id) =>
+      id === "119-hconres-14"
+        ? {
+            id, congress: 119, type: "hconres", number: 14, title: "Establishing the congressional budget", shortTitle: null,
+            sponsor: null, introducedOn: "2025-02-18", originChamber: "house", policyArea: "Economics and Public Finance",
+            summary: "This concurrent resolution establishes the budget.", summaryStage: "Introduced in House",
+            latestAction: { on: "2025-05-20", text: "Star Print ordered." }, cboEstimates: [], actions: [], votes: [sample],
+          }
+        : null,
+  },
   status: {
     lastRuns: async () => [
       { source: "members", lastSuccessAt: new Date("2026-11-11T00:00:00Z"), lastError: null },
@@ -110,6 +121,16 @@ describe("API", () => {
     expect((await app.request("/v1/members/D000399/votes?limit=500")).status).toBe(400);
   });
 
+  it("returns a bill with its votes, and validates bill IDs", async () => {
+    const res = await app.request("/v1/bills/119-hconres-14");
+    expect(res.status).toBe(200);
+    const bill = await res.json();
+    expect(bill.policyArea).toBe("Economics and Public Finance");
+    expect(bill.votes).toEqual([sample]);
+    expect((await app.request("/v1/bills/119-hr-404")).status).toBe(404);
+    expect((await app.request("/v1/bills/HR2207")).status).toBe(400);
+  });
+
   it("flags sources that haven't loaded successfully within their window", async () => {
     const res = await app.request("/v1/status");
     expect(res.status).toBe(200);
@@ -119,6 +140,7 @@ describe("API", () => {
         { source: "members", lastSuccessAt: "2026-11-11T00:00:00.000Z", lastError: null, stale: false },
         { source: "house_rollcalls", lastSuccessAt: "2026-11-11T20:00:00.000Z", lastError: null, stale: false },
         { source: "senate_rollcalls", lastSuccessAt: "2026-11-09T00:00:00.000Z", lastError: "HTTP 503", stale: true },
+        { source: "bills", lastSuccessAt: null, lastError: null, stale: true },
       ],
     });
   });

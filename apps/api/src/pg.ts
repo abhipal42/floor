@@ -1,4 +1,13 @@
-import type { Member, MemberRepository, MemberVote, StatusRepository, Vote, VoteRepository } from "./app.js";
+import type {
+  Bill,
+  BillRepository,
+  Member,
+  MemberRepository,
+  MemberVote,
+  StatusRepository,
+  Vote,
+  VoteRepository,
+} from "./app.js";
 
 /** The slice of a Postgres client we use. Satisfied by `pg.Pool` and by PGlite in tests. */
 export interface Db {
@@ -67,8 +76,80 @@ const toMember = (r: MemberRow): Member => ({
 const VOTE_COLUMNS = `v.id, v.kind, v.candidates, v.chamber, v.congress, v.session, v.roll_number, v.bill_id, v.bill_ref, v.question,
   v.state, v.threshold, v.yea, v.nay, v.present, v.not_voting, v.result, v.occurred_at`;
 
-export function pgRepositories(db: Db): { votes: VoteRepository; members: MemberRepository; status: StatusRepository } {
+interface BillRow {
+  id: string;
+  congress: number;
+  bill_type: string;
+  number: number;
+  title: string;
+  short_title: string | null;
+  introduced_on: Date | string | null;
+  origin_chamber: "house" | "senate" | null;
+  policy_area: string | null;
+  summary: string | null;
+  summary_stage: string | null;
+  latest_action_on: Date | string | null;
+  latest_action_text: string | null;
+  cbo_estimates: Bill["cboEstimates"];
+  sponsor: MemberRow | null;
+}
+
+/** Dates from a `date` column, as YYYY-MM-DD regardless of driver. */
+const day = (d: Date | string | null): string | null =>
+  d == null ? null : typeof d === "string" ? d.slice(0, 10) : d.toISOString().slice(0, 10);
+
+export function pgRepositories(db: Db): {
+  votes: VoteRepository;
+  members: MemberRepository;
+  bills: BillRepository;
+  status: StatusRepository;
+} {
   return {
+    bills: {
+      async getBill(id) {
+        const { rows } = await db.query<BillRow>(
+          `select b.id, b.congress, b.bill_type, b.number, b.title, b.short_title, b.introduced_on, b.origin_chamber,
+                  b.policy_area, b.summary, b.summary_stage, b.latest_action_on, b.latest_action_text, b.cbo_estimates,
+                  case when m.bioguide_id is null then null else jsonb_build_object(
+                    'bioguide_id', m.bioguide_id, 'first_name', m.first_name, 'last_name', m.last_name,
+                    'party', m.party, 'state', m.state, 'district', m.district, 'chamber', m.chamber) end as sponsor
+             from bills b left join members m on m.bioguide_id = b.sponsor_id
+            where b.id = $1`,
+          [id],
+        );
+        const b = rows[0];
+        if (!b) return null;
+        const [{ rows: actions }, { rows: votes }] = await Promise.all([
+          db.query<{ acted_on: Date | string; chamber: "house" | "senate" | null; text: string }>(
+            "select acted_on, chamber, text from actions where bill_id = $1 order by acted_on desc, id limit 30",
+            [id],
+          ),
+          db.query<VoteRow>(
+            `select ${VOTE_COLUMNS} from votes v where v.bill_id = $1 order by v.occurred_at desc nulls last`,
+            [id],
+          ),
+        ]);
+        return {
+          id: b.id,
+          congress: b.congress,
+          type: b.bill_type,
+          number: b.number,
+          title: b.title,
+          shortTitle: b.short_title,
+          sponsor: b.sponsor ? toMember(b.sponsor) : null,
+          introducedOn: day(b.introduced_on),
+          originChamber: b.origin_chamber,
+          policyArea: b.policy_area,
+          summary: b.summary,
+          summaryStage: b.summary_stage,
+          latestAction:
+            b.latest_action_on && b.latest_action_text ? { on: day(b.latest_action_on)!, text: b.latest_action_text } : null,
+          cboEstimates: b.cbo_estimates,
+          actions: actions.map((a) => ({ actedOn: day(a.acted_on)!, chamber: a.chamber, text: a.text })),
+          votes: votes.map(toVote),
+        };
+      },
+    },
     status: {
       async lastRuns() {
         const { rows } = await db.query<{ source: string; last_success_at: Date | null; last_error: string | null }>(

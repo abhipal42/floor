@@ -24,6 +24,15 @@ beforeAll(async () => {
     insert into votes (id, chamber, congress, session, roll_number, question, state, yea, nay, not_voting, result, bill_ref, occurred_at) values
       ('house-119-1-1', 'house', 119, 1, 1, 'On Passage', 'final', 219, 208, 8, 'Passed', 'H R 1', '2025-01-10T15:00:00Z'),
       ('house-119-1-2', 'house', 119, 1, 2, 'On Motion to Recommit', 'final', 200, 225, 10, 'Failed', null, '2025-01-11T15:00:00Z');
+    insert into bills (id, congress, bill_type, number, title, short_title, sponsor_id, introduced_on, origin_chamber,
+                       policy_area, summary, summary_stage, latest_action_on, latest_action_text, cbo_estimates)
+      values ('119-hr-1', 119, 'hr', 1, 'To provide for reconciliation', 'Example Act', 'H000037', '2025-01-05', 'house',
+              'Taxation', 'This bill does things.', 'Introduced in House', '2025-01-10', 'Passed House.',
+              '[{"title":"CBO estimate","url":"https://www.cbo.gov/publication/1","pubDate":"2025-01-08T00:00:00Z"}]');
+    insert into actions (bill_id, acted_on, chamber, text) values
+      ('119-hr-1', '2025-01-05', 'house', 'Introduced in House'),
+      ('119-hr-1', '2025-01-10', 'house', 'Passed House.');
+    update votes set bill_id = '119-hr-1' where id = 'house-119-1-1';
     insert into vote_positions (vote_id, member_id, position) values
       ('house-119-1-1', 'H000037', 'yea'),
       ('house-119-1-2', 'H000037', 'nay');
@@ -52,7 +61,7 @@ describe("Postgres repositories", () => {
       session: 1,
       rollNumber: 1,
       question: "On Passage",
-      billId: null,
+      billId: "119-hr-1",
       billRef: "H R 1",
       occurredAt: "2025-01-10T15:00:00.000Z",
       state: "final",
@@ -61,6 +70,25 @@ describe("Postgres repositories", () => {
       result: "Passed",
     });
     expect(await repos.votes.getVote("house-119-1-999")).toBeNull();
+  });
+
+  it("reads a bill with its sponsor, actions newest first, and votes", async () => {
+    const bill = await repos.bills.getBill("119-hr-1");
+    expect(bill).toMatchObject({
+      id: "119-hr-1",
+      type: "hr",
+      shortTitle: "Example Act",
+      sponsor: { bioguideId: "H000037", lastName: "Current", chamber: "house" },
+      introducedOn: "2025-01-05",
+      latestAction: { on: "2025-01-10", text: "Passed House." },
+      cboEstimates: [{ title: "CBO estimate", url: "https://www.cbo.gov/publication/1" }],
+      actions: [
+        { actedOn: "2025-01-10", chamber: "house", text: "Passed House." },
+        { actedOn: "2025-01-05", chamber: "house", text: "Introduced in House" },
+      ],
+    });
+    expect(bill?.votes.map((v) => v.id)).toEqual(["house-119-1-1"]);
+    expect(await repos.bills.getBill("119-hr-999")).toBeNull();
   });
 
   it("reports the last successful run and the latest error per source", async () => {
