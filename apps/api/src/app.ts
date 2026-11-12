@@ -10,6 +10,8 @@ export const VoteSchema = z
     rollNumber: z.number().int().nullable(),
     question: z.string(),
     billId: z.string().nullable(),
+    billRef: z.string().nullable().openapi({ example: "H CON RES 14" }),
+    occurredAt: z.string().nullable().openapi({ example: "2025-04-10T15:08:00.000Z" }),
     state: z.enum(["scheduled", "open", "final"]),
     threshold: z.enum(["majority", "three_fifths_sworn", "two_thirds"]),
     totals: z.object({
@@ -50,6 +52,15 @@ const RepsSchema = z
   })
   .openapi("Reps");
 
+export const MemberVoteSchema = z
+  .object({
+    vote: VoteSchema,
+    position: z.enum(["yea", "nay", "present", "not_voting"]),
+  })
+  .openapi("MemberVote");
+
+export type MemberVote = z.infer<typeof MemberVoteSchema>;
+
 const ErrorSchema = z.object({ error: z.string() }).openapi("Error");
 
 /** Where the API reads votes from. Postgres in production, in-memory in tests. */
@@ -60,6 +71,8 @@ export interface VoteRepository {
 export interface MemberRepository {
   /** The House member for the district plus the state's senators. */
   membersFor(state: string, district: number): Promise<Member[]>;
+  /** A member's most recent recorded votes, newest first. */
+  recentVotes(bioguideId: string, limit: number): Promise<MemberVote[]>;
 }
 
 export interface AppDeps {
@@ -106,6 +119,29 @@ const getRepsRoute = createRoute({
   },
 });
 
+const getMemberVotesRoute = createRoute({
+  method: "get",
+  path: "/v1/members/{id}/votes",
+  summary: "A member's most recent votes and how they voted",
+  request: {
+    params: z.object({
+      id: z
+        .string()
+        .regex(/^[A-Z]\d{6}$/, "Member IDs are Bioguide IDs like A000370")
+        .openapi({ param: { name: "id", in: "path" }, example: "A000370" }),
+    }),
+    query: z.object({
+      limit: z.coerce.number().int().min(1).max(100).default(20),
+    }),
+  },
+  responses: {
+    200: {
+      content: { "application/json": { schema: z.object({ votes: z.array(MemberVoteSchema) }) } },
+      description: "Votes, newest first",
+    },
+  },
+});
+
 export function createApp(deps: AppDeps) {
   const app = new OpenAPIHono({
     defaultHook: (result, c) => {
@@ -138,6 +174,12 @@ export function createApp(deps: AppDeps) {
       },
       200,
     );
+  });
+
+  app.openapi(getMemberVotesRoute, async (c) => {
+    const { id } = c.req.valid("param");
+    const { limit } = c.req.valid("query");
+    return c.json({ votes: await deps.members.recentVotes(id, limit) }, 200);
   });
 
   app.doc("/openapi.json", {

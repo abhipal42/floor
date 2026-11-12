@@ -1,12 +1,25 @@
 import { serve } from "@hono/node-server";
-import { createApp } from "./app.js";
+import pg from "pg";
+import { createApp, type AppDeps } from "./app.js";
 import { geocodeDistrict } from "./district.js";
+import { pgRepositories, type Db } from "./pg.js";
 
-// Local dev server. Until the Postgres repositories land, votes and members are empty.
 const CONGRESS = Number(process.env.CONGRESS ?? 119);
+
+function repositories(): Pick<AppDeps, "votes" | "members"> {
+  if (!process.env.DATABASE_URL) {
+    console.warn("DATABASE_URL is not set: serving empty data");
+    return {
+      votes: { getVote: async () => null },
+      members: { membersFor: async () => [], recentVotes: async () => [] },
+    };
+  }
+  const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL, max: 5 });
+  return pgRepositories(pool as unknown as Db);
+}
+
 const app = createApp({
-  votes: { getVote: async () => null },
-  members: { membersFor: async () => [] },
+  ...repositories(),
   geocode: (address) => geocodeDistrict(address, CONGRESS),
 });
 const port = Number(process.env.PORT ?? 8787);

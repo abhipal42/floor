@@ -9,6 +9,8 @@ const sample: Vote = {
   rollNumber: 100,
   question: "On Motion to Concur in the Senate Amendment",
   billId: "119-hconres-14",
+  billRef: "H CON RES 14",
+  occurredAt: "2025-04-10T15:08:00.000Z",
   state: "final",
   threshold: "majority",
   totals: { yea: 216, nay: 214, present: 0, notVoting: 3 },
@@ -30,6 +32,8 @@ const app = createApp({
   members: {
     membersFor: async (state, district) =>
       members.filter((m) => m.state === state && (m.chamber === "senate" || m.district === district)),
+    recentVotes: async (id, limit) =>
+      id === "D000399" ? [{ vote: sample, position: "yea" as const }].slice(0, limit) : [],
   },
   geocode: async (address) => {
     geocoded.push(address);
@@ -83,6 +87,17 @@ describe("API", () => {
     const res = await app.request("/v1/reps?address=TX");
     expect(res.status).toBe(400);
     expect(geocoded.length).toBe(before);
+  });
+
+  it("lists a member's recent votes", async () => {
+    const res = await app.request("/v1/members/D000399/votes?limit=5");
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ votes: [{ vote: sample, position: "yea" }] });
+  });
+
+  it("rejects malformed member IDs and limits", async () => {
+    expect((await app.request("/v1/members/doggett/votes")).status).toBe(400);
+    expect((await app.request("/v1/members/D000399/votes?limit=500")).status).toBe(400);
   });
 
   it("publishes an OpenAPI document that describes the vote route and schema", async () => {
