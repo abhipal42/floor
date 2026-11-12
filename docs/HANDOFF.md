@@ -2,7 +2,7 @@
 
 Last updated 2026-11-12. Read this first, then [`plan.md`](plan.md) for the full design and reasoning.
 
-**In one paragraph:** M0 (foundation) is done. M1 (data backbone) is done except for posting latency, which moves to M3, and one chore: the bill spot-check found three Congress.gov mapping bugs, and although they are fixed in the worker, staging still holds the wrong values until a `bills --refresh` runs (see section 4). Staging Postgres holds every House and Senate roll call since January 2023, and every one matches the official totals; every vote now has a subject attached, bills and nominations alike. The API serves district lookup, member votes, votes, bills, nominations and data freshness from that database. The iOS app is still a skeleton (one scoreboard card on sample data). M2 builds the real app screens on this API.
+**In one paragraph:** M0 (foundation) is done. M1 (data backbone) is done; the one item still open against it, measured posting latency, has moved to M3, because it can only be taken on a live session day with polling running. Staging Postgres holds every House and Senate roll call since January 2023, and every one matches the official totals; every vote now has a subject attached, bills and nominations alike. The API serves district lookup, member votes, votes, bills, nominations and data freshness from that database. The iOS app is still a skeleton (one scoreboard card on sample data). M2 builds the real app screens on this API.
 
 ---
 
@@ -148,12 +148,14 @@ Real data broke our first assumptions several times. Each case below is now hand
    Measured against the API on two samples: a random 60 bills were 100% correct, but of the 58 largest bills
    (omnibus, appropriations, NDAA, reconciliation) **36% had the wrong `short_title` and 16% the wrong
    `summary_stage`** — exactly the bills the app will show most.
-   **Staging still holds those wrong values.** The fix only affects what is written, so the stored rows need
-   rebuilding, which is what `--refresh` is for (~1s per bill, so ~18 minutes for all 1,049):
+   **Staging has been repaired.** All 1,049 bills were rebuilt with `bills --refresh`, 0 failures, and both
+   samples then came back **0% wrong**: H.R. 2670 (118th) now reads "National Defense Authorization Act for
+   Fiscal Year 2024", H.R. 1 (119th) "One Big Beautiful Bill Act". Use the same command whenever a mapping fix
+   means stored rows need rebuilding (~1s per bill, so ~18 minutes for all of them):
    ```bash
    npm run ingest -w @floor/worker -- bills --refresh
    ```
-   It re-fetches each stored bill and leaves `votes.bill_id` alone. Re-run the two sample checks afterwards.
+   It re-fetches each stored bill and leaves `votes.bill_id` alone.
    One case is still imperfect: H.R. 815 (118th) was gutted and replaced by the Senate, and `pickShortTitle`
    ranks "as Passed House" and "as Passed Senate" equally, so it keeps the House title. Ranking the chambers by
    which acted last would fix it.
