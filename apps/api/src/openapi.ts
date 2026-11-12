@@ -14,7 +14,7 @@ import { createApp } from "./app.js";
 const app = createApp({
   votes: {
     getVote: async () => null,
-    voteBreakdown: async () => ({ partyTotals: [], candidateTotals: [], positions: [] }),
+    voteBreakdown: async () => ({ partyTotals: [], candidateTotals: [], positions: [], measure: null }),
   },
   members: {
     membersFor: async () => [],

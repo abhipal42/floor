@@ -149,34 +149,6 @@ const MemberDetailSchema = z
   .openapi("MemberDetail");
 
 /**
- * `GET /v1/votes/{id}`. The vote plus what the vote screen needs beyond the headline totals.
- * Built from `VoteSchema.shape` rather than `.extend()` so it registers under its own name.
- */
-export const VoteDetailSchema = z
-  .object({
-    ...VoteSchema.shape,
-    partyTotals: z
-      .array(PartyTotalsSchema)
-      .openapi({ description: "Per-party counts. An election reports its party split in candidateTotals instead." }),
-    candidateTotals: z
-      .array(CandidateTotalSchema)
-      .openapi({ description: "Which candidate each party voted for. Only populated when kind = election." }),
-    positions: z
-      .array(MemberPositionSchema)
-      .openapi({ description: "How the members named in ?members= voted. Empty when the query names none." }),
-  })
-  .openapi("VoteDetail");
-
-export type VoteDetail = z.infer<typeof VoteDetailSchema>;
-
-const RepsSchema = z
-  .object({
-    district: DistrictSchema,
-    members: z.array(MemberSchema),
-  })
-  .openapi("Reps");
-
-/**
  * Just enough about the bill or nomination a vote was on to label it in a list.
  *
  * Carried on each row so a feed of votes can name what they were about without a request per row:
@@ -195,6 +167,37 @@ export const MeasureSummarySchema = z
   .openapi("MeasureSummary");
 
 export type MeasureSummary = z.infer<typeof MeasureSummarySchema>;
+
+/**
+ * `GET /v1/votes/{id}`. The vote plus what the vote screen needs beyond the headline totals.
+ * Built from `VoteSchema.shape` rather than `.extend()` so it registers under its own name.
+ */
+export const VoteDetailSchema = z
+  .object({
+    ...VoteSchema.shape,
+    partyTotals: z
+      .array(PartyTotalsSchema)
+      .openapi({ description: "Per-party counts. An election reports its party split in candidateTotals instead." }),
+    candidateTotals: z
+      .array(CandidateTotalSchema)
+      .openapi({ description: "Which candidate each party voted for. Only populated when kind = election." }),
+    positions: z
+      .array(MemberPositionSchema)
+      .openapi({ description: "How the members named in ?members= voted. Empty when the query names none." }),
+    measure: MeasureSummarySchema.nullable().openapi({
+      description: "What was voted on, or null for a procedural vote that refers to no measure",
+    }),
+  })
+  .openapi("VoteDetail");
+
+export type VoteDetail = z.infer<typeof VoteDetailSchema>;
+
+const RepsSchema = z
+  .object({
+    district: DistrictSchema,
+    members: z.array(MemberSchema),
+  })
+  .openapi("Reps");
 
 export const MemberVoteSchema = z
   .object({
@@ -218,7 +221,12 @@ export interface VoteRepository {
   voteBreakdown(
     id: string,
     memberIds: string[],
-  ): Promise<{ partyTotals: PartyTotals[]; candidateTotals: CandidateTotal[]; positions: MemberPosition[] }>;
+  ): Promise<{
+    partyTotals: PartyTotals[];
+    candidateTotals: CandidateTotal[];
+    positions: MemberPosition[];
+    measure: MeasureSummary | null;
+  }>;
 }
 
 export interface MemberRepository {

@@ -196,6 +196,39 @@
           "choice"
         ]
       },
+      "MeasureSummary": {
+        "type": "object",
+        "nullable": true,
+        "properties": {
+          "id": {
+            "type": "string",
+            "example": "119-hr-1013"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "bill",
+              "nomination"
+            ]
+          },
+          "citation": {
+            "type": "string",
+            "description": "As the chamber cites it",
+            "example": "H.R. 1013"
+          },
+          "title": {
+            "type": "string",
+            "description": "A bill's short title where it has one, else its full title; a nomination's nominee, or the post for a military nomination that names nobody"
+          }
+        },
+        "required": [
+          "id",
+          "kind",
+          "citation",
+          "title"
+        ],
+        "description": "What was voted on, or null for a procedural vote that refers to no measure"
+      },
       "VoteDetail": {
         "type": "object",
         "properties": {
@@ -280,6 +313,9 @@
               "$ref": "#/components/schemas/MemberPosition"
             },
             "description": "How the members named in ?members= voted. Empty when the query names none."
+          },
+          "measure": {
+            "$ref": "#/components/schemas/MeasureSummary"
           }
         },
         "required": [
@@ -301,7 +337,8 @@
           "result",
           "partyTotals",
           "candidateTotals",
-          "positions"
+          "positions",
+          "measure"
         ]
       },
       "Error": {
@@ -478,39 +515,6 @@
           "result"
         ]
       },
-      "MeasureSummary": {
-        "type": "object",
-        "nullable": true,
-        "properties": {
-          "id": {
-            "type": "string",
-            "example": "119-hr-1013"
-          },
-          "kind": {
-            "type": "string",
-            "enum": [
-              "bill",
-              "nomination"
-            ]
-          },
-          "citation": {
-            "type": "string",
-            "description": "As the chamber cites it",
-            "example": "H.R. 1013"
-          },
-          "title": {
-            "type": "string",
-            "description": "A bill's short title where it has one, else its full title; a nomination's nominee, or the post for a military nomination that names nobody"
-          }
-        },
-        "required": [
-          "id",
-          "kind",
-          "citation",
-          "title"
-        ],
-        "description": "null for a procedural vote that refers to no measure, e.g. a motion to adjourn"
-      },
       "MemberVote": {
         "type": "object",
         "properties": {
@@ -526,7 +530,14 @@
             "description": "Candidate named in a Speaker election"
           },
           "measure": {
-            "$ref": "#/components/schemas/MeasureSummary"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MeasureSummary"
+              },
+              {
+                "description": "null for a procedural vote that refers to no measure, e.g. a motion to adjourn"
+              }
+            ]
           }
         },
         "required": [

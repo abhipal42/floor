@@ -101,6 +101,27 @@ const BILL_LABEL: Record<string, string> = {
 const billCitation = (type: string, number: number): string =>
   `${BILL_LABEL[type] ?? type.toUpperCase()} ${number}`;
 
+/** The columns both the feed and the vote route select to describe a vote's measure. */
+const MEASURE_COLUMNS = `b.bill_type, b.number as bill_number, b.short_title as bill_short_title,
+  b.title as bill_title, n.citation as nomination_citation, n.nominee_name, n.position_title, n.organization`;
+
+/** The joins that go with them. */
+const MEASURE_JOINS = `left join bills b on b.id = v.bill_id
+  left join nominations n on n.id = v.nomination_id`;
+
+interface MeasureRow {
+  bill_id: string | null;
+  nomination_id: string | null;
+  bill_type: string | null;
+  bill_number: number | null;
+  bill_short_title: string | null;
+  bill_title: string | null;
+  nomination_citation: string | null;
+  nominee_name: string | null;
+  position_title: string | null;
+  organization: string | null;
+}
+
 /** What to call a nomination when it names no one, which military nominations do not. */
 const nominationTitle = (r: {
   nominee_name: string | null;
@@ -108,6 +129,23 @@ const nominationTitle = (r: {
   organization: string | null;
 }): string =>
   r.nominee_name ?? ([r.position_title, r.organization].filter(Boolean).join(", ") || "Nomination");
+
+/** Builds the measure summary from a row that selected `MEASURE_COLUMNS`, or null for a procedural vote. */
+const toMeasure = (r: MeasureRow): MeasureSummary | null => {
+  if (r.bill_id && r.bill_type && r.bill_number != null) {
+    const citation = billCitation(r.bill_type, r.bill_number);
+    return { id: r.bill_id, kind: "bill", citation, title: r.bill_short_title ?? r.bill_title ?? citation };
+  }
+  if (r.nomination_id && r.nomination_citation) {
+    return {
+      id: r.nomination_id,
+      kind: "nomination",
+      citation: r.nomination_citation,
+      title: nominationTitle(r),
+    };
+  }
+  return null;
+};
 
 /**
  * Smallest party bloc that can have a meaningful majority on a vote, for `partyLoyalty`. Below this
@@ -274,7 +312,7 @@ export function pgRepositories(db: Db): {
         return rows[0] ? toVote(rows[0]) : null;
       },
       async voteBreakdown(id, memberIds) {
-        const [{ rows: parties }, { rows: candidates }, { rows: positions }] = await Promise.all([
+        const [{ rows: parties }, { rows: candidates }, { rows: positions }, { rows: measures }] = await Promise.all([
           // Elections record every position as 'candidate', so they produce no party rows here; their party
           // split comes back in candidateTotals instead.
           db.query<{ party: string; yea: number; nay: number; present: number; not_voting: number }>(
@@ -306,6 +344,14 @@ export function pgRepositories(db: Db): {
                   order by m.chamber, m.last_name`,
                 [id, memberIds],
               ),
+          // The vote screen names what was voted on, so it is joined here rather than left to a
+          // second request the caller has to know to make.
+          db.query<MeasureRow>(
+            `select v.bill_id, v.nomination_id, ${MEASURE_COLUMNS}
+               from votes v ${MEASURE_JOINS}
+              where v.id = $1`,
+            [id],
+          ),
         ]);
         const partyTotals: PartyTotals[] = parties.map((r) => ({
           party: r.party,
@@ -319,7 +365,12 @@ export function pgRepositories(db: Db): {
           position: r.position,
           choice: r.choice,
         }));
-        return { partyTotals, candidateTotals: candidates, positions: named };
+        return {
+          partyTotals,
+          candidateTotals: candidates,
+          positions: named,
+          measure: measures[0] ? toMeasure(measures[0]) : null,
+        };
       },
     },
     members: {
@@ -338,50 +389,23 @@ export function pgRepositories(db: Db): {
         // The measure is joined rather than fetched per row: a feed of votes has to name what each
         // one was about, and one request per card is not viable on the Home screen.
         const { rows } = await db.query<
-          VoteRow & {
-            position: MemberVote["position"];
-            choice: string | null;
-            bill_type: string | null;
-            bill_number: number | null;
-            bill_short_title: string | null;
-            bill_title: string | null;
-            nomination_citation: string | null;
-            nominee_name: string | null;
-            position_title: string | null;
-            organization: string | null;
-          }
+          VoteRow & MeasureRow & { position: MemberVote["position"]; choice: string | null }
         >(
-          `select ${VOTE_COLUMNS}, p.position, p.choice,
-                  b.bill_type, b.number as bill_number, b.short_title as bill_short_title, b.title as bill_title,
-                  n.citation as nomination_citation, n.nominee_name, n.position_title, n.organization
+          `select ${VOTE_COLUMNS}, p.position, p.choice, ${MEASURE_COLUMNS}
              from vote_positions p
              join votes v on v.id = p.vote_id
-             left join bills b on b.id = v.bill_id
-             left join nominations n on n.id = v.nomination_id
+             ${MEASURE_JOINS}
             where p.member_id = $1
             order by v.occurred_at desc nulls last, v.roll_number desc
             limit $2`,
           [bioguideId, limit],
         );
-        return rows.map((r) => {
-          let measure: MeasureSummary | null = null;
-          if (r.bill_id && r.bill_type && r.bill_number != null) {
-            measure = {
-              id: r.bill_id,
-              kind: "bill",
-              citation: billCitation(r.bill_type, r.bill_number),
-              title: r.bill_short_title ?? r.bill_title ?? billCitation(r.bill_type, r.bill_number),
-            };
-          } else if (r.nomination_id && r.nomination_citation) {
-            measure = {
-              id: r.nomination_id,
-              kind: "nomination",
-              citation: r.nomination_citation,
-              title: nominationTitle(r),
-            };
-          }
-          return { vote: toVote(r), position: r.position, choice: r.choice, measure };
-        });
+        return rows.map((r) => ({
+          vote: toVote(r),
+          position: r.position,
+          choice: r.choice,
+          measure: toMeasure(r),
+        }));
       },
       async getMember(bioguideId) {
         const { rows } = await db.query<MemberRow>(

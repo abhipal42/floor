@@ -62,7 +62,8 @@ struct ContractTests {
             "SourceStatus": fields(SourceStatus.sample),
             "Error": fields(APIError.sample),
             // Flat on the wire, nested in Swift: the vote's fields plus the three breakdowns.
-            "VoteDetail": fields(Vote.sample).union(["partyTotals", "candidateTotals", "positions"]),
+            "VoteDetail": fields(Vote.sample)
+                .union(["partyTotals", "candidateTotals", "positions", "measure"]),
             // Not components: these wrap a list in the route's own inline schema.
             "/v1/members/{id}/votes": fields(MemberVotes.sample),
             "/v1/status": fields(DataStatus.sample),
@@ -82,7 +83,7 @@ struct ContractTests {
     /// `VoteDetail` nests the vote rather than repeating its sixteen fields.
     @Test func voteDetailNestsTheVote() {
         #expect(Set(Mirror(reflecting: VoteDetail.sample).children.compactMap(\.label))
-            == ["vote", "partyTotals", "candidateTotals", "positions"])
+            == ["vote", "partyTotals", "candidateTotals", "positions", "measure"])
     }
 
     @Test(arguments: [

@@ -206,6 +206,22 @@ describe("Postgres repositories", () => {
     expect(try0(votes.find((v) => v.vote.id === "house-119-1-2")).measure).toBeNull();
   });
 
+  it("names what the vote screen's vote was on, so it needs no second request", async () => {
+    const onABill = await repos.votes.voteBreakdown("house-119-1-1", []);
+    expect(onABill.measure).toEqual({
+      id: "119-hr-1",
+      kind: "bill",
+      citation: "H.R. 1",
+      title: "Example Act",
+    });
+    // The same builder as the feed, so the two can never describe one measure differently.
+    const inTheFeed = (await repos.members.recentVotes("H000037", 10))
+      .find((v) => v.vote.id === "house-119-1-1")?.measure;
+    expect(inTheFeed).toEqual(onABill.measure);
+    // A procedural vote refers to nothing.
+    expect((await repos.votes.voteBreakdown("house-119-1-2", [])).measure).toBeNull();
+  });
+
   it("names a nomination by its nominee, or by the post when it names nobody", async () => {
     const votes = await repos.members.recentVotes("S000001", 10);
     expect(try0(votes.find((v) => v.vote.id === "senate-119-1-90")).measure).toEqual({

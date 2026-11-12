@@ -54,6 +54,7 @@ const repo: VoteRepository = {
       const member = members.find((m) => m.bioguideId === id);
       return member ? [{ member, position: "yea" as const, choice: null }] : [];
     }),
+    measure: { id: "119-hconres-14", kind: "bill" as const, citation: "H.Con.Res. 14", title: "FY2025 Budget" },
   }),
 };
 

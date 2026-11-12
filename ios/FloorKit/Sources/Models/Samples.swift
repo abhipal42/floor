@@ -74,7 +74,8 @@ public extension VoteDetail {
             PartyTotals(party: "D", yea: 0, nay: 212, present: 0, notVoting: 1),
         ],
         candidateTotals: [],
-        positions: [.sample]
+        positions: [.sample],
+        measure: .sample
     )
 }
 

@@ -12,7 +12,7 @@ function repositories(): Pick<AppDeps, "votes" | "members" | "bills" | "nominati
     return {
       votes: {
         getVote: async () => null,
-        voteBreakdown: async () => ({ partyTotals: [], candidateTotals: [], positions: [] }),
+        voteBreakdown: async () => ({ partyTotals: [], candidateTotals: [], positions: [], measure: null }),
       },
       members: {
         membersFor: async () => [],

@@ -184,18 +184,28 @@ public struct VoteDetail: Codable, Sendable, Hashable, Identifiable {
     public var candidateTotals: [CandidateTotal]
     /// How the members named in `?members=` voted. Empty when the request named none.
     public var positions: [MemberPosition]
+    /// What was voted on, or nil for a procedural vote that refers to no measure.
+    public var measure: MeasureSummary?
 
     public var id: String { vote.id }
 
+    /// What to put at the top of the screen: the measure's name where there is one, else the
+    /// question, which is all a procedural vote has.
+    public var title: String { measure?.headline ?? vote.question }
+
     private enum CodingKeys: String, CodingKey {
-        case partyTotals, candidateTotals, positions
+        case partyTotals, candidateTotals, positions, measure
     }
 
-    public init(vote: Vote, partyTotals: [PartyTotals], candidateTotals: [CandidateTotal], positions: [MemberPosition]) {
+    public init(
+        vote: Vote, partyTotals: [PartyTotals], candidateTotals: [CandidateTotal],
+        positions: [MemberPosition], measure: MeasureSummary?
+    ) {
         self.vote = vote
         self.partyTotals = partyTotals
         self.candidateTotals = candidateTotals
         self.positions = positions
+        self.measure = measure
     }
 
     public init(from decoder: Decoder) throws {
@@ -204,6 +214,7 @@ public struct VoteDetail: Codable, Sendable, Hashable, Identifiable {
         partyTotals = try container.decode([PartyTotals].self, forKey: .partyTotals)
         candidateTotals = try container.decode([CandidateTotal].self, forKey: .candidateTotals)
         positions = try container.decode([MemberPosition].self, forKey: .positions)
+        measure = try container.decodeIfPresent(MeasureSummary.self, forKey: .measure)
     }
 
     public func encode(to encoder: Encoder) throws {
@@ -212,5 +223,6 @@ public struct VoteDetail: Codable, Sendable, Hashable, Identifiable {
         try container.encode(partyTotals, forKey: .partyTotals)
         try container.encode(candidateTotals, forKey: .candidateTotals)
         try container.encode(positions, forKey: .positions)
+        try container.encodeIfPresent(measure, forKey: .measure)
     }
 }
