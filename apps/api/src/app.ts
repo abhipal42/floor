@@ -1,5 +1,7 @@
 import { OpenAPIHono, createRoute, z } from "@hono/zod-openapi";
+import { cors } from "hono/cors";
 import type { DistrictMatch } from "./district.js";
+import { rateLimit, type LimitStore } from "./limit.js";
 
 /*
  * The enums below are registered as their own components so the OpenAPI document refers to each by
@@ -337,7 +339,18 @@ export interface AppDeps {
   status: StatusRepository;
   now?: () => Date;
   geocode: (address: string) => Promise<DistrictMatch | null>;
+  /**
+   * Browser origins allowed to call the API. The iOS app is not a browser and is unaffected either
+   * way; this is for a future web client and for anyone poking at the docs. Omitted or empty means
+   * no cross-origin browser may read a response.
+   */
+  allowedOrigins?: string[];
+  /** Swapped in tests, and for a shared store once there is more than one instance. */
+  limitStore?: LimitStore;
 }
+
+/** How many address lookups one caller gets per hour. See the note in `limit.ts`. */
+export const REPS_RATE_LIMIT = { limit: 30, windowMs: 60 * 60 * 1000 };
 
 const getVoteRoute = createRoute({
   method: "get",
@@ -489,6 +502,26 @@ export function createApp(deps: AppDeps) {
       }
     },
   });
+
+  // Reads only, and every route is a GET. Credentials are never involved, so there is nothing for
+  // a cross-origin caller to steal by being allowed to read a response; the allow-list exists so a
+  // browser client has to be named rather than assumed.
+  const origins = deps.allowedOrigins ?? [];
+  app.use(
+    "/v1/*",
+    cors({
+      origin: (origin) => (origins.includes(origin) ? origin : null),
+      allowMethods: ["GET", "OPTIONS"],
+      maxAge: 86_400,
+    }),
+  );
+  app.use("/openapi.json", cors({ origin: (origin) => (origins.includes(origin) ? origin : null) }));
+
+  // The only route that reaches a third party: each lookup is a request to the Census geocoder.
+  app.use(
+    "/v1/reps",
+    rateLimit({ ...REPS_RATE_LIMIT, store: deps.limitStore, now: () => (deps.now ?? (() => new Date()))().getTime() }),
+  );
 
   app.get("/health", (c) => c.json({ ok: true }));
 
