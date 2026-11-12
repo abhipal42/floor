@@ -10,8 +10,16 @@ function repositories(): Pick<AppDeps, "votes" | "members" | "bills" | "nominati
   if (!process.env.DATABASE_URL) {
     console.warn("DATABASE_URL is not set: serving empty data");
     return {
-      votes: { getVote: async () => null },
-      members: { membersFor: async () => [], recentVotes: async () => [] },
+      votes: {
+        getVote: async () => null,
+        voteBreakdown: async () => ({ partyTotals: [], candidateTotals: [], positions: [] }),
+      },
+      members: {
+        membersFor: async () => [],
+        recentVotes: async () => [],
+        getMember: async () => null,
+        partyLoyalty: async () => ({ votes: 0, withParty: 0, againstParty: 0 }),
+      },
       bills: { getBill: async () => null },
       nominations: { getNomination: async () => null },
       status: { lastRuns: async () => [] },

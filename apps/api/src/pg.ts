@@ -1,11 +1,15 @@
 import type {
   Bill,
   BillRepository,
+  CandidateTotal,
   Member,
   MemberRepository,
+  MemberPosition,
   MemberVote,
   Nomination,
   NominationRepository,
+  PartyLoyalty,
+  PartyTotals,
   StatusRepository,
   Vote,
   VoteRepository,
@@ -76,6 +80,17 @@ const toMember = (r: MemberRow): Member => ({
   district: r.district,
   chamber: r.chamber,
 });
+
+/**
+ * Smallest party bloc that can have a meaningful majority on a vote, for `partyLoyalty`. Below this
+ * the member is effectively being compared with themselves.
+ */
+const MIN_BLOC = 5;
+
+/** `members` columns in the order the queries below select them, used wherever a position carries its member. */
+const MEMBER_COLUMNS = "m.bioguide_id, m.first_name, m.last_name, m.party, m.state, m.district, m.chamber";
+
+type PositionRow = MemberRow & { position: MemberVote["position"]; choice: string | null };
 
 const VOTE_COLUMNS = `v.id, v.kind, v.candidates, v.chamber, v.congress, v.session, v.roll_number, v.bill_id,
   v.nomination_id, v.bill_ref, v.question, v.state, v.threshold, v.yea, v.nay, v.present, v.not_voting, v.result,
@@ -229,6 +244,54 @@ export function pgRepositories(db: Db): {
         const { rows } = await db.query<VoteRow>(`select ${VOTE_COLUMNS} from votes v where v.id = $1`, [id]);
         return rows[0] ? toVote(rows[0]) : null;
       },
+      async voteBreakdown(id, memberIds) {
+        const [{ rows: parties }, { rows: candidates }, { rows: positions }] = await Promise.all([
+          // Elections record every position as 'candidate', so they produce no party rows here; their party
+          // split comes back in candidateTotals instead.
+          db.query<{ party: string; yea: number; nay: number; present: number; not_voting: number }>(
+            `select m.party,
+                    count(*) filter (where p.position = 'yea')::int as yea,
+                    count(*) filter (where p.position = 'nay')::int as nay,
+                    count(*) filter (where p.position = 'present')::int as present,
+                    count(*) filter (where p.position = 'not_voting')::int as not_voting
+               from vote_positions p join members m on m.bioguide_id = p.member_id
+              where p.vote_id = $1 and p.position <> 'candidate'
+              group by m.party
+              order by count(*) desc, m.party`,
+            [id],
+          ),
+          db.query<CandidateTotal>(
+            `select m.party, p.choice as candidate, count(*)::int as total
+               from vote_positions p join members m on m.bioguide_id = p.member_id
+              where p.vote_id = $1 and p.position = 'candidate' and p.choice is not null
+              group by m.party, p.choice
+              order by count(*) desc, m.party, p.choice`,
+            [id],
+          ),
+          memberIds.length === 0
+            ? Promise.resolve({ rows: [] as PositionRow[] })
+            : db.query<PositionRow>(
+                `select ${MEMBER_COLUMNS}, p.position, p.choice
+                   from vote_positions p join members m on m.bioguide_id = p.member_id
+                  where p.vote_id = $1 and p.member_id = any($2)
+                  order by m.chamber, m.last_name`,
+                [id, memberIds],
+              ),
+        ]);
+        const partyTotals: PartyTotals[] = parties.map((r) => ({
+          party: r.party,
+          yea: r.yea,
+          nay: r.nay,
+          present: r.present,
+          notVoting: r.not_voting,
+        }));
+        const named: MemberPosition[] = positions.map((r) => ({
+          member: toMember(r),
+          position: r.position,
+          choice: r.choice,
+        }));
+        return { partyTotals, candidateTotals: candidates, positions: named };
+      },
     },
     members: {
       async membersFor(state, district) {
@@ -252,6 +315,50 @@ export function pgRepositories(db: Db): {
           [bioguideId, limit],
         );
         return rows.map((r) => ({ vote: toVote(r), position: r.position, choice: r.choice }));
+      },
+      async getMember(bioguideId) {
+        const { rows } = await db.query<MemberRow>(
+          `select bioguide_id, first_name, last_name, party, state, district, chamber
+             from members where bioguide_id = $1`,
+          [bioguideId],
+        );
+        return rows[0] ? toMember(rows[0]) : null;
+      },
+      async partyLoyalty(bioguideId, party) {
+        // "With party" means siding with the majority of one's own party. Votes where the party itself split
+        // evenly have no majority to side with, so they are left out of the denominator entirely.
+        // A bloc of fewer than MIN_BLOC voters is left out too: for an independent, "their party's majority"
+        // is themselves, which would score a meaningless 100%. Those members come back with votes = 0, and
+        // the client shows no loyalty figure rather than a figure that means nothing.
+        const { rows } = await db.query<{ votes: number; with_party: number; against_party: number }>(
+          `with mine as (
+             select p.vote_id, p.position
+               from vote_positions p join votes v on v.id = p.vote_id
+              where p.member_id = $1 and v.kind = 'question' and p.position in ('yea', 'nay')
+           ),
+           party_majority as (
+             select p.vote_id,
+                    count(*) filter (where p.position = 'yea') as yea,
+                    count(*) filter (where p.position = 'nay') as nay
+               from vote_positions p join members m on m.bioguide_id = p.member_id
+              where m.party = $2 and p.position in ('yea', 'nay')
+                and p.vote_id in (select vote_id from mine)
+              group by p.vote_id
+           )
+           select count(*)::int as votes,
+                  count(*) filter (where (pm.yea > pm.nay) = (mine.position = 'yea'))::int as with_party,
+                  count(*) filter (where (pm.yea > pm.nay) <> (mine.position = 'yea'))::int as against_party
+             from mine join party_majority pm on pm.vote_id = mine.vote_id
+            where pm.yea <> pm.nay and pm.yea + pm.nay >= $3`,
+          [bioguideId, party, MIN_BLOC],
+        );
+        const r = rows[0];
+        const loyalty: PartyLoyalty = {
+          votes: r?.votes ?? 0,
+          withParty: r?.with_party ?? 0,
+          againstParty: r?.against_party ?? 0,
+        };
+        return loyalty;
       },
     },
   };

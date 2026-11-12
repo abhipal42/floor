@@ -43,6 +43,77 @@ export const MemberSchema = z
 
 export type Member = z.infer<typeof MemberSchema>;
 
+export const PartyTotalsSchema = z
+  .object({
+    party: z.string().openapi({ example: "D" }),
+    yea: z.number().int(),
+    nay: z.number().int(),
+    present: z.number().int(),
+    notVoting: z.number().int(),
+  })
+  .openapi("PartyTotals");
+
+export type PartyTotals = z.infer<typeof PartyTotalsSchema>;
+
+export const CandidateTotalSchema = z
+  .object({
+    party: z.string().openapi({ example: "D" }),
+    candidate: z.string().openapi({ example: "Jeffries" }),
+    total: z.number().int(),
+  })
+  .openapi("CandidateTotal");
+
+export type CandidateTotal = z.infer<typeof CandidateTotalSchema>;
+
+export const MemberPositionSchema = z
+  .object({
+    member: MemberSchema,
+    position: z.enum(["yea", "nay", "present", "not_voting", "candidate"]),
+    choice: z.string().nullable().openapi({ description: "Candidate named in a Speaker election" }),
+  })
+  .openapi("MemberPosition");
+
+export type MemberPosition = z.infer<typeof MemberPositionSchema>;
+
+/** How often a member voted with the majority of their own party. */
+export const PartyLoyaltySchema = z
+  .object({
+    votes: z
+      .number()
+      .int()
+      .openapi({ description: "Yea/nay votes counted: those where the member voted yea or nay and their party was not itself tied" }),
+    withParty: z.number().int(),
+    againstParty: z.number().int(),
+  })
+  .openapi("PartyLoyalty");
+
+export type PartyLoyalty = z.infer<typeof PartyLoyaltySchema>;
+
+const MemberDetailSchema = z
+  .object({ member: MemberSchema, partyLoyalty: PartyLoyaltySchema })
+  .openapi("MemberDetail");
+
+/**
+ * `GET /v1/votes/{id}`. The vote plus what the vote screen needs beyond the headline totals.
+ * Built from `VoteSchema.shape` rather than `.extend()` so it registers under its own name.
+ */
+export const VoteDetailSchema = z
+  .object({
+    ...VoteSchema.shape,
+    partyTotals: z
+      .array(PartyTotalsSchema)
+      .openapi({ description: "Per-party counts. An election reports its party split in candidateTotals instead." }),
+    candidateTotals: z
+      .array(CandidateTotalSchema)
+      .openapi({ description: "Which candidate each party voted for. Only populated when kind = election." }),
+    positions: z
+      .array(MemberPositionSchema)
+      .openapi({ description: "How the members named in ?members= voted. Empty when the query names none." }),
+  })
+  .openapi("VoteDetail");
+
+export type VoteDetail = z.infer<typeof VoteDetailSchema>;
+
 const RepsSchema = z
   .object({
     district: z.object({
@@ -70,6 +141,11 @@ const ErrorSchema = z.object({ error: z.string() }).openapi("Error");
 /** Where the API reads votes from. Postgres in production, in-memory in tests. */
 export interface VoteRepository {
   getVote(id: string): Promise<Vote | null>;
+  /** Per-party counts for the vote, plus how each of `memberIds` voted. */
+  voteBreakdown(
+    id: string,
+    memberIds: string[],
+  ): Promise<{ partyTotals: PartyTotals[]; candidateTotals: CandidateTotal[]; positions: MemberPosition[] }>;
 }
 
 export interface MemberRepository {
@@ -77,6 +153,10 @@ export interface MemberRepository {
   membersFor(state: string, district: number): Promise<Member[]>;
   /** A member's most recent recorded votes, newest first. */
   recentVotes(bioguideId: string, limit: number): Promise<MemberVote[]>;
+  /** One member, or null when we have no record of them. */
+  getMember(bioguideId: string): Promise<Member | null>;
+  /** How often they sided with their own party. `party` comes from the member row. */
+  partyLoyalty(bioguideId: string, party: string): Promise<PartyLoyalty>;
 }
 
 export const BillSchema = z
@@ -172,7 +252,7 @@ export interface AppDeps {
 const getVoteRoute = createRoute({
   method: "get",
   path: "/v1/votes/{id}",
-  summary: "Get a vote with its current totals",
+  summary: "Get a vote with its totals, party breakdown and named members' positions",
   request: {
     params: z.object({
       id: z
@@ -180,9 +260,24 @@ const getVoteRoute = createRoute({
         .regex(/^(house|senate)-\d+-\d-\d+$/, "Vote IDs look like house-119-1-100")
         .openapi({ param: { name: "id", in: "path" }, example: "house-119-1-100" }),
     }),
+    query: z.object({
+      members: z
+        .string()
+        .regex(
+          /^[A-Z]\d{6}(,[A-Z]\d{6})*$/,
+          "members is a comma-separated list of Bioguide IDs like D000399,C001098",
+        )
+        .refine((s) => s.split(",").length <= 10, "Name at most 10 members")
+        .optional()
+        .openapi({
+          param: { name: "members", in: "query" },
+          example: "D000399,C001098",
+          description: "Return these members' own positions on the vote — your delegation, for the vote screen.",
+        }),
+    }),
   },
   responses: {
-    200: { content: { "application/json": { schema: VoteSchema } }, description: "The vote" },
+    200: { content: { "application/json": { schema: VoteDetailSchema } }, description: "The vote" },
     404: { content: { "application/json": { schema: ErrorSchema } }, description: "No vote with that ID" },
   },
 });
@@ -204,6 +299,24 @@ const getRepsRoute = createRoute({
   responses: {
     200: { content: { "application/json": { schema: RepsSchema } }, description: "Your district and members" },
     404: { content: { "application/json": { schema: ErrorSchema } }, description: "Address not found" },
+  },
+});
+
+const getMemberRoute = createRoute({
+  method: "get",
+  path: "/v1/members/{id}",
+  summary: "A member and how often they vote with their own party",
+  request: {
+    params: z.object({
+      id: z
+        .string()
+        .regex(/^[A-Z]\d{6}$/, "Member IDs are Bioguide IDs like A000370")
+        .openapi({ param: { name: "id", in: "path" }, example: "A000370" }),
+    }),
+  },
+  responses: {
+    200: { content: { "application/json": { schema: MemberDetailSchema } }, description: "The member" },
+    404: { content: { "application/json": { schema: ErrorSchema } }, description: "No member with that ID" },
   },
 });
 
@@ -291,9 +404,18 @@ export function createApp(deps: AppDeps) {
 
   app.openapi(getVoteRoute, async (c) => {
     const { id } = c.req.valid("param");
+    const { members } = c.req.valid("query");
     const vote = await deps.votes.getVote(id);
     if (!vote) return c.json({ error: `No vote with ID ${id}` }, 404);
-    return c.json(vote, 200);
+    const breakdown = await deps.votes.voteBreakdown(id, members ? members.split(",") : []);
+    return c.json({ ...vote, ...breakdown }, 200);
+  });
+
+  app.openapi(getMemberRoute, async (c) => {
+    const { id } = c.req.valid("param");
+    const member = await deps.members.getMember(id);
+    if (!member) return c.json({ error: `No member with ID ${id}` }, 404);
+    return c.json({ member, partyLoyalty: await deps.members.partyLoyalty(id, member.party) }, 200);
   });
 
   app.openapi(getRepsRoute, async (c) => {

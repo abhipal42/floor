@@ -18,13 +18,23 @@ beforeAll(async () => {
       ('H000037', 'Rep', 'Current', 'D', 'TX', 37, 'house',  '2025-01-03', '2099-01-03'),
       ('H000099', 'Rep', 'Former',  'D', 'TX', 37, 'house',  '2023-01-03', '2025-01-03'),
       ('H000010', 'Rep', 'Other',   'R', 'TX', 10, 'house',  '2025-01-03', '2099-01-03'),
+      ('H000011', 'Rep', 'Second',  'R', 'TX', 11, 'house',  '2025-01-03', '2099-01-03'),
+      ('H000038', 'Rep', 'Ally',    'D', 'TX', 38, 'house',  '2025-01-03', '2099-01-03'),
+      ('H000040', 'Rep', 'Third',   'D', 'TX', 40, 'house',  '2025-01-03', '2099-01-03'),
+      ('H000041', 'Rep', 'Fourth',  'D', 'TX', 41, 'house',  '2025-01-03', '2099-01-03'),
+      ('H000042', 'Rep', 'Fifth',   'D', 'TX', 42, 'house',  '2025-01-03', '2099-01-03'),
+      ('H000050', 'Rep', 'Lone',    'I', 'TX', 50, 'house',  '2025-01-03', '2099-01-03'),
       ('S000001', 'Sen', 'Bravo',   'R', 'TX', null, 'senate', '2025-01-03', '2099-01-03'),
       ('S000002', 'Sen', 'Alpha',   'R', 'TX', null, 'senate', '2025-01-03', '2099-01-03'),
       ('S000003', 'Sen', 'Elsewhere', 'D', 'WA', null, 'senate', '2025-01-03', '2099-01-03');
     insert into votes (id, chamber, congress, session, roll_number, question, state, yea, nay, not_voting, result, bill_ref, occurred_at) values
       ('house-119-1-1', 'house', 119, 1, 1, 'On Passage', 'final', 219, 208, 8, 'Passed', 'H R 1', '2025-01-10T15:00:00Z'),
       ('house-119-1-2', 'house', 119, 1, 2, 'On Motion to Recommit', 'final', 200, 225, 10, 'Failed', null, '2025-01-11T15:00:00Z'),
+      ('house-119-1-3', 'house', 119, 1, 3, 'On Passage', 'final', 210, 215, 10, 'Failed', null, '2025-01-12T15:00:00Z'),
       ('senate-119-1-90', 'senate', 119, 1, 90, 'On the Nomination', 'final', 66, 28, 6, 'Nomination Confirmed', 'PN12-12', '2025-02-25T16:15:00Z');
+    insert into votes (id, chamber, congress, session, roll_number, question, state, kind, candidates, result, occurred_at)
+      values ('house-119-1-4', 'house', 119, 1, 4, 'Election of the Speaker', 'final', 'election',
+              '[{"name":"Johnson","total":2},{"name":"Jeffries","total":2}]', 'Johnson elected', '2025-01-13T15:00:00Z');
     insert into bills (id, congress, bill_type, number, title, short_title, sponsor_id, introduced_on, origin_chamber,
                        policy_area, summary, summary_stage, latest_action_on, latest_action_text, cbo_estimates)
       values ('119-hr-1', 119, 'hr', 1, 'To provide for reconciliation', 'Example Act', 'H000037', '2025-01-05', 'house',
@@ -40,9 +50,38 @@ beforeAll(async () => {
               1, false, '2025-01-20', '2025-02-25', 'Confirmed by the Senate by Yea-Nay Vote. 66 - 28.');
     update votes set bill_id = '119-hr-1' where id = 'house-119-1-1';
     update votes set nomination_id = '119-pn-12-12' where id = 'senate-119-1-90';
+    -- Five Democrats vote each time, so the bloc is big enough for a majority to mean something.
+    -- Hand-checkable majorities for H000037 (D):
+    --   vote 1: D votes yea 5-0, they voted yea  -> with party
+    --   vote 2: D votes yea 4-1, they voted nay  -> against party
+    --   vote 3: D votes nay 3-2, they voted nay  -> with party
+    -- H000050 (I) votes on all three, but is the only member of their party, so they are not scored.
     insert into vote_positions (vote_id, member_id, position) values
       ('house-119-1-1', 'H000037', 'yea'),
-      ('house-119-1-2', 'H000037', 'nay');
+      ('house-119-1-1', 'H000038', 'yea'),
+      ('house-119-1-1', 'H000040', 'yea'),
+      ('house-119-1-1', 'H000041', 'yea'),
+      ('house-119-1-1', 'H000042', 'yea'),
+      ('house-119-1-1', 'H000010', 'nay'),
+      ('house-119-1-1', 'H000011', 'nay'),
+      ('house-119-1-1', 'H000050', 'yea'),
+      ('house-119-1-2', 'H000037', 'nay'),
+      ('house-119-1-2', 'H000038', 'yea'),
+      ('house-119-1-2', 'H000040', 'yea'),
+      ('house-119-1-2', 'H000041', 'yea'),
+      ('house-119-1-2', 'H000042', 'yea'),
+      ('house-119-1-2', 'H000050', 'nay'),
+      ('house-119-1-3', 'H000037', 'nay'),
+      ('house-119-1-3', 'H000038', 'nay'),
+      ('house-119-1-3', 'H000041', 'nay'),
+      ('house-119-1-3', 'H000040', 'yea'),
+      ('house-119-1-3', 'H000042', 'yea'),
+      ('house-119-1-3', 'H000050', 'nay');
+    insert into vote_positions (vote_id, member_id, position, choice) values
+      ('house-119-1-4', 'H000038', 'candidate', 'Jeffries'),
+      ('house-119-1-4', 'H000040', 'candidate', 'Jeffries'),
+      ('house-119-1-4', 'H000010', 'candidate', 'Johnson'),
+      ('house-119-1-4', 'H000011', 'candidate', 'Johnson');
     insert into ingest_runs (source, started_at, finished_at, items, error) values
       ('members', '2025-01-01T00:00:00Z', '2025-01-01T00:01:00Z', 700, null),
       ('house_rollcalls', '2025-01-02T00:00:00Z', '2025-01-02T00:05:00Z', 10, null),
@@ -131,9 +170,59 @@ describe("Postgres repositories", () => {
   it("lists a member's votes newest first with their position", async () => {
     const votes = await repos.members.recentVotes("H000037", 10);
     expect(votes.map((v) => [v.vote.id, v.position])).toEqual([
+      ["house-119-1-3", "nay"],
       ["house-119-1-2", "nay"],
       ["house-119-1-1", "yea"],
     ]);
     expect(await repos.members.recentVotes("H000037", 1)).toHaveLength(1);
+  });
+
+  it("breaks a question vote down by party, largest party first", async () => {
+    const { partyTotals, candidateTotals } = await repos.votes.voteBreakdown("house-119-1-1", []);
+    expect(partyTotals).toEqual([
+      { party: "D", yea: 5, nay: 0, present: 0, notVoting: 0 },
+      { party: "R", yea: 0, nay: 2, present: 0, notVoting: 0 },
+      { party: "I", yea: 1, nay: 0, present: 0, notVoting: 0 },
+    ]);
+    expect(candidateTotals).toEqual([]);
+  });
+
+  it("breaks a Speaker election down by party and candidate instead of yea/nay", async () => {
+    const { partyTotals, candidateTotals } = await repos.votes.voteBreakdown("house-119-1-4", []);
+    expect(partyTotals).toEqual([]);
+    expect(candidateTotals).toEqual([
+      { party: "D", candidate: "Jeffries", total: 2 },
+      { party: "R", candidate: "Johnson", total: 2 },
+    ]);
+  });
+
+  it("returns only the named members' positions, and nothing when none are named", async () => {
+    const asked = await repos.votes.voteBreakdown("house-119-1-1", ["H000037", "H000010"]);
+    expect(asked.positions.map((p) => [p.member.bioguideId, p.position])).toEqual([
+      ["H000037", "yea"],
+      ["H000010", "nay"],
+    ]);
+    expect(asked.positions[0]?.member.lastName).toBe("Current");
+    // A senator has no position on a House vote, so asking for one returns nothing for them.
+    const mixed = await repos.votes.voteBreakdown("house-119-1-1", ["H000037", "S000001"]);
+    expect(mixed.positions.map((p) => p.member.bioguideId)).toEqual(["H000037"]);
+    expect((await repos.votes.voteBreakdown("house-119-1-1", [])).positions).toEqual([]);
+  });
+
+  it("counts votes with and against a member's own party, skipping votes where the party tied", async () => {
+    expect(await repos.members.partyLoyalty("H000037", "D")).toEqual({ votes: 3, withParty: 2, againstParty: 1 });
+    // H000038 sided with the Democratic majority all three times. Their candidate vote in the Speaker
+    // election is excluded: a candidate vote has no party majority to side with.
+    expect(await repos.members.partyLoyalty("H000038", "D")).toEqual({ votes: 3, withParty: 3, againstParty: 0 });
+    // A member with no recorded positions has nothing to count, rather than erroring.
+    expect(await repos.members.partyLoyalty("S000003", "D")).toEqual({ votes: 0, withParty: 0, againstParty: 0 });
+    // H000050 voted on all three, but is their party's only member: there is no majority to side with,
+    // so they score no votes at all rather than a meaningless 100%.
+    expect(await repos.members.partyLoyalty("H000050", "I")).toEqual({ votes: 0, withParty: 0, againstParty: 0 });
+  });
+
+  it("reads one member by Bioguide ID", async () => {
+    expect(await repos.members.getMember("H000037")).toMatchObject({ bioguideId: "H000037", party: "D", district: 37 });
+    expect(await repos.members.getMember("X000000")).toBeNull();
   });
 });

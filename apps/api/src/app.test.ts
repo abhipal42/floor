@@ -35,14 +35,30 @@ const nominationVote: Vote = {
   result: "Nomination Confirmed",
 };
 
-const repo: VoteRepository = {
-  getVote: async (id) => (id === sample.id ? sample : id === nominationVote.id ? nominationVote : null),
-};
-
 const members: Member[] = [
   { bioguideId: "D000399", firstName: "Lloyd", lastName: "Doggett", party: "D", state: "TX", district: 37, chamber: "house" },
   { bioguideId: "C001098", firstName: "Ted", lastName: "Cruz", party: "R", state: "TX", district: null, chamber: "senate" },
 ];
+
+const partyTotals = [
+  { party: "R", yea: 214, nay: 2, present: 0, notVoting: 2 },
+  { party: "D", yea: 2, nay: 212, present: 0, notVoting: 1 },
+];
+
+const repo: VoteRepository = {
+  getVote: async (id) => (id === sample.id ? sample : id === nominationVote.id ? nominationVote : null),
+  voteBreakdown: async (_id, memberIds) => ({
+    partyTotals,
+    candidateTotals: [],
+    positions: memberIds.flatMap((id) => {
+      const member = members.find((m) => m.bioguideId === id);
+      return member ? [{ member, position: "yea" as const, choice: null }] : [];
+    }),
+  }),
+};
+
+/** Records how `partyLoyalty` was called, so we can check the party came off the member row. */
+const loyaltyCalls: string[] = [];
 
 const geocoded: string[] = [];
 const app = createApp({
@@ -52,6 +68,11 @@ const app = createApp({
       members.filter((m) => m.state === state && (m.chamber === "senate" || m.district === district)),
     recentVotes: async (id, limit) =>
       id === "D000399" ? [{ vote: sample, position: "yea" as const, choice: null }].slice(0, limit) : [],
+    getMember: async (id) => members.find((m) => m.bioguideId === id) ?? null,
+    partyLoyalty: async (id, party) => {
+      loyaltyCalls.push(`${id}/${party}`);
+      return { votes: 120, withParty: 111, againstParty: 9 };
+    },
   },
   bills: {
     getBill: async (id) =>
@@ -100,10 +121,49 @@ describe("API", () => {
     expect(await res.json()).toEqual({ ok: true });
   });
 
-  it("returns a vote by ID", async () => {
+  it("returns a vote by ID, with its party breakdown and no positions unless asked", async () => {
     const res = await app.request("/v1/votes/house-119-1-100");
     expect(res.status).toBe(200);
-    expect(await res.json()).toEqual(sample);
+    const body = await res.json();
+    expect(body).toMatchObject(sample);
+    expect(body.partyTotals).toEqual(partyTotals);
+    expect(body.candidateTotals).toEqual([]);
+    expect(body.positions).toEqual([]);
+  });
+
+  it("returns your delegation's own positions when ?members= names them", async () => {
+    const res = await app.request("/v1/votes/house-119-1-100?members=D000399,C001098");
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.positions.map((p: { member: Member }) => p.member.bioguideId)).toEqual(["D000399", "C001098"]);
+    expect(body.positions[0].position).toBe("yea");
+  });
+
+  it("rejects a members list that isn't Bioguide IDs, or names more than ten", async () => {
+    expect((await app.request("/v1/votes/house-119-1-100?members=doggett")).status).toBe(400);
+    expect((await app.request("/v1/votes/house-119-1-100?members=D000399,")).status).toBe(400);
+    const eleven = Array.from({ length: 11 }, (_, i) => `D${String(i).padStart(6, "0")}`).join(",");
+    const res = await app.request(`/v1/votes/house-119-1-100?members=${eleven}`);
+    expect(res.status).toBe(400);
+    expect((await res.json()).error).toMatch(/at most 10/i);
+  });
+
+  it("returns a member with how often they side with their own party", async () => {
+    const res = await app.request("/v1/members/D000399");
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({
+      member: members[0],
+      partyLoyalty: { votes: 120, withParty: 111, againstParty: 9 },
+    });
+    // The party used for the comparison comes from the member row, not from the client.
+    expect(loyaltyCalls).toContain("D000399/D");
+  });
+
+  it("returns 404 for an unknown member and 400 for a malformed ID", async () => {
+    const res = await app.request("/v1/members/Z000000");
+    expect(res.status).toBe(404);
+    expect((await res.json()).error).toMatch(/Z000000/);
+    expect((await app.request("/v1/members/doggett")).status).toBe(400);
   });
 
   it("returns 404 for a vote that doesn't exist", async () => {
@@ -201,6 +261,10 @@ describe("API", () => {
     expect(doc.info.title).toBe("Floor API");
     expect(Object.keys(doc.paths)).toContain("/v1/votes/{id}");
     expect(Object.keys(doc.paths)).toContain("/v1/nominations/{id}");
+    expect(Object.keys(doc.paths)).toContain("/v1/members/{id}");
+    expect(doc.components.schemas.VoteDetail.required).toContain("partyTotals");
+    expect(doc.components.schemas.VoteDetail.required).toContain("positions");
+    expect(doc.components.schemas.MemberDetail.required).toContain("partyLoyalty");
     expect(doc.components.schemas.Vote.required).toContain("totals");
     expect(doc.components.schemas.Vote.required).toContain("nominationId");
     expect(doc.components.schemas.Nomination.required).toContain("citation");
