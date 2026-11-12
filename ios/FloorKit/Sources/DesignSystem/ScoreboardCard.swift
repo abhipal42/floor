@@ -1,14 +1,6 @@
 import Models
 import SwiftUI
 
-public enum Palette {
-    public static let yea = Color(red: 0.204, green: 0.827, blue: 0.600)   // #34D399
-    public static let nay = Color(red: 0.984, green: 0.573, blue: 0.235)   // #FB923C
-    public static let live = Color(red: 1.0, green: 0.271, blue: 0.227)    // #FF453A
-    public static let card = Color(red: 0.118, green: 0.129, blue: 0.157)  // #1E2128
-    public static let trailing = Color(white: 0.52)
-}
-
 /// The Yea-vs-Nay matchup card from the Home screen design.
 public struct ScoreboardCard: View {
     let vote: Vote
