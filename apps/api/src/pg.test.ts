@@ -24,9 +24,14 @@ beforeAll(async () => {
     insert into votes (id, chamber, congress, session, roll_number, question, state, yea, nay, not_voting, result, bill_ref, occurred_at) values
       ('house-119-1-1', 'house', 119, 1, 1, 'On Passage', 'final', 219, 208, 8, 'Passed', 'H R 1', '2025-01-10T15:00:00Z'),
       ('house-119-1-2', 'house', 119, 1, 2, 'On Motion to Recommit', 'final', 200, 225, 10, 'Failed', null, '2025-01-11T15:00:00Z');
-    insert into vote_positions values
+    insert into vote_positions (vote_id, member_id, position) values
       ('house-119-1-1', 'H000037', 'yea'),
       ('house-119-1-2', 'H000037', 'nay');
+    insert into ingest_runs (source, started_at, finished_at, items, error) values
+      ('members', '2025-01-01T00:00:00Z', '2025-01-01T00:01:00Z', 700, null),
+      ('house_rollcalls', '2025-01-02T00:00:00Z', '2025-01-02T00:05:00Z', 10, null),
+      ('house_rollcalls', '2025-01-03T00:00:00Z', '2025-01-03T00:00:05Z', 0, 'HTTP 503'),
+      ('house_rollcalls', '2025-01-03T01:00:00Z', null, 0, null);
   `);
   repos = pgRepositories(pg as unknown as Db);
 });
@@ -56,6 +61,14 @@ describe("Postgres repositories", () => {
       result: "Passed",
     });
     expect(await repos.votes.getVote("house-119-1-999")).toBeNull();
+  });
+
+  it("reports the last successful run and the latest error per source", async () => {
+    const runs = (await repos.status.lastRuns()).sort((a, b) => a.source.localeCompare(b.source));
+    expect(runs).toEqual([
+      { source: "house_rollcalls", lastSuccessAt: new Date("2025-01-02T00:05:00Z"), lastError: "HTTP 503" },
+      { source: "members", lastSuccessAt: new Date("2025-01-01T00:01:00Z"), lastError: null },
+    ]);
   });
 
   it("lists a member's votes newest first with their position", async () => {

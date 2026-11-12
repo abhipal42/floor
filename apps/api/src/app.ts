@@ -78,9 +78,34 @@ export interface MemberRepository {
   recentVotes(bioguideId: string, limit: number): Promise<MemberVote[]>;
 }
 
+export const SourceStatusSchema = z
+  .object({
+    source: z.string().openapi({ example: "house_rollcalls" }),
+    lastSuccessAt: z.string().nullable(),
+    lastError: z.string().nullable(),
+    stale: z.boolean(),
+  })
+  .openapi("SourceStatus");
+
+export type SourceStatus = z.infer<typeof SourceStatusSchema>;
+
+/** How long each source may go without a successful run before it counts as stale. */
+export const MAX_AGE_HOURS: Record<string, number> = {
+  members: 48,
+  house_rollcalls: 24,
+  senate_rollcalls: 24,
+};
+
+export interface StatusRepository {
+  /** Latest successful run and latest error per ingest source. */
+  lastRuns(): Promise<{ source: string; lastSuccessAt: Date | null; lastError: string | null }[]>;
+}
+
 export interface AppDeps {
   votes: VoteRepository;
   members: MemberRepository;
+  status: StatusRepository;
+  now?: () => Date;
   geocode: (address: string) => Promise<DistrictMatch | null>;
 }
 
@@ -145,6 +170,18 @@ const getMemberVotesRoute = createRoute({
   },
 });
 
+const getStatusRoute = createRoute({
+  method: "get",
+  path: "/v1/status",
+  summary: "Data freshness for each ingest source",
+  responses: {
+    200: {
+      content: { "application/json": { schema: z.object({ ok: z.boolean(), sources: z.array(SourceStatusSchema) }) } },
+      description: "ok is false when any source is stale",
+    },
+  },
+});
+
 export function createApp(deps: AppDeps) {
   const app = new OpenAPIHono({
     defaultHook: (result, c) => {
@@ -183,6 +220,22 @@ export function createApp(deps: AppDeps) {
     const { id } = c.req.valid("param");
     const { limit } = c.req.valid("query");
     return c.json({ votes: await deps.members.recentVotes(id, limit) }, 200);
+  });
+
+  app.openapi(getStatusRoute, async (c) => {
+    const now = (deps.now ?? (() => new Date()))().getTime();
+    const runs = new Map((await deps.status.lastRuns()).map((r) => [r.source, r]));
+    const sources: SourceStatus[] = Object.entries(MAX_AGE_HOURS).map(([source, hours]) => {
+      const run = runs.get(source);
+      const last = run?.lastSuccessAt ?? null;
+      return {
+        source,
+        lastSuccessAt: last ? last.toISOString() : null,
+        lastError: run?.lastError ?? null,
+        stale: !last || now - last.getTime() > hours * 3_600_000,
+      };
+    });
+    return c.json({ ok: sources.every((s) => !s.stale), sources }, 200);
   });
 
   app.doc("/openapi.json", {

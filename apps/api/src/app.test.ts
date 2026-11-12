@@ -37,6 +37,14 @@ const app = createApp({
     recentVotes: async (id, limit) =>
       id === "D000399" ? [{ vote: sample, position: "yea" as const, choice: null }].slice(0, limit) : [],
   },
+  status: {
+    lastRuns: async () => [
+      { source: "members", lastSuccessAt: new Date("2026-11-11T00:00:00Z"), lastError: null },
+      { source: "house_rollcalls", lastSuccessAt: new Date("2026-11-11T20:00:00Z"), lastError: null },
+      { source: "senate_rollcalls", lastSuccessAt: new Date("2026-11-09T00:00:00Z"), lastError: "HTTP 503" },
+    ],
+  },
+  now: () => new Date("2026-11-12T00:00:00Z"),
   geocode: async (address) => {
     geocoded.push(address);
     return address.includes("Austin")
@@ -100,6 +108,19 @@ describe("API", () => {
   it("rejects malformed member IDs and limits", async () => {
     expect((await app.request("/v1/members/doggett/votes")).status).toBe(400);
     expect((await app.request("/v1/members/D000399/votes?limit=500")).status).toBe(400);
+  });
+
+  it("flags sources that haven't loaded successfully within their window", async () => {
+    const res = await app.request("/v1/status");
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({
+      ok: false,
+      sources: [
+        { source: "members", lastSuccessAt: "2026-11-11T00:00:00.000Z", lastError: null, stale: false },
+        { source: "house_rollcalls", lastSuccessAt: "2026-11-11T20:00:00.000Z", lastError: null, stale: false },
+        { source: "senate_rollcalls", lastSuccessAt: "2026-11-09T00:00:00.000Z", lastError: "HTTP 503", stale: true },
+      ],
+    });
   });
 
   it("publishes an OpenAPI document that describes the vote route and schema", async () => {

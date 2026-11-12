@@ -1,4 +1,4 @@
-import type { Member, MemberRepository, MemberVote, Vote, VoteRepository } from "./app.js";
+import type { Member, MemberRepository, MemberVote, StatusRepository, Vote, VoteRepository } from "./app.js";
 
 /** The slice of a Postgres client we use. Satisfied by `pg.Pool` and by PGlite in tests. */
 export interface Db {
@@ -67,8 +67,23 @@ const toMember = (r: MemberRow): Member => ({
 const VOTE_COLUMNS = `v.id, v.kind, v.candidates, v.chamber, v.congress, v.session, v.roll_number, v.bill_id, v.bill_ref, v.question,
   v.state, v.threshold, v.yea, v.nay, v.present, v.not_voting, v.result, v.occurred_at`;
 
-export function pgRepositories(db: Db): { votes: VoteRepository; members: MemberRepository } {
+export function pgRepositories(db: Db): { votes: VoteRepository; members: MemberRepository; status: StatusRepository } {
   return {
+    status: {
+      async lastRuns() {
+        const { rows } = await db.query<{ source: string; last_success_at: Date | null; last_error: string | null }>(
+          `select source,
+                  max(finished_at) filter (where error is null) as last_success_at,
+                  (array_agg(error order by started_at desc) filter (where error is not null))[1] as last_error
+             from ingest_runs group by source`,
+        );
+        return rows.map((r) => ({
+          source: r.source,
+          lastSuccessAt: r.last_success_at ? new Date(r.last_success_at) : null,
+          lastError: r.last_error,
+        }));
+      },
+    },
     votes: {
       async getVote(id) {
         const { rows } = await db.query<VoteRow>(`select ${VOTE_COLUMNS} from votes v where v.id = $1`, [id]);
