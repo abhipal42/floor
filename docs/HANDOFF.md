@@ -2,7 +2,7 @@
 
 Last updated 2026-11-12. Read this first, then [`plan.md`](plan.md) for the full design and reasoning.
 
-**In one paragraph:** M0 (foundation) is done. M1 (data backbone) is done except for finishing one bill load and two deferred items. Staging Postgres holds every House and Senate roll call since January 2023, and every one matches the official totals. The API serves district lookup, member votes, votes, bills and data freshness from that database. The iOS app is still a skeleton (one scoreboard card on sample data). M2 builds the real app screens on this API.
+**In one paragraph:** M0 (foundation) is done. M1 (data backbone) is done except for a bill spot-check and two deferred items (nominations; posting latency, which moves to M3). Staging Postgres holds every House and Senate roll call since January 2023, and every one matches the official totals. The API serves district lookup, member votes, votes, bills and data freshness from that database. The iOS app is still a skeleton (one scoreboard card on sample data). M2 builds the real app screens on this API.
 
 ---
 
@@ -78,7 +78,7 @@ iOS (needs a Mac with Xcode 16+): `brew install xcodegen && cd ios && xcodegen &
 | `members` | 716 | Everyone serving now, plus anyone whose last term ended after 2022-11-01 |
 | `votes` | 3,532 | House + Senate, 118th–119th Congress, Jan 3 2023 → Nov 11 2026. 20 are Speaker elections (`kind = 'election'`) |
 | `vote_positions` | 995,806 | Verified: every vote's positions add up to its official totals; no vote lacks positions |
-| `bills` / `actions` | ~550 / ~12k, **load in progress** | See "Finish M1" below |
+| `bills` / `actions` | 1,049 / 19,714 | Every bill a vote refers to; 976 have a CRS summary. All 2,319 votes on bills are linked (`votes.bill_id`) |
 | `ingest_runs` | | Every ingest run with item count and error, which feeds `/v1/status` |
 
 Verification query (should return zeros for the last four columns):
@@ -117,11 +117,10 @@ Real data broke our first assumptions several times. Each case below is now hand
 
 ## 4. Finish M1 (small)
 
-1. **Finish the bill load.** Re-run `npm run ingest -w @floor/worker -- bills`. It only fetches bills not yet linked, so it's safe to re-run. Done when this returns `0`:
+1. ~~Finish the bill load~~ **Done** (1,049 bills, 0 failures). As new votes arrive, re-run `npm run ingest -w @floor/worker -- bills`; it only fetches bills not yet linked. This should always return `0`:
    ```sql
    select count(*) from votes where bill_id is null and bill_ref is not null and bill_ref !~ '^(PN|QUORUM|ADJOURN|Treaty)';
    ```
-   Any that stay unlinked are bills Congress.gov returned errors for. Check `ingest_runs` where `source = 'bills'`.
 2. **Spot-check 5 bills** from `/v1/bills/{id}` against congress.gov (title, sponsor, latest action, summary).
 3. **Nominations (deferred from M1).** About 900 Senate votes are on nominations (`PN…`). Add a `nominations` table and an ingest from Congress.gov `/nomination/{congress}/{number}` (nominee, position, agency), and link the votes. Follow the `bills.ts` pattern, including tests on saved real responses.
 4. **Posting-latency measurement (moved to M3).** We can only measure how long the Clerk and LIS take to post roll call files on a live session day with polling running.
