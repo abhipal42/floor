@@ -5,7 +5,10 @@
  * Hono does the routing exactly as it does locally. `src/server.ts` remains the way to run it on a
  * machine you can see.
  */
-import { handle } from "hono/vercel";
+// `@hono/node-server/vercel`, not `hono/vercel`: the latter returns a fetch-style handler, and on
+// Vercel's Node runtime the function is called as (req, res). Nothing ever writes to `res`, so the
+// request hangs until the function times out — which is exactly what the first deploy did.
+import { handle } from "@hono/node-server/vercel";
 import pg from "pg";
 import { createApp } from "../src/app.js";
 import { geocodeDistrict } from "../src/district.js";
