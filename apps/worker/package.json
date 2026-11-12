@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "ingest": "tsx src/cli.ts"
+    "ingest": "tsx --env-file-if-exists=../../.env src/cli.ts"
   },
   "dependencies": {
     "@floor/db": "^0.0.0",
