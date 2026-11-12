@@ -44,6 +44,7 @@ npm run ingest -w @floor/worker -- rollcalls senate 119 2         # same for the
 npm run ingest -w @floor/worker -- bills                          # load bills that votes refer to (only missing ones)
 npm run ingest -w @floor/worker -- nominations                    # load nominations that Senate votes refer to
 npm run openapi -w @floor/api                                    # regenerate apps/api/openapi.json after changing routes
+npm run build -w @floor/web && npm run serve -w @floor/web       # build and serve the landing page from apps/web/dist
 swift test --package-path ios/FloorKit                           # all FloorKit tests (96): models, contract, client, screen models
 ```
 
@@ -68,6 +69,7 @@ Command Line Tools rather than Xcode: run it with `DEVELOPER_DIR=/Applications/X
 | `supabase/migrations` | Postgres schema (applied to staging in filename order) | 7 migrations, all applied to staging |
 | `apps/worker` | Ingest CLI: members, roll calls, bills, nominations | `src/cli.ts`, `rollcalls.ts`, `bills.ts`, `nominations.ts`, `members.ts`, `db.ts` |
 | `apps/api` | Hono REST API with OpenAPI at `/openapi.json` | `src/app.ts` (routes + schemas), `pg.ts` (Postgres), `district.ts` (Census) |
+| `apps/web` | Landing page (v0.2.0): static HTML/CSS/TypeScript built with `tsc`, no framework | `src/data.ts` (every figure, with source and date), `src/logic.ts` (pure helpers), `src/main.ts` (rendering), `public/` |
 | `ios/` | SwiftUI app (XcodeGen, `project.yml`), `FloorKit` package: `Models`, `APIClient`, `DesignSystem`, `Onboarding`, `Home`, `VoteScreen`, `BillScreen`, `RepScreen` | `FloorKit/Sources/Models/` (one file per area, `Samples.swift` for previews), `FloorKit/Tests/ModelsTests/ContractTests.swift`, `DesignSystem/ScoreboardCard.swift`, `BillScreen/BillProgress.swift` |
 | `.github/workflows/ci.yml` | Node job (lint/typecheck/tests + OpenAPI drift) + macOS job (Swift tests + simulator build) | |
 | `.github/workflows/guards.yml` | Shipping guards on every PR: changelog, version, docs, tests, retro, PR title | `.github/scripts/guards.conf` (this repo's settings), `guards.sh` (shared, do not edit) |
@@ -361,6 +363,27 @@ live `#FF453A`, muted text `#9BA1AD`.
 - Layer 2 "What it means for you" from coarse opt-in profile attributes + county data (Census ACS, FCC). No names or addresses go to the model.
 - Projection model v1 (per-member probabilities → chamber simulation), backtested on the 3,500 stored roll calls (they're already in staging) and calibrated against a party-line baseline.
 - Optional display-only market odds (pending product decision).
+
+### The landing page (v0.2.0)
+
+Built to the locked design canvas <https://claude.ai/artifact/FKWYDhCej75UPy94csYLsU> (five rounds;
+the product rules they settled are in `CLAUDE.md` › Product rules). What to know:
+
+- **It is a snapshot.** Every figure is in `apps/web/src/data.ts` with its source and date, checked by
+  `data.test.ts`. Votes come from this API; funding from FEC filings (OpenFEC); holdings and trades
+  from House Clerk financial disclosures and periodic transaction reports. Refreshing it is a manual
+  edit today.
+- **It is not hosted.** Contributors here can't create the Vercel project or enable Pages. To host on
+  Vercel: new project, root directory `apps/web`, build command `npm run build -w @floor/web` run from
+  the repo root (or `cd ../.. && npm run build -w @floor/web`), output directory `apps/web/dist`.
+- **Live data needs CORS.** For the page to read the API in the browser, add the site's origin to
+  `ALLOWED_ORIGINS` on the `floor-api` Vercel project and redeploy.
+- **New data sources, not yet ingested:** FEC (the same api.data.gov key as Congress.gov works; the
+  shared `DEMO_KEY` allows 40 calls an hour) and House financial disclosures
+  (`disclosures-clerk.house.gov/public_disc/financial-pdfs/<year>FD.zip` is a tab-separated index of
+  every filing; `ptr-pdfs/<year>/<DocID>.pdf` are the trade reports). Senate disclosures (eFD) have no
+  bulk index. Disclosures report value **ranges** and omit homes, which is why the page shows ranges.
+- **Forms are inert.** Beta sign-up and address entry show "opens soon" until there is a backend.
 
 ### M5: Beta hardening + App Store
 Accessibility (Dynamic Type, VoiceOver on score cards), privacy labels, a vote-night load test, App Review prep, public TestFlight.
