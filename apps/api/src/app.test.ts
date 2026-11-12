@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { createApp, type Vote, type VoteRepository } from "./app.js";
+import { createApp, type Member, type Vote, type VoteRepository } from "./app.js";
 
 const sample: Vote = {
   id: "house-119-1-100",
@@ -19,7 +19,25 @@ const repo: VoteRepository = {
   getVote: async (id) => (id === sample.id ? sample : null),
 };
 
-const app = createApp(repo);
+const members: Member[] = [
+  { bioguideId: "D000399", firstName: "Lloyd", lastName: "Doggett", party: "D", state: "TX", district: 37, chamber: "house" },
+  { bioguideId: "C001098", firstName: "Ted", lastName: "Cruz", party: "R", state: "TX", district: null, chamber: "senate" },
+];
+
+const geocoded: string[] = [];
+const app = createApp({
+  votes: repo,
+  members: {
+    membersFor: async (state, district) =>
+      members.filter((m) => m.state === state && (m.chamber === "senate" || m.district === district)),
+  },
+  geocode: async (address) => {
+    geocoded.push(address);
+    return address.includes("Austin")
+      ? { congress: 119, state: "TX", stateFips: "48", district: 37, countyFips: "48453" }
+      : null;
+  },
+});
 
 describe("API", () => {
   it("reports health", async () => {
@@ -44,6 +62,27 @@ describe("API", () => {
     const res = await app.request("/v1/votes/not-a-vote");
     expect(res.status).toBe(400);
     expect((await res.json()).error).toMatch(/house-119-1-100/);
+  });
+
+  it("returns the district, House member and senators for an address", async () => {
+    const res = await app.request(`/v1/reps?address=${encodeURIComponent("1100 Congress Ave, Austin, TX 78701")}`);
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.district).toEqual({ congress: 119, state: "TX", district: 37, countyFips: "48453" });
+    expect(body.members.map((m: Member) => m.bioguideId)).toEqual(["D000399", "C001098"]);
+  });
+
+  it("returns 404 with guidance when the address can't be matched", async () => {
+    const res = await app.request("/v1/reps?address=nowhere%20at%20all");
+    expect(res.status).toBe(404);
+    expect((await res.json()).error).toMatch(/city, state and ZIP/);
+  });
+
+  it("rejects a too-short address without calling the geocoder", async () => {
+    const before = geocoded.length;
+    const res = await app.request("/v1/reps?address=TX");
+    expect(res.status).toBe(400);
+    expect(geocoded.length).toBe(before);
   });
 
   it("publishes an OpenAPI document that describes the vote route and schema", async () => {
