@@ -50,7 +50,15 @@ async function main() {
   }
 }
 
+function describe(err: unknown): string {
+  if (!(err instanceof Error)) return String(err);
+  const code = (err as { code?: string }).code;
+  // Connection failures arrive as an AggregateError with an empty message.
+  const inner = err instanceof AggregateError ? err.errors.map((e) => describe(e)).join("; ") : "";
+  return [err.message, code && `(${code})`, inner].filter(Boolean).join(" ") || err.name;
+}
+
 main().catch((err) => {
-  console.error(err instanceof Error ? err.message : err);
+  console.error(describe(err));
   process.exit(1);
 });
