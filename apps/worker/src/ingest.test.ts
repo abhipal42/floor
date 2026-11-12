@@ -109,6 +109,21 @@ describe("ingestRollCalls", () => {
     expect(vote[0]).toEqual({ threshold: "three_fifths_sworn" });
   });
 
+  it("stores a Speaker election with each member's candidate", async () => {
+    const electionXml = read("../../../packages/shared/fixtures/house-2023-roll002.xml");
+    const fetchElection: FetchText = async (url) =>
+      url === houseRollUrl(118, 1, 2) ? { status: 200, text: electionXml } : { status: 404, text: "" };
+    expect((await ingestRollCalls(db, "house", 118, 1, { from: 2, fetchText: fetchElection })).stored).toBe(1);
+
+    const { rows: vote } = await pg.query<{ kind: string; candidates: { name: string; total: number }[] }>(
+      "select kind, candidates from votes where id = 'house-118-1-2'",
+    );
+    expect(vote[0]?.kind).toBe("election");
+    expect(vote[0]?.candidates[0]).toEqual({ name: "Jeffries", total: 212 });
+    const { rows: pos } = await pg.query("select position, choice from vote_positions where vote_id = 'house-118-1-2'");
+    expect(pos).toEqual([{ position: "candidate", choice: "Jeffries" }]);
+  });
+
   it("resumes after the last stored roll and logs the run", async () => {
     const result = await ingestRollCalls(db, "house", 119, 1, { fetchText: fakeFetch });
     expect(result).toEqual({ stored: 0, lastRoll: 100, skippedPositions: 0 });
@@ -118,6 +133,7 @@ describe("ingestRollCalls", () => {
     expect(rows).toEqual([
       { source: "house_rollcalls", items: 1, error: null },
       { source: "senate_rollcalls", items: 1, error: null },
+      { source: "house_rollcalls", items: 1, error: null },
       { source: "house_rollcalls", items: 0, error: null },
     ]);
   });

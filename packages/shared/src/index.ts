@@ -2,7 +2,8 @@ export * from "./rollcall.js";
 
 export type Chamber = "house" | "senate";
 
-export type VotePosition = "yea" | "nay" | "present" | "not_voting";
+/** "candidate" is only used in Speaker elections, alongside the candidate's name. */
+export type VotePosition = "yea" | "nay" | "present" | "not_voting" | "candidate";
 
 /** Votes needed to pass, given the vote's threshold rule and the members voting. */
 export type Threshold = "majority" | "three_fifths_sworn" | "two_thirds";

@@ -4,6 +4,7 @@ import type { DistrictMatch } from "./district.js";
 export const VoteSchema = z
   .object({
     id: z.string().openapi({ example: "house-119-1-100" }),
+    kind: z.enum(["question", "election"]).openapi({ description: "election = Speaker election (candidate votes)" }),
     chamber: z.enum(["house", "senate"]),
     congress: z.number().int(),
     session: z.number().int(),
@@ -20,6 +21,7 @@ export const VoteSchema = z
       present: z.number().int(),
       notVoting: z.number().int(),
     }),
+    candidates: z.array(z.object({ name: z.string(), total: z.number().int() })),
     result: z.string().nullable(),
   })
   .openapi("Vote");
@@ -55,7 +57,8 @@ const RepsSchema = z
 export const MemberVoteSchema = z
   .object({
     vote: VoteSchema,
-    position: z.enum(["yea", "nay", "present", "not_voting"]),
+    position: z.enum(["yea", "nay", "present", "not_voting", "candidate"]),
+    choice: z.string().nullable().openapi({ description: "Candidate named in a Speaker election" }),
   })
   .openapi("MemberVote");
 

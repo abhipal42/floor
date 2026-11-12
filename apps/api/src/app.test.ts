@@ -3,6 +3,8 @@ import { createApp, type Member, type Vote, type VoteRepository } from "./app.js
 
 const sample: Vote = {
   id: "house-119-1-100",
+  kind: "question",
+  candidates: [],
   chamber: "house",
   congress: 119,
   session: 1,
@@ -33,7 +35,7 @@ const app = createApp({
     membersFor: async (state, district) =>
       members.filter((m) => m.state === state && (m.chamber === "senate" || m.district === district)),
     recentVotes: async (id, limit) =>
-      id === "D000399" ? [{ vote: sample, position: "yea" as const }].slice(0, limit) : [],
+      id === "D000399" ? [{ vote: sample, position: "yea" as const, choice: null }].slice(0, limit) : [],
   },
   geocode: async (address) => {
     geocoded.push(address);
@@ -92,7 +94,7 @@ describe("API", () => {
   it("lists a member's recent votes", async () => {
     const res = await app.request("/v1/members/D000399/votes?limit=5");
     expect(res.status).toBe(200);
-    expect(await res.json()).toEqual({ votes: [{ vote: sample, position: "yea" }] });
+    expect(await res.json()).toEqual({ votes: [{ vote: sample, position: "yea", choice: null }] });
   });
 
   it("rejects malformed member IDs and limits", async () => {

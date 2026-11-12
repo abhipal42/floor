@@ -7,6 +7,8 @@ export interface Db {
 
 interface VoteRow {
   id: string;
+  kind: "question" | "election";
+  candidates: { name: string; total: number }[];
   chamber: "house" | "senate";
   congress: number;
   session: number;
@@ -36,6 +38,8 @@ interface MemberRow {
 
 const toVote = (r: VoteRow): Vote => ({
   id: r.id,
+  kind: r.kind,
+  candidates: r.candidates,
   chamber: r.chamber,
   congress: r.congress,
   session: r.session,
@@ -60,7 +64,7 @@ const toMember = (r: MemberRow): Member => ({
   chamber: r.chamber,
 });
 
-const VOTE_COLUMNS = `v.id, v.chamber, v.congress, v.session, v.roll_number, v.bill_id, v.bill_ref, v.question,
+const VOTE_COLUMNS = `v.id, v.kind, v.candidates, v.chamber, v.congress, v.session, v.roll_number, v.bill_id, v.bill_ref, v.question,
   v.state, v.threshold, v.yea, v.nay, v.present, v.not_voting, v.result, v.occurred_at`;
 
 export function pgRepositories(db: Db): { votes: VoteRepository; members: MemberRepository } {
@@ -84,15 +88,15 @@ export function pgRepositories(db: Db): { votes: VoteRepository; members: Member
         return rows.map(toMember);
       },
       async recentVotes(bioguideId, limit) {
-        const { rows } = await db.query<VoteRow & { position: MemberVote["position"] }>(
-          `select ${VOTE_COLUMNS}, p.position
+        const { rows } = await db.query<VoteRow & { position: MemberVote["position"]; choice: string | null }>(
+          `select ${VOTE_COLUMNS}, p.position, p.choice
              from vote_positions p join votes v on v.id = p.vote_id
             where p.member_id = $1
             order by v.occurred_at desc nulls last, v.roll_number desc
             limit $2`,
           [bioguideId, limit],
         );
-        return rows.map((r) => ({ vote: toVote(r), position: r.position }));
+        return rows.map((r) => ({ vote: toVote(r), position: r.position, choice: r.choice }));
       },
     },
   };

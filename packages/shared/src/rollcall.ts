@@ -3,6 +3,8 @@ import type { Chamber, Threshold, VotePosition } from "./index.js";
 
 /** A finished roll call vote, normalized across chambers. */
 export interface RollCall {
+  /** "election" for Speaker elections, where members vote for a candidate instead of yea/nay. */
+  kind: "question" | "election";
   chamber: Chamber;
   congress: number;
   session: number;
@@ -15,6 +17,8 @@ export interface RollCall {
   /** Local Eastern time of the vote, "YYYY-MM-DDTHH:mm". */
   occurredAtEastern: string | null;
   totals: { yea: number; nay: number; present: number; notVoting: number };
+  /** Per-candidate totals for elections; empty for ordinary questions. */
+  candidates: { name: string; total: number }[];
   positions: MemberPosition[];
 }
 
@@ -25,6 +29,8 @@ export interface MemberPosition {
   party: string;
   state: string;
   position: VotePosition;
+  /** The candidate named, when `position` is "candidate". */
+  choice?: string;
 }
 
 const parser = new XMLParser({
@@ -32,7 +38,8 @@ const parser = new XMLParser({
   attributeNamePrefix: "@_",
   parseTagValue: false,
   trimValues: true,
-  isArray: (name) => name === "recorded-vote" || name === "member" || name === "totals-by-party",
+  isArray: (name) =>
+    name === "recorded-vote" || name === "member" || name === "totals-by-party" || name === "totals-by-candidate",
 });
 
 const MONTHS: Record<string, string> = {
@@ -77,8 +84,9 @@ export function parseHouseRollCall(xml: string): RollCall {
   const doc = parser.parse(xml)["rollcall-vote"];
   if (!doc) throw new Error("Not a House roll call document");
   const meta = doc["vote-metadata"];
-  const totals = meta["vote-totals"]["totals-by-vote"];
   const voteType = text(meta["vote-type"]);
+  const byCandidate = meta["vote-totals"]["totals-by-candidate"] as Record<string, unknown>[] | undefined;
+  const isElection = Array.isArray(byCandidate) && byCandidate.length > 0;
 
   const date = text(meta["action-date"]); // 10-Apr-2025
   const time = meta["action-time"]?.["@_time-etz"] as string | undefined; // 11:08
@@ -90,17 +98,40 @@ export function parseHouseRollCall(xml: string): RollCall {
   const records = (doc["vote-data"]?.["recorded-vote"] ?? []) as Record<string, unknown>[];
   const positions: MemberPosition[] = records.map((r) => {
     const legislator = r["legislator"] as Record<string, string>;
-    return {
+    const vote = text(r["vote"]);
+    const base = {
       memberId: legislator["@_name-id"] ?? "",
-      idType: "bioguide",
+      idType: "bioguide" as const,
       party: legislator["@_party"] ?? "",
       state: legislator["@_state"] ?? "",
-      position: normalizePosition(text(r["vote"])),
     };
+    if (isElection && !NON_CANDIDATE.has(vote.toLowerCase())) {
+      return { ...base, position: "candidate" as const, choice: vote };
+    }
+    return { ...base, position: normalizePosition(vote) };
   });
+
+  let totals: RollCall["totals"];
+  let candidates: RollCall["candidates"] = [];
+  if (isElection) {
+    candidates = byCandidate
+      .map((c) => ({ name: text(c["candidate"]), total: int(c["candidate-total"]) }))
+      .filter((c) => !NON_CANDIDATE.has(c.name.toLowerCase()));
+    const count = (p: VotePosition) => positions.filter((x) => x.position === p).length;
+    totals = { yea: 0, nay: 0, present: count("present"), notVoting: count("not_voting") };
+  } else {
+    const t = meta["vote-totals"]["totals-by-vote"];
+    totals = {
+      yea: int(t["yea-total"]),
+      nay: int(t["nay-total"]),
+      present: int(t["present-total"]),
+      notVoting: int(t["not-voting-total"]),
+    };
+  }
 
   const billRef = text(meta["legis-num"]);
   return {
+    kind: isElection ? "election" : "question",
     chamber: "house",
     congress: int(meta["congress"]),
     session: int(text(meta["session"])),
@@ -110,15 +141,14 @@ export function parseHouseRollCall(xml: string): RollCall {
     threshold: voteType.includes("2/3") ? "two_thirds" : "majority",
     billRef: billRef && billRef !== "0" ? billRef : null,
     occurredAtEastern,
-    totals: {
-      yea: int(totals["yea-total"]),
-      nay: int(totals["nay-total"]),
-      present: int(totals["present-total"]),
-      notVoting: int(totals["not-voting-total"]),
-    },
+    totals,
+    candidates,
     positions,
   };
 }
+
+/** Entries in a Speaker election that aren't candidates. */
+const NON_CANDIDATE = new Set(["present", "not voting"]);
 
 /** Parses a senate.gov LIS roll call file (vote_{congress}_{session}_{nnnnn}.xml). */
 export function parseSenateRollCall(xml: string): RollCall {
@@ -152,6 +182,8 @@ export function parseSenateRollCall(xml: string): RollCall {
   const count = doc["count"] ?? {};
   const billRef = text(doc["document"]?.["document_name"]);
   return {
+    kind: "question",
+    candidates: [],
     chamber: "senate",
     congress: int(doc["congress"]),
     session: int(doc["session"]),

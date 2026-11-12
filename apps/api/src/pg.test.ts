@@ -40,6 +40,8 @@ describe("Postgres repositories", () => {
   it("reads a vote with its totals and timestamp", async () => {
     expect(await repos.votes.getVote("house-119-1-1")).toEqual({
       id: "house-119-1-1",
+      kind: "question",
+      candidates: [],
       chamber: "house",
       congress: 119,
       session: 1,
