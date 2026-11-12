@@ -2,7 +2,7 @@
 
 Last updated 2026-11-12. Read this first, then [`plan.md`](plan.md) for the full design and reasoning.
 
-**In one paragraph:** M0 (foundation) is done. M1 (data backbone) is done; the one item still open against it, measured posting latency, has moved to M3, because it can only be taken on a live session day with polling running. Staging Postgres holds every House and Senate roll call since January 2023, and every one matches the official totals; every vote now has a subject attached, bills and nominations alike. The API serves district lookup, member votes, votes, bills, nominations and data freshness from that database, and now also the per-party breakdown of a vote, your own delegation's positions on it, and a member's party-loyalty record. The iOS app is still a skeleton (one scoreboard card on sample data). **M2 is nearly done:** the API is deployed at <https://floor-api.vercel.app> and a Release build of
+**In one paragraph:** M0 (foundation) is done. M1 (data backbone) is done; the one item still open against it, measured posting latency, has moved to M3, because it can only be taken on a live session day with polling running. Staging Postgres holds every House and Senate roll call since January 2023, and every one matches the official totals; every vote now has a subject attached, bills and nominations alike. The API serves district lookup, member votes, votes, bills, nominations and data freshness from that database, and now also the per-party breakdown of a vote, your own delegation's positions on it, and a member's party-loyalty record. **M2 is nearly done:** the API is deployed at <https://floor-api.vercel.app> and a Release build of
 the app runs the whole flow against it — onboarding to a real district, then Home, Vote, Bill and
 Rep. Four items remain, listed at the top of the M2 section: the Speaker election card on Home, a
 SwiftData offline cache, snapshot tests, and TestFlight distribution.
@@ -15,7 +15,7 @@ SwiftData offline cache, snapshot tests, and TestFlight distribution.
 
 | What | Why | Who grants it |
 |---|---|---|
-| GitHub `abhipal42/floor` write access | Push to `main` | Repo owner |
+| GitHub `abhipal42/floor` write access | Open and merge PRs | Repo owner |
 | Supabase org "pokator's Org", project **floor-staging** (`uyyocajwihypaiosecvs`, us-east-1) | Database URL for `.env`, dashboard, SQL editor | Sourav (org owner) |
 | api.data.gov key | Congress.gov bill data | Sign up yourself at https://api.data.gov/signup (free, instant) |
 | The v2 design canvas (claude.ai artifact "Live Vote Tracker – UI Options") | Screen designs for M2 | Sourav (it's private; ask for a share) |
@@ -26,7 +26,7 @@ SwiftData offline cache, snapshot tests, and TestFlight distribution.
 git clone https://github.com/abhipal42/floor.git && cd floor
 npm install
 cp .env.example .env    # then fill in the two values (see below)
-npm run check           # lint + typecheck + 103 tests; must pass before every push
+npm run check           # lint + typecheck + 131 tests; must pass before every PR
 ```
 
 `.env` (never committed):
@@ -44,13 +44,16 @@ npm run ingest -w @floor/worker -- rollcalls senate 119 2         # same for the
 npm run ingest -w @floor/worker -- bills                          # load bills that votes refer to (only missing ones)
 npm run ingest -w @floor/worker -- nominations                    # load nominations that Senate votes refer to
 npm run openapi -w @floor/api                                    # regenerate apps/api/openapi.json after changing routes
-swift test --package-path ios/FloorKit                           # Swift models + contract tests
+swift test --package-path ios/FloorKit                           # all FloorKit tests (96): models, contract, client, screen models
 ```
 
 `apps/api/openapi.json` is the committed contract. Re-run `npm run openapi` after any change to
 `app.ts`; CI fails if it has drifted, and the Swift contract tests check the models against it.
 
-iOS (needs a Mac with Xcode 16+): `brew install xcodegen && cd ios && xcodegen && open Floor.xcodeproj`. CI builds it on a macOS runner on every push.
+iOS (needs a Mac with Xcode 16+): `brew install xcodegen && cd ios && xcodegen && open Floor.xcodeproj`. CI builds it on a macOS runner on every push and PR.
+If `swift test` dies with `Library not loaded: … SWBBuildService.framework`, `xcode-select` points at the
+Command Line Tools rather than Xcode: run it with `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer`
+(or `sudo xcode-select -s` that path).
 
 ---
 
@@ -65,9 +68,11 @@ iOS (needs a Mac with Xcode 16+): `brew install xcodegen && cd ios && xcodegen &
 | `supabase/migrations` | Postgres schema (applied to staging in filename order) | 7 migrations, all applied to staging |
 | `apps/worker` | Ingest CLI: members, roll calls, bills, nominations | `src/cli.ts`, `rollcalls.ts`, `bills.ts`, `nominations.ts`, `members.ts`, `db.ts` |
 | `apps/api` | Hono REST API with OpenAPI at `/openapi.json` | `src/app.ts` (routes + schemas), `pg.ts` (Postgres), `district.ts` (Census) |
-| `ios/` | SwiftUI app (XcodeGen), `FloorKit` package (`Models`, `DesignSystem`) | `FloorKit/Sources/Models/` (one file per area, `Samples.swift` for previews), `FloorKit/Tests/ModelsTests/ContractTests.swift`, `DesignSystem/ScoreboardCard.swift` |
-| `.github/workflows/ci.yml` | Node job (lint/typecheck/tests) + macOS job (Swift tests + simulator build) | |
-| `docs/` | `plan.md` / `plan.html` (design + plan), this file | |
+| `ios/` | SwiftUI app (XcodeGen, `project.yml`), `FloorKit` package: `Models`, `APIClient`, `DesignSystem`, `Onboarding`, `Home`, `VoteScreen`, `BillScreen`, `RepScreen` | `FloorKit/Sources/Models/` (one file per area, `Samples.swift` for previews), `FloorKit/Tests/ModelsTests/ContractTests.swift`, `DesignSystem/ScoreboardCard.swift`, `BillScreen/BillProgress.swift` |
+| `.github/workflows/ci.yml` | Node job (lint/typecheck/tests + OpenAPI drift) + macOS job (Swift tests + simulator build) | |
+| `.github/workflows/guards.yml` | Shipping guards on every PR: changelog, version, docs, tests, retro, PR title | `.github/scripts/guards.conf` (this repo's settings), `guards.sh` (shared, do not edit) |
+| `docs/` | `plan.md` / `plan.html` (design + plan), this file, `retros/` (one per milestone) | |
+| `VERSION`, `CHANGELOG.md` | Current version (mirrored by `MARKETING_VERSION` in `ios/project.yml`) and what each version shipped | |
 
 ### API endpoints (all live against staging)
 
@@ -80,7 +85,7 @@ iOS (needs a Mac with Xcode 16+): `brew install xcodegen && cd ios && xcodegen &
 | `GET /v1/bills/{id}` | Title, short title, CRS summary, sponsor, policy area, CBO estimates, last 30 actions, every vote on it. IDs look like `119-hr-2207` |
 | `GET /v1/nominations/{id}` | Nominee, position, agency, received and latest action, every Senate vote on it. IDs look like `119-pn-1093-3` |
 | `GET /v1/status` | Last successful run and last error per ingest source, with `stale` flags |
-| `GET /openapi.json` | The contract. Generate Swift types from it in M2. |
+| `GET /openapi.json` | The contract. The Swift models are hand-written against it, and `ContractTests` fail CI if they drift (see M2). |
 
 ### Data in staging (as of this commit)
 
@@ -211,7 +216,7 @@ Real data broke our first assumptions several times. Each case below is now hand
 
 ## 5. Remaining milestones
 
-The working rhythm so far: break each milestone into tasks. For each task, write tests on real saved data first, then build, run `npm run check`, commit with a descriptive message and push to `main`, and keep CI green. Every push runs CI (Node + macOS).
+The working rhythm: break each milestone into tasks. For each task, write tests on real saved data first, then build and run `npm run check`. Ship it as a short branch and a PR into `main` — bump `VERSION` (and `MARKETING_VERSION` in `ios/project.yml`), add a `CHANGELOG.md` entry, and title the PR `vX.Y.Z type: summary`. The `guards` and CI checks must be green before merging; a MINOR bump (a milestone) also ships a retro in `docs/retros/`. The full rules are in [`CLAUDE.md`](../CLAUDE.md#shipping).
 
 ### M2: iOS core on real data
 **Goal:** a TestFlight build that shows how your reps voted, from real data. No live updates yet.

@@ -1,0 +1,158 @@
+name: guards
+
+# TEMPLATE-OWNED. `bootstrap` replaces this file on every install and upgrade,
+# and `bootstrap --check` reports it as "locally modified" if it differs from
+# the template. Project build/test jobs belong in ci.yml, which is yours.
+#
+# One job for all the cheap checks. They are cheap precisely because they read
+# git and a few files — no install, no build — so splitting them across jobs
+# would spend more on runner startup than on the checks themselves. The guards'
+# own self-test is a conditional STEP in that job, not a second job, for the
+# same reason: a job that usually does nothing still bills a runner minute.
+#
+# `edited` is in the trigger list on purpose: the PR-title guard fails on a
+# title, and a title is fixed by editing it. Without `edited` the only way to
+# clear that red is a pointless empty push.
+#
+# So DO NOT "Re-run failed jobs" to clear a pr-title failure. A re-run replays
+# the ORIGINAL event payload, `github.event.pull_request.title` included, so it
+# fails again on the title you already fixed — and leaves two `guards` results
+# on the PR, one green from the edit and one red from the re-run, which reads as
+# a flaky guard rather than as a stale replay. Edit the title and let the
+# `edited` trigger do it.
+#
+# On a push to the default branch only the cheap subset runs: `scope` (so the
+# outputs exist) and the self-test. The full set already ran on the PR against
+# the same tree, and the PR-metadata guards (title, labels) have nothing to read
+# on a push. What a push adds is proof that the guards still pass their own
+# tests on the trunk everyone branches from.
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, edited, labeled, unlabeled]
+  push:
+    # Both names, because a template cannot know which one a project uses; the
+    # job-level `if` below then keeps only the repo's real default branch.
+    branches: [main, master]
+
+# A new push to the same PR supersedes the run in flight; finishing the old one
+# only produces a result nobody will read.
+concurrency:
+  group: guards-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+# Least privilege: the guards read git and files, nothing else. The PR title and
+# labels arrive in the event payload, so no `pull-requests` scope is needed.
+permissions:
+  contents: read
+
+jobs:
+  # The ruleset `main-guards` (bin/ria-new-project ensure_settings) requires a
+  # status check named exactly `guards` — this job's name. RENAMING THIS JOB
+  # SILENTLY UN-REQUIRES IT: GitHub does not error, it waits for a check that
+  # never reports (blocking every PR), or, if someone "fixes" that by editing the
+  # ruleset, stops gating anything at all.
+  guards:
+    if: >-
+      github.event_name == 'pull_request'
+      || github.ref_name == github.event.repository.default_branch
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    # The scope decisions, for anything in THIS workflow that wants them.
+    # A job in another workflow file (ci.yml) cannot `needs:` this one — GitHub
+    # has no cross-workflow `needs` — so ci.example.yml runs `guards.sh scope`
+    # in its own cheap job instead.
+    outputs:
+      code: ${{ steps.scope.outputs.code }}
+      app: ${{ steps.scope.outputs.app }}
+      ci_config: ${{ steps.scope.outputs.ci_config }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # The PR's OWN head commit, not the default merge ref. The guards read
+          # VERSION / CHANGELOG / retros from the working tree and compare them
+          # with the merge base; on the merge ref the working tree also carries
+          # everything main gained since the branch was cut. A PR opened before
+          # main bumped MINOR then "bumps MINOR" itself, and `retro` demands a
+          # retro it has no reason to write. HEAD_SHA below is the same commit.
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          # The guards diff against the merge base, which does not exist in a
+          # shallow clone. Without this every guard sees "every file changed".
+          fetch-depth: 0
+          # Nothing here pushes; do not leave a token in .git/config.
+          persist-credentials: false
+
+      # Every untrusted value (titles, labels, SHAs) reaches a script through
+      # `env:`, never by `${{ }}` interpolation inside `run:` — interpolation
+      # pastes the text into the script before bash parses it, so a PR titled
+      # `$(curl …)` would execute.
+      - name: base
+        id: base
+        env:
+          # A PR diffs against its base. A push diffs against what was there
+          # before it — all-zeroes for the first push to a branch.
+          BASE_SHA: ${{ github.event_name == 'pull_request'
+                        && github.event.pull_request.base.sha
+                        || github.event.before }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          set -euo pipefail
+          # Three ways there is no base to diff against, not one: unset, the
+          # all-zeroes first push, and a SHA that is real but GONE because the
+          # branch was force-pushed and `before` still names the pre-rewrite
+          # commit. That last one died with "fatal: Not a valid commit name" in
+          # rathi-fitness and took the whole run down.
+          if [ -z "${BASE_SHA:-}" ] \
+             || [ "$BASE_SHA" = "0000000000000000000000000000000000000000" ] \
+             || ! git cat-file -e "${BASE_SHA}^{commit}" 2>/dev/null; then
+            echo "no usable base — treating everything as changed"
+            echo "usable=false"        >> "$GITHUB_OUTPUT"
+            echo "github_changed=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          echo "usable=true" >> "$GITHUB_OUTPUT"
+          mb=$(git merge-base "$BASE_SHA" "$HEAD_SHA")
+          # Captured, not piped into `grep -q`: under pipefail grep's early exit
+          # can SIGPIPE git and turn a match into "no match".
+          changed=$(git diff --name-only "$mb" "$HEAD_SHA")
+          if grep -q '^\.github/' <<< "$changed"; then
+            echo "github_changed=true"  >> "$GITHUB_OUTPUT"
+          else
+            echo "github_changed=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: scope
+        id: scope
+        env:
+          USABLE: ${{ steps.base.outputs.usable }}
+          BASE_SHA: ${{ github.event_name == 'pull_request'
+                        && github.event.pull_request.base.sha
+                        || github.event.before }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          set -euo pipefail
+          if [ "$USABLE" != "true" ]; then
+            for k in code app ci_config; do echo "$k=true" >> "$GITHUB_OUTPUT"; done
+            exit 0
+          fi
+          bash .github/scripts/guards.sh scope
+
+      # The guards' own tests (and guards.d.test.sh, if the project has one).
+      # They build throwaway git repos, so they cost real seconds and earn them
+      # only when the guard logic could have moved — or on the trunk.
+      - name: self-test
+        if: github.event_name == 'push' || steps.base.outputs.github_changed == 'true'
+        run: bash .github/scripts/guards.sh self-test
+
+      - name: guards
+        if: github.event_name == 'pull_request'
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          # `dependabot[bot]` + a .github/-only diff skips the release guards
+          # (an actions bump has no VERSION to bump); see guards.sh.
+          PR_AUTHOR: ${{ github.event.pull_request.user.login }}
+          LABELS: ${{ join(github.event.pull_request.labels.*.name, ',') }}
+        run: bash .github/scripts/guards.sh all

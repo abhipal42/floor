@@ -4,19 +4,21 @@ A live federal vote tracker for iOS: how your members of Congress are voting, ho
 
 - **Start here:** [`docs/HANDOFF.md`](docs/HANDOFF.md): current state, setup, lessons learned, remaining milestones
 - **Plan:** [`docs/plan.md`](docs/plan.md) (rendered: [`docs/plan.html`](docs/plan.html))
-- **Status:** M0 done · M1 (data backbone) nearly done · next: M2 (iOS core on real data)
+- **Shipping rules:** [`CLAUDE.md`](CLAUDE.md) · history: [`CHANGELOG.md`](CHANGELOG.md) · retros: [`docs/retros/`](docs/retros)
+- **Status (v0.1.0):** M0 and M1 done · M2 (iOS core on real data) nearly done: the API is live at <https://floor-api.vercel.app> and the app runs end to end against it; left are the Speaker election card on Home, the offline cache, snapshot tests and TestFlight
 
 ## Repo layout
 
 | Path | What |
 |---|---|
-| `docs/` | Implementation plan |
+| `docs/` | Plan, handoff, retros |
 | `packages/shared` | Shared TypeScript types and roll call parsers |
 | `packages/db` | Migration loader for tests |
-| `apps/api` | Public REST API (Hono, OpenAPI) |
-| `apps/worker` | Ingest CLI: members, roll calls, bills (always-on poller in M3) |
+| `apps/api` | Public REST API (Hono, OpenAPI), deployed on Vercel |
+| `apps/worker` | Ingest CLI: members, roll calls, bills, nominations (always-on poller in M3) |
 | `supabase/migrations` | Postgres schema |
-| `ios/` | SwiftUI app, widgets and Live Activity (XcodeGen) |
+| `ios/` | SwiftUI app and the `FloorKit` package (XcodeGen); widgets and Live Activity come in M3 |
+| `.github/` | CI (`ci.yml`) and the shipping guards (`guards.yml`, `scripts/guards.conf`) |
 
 ## Development
 
@@ -27,8 +29,19 @@ npm run check          # lint + typecheck + tests
 npm run dev -w @floor/api
 ```
 
-iOS builds run on macOS (locally with Xcode 16+, or in CI on a macOS runner):
+iOS builds run on macOS (locally with Xcode 16+, or in CI on a macOS runner), the same two steps CI runs:
 
 ```bash
-cd ios && xcodegen && xcodebuild test -scheme Floor -destination 'platform=iOS Simulator,name=iPhone 16'
+swift test --package-path ios/FloorKit
+cd ios && xcodegen && xcodebuild build -project Floor.xcodeproj -scheme Floor \
+  -destination 'generic/platform=iOS Simulator' CODE_SIGNING_ALLOWED=NO
+```
+
+## Shipping a change
+
+Every change is a short branch and a PR into `main` with a `VERSION` bump, a `CHANGELOG.md` entry and a
+`vX.Y.Z type: summary` title. Run the guards before pushing:
+
+```bash
+bash .github/scripts/guards.sh all
 ```

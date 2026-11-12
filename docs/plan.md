@@ -88,7 +88,7 @@ flowchart LR
 
 **Recommended stack**
 
-- **Language:** TypeScript monorepo (worker, API, shared types). Swift types are generated from the OpenAPI spec.
+- **Language:** TypeScript monorepo (worker, API, shared types). Swift models are hand-written against the committed OpenAPI contract and checked against it in CI (generation was tried in M2 and dropped; see `HANDOFF.md`).
 - **Database, auth, realtime:** Supabase (Postgres, Sign in with Apple, row-level security, realtime broadcast).
 - **Ingest worker:** one small always-on container (Fly.io or Railway) running the pollers, OCR, the event bus and APNs sends.
 - **Jobs:** `pg-boss` queue inside Postgres.
@@ -125,7 +125,7 @@ Targets: floor event to push under 30 s; roll call posted to "your rep voted" un
 - SwiftUI + Observation, Swift 6, minimum iOS 17.2.
 - ActivityKit (Live Activity + Dynamic Island), WidgetKit, App Intents.
 - Swift Charts, SwiftData offline cache, Supabase Swift SDK (auth + realtime), Sign in with Apple.
-- Packages: `Models` (from OpenAPI), `APIClient`, `Realtime`, `DesignSystem`, plus one package per feature (Floor, Vote, Bill, Rep, Alerts, Onboarding). Extensions share `Models` and `DesignSystem` through an App Group.
+- Packages (one `FloorKit` Swift package, one library per area): `Models` (checked against the OpenAPI contract), `APIClient`, `DesignSystem`, and one per feature — built: `Onboarding`, `Home`, `VoteScreen`, `BillScreen`, `RepScreen`; still to come: `Realtime`, `Alerts`. Extensions share `Models` and `DesignSystem` through an App Group.
 - Tests: Swift Testing, snapshot tests per card state, onboarding UI tests.
 - Android later: native Kotlin + Compose on the same API.
 

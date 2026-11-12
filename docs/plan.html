@@ -188,7 +188,7 @@ flowchart LR
     <div class="card">
       <h3>Recommended stack</h3>
       <ul>
-        <li><b>Language:</b> TypeScript monorepo (worker, API, shared types). Swift types are generated from the OpenAPI spec.</li>
+        <li><b>Language:</b> TypeScript monorepo (worker, API, shared types). Swift models are hand-written against the committed OpenAPI contract and checked against it in CI (generation was tried in M2 and dropped; see <code>HANDOFF.md</code>).</li>
         <li><b>Database, auth, realtime:</b> Supabase. That's Postgres, Sign in with Apple, row-level security and realtime broadcast channels in one service.</li>
         <li><b>Ingest worker:</b> one small always-on container (Fly.io or Railway) running the pollers, OCR, the event bus and APNs sends.</li>
         <li><b>Jobs:</b> <code>pg-boss</code> queue inside Postgres, so AI and backfill jobs need no extra service.</li>
@@ -272,7 +272,7 @@ flowchart LR
     <div class="card">
       <h3>Structure</h3>
       <ul>
-        <li>Swift packages: <code>Models</code> (generated from OpenAPI), <code>APIClient</code>, <code>Realtime</code>, <code>DesignSystem</code> (scoreboard cards, crests, bars), plus one package per feature: Floor, Vote, Bill, Rep, Alerts, Onboarding.</li>
+        <li>Swift packages (one <code>FloorKit</code> package, one library per area): <code>Models</code> (checked against the OpenAPI contract), <code>APIClient</code>, <code>DesignSystem</code> (scoreboard cards, crests, bars), and one per feature — built: <code>Onboarding</code>, <code>Home</code>, <code>VoteScreen</code>, <code>BillScreen</code>, <code>RepScreen</code>; still to come: <code>Realtime</code>, <code>Alerts</code>.</li>
         <li>The widget and Live Activity extensions share <code>Models</code> and <code>DesignSystem</code> through an App Group.</li>
         <li>Notification categories: vote opened, rep voted, bill passed or failed, scheduled vote reminder.</li>
         <li>Tests: Swift Testing for models and parsers, snapshot tests for every card state (open, live tally, pending, final), and UI tests for onboarding.</li>
