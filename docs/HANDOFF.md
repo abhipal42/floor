@@ -53,7 +53,7 @@ iOS (needs a Mac with Xcode 16+): `brew install xcodegen && cd ios && xcodegen &
 |---|---|---|
 | `packages/shared` | Types + roll call parsers (House Clerk XML, Senate LIS XML) | `src/rollcall.ts`, fixtures in `fixtures/` (real government files) |
 | `packages/db` | Migration loader used by tests | `src/migrations.test.ts` |
-| `supabase/migrations` | Postgres schema (applied to staging in filename order) | 7 migrations |
+| `supabase/migrations` | Postgres schema (applied to staging in filename order) | 6 migrations, all applied to staging |
 | `apps/worker` | Ingest CLI: members, roll calls, bills | `src/cli.ts`, `rollcalls.ts`, `bills.ts`, `members.ts`, `db.ts` |
 | `apps/api` | Hono REST API with OpenAPI at `/openapi.json` | `src/app.ts` (routes + schemas), `pg.ts` (Postgres), `district.ts` (Census) |
 | `ios/` | SwiftUI app (XcodeGen), `FloorKit` package (`Models`, `DesignSystem`) | `FloorKit/Sources/Models/Vote.swift`, `DesignSystem/ScoreboardCard.swift` |
