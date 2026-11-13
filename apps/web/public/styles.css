@@ -1148,8 +1148,6 @@ button {
 /* the road: cards joined by a dashed lane with a pin per level */
 .road {
   min-width: 0;
-  display: flex;
-  flex-direction: column;
 }
 .leg {
   position: relative;
@@ -2148,10 +2146,13 @@ button {
   color: var(--muted);
 }
 
+/* Spaced like the drive chart under the levels: it follows the pinned cards rather than sitting
+   tight against them. */
 .board {
   display: flex;
   flex-direction: column;
   gap: 14px;
+  padding-top: 40px;
 }
 .board__head {
   display: flex;
@@ -3271,19 +3272,21 @@ td.c-x {
   color: var(--ink);
 }
 
-/* ------------------------------------------------------------ your members (the strip under the header) */
+/* ------------------------------------------------------------ your members (inside Your reps) */
 
 .yours {
-  padding-top: 28px;
+  min-width: 0;
 }
+/* A slim bar under the report: the tagline on the left, the one action on the right. The member
+   chips are left out here, since the report's own tabs already show the three. */
 .yours__strip {
   background: var(--panel);
   border: 1px solid var(--line);
-  border-radius: 20px;
-  padding: 24px 28px;
+  border-radius: 16px;
+  padding: 14px 20px;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 460px);
-  gap: 20px 36px;
+  grid-template-columns: minmax(0, 1fr) minmax(0, auto);
+  gap: 10px 28px;
   align-items: center;
 }
 .yours__strip:focus {
@@ -3303,14 +3306,25 @@ td.c-x {
 .yours__r {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 4px;
   min-width: 0;
 }
-.yours__l {
-  gap: 14px;
+.yours__r {
+  align-items: flex-end;
+  gap: 6px;
+}
+.yours__act {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 8px 16px;
+}
+.yours__chips {
+  display: none !important;
 }
 .yours__k {
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 700;
   letter-spacing: 0.08em;
   color: var(--muted);
@@ -3320,11 +3334,6 @@ td.c-x {
 }
 .yours__strip[data-tone="nay"] .yours__k {
   color: var(--nay);
-}
-.yours__chips {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
 }
 .yours__chips.is-dim .ychip {
   opacity: 0.45;
@@ -3370,7 +3379,7 @@ td.c-x {
   background: var(--line-soft);
 }
 .yours__note {
-  font-size: 14px;
+  font-size: 13px;
   line-height: 1.55;
   color: var(--body);
   max-width: 680px;
@@ -3379,8 +3388,8 @@ td.c-x {
   font-family: var(--cond);
   font-style: italic;
   font-weight: 900;
-  font-size: 40px;
-  line-height: 0.9;
+  font-size: 28px;
+  line-height: 0.95;
   text-transform: uppercase;
 }
 .yours__locate {
@@ -3391,9 +3400,9 @@ td.c-x {
   background: var(--yea);
   color: var(--ground);
   border: 0;
-  border-radius: 14px;
-  padding: 15px;
-  font-size: 16px;
+  border-radius: 10px;
+  padding: 10px 16px;
+  font-size: 14px;
   font-weight: 700;
   cursor: pointer;
 }
@@ -3411,6 +3420,7 @@ td.c-x {
   display: flex;
   flex-direction: column;
   gap: 6px;
+  width: min(420px, 100%);
 }
 .yours__row {
   display: flex;
@@ -3422,8 +3432,8 @@ td.c-x {
   background: var(--panel);
   border: 1px solid var(--line);
   color: var(--ink);
-  border-radius: 12px;
-  padding: 13px;
+  border-radius: 10px;
+  padding: 9px 12px;
   font: inherit;
   font-size: 16px;
 }
@@ -3462,9 +3472,11 @@ td.c-x {
   color: var(--muted);
 }
 .yours__privacy {
-  font-size: 12px;
-  line-height: 1.5;
+  font-size: 11.5px;
+  line-height: 1.45;
   color: var(--muted);
+  max-width: 460px;
+  text-align: right;
 }
 [hidden] {
   display: none !important;
@@ -3546,7 +3558,18 @@ td.c-x {
 @media (max-width: 860px) {
   .yours__strip {
     grid-template-columns: minmax(0, 1fr);
-    padding: 20px;
+    padding: 16px;
+  }
+  .yours__r,
+  .yours__act {
+    align-items: stretch;
+    justify-content: flex-start;
+  }
+  .yours__locate {
+    width: 100%;
+  }
+  .yours__privacy {
+    text-align: left;
   }
   /* Seven section links wrap to two rows here and the sticky header grew to ~130px, about a
      sixth of a phone screen, covering the top of every section. On narrow screens the header
@@ -3557,6 +3580,130 @@ td.c-x {
   .site-nav a:not(.site-nav__cta) {
     display: none;
   }
+}
+
+/* ------------------------------------------------------------ pinned sections */
+
+/* A pinned stage sticks while the run of empty space after it scrolls past; main.ts measures it,
+   sets its top, and moves its vertical padding to the host. Unpinned, both are invisible. */
+.pin__run {
+  height: 0;
+}
+.is-pinned {
+  position: sticky;
+  padding-top: 0 !important;
+  padding-bottom: 0 !important;
+}
+.money__stage {
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+}
+
+/* 02: pinned, the road is a window onto the same connected lane. The lane moves so the focused
+   card sits centred, and the cards either side fade out toward the window's edges. */
+.road__in {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+}
+.law.is-pinned {
+  align-items: center;
+}
+.law.is-pinned .law__map {
+  position: static;
+}
+.law.is-pinned .road {
+  height: clamp(480px, 62vh, 620px);
+  overflow: hidden;
+  -webkit-mask-image: linear-gradient(transparent, #000 22%, #000 78%, transparent);
+  mask-image: linear-gradient(transparent, #000 22%, #000 78%, transparent);
+}
+.law.is-pinned .road__in {
+  transition: transform 0.6s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+.law.is-pinned .leg .leg__card,
+.law.is-pinned .leg.is-cleared .leg__card {
+  opacity: 0.32;
+  transform: scale(0.97);
+}
+.law.is-pinned .leg.is-on .leg__card {
+  opacity: 1;
+  transform: none;
+}
+
+/* The swap: a panel whose content was just replaced by a step slides up into place. */
+.swap {
+  animation: pinswap 0.42s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+@keyframes pinswap {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* 03: pinned, only the current point opens, so the whole explainer fits on one screen. */
+#explain.is-pinned .ex-pt:not(.is-on) .ex-pt__b {
+  display: none;
+}
+#explain.is-pinned .ex-pt.is-on .ex-pt__b {
+  animation: pinswap 0.42s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+#explain.is-pinned .ex-pt {
+  transition: background 0.3s ease, border-color 0.3s ease;
+}
+
+/* The pill: where you are in a pinned section, and a way past it. */
+.pin-pill {
+  position: fixed;
+  left: 50%;
+  bottom: calc(18px + env(safe-area-inset-bottom, 0px));
+  z-index: 60;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 6px 6px 6px 16px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--head-bg);
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+  box-shadow: 0 12px 30px var(--shadow);
+  font-size: 13px;
+  white-space: nowrap;
+}
+.pin-pill[hidden] {
+  display: none;
+}
+.pin-pill__t {
+  font-family: var(--cond);
+  font-weight: 800;
+  font-size: 16px;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+}
+.pin-pill__hint {
+  color: var(--muted);
+}
+.pin-pill__skip {
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--body);
+  border-radius: 999px;
+  padding: 6px 12px;
+  font-weight: 600;
+  font-size: 13px;
+  cursor: pointer;
+}
+.pin-pill__skip:hover {
+  color: var(--ink);
+  border-color: var(--dim-2);
 }
 
 /* ------------------------------------------------------------ narrow screens */

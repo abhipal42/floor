@@ -60,6 +60,9 @@ import {
   FLAP_TICKS,
   FLAP_WIDTH,
   activeLevel,
+  scrollStep,
+  stepLength,
+  stickTop,
   cellLook,
   countText,
   deckPose,
@@ -144,6 +147,216 @@ function tween(ms: number, ease: (t: number) => number, frame: (p: number) => vo
 /** Calls fn after the browser has painted the current styles, so a following change transitions. */
 function afterPaint(fn: () => void): void {
   window.requestAnimationFrame(() => window.requestAnimationFrame(fn));
+}
+
+// ------------------------------------------------------------------ pinned sections
+//
+// A pinned section holds still while the reader scrolls, and each stretch of scroll moves it one
+// step (the next final, the next level, the next member). It is plain sticky positioning over a
+// tall run of empty space, so the scroll itself is never intercepted: the scrollbar stays honest,
+// a fling or a keyboard jump passes straight through, and the reader's own clicks still work and
+// move the scroll to match. A section pins only on screens wide and tall enough to show its whole
+// stage, and never with reduced motion; otherwise it behaves as it always did.
+
+interface Steps {
+  /** What the progress pill calls one step: "Final", "Level". */
+  noun: string;
+  count: number;
+  go: (i: number) => void;
+  /** The step a reader's own click (a tab, a card, Next) moves the section to, if any. */
+  picked?: (target: Element) => number | null;
+}
+
+interface Pin {
+  update: () => void;
+  layout: () => void;
+  /** The pill's text while this section is pinned, or null when it isn't. */
+  status: () => string | null;
+  skip: () => void;
+}
+
+const pinQuery = window.matchMedia("(min-width: 900px) and (min-height: 640px)");
+const pins: Pin[] = [];
+
+function pin(stage: HTMLElement, s: Steps): void {
+  const host = document.createElement("div");
+  host.className = "pin";
+  stage.before(host);
+  host.append(stage);
+  const run = document.createElement("div");
+  run.className = "pin__run";
+  run.setAttribute("aria-hidden", "true");
+  host.append(run);
+
+  let on = false;
+  let cur = 0;
+  let top = 0;
+  let len = 0;
+  let h = 0;
+  const scrolled = () => top + h - run.getBoundingClientRect().top;
+
+  const layout = () => {
+    const was = on;
+    stage.classList.remove("is-pinned");
+    stage.style.top = "";
+    host.style.paddingTop = "";
+    host.style.paddingBottom = "";
+    run.style.height = "0px";
+    if (!pinQuery.matches || reduced()) {
+      on = false;
+      return;
+    }
+    // The stage's own vertical padding moves to the host, so only its content has to fit.
+    const cs = getComputedStyle(stage);
+    const padTop = cs.paddingTop;
+    const padBottom = cs.paddingBottom;
+    stage.classList.add("is-pinned");
+    h = stage.offsetHeight;
+    const head = el("#site-head").offsetHeight;
+    on = h <= window.innerHeight - head - 24;
+    if (!on) {
+      stage.classList.remove("is-pinned");
+      return;
+    }
+    host.style.paddingTop = padTop;
+    host.style.paddingBottom = padBottom;
+    top = stickTop(head, window.innerHeight, h);
+    len = stepLength(window.innerHeight);
+    stage.style.top = top + "px";
+    run.style.height = len * s.count + "px";
+    if (!was) {
+      cur = 0;
+      s.go(0);
+    }
+  };
+
+  // Content can change height while pinned (a form opens, a longer point expands). Keep the stage
+  // where it is if it still fits below that top, re-centre if not, and let go if it no longer fits.
+  new ResizeObserver(() => {
+    if (!on) return;
+    const next = stage.offsetHeight;
+    if (next === h) return;
+    const head = el("#site-head").offsetHeight;
+    if (next > window.innerHeight - head - 24) {
+      layout();
+      return;
+    }
+    h = next;
+    if (top + h > window.innerHeight - 12) {
+      top = stickTop(head, window.innerHeight, h);
+      stage.style.top = top + "px";
+    }
+  }).observe(stage);
+
+  const update = () => {
+    if (!on) return;
+    const i = scrollStep(scrolled(), len, s.count);
+    if (i !== cur) {
+      cur = i;
+      s.go(i);
+    }
+  };
+
+  // A reader's own click picks a step directly; move the scroll to that step so the two agree.
+  stage.addEventListener(
+    "click",
+    (e) => {
+      if (!on || !e.isTrusted || !s.picked) return;
+      const i = s.picked(e.target as Element);
+      if (i === null) return;
+      cur = i;
+      window.scrollBy({ top: i * len + 1 - scrolled(), behavior: "instant" as ScrollBehavior });
+    },
+    true,
+  );
+
+  pins.push({
+    update,
+    layout,
+    status: () => {
+      if (!on) return null;
+      const sc = scrolled();
+      if (sc < 0 || sc >= len * s.count) return null;
+      if (s.count === 1) return s.noun;
+      return s.noun + " " + (cur + 1) + " of " + s.count;
+    },
+    skip: () => window.scrollBy({ top: len * s.count - scrolled() + 2, behavior: "instant" as ScrollBehavior }),
+  });
+}
+
+/** Starts every pinned section and the pill that shows progress and offers a way out. */
+function pinAll(): void {
+  const pill = document.createElement("div");
+  pill.className = "pin-pill";
+  pill.hidden = true;
+  pill.innerHTML = '<span class="pin-pill__t" data-t></span><span class="pin-pill__hint">scroll to step through</span><button type="button" class="pin-pill__skip">Skip ↓</button>';
+  document.body.append(pill);
+  const text = el("[data-t]", pill);
+  let live: Pin | null = null;
+  el(".pin-pill__skip", pill).addEventListener("click", () => live?.skip());
+
+  const update = () => {
+    live = null;
+    let t: string | null = null;
+    for (const p of pins) {
+      p.update();
+      const st = p.status();
+      if (st !== null) {
+        live = p;
+        t = st;
+      }
+    }
+    pill.hidden = t === null;
+    if (t !== null && text.textContent !== t) text.textContent = t;
+  };
+  let queued = false;
+  const schedule = () => {
+    if (queued) return;
+    queued = true;
+    requestAnimationFrame(() => {
+      queued = false;
+      update();
+    });
+  };
+  const relayout = () => {
+    pins.forEach((p) => p.layout());
+    schedule();
+  };
+  window.addEventListener("scroll", schedule, { passive: true });
+  window.addEventListener("resize", relayout);
+  pinQuery.addEventListener("change", relayout);
+  motionQuery.addEventListener("change", relayout);
+  // Fonts change heights; measure once they are in.
+  void document.fonts.ready.then(relayout);
+  relayout();
+}
+
+/** Replays the swap-in transition on an element whose content was just replaced. */
+function swapIn(target: HTMLElement): void {
+  target.classList.remove("swap");
+  void target.offsetWidth;
+  target.classList.add("swap");
+}
+
+/**
+ * Clicks the i-th tab of a tablist as if by hand, which runs its own selection code, then plays
+ * the swap transition on the panel it fills.
+ */
+function tabStep(list: HTMLElement, panel: HTMLElement): Pick<Steps, "go" | "picked"> {
+  const tabs = () => all<HTMLButtonElement>('[role="tab"]', list);
+  return {
+    go: (i) => {
+      const tab = tabs()[i];
+      if (!tab || tab.getAttribute("aria-selected") === "true") return;
+      tab.click();
+      swapIn(panel);
+    },
+    picked: (t) => {
+      const tab = t.closest('[role="tab"]');
+      const i = tab ? tabs().indexOf(tab as HTMLButtonElement) : -1;
+      return i >= 0 ? i : null;
+    },
+  };
 }
 
 /**
@@ -380,13 +593,14 @@ function deck(): void {
     status.textContent = "Final " + (front + 1) + " of " + cards.length + ": " + c.title + ", " + c.yea + " to " + c.nay + ", " + c.result.toLowerCase() + ".";
   };
 
+  let wait = 0;
   const move = (dir: 1 | -1) => {
     if (leaving >= 0) return;
     const next = deckStep(front, dir);
     if (dir > 0 && !reduced()) {
       leaving = front;
       paint();
-      window.setTimeout(() => {
+      wait = window.setTimeout(() => {
         seen[next] = true;
         front = next;
         leaving = -1;
@@ -405,6 +619,26 @@ function deck(): void {
   el("[data-prev]", root).addEventListener("click", () => move(-1));
   paint();
   onVisible(root, count, 0.3);
+
+  // Pinned: each stretch of scroll deals the next final; one step forward keeps the deal animation.
+  pin(el("#finals"), {
+    noun: "Final",
+    count: cards.length,
+    go: (k) => {
+      if (k === front && leaving < 0) return;
+      if (k === deckStep(front, 1) && leaving < 0) {
+        move(1);
+        return;
+      }
+      window.clearTimeout(wait);
+      leaving = -1;
+      seen[k] = true;
+      front = k;
+      announce();
+      count();
+    },
+    picked: (t) => (t.closest("[data-next]") ? deckStep(front, 1) : t.closest("[data-prev]") ? deckStep(front, -1) : null),
+  });
 }
 
 // ------------------------------------------------------------------ 02 · levels + drive chart
@@ -425,7 +659,7 @@ function levelCards(): void {
           (l.boss ? '<span class="stop__boss">BOSS</span>' : "") + "</span></button></li>",
       )
       .join("");
-  road.innerHTML = levels.items
+  road.innerHTML = '<div class="road__in">' + levels.items
     .map(
       (l, i) =>
         '<article class="leg' + (l.boss ? " leg--boss" : "") + '"><span class="leg__pin" aria-hidden="true"></span><div class="leg__card">' +
@@ -438,18 +672,29 @@ function levelCards(): void {
         '</span><span class="play__r" style="color:' + tone(l.example.tone) + '">' + esc(l.example.result) + "</span></span></div>" +
         "</div></article>",
     )
-    .join("");
+    .join("") + "</div>";
 
   const stops = all<HTMLButtonElement>(".stop", track);
   const legs = all(".leg", road);
   const fill = el(".track__fill", track);
   let on = -1;
+  const law = el(".law");
+  // Pinned (wide screens), the stage shows one card at a time and the pin drives the level;
+  // otherwise the road scrolls past the sticky map and the level follows the reading line.
+  const pinned = () => law.classList.contains("is-pinned");
+  const lane = el(".road__in", road);
+  // Pinned, the road is a window onto the connected lane, moved so the focused card sits centred.
+  const centre = () => {
+    if (!pinned() || on < 0) {
+      lane.style.transform = "";
+      return;
+    }
+    const leg = legs[on]!;
+    const y = road.clientHeight / 2 - (leg.offsetTop + leg.offsetHeight / 2);
+    lane.style.transform = "translateY(" + Math.round(y) + "px)";
+  };
 
-  const update = () => {
-    const next = activeLevel(
-      legs.map((leg) => leg.getBoundingClientRect().top),
-      window.innerHeight * 0.45,
-    );
+  const setLevel = (next: number) => {
     if (next === on) return;
     on = next;
     legs.forEach((leg, i) => {
@@ -467,10 +712,17 @@ function levelCards(): void {
     fill.style.setProperty("--fill-y", Math.max(0, cur.top - first.top) + "px");
     fill.style.setProperty("--fill-x", Math.max(0, cur.left - first.left) + "px");
     now.textContent = "Level " + (on + 1) + " · " + levels.items[on]!.name;
+    centre();
+  };
+
+  const update = () => {
+    if (pinned()) return;
+    setLevel(activeLevel(legs.map((leg) => leg.getBoundingClientRect().top), window.innerHeight * 0.45));
   };
 
   stops.forEach((stop, i) =>
     stop.addEventListener("click", () => {
+      if (pinned()) return;
       const head = parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--head-h")) || 0;
       const y = legs[i]!.getBoundingClientRect().top + window.scrollY - head - window.innerHeight * 0.2;
       window.scrollTo({ top: y, behavior: reduced() ? "auto" : "smooth" });
@@ -488,10 +740,30 @@ function levelCards(): void {
   };
   window.addEventListener("scroll", schedule, { passive: true });
   window.addEventListener("resize", () => {
+    if (pinned()) {
+      centre();
+      return;
+    }
+    lane.style.transform = "";
     on = -1;
     schedule();
   });
   update();
+
+  // Pinned: the map and one level card hold still; each stretch of scroll clears a level.
+  pin(law, {
+    noun: "Level",
+    count: levels.items.length,
+    go: (i) => {
+      setLevel(i);
+      centre();
+    },
+    picked: (t) => {
+      const stop = t.closest(".stop");
+      const i = stop ? stops.indexOf(stop as HTMLButtonElement) : -1;
+      return i >= 0 ? i : null;
+    },
+  });
 }
 
 function driveChart(): void {
@@ -605,6 +877,21 @@ function explain(): void {
   const set = wireTabs(el("[data-tabs]", root), show);
   set(0);
   show(0);
+
+  // Pinned: each stretch of scroll moves to the next point and lights the paragraph it came from.
+  // The steps follow the first bill's points; another bill's extra points are a hover away.
+  pin(root, {
+    noun: "Point",
+    count: explainers.bills[0]!.points.length,
+    go: (i) => {
+      hi = Math.min(i, explainers.bills[bill]!.points.length - 1);
+      highlight();
+    },
+    picked: (t) => {
+      const b = t.closest<HTMLElement>("[data-pt]");
+      return b ? Number(b.dataset.pt) : null;
+    },
+  });
 }
 
 // ------------------------------------------------------------------ 04 · scouting
@@ -796,6 +1083,9 @@ function scout(onRetry: () => void): (mode: ScoutMode) => void {
     afterPaint(() => rings(1));
   }, 0.3);
 
+  // Pinned: the section holds still and each stretch of scroll moves to the next member.
+  pin(el("#scout"), { noun: "Member", count: YOUR_THREE.length, ...tabStep(tabs, panel) });
+
   return (mode: ScoutMode) => {
     kicker.textContent = mode.kind === "sample" || mode.kind === "skeleton" ? "04 · YOUR REPS · SAMPLE · NY-8" : "04 · YOUR MEMBERS";
     live = mode.kind === "sample" || mode.kind === "found";
@@ -904,6 +1194,11 @@ function players(): void {
     seen = true;
     afterPaint(bars);
   }, 0.3);
+
+  // Pinned: the cards hold still for one stretch of scroll, then the leaderboard scrolls up below
+  // them, the way the drive chart follows the levels. The fan is not stepped through; hovering it
+  // still picks a card.
+  pin(el("#cards .players"), { noun: "The players", count: 1, go: () => {} });
 }
 
 // ------------------------------------------------------------------ 06 · money
@@ -963,6 +1258,15 @@ function money(): void {
     seen = true;
     afterPaint(grow);
   }, 0.3);
+
+  // Pinned: the heading and the funding panel hold still and each stretch of scroll moves to the
+  // next member. The donor explainer below is a list to browse, so it scrolls freely.
+  const stage = document.createElement("div");
+  stage.className = "money__stage";
+  const head = el("#money .sec-head");
+  head.before(stage);
+  stage.append(head, panel);
+  pin(stage, { noun: "Member", count: funding.members.length, ...tabStep(tabs, panel) });
 }
 
 function context(): void {
@@ -1422,3 +1726,5 @@ phone();
 signUp();
 // Last: it owns the scouting report and relabels the sample sections above once it finds yours.
 yours();
+// After every section, the scouting report included, has registered its pin.
+pinAll();

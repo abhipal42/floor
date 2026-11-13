@@ -36,30 +36,6 @@
 </header>
 
 <main>
-<section id="yours" class="wrap yours" aria-label="Your members">
-  <div class="yours__strip" id="yours-strip" data-tone="muted" tabindex="-1">
-    <div class="yours__l">
-      <span class="yours__k" id="yours-kicker">SAMPLE · NEW YORK'S 8TH DISTRICT</span>
-      <div class="yours__chips" id="yours-chips"></div>
-      <p class="yours__note" id="yours-note" hidden></p>
-    </div>
-    <div class="yours__r">
-      <p class="yours__title" id="yours-title">Make it your three.</p>
-      <button type="button" class="yours__locate" id="yours-locate">Use my location</button>
-      <form class="yours__addr" id="yours-addr" novalidate hidden>
-        <div class="yours__row">
-          <input id="yours-input" type="text" autocomplete="street-address" aria-label="Street address" aria-describedby="yours-err" placeholder="1100 Congress Ave, Austin, TX 78701">
-          <button type="submit">Find</button>
-        </div>
-        <span class="yours__err" id="yours-err" role="alert" hidden></span>
-      </form>
-      <span class="yours__links"><button type="button" class="yours__link" id="yours-to-addr">or type an address</button><button type="button" class="yours__link yours__link--dim" id="yours-back" hidden>Back to the sample</button><button type="button" class="yours__link yours__link--dim" id="yours-cancel" hidden>Cancel</button></span>
-      <span class="yours__privacy" id="yours-privacy"></span>
-    </div>
-  </div>
-  <p class="sr" id="yours-status" role="status" aria-live="polite"></p>
-</section>
-
 <section id="top" class="wrap hero" aria-labelledby="hero-title">
   <div class="hero__copy">
     <h1 id="hero-title" class="hero__title">Congress, called like <span class="hl" data-reveal>a game.</span></h1>
@@ -132,6 +108,32 @@
     <div role="tablist" aria-label="Your members" class="tabs" id="scout-tabs"></div>
   </div>
   <div class="scout" id="scout-panel" role="tabpanel" aria-labelledby="scout-title" tabindex="-1"></div>
+  <!-- Below the report it fills: a slim bar, not a panel. -->
+  <div id="yours" class="yours" role="group" aria-label="Find your members">
+    <div class="yours__strip" id="yours-strip" data-tone="muted" tabindex="-1">
+      <div class="yours__l">
+        <span class="yours__k" id="yours-kicker">SAMPLE · NEW YORK'S 8TH DISTRICT</span>
+        <p class="yours__title" id="yours-title">Make it your three.</p>
+        <div class="yours__chips" id="yours-chips"></div>
+        <p class="yours__note" id="yours-note" hidden></p>
+      </div>
+      <div class="yours__r">
+        <div class="yours__act">
+          <button type="button" class="yours__locate" id="yours-locate">Use my location</button>
+          <form class="yours__addr" id="yours-addr" novalidate hidden>
+            <div class="yours__row">
+              <input id="yours-input" type="text" autocomplete="street-address" aria-label="Street address" aria-describedby="yours-err" placeholder="1100 Congress Ave, Austin, TX 78701">
+              <button type="submit">Find</button>
+            </div>
+            <span class="yours__err" id="yours-err" role="alert" hidden></span>
+          </form>
+          <span class="yours__links"><button type="button" class="yours__link" id="yours-to-addr">or type an address</button><button type="button" class="yours__link yours__link--dim" id="yours-back" hidden>Back to the sample</button><button type="button" class="yours__link yours__link--dim" id="yours-cancel" hidden>Cancel</button></span>
+        </div>
+        <span class="yours__privacy" id="yours-privacy"></span>
+      </div>
+    </div>
+    <p class="sr" id="yours-status" role="status" aria-live="polite"></p>
+  </div>
 </section>
 
 <section id="cards" class="band" aria-labelledby="cards-title">
