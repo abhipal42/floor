@@ -126,6 +126,7 @@ Targets: floor event to push under 30 s; roll call posted to "your rep voted" un
 - ActivityKit (Live Activity + Dynamic Island), WidgetKit, App Intents.
 - Swift Charts, SwiftData offline cache, Supabase Swift SDK (auth + realtime), Sign in with Apple.
 - Packages (one `FloorKit` Swift package, one library per area): `Models` (checked against the OpenAPI contract), `APIClient`, `DesignSystem`, and one per feature — built: `Onboarding`, `Home`, `VoteScreen`, `BillScreen`, `RepScreen`; still to come: `Realtime`, `Alerts`. Extensions share `Models` and `DesignSystem` through an App Group.
+- Navigation (v0.3.0): three tabs — Finals, Bills, Your three — each with its own stack. Display type is Barlow Condensed (OFL, bundled); colours stay in `Palette`. The screens follow the locked phone mocks in the design canvas.
 - Tests: Swift Testing, snapshot tests per card state, onboarding UI tests.
 - Android later: native Kotlin + Compose on the same API.
 

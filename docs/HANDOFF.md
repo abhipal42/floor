@@ -4,8 +4,9 @@ Last updated 2026-11-12. Read this first, then [`plan.md`](plan.md) for the full
 
 **In one paragraph:** M0 (foundation) is done. M1 (data backbone) is done; the one item still open against it, measured posting latency, has moved to M3, because it can only be taken on a live session day with polling running. Staging Postgres holds every House and Senate roll call since January 2023, and every one matches the official totals; every vote now has a subject attached, bills and nominations alike. The API serves district lookup, member votes, votes, bills, nominations and data freshness from that database, and now also the per-party breakdown of a vote, your own delegation's positions on it, and a member's party-loyalty record. **M2 is nearly done:** the API is deployed at <https://floor-api.vercel.app> and a Release build of
 the app runs the whole flow against it — onboarding to a real district, then Home, Vote, Bill and
-Rep. Four items remain, listed at the top of the M2 section: the Speaker election card on Home, a
-SwiftData offline cache, snapshot tests, and TestFlight distribution.
+Rep. Since v0.3.0 those screens match the landing page (three tabs: Finals, Bills, Your three). Three
+items remain, listed at the top of the M2 section: a SwiftData offline cache, snapshot tests, and
+TestFlight distribution.
 
 ---
 
@@ -70,7 +71,7 @@ Command Line Tools rather than Xcode: run it with `DEVELOPER_DIR=/Applications/X
 | `apps/worker` | Ingest CLI: members, roll calls, bills, nominations | `src/cli.ts`, `rollcalls.ts`, `bills.ts`, `nominations.ts`, `members.ts`, `db.ts` |
 | `apps/api` | Hono REST API with OpenAPI at `/openapi.json` | `src/app.ts` (routes + schemas), `pg.ts` (Postgres), `district.ts` (Census) |
 | `apps/web` | Landing page (v0.2.0): static HTML/CSS/TypeScript built with `tsc`, no framework | `src/data.ts` (every figure, with source and date), `src/logic.ts` (pure helpers), `src/main.ts` (rendering), `public/` |
-| `ios/` | SwiftUI app (XcodeGen, `project.yml`), `FloorKit` package: `Models`, `APIClient`, `DesignSystem`, `Onboarding`, `Home`, `VoteScreen`, `BillScreen`, `RepScreen` | `FloorKit/Sources/Models/` (one file per area, `Samples.swift` for previews), `FloorKit/Tests/ModelsTests/ContractTests.swift`, `DesignSystem/ScoreboardCard.swift`, `BillScreen/BillProgress.swift` |
+| `ios/` | SwiftUI app (XcodeGen, `project.yml`), `FloorKit` package: `Models`, `APIClient`, `DesignSystem`, `Onboarding`, `Home`, `VoteScreen`, `BillScreen`, `RepScreen` | `FloorKit/Sources/Models/` (one file per area, `Samples.swift` for previews), `FloorKit/Tests/ModelsTests/ContractTests.swift`, `DesignSystem/ScoreboardCard.swift`, `DesignSystem/Components.swift`, `DesignSystem/Fonts/` (Barlow Condensed, OFL), `Home/FloorShell.swift` (tabs), `Home/CatchUp.swift`, `Models/VoteOutcome.swift`, `BillScreen/LawLevels.swift` |
 | `.github/workflows/ci.yml` | Node job (lint/typecheck/tests + OpenAPI drift) + macOS job (Swift tests + simulator build) | |
 | `.github/workflows/guards.yml` | Shipping guards on every PR: changelog, version, docs, tests, retro, PR title | `.github/scripts/guards.conf` (this repo's settings), `guards.sh` (shared, do not edit) |
 | `docs/` | `plan.md` / `plan.html` (design + plan), this file, `retros/` (one per milestone) | |
@@ -178,6 +179,11 @@ Real data broke our first assumptions several times. Each case below is now hand
    only component carrying component-level nullability. Check how a component is used before widening
    that list.
 18. **Applying migrations to staging:** apply each new file in `supabase/migrations` in order (Supabase SQL editor or `supabase db push`). Tests run all migrations against PGlite, so a migration that breaks shows up in `npm run check` first.
+19. **Portraits come from `unitedstates.github.io/images/congress/<size>/<bioguide>.jpg`.** The
+    `theunitedstates.io` host for the same project failed its TLS handshake from here (2026-11-12).
+20. **A `.safeAreaInset` on a `NavigationStack` does not reach the screens pushed onto it.** The
+    floating tab bar covered the bottom of every pushed Vote and Bill screen until the inset moved
+    onto each screen itself.
 
 ---
 
@@ -223,10 +229,12 @@ The working rhythm: break each milestone into tasks. For each task, write tests 
 ### M2: iOS core on real data
 **Goal:** a TestFlight build that shows how your reps voted, from real data. No live updates yet.
 
-> **M2 is not finished.** The app works end to end against the deployed API — onboarding, Home,
-> Vote, Bill and Rep, all on real data — but four items from the list below are still open:
+> **M2 is not finished.** The app works end to end against the deployed API — onboarding, Finals,
+> Vote, Bill and Your three, all on real data — but three items from the list below are still open
+> (item 1 is kept for the record):
 >
-> 1. **The Speaker election card on Home.** Built on the Vote screen, never on the feed. `HomeView`
+> 1. ~~**The Speaker election card on Home.**~~ **Done in v0.3.0** (`ScoreboardCard`'s Speaker-ballot
+>    variant, "MAJORITY OF NAMES"). What it was: Built on the Vote screen, never on the feed. `HomeView`
 >    hands every vote to `ScoreboardCard`, and a Speaker ballot has `yea: 0, nay: 0`, so it renders
 >    as "0 … Final … 0, Needs 1" — a meaningless card, under a row summary that is correct
 >    ("Doggett voted Jeffries"), which makes it look like bad data rather than a missing variant.
@@ -384,6 +392,28 @@ the product rules they settled are in `CLAUDE.md` › Product rules). What to kn
   every filing; `ptr-pdfs/<year>/<DocID>.pdf` are the trade reports). Senate disclosures (eFD) have no
   bulk index. Disclosures report value **ranges** and omit homes, which is why the page shows ranges.
 - **Forms are inert.** Beta sign-up and address entry show "opens soon" until there is a backend.
+
+### The app redesign (v0.3.0)
+
+The iOS screens were rebuilt to the phone mocks in round 6 of the same canvas
+(<https://claude.ai/artifact/FKWYDhCej75UPy94csYLsU>): `AppOnboarding`, `AppHome`, `AppVote`, `AppBill`,
+`AppRep`. Palette colours are unchanged; Barlow Condensed is bundled for display type. Where the
+build differs from the mocks, and why:
+
+- **No names on the full roll.** `/v1/votes/{id}` returns party totals and your own delegation's
+  positions, not every member's, so the squares are drawn from party counts and can't be tapped.
+  Adding all positions to that route would make "tap a square to see who" possible.
+- **Feed cards show the question type**, not the party split: the feed has no per-party numbers,
+  and fetching them would be one request per card.
+- **Catch-up cards show the recorded result** where the mock had a one-line bill summary, because
+  that line would have to be AI-written (M4).
+- **The Bill screen shows the CRS summary**, labelled as CRS, where the AI explainer will go (M4).
+- **Your three has no Record / Money / Portfolio switch** until Money and Portfolio have data
+  (FEC and disclosure ingest; see the landing page section).
+- **BOSS levels** are marked on House or Senate only when one of the bill's own votes there needed
+  60 or two-thirds; Signed is always marked (veto override).
+- **"Winning side" is the outcome, not the larger side** (`sidedWithOutcome`). They differ when a
+  majority loses to a threshold — H.J.Res. 1 lost 212–206.
 
 ### M5: Beta hardening + App Store
 Accessibility (Dynamic Type, VoiceOver on score cards), privacy labels, a vote-night load test, App Review prep, public TestFlight.

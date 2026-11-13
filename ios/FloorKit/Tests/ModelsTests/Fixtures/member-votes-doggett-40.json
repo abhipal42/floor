@@ -1,0 +1,1324 @@
+{
+  "votes": [
+    {
+      "vote": {
+        "id": "house-119-2-321",
+        "kind": "question",
+        "candidates": [],
+        "chamber": "house",
+        "congress": 119,
+        "session": 2,
+        "rollNumber": 321,
+        "question": "On Passage",
+        "billId": "119-hr-1013",
+        "nominationId": null,
+        "billRef": "H R 1013",
+        "occurredAt": "2026-11-11T19:43:00.000Z",
+        "state": "final",
+        "threshold": "majority",
+        "totals": {
+          "yea": 295,
+          "nay": 128,
+          "present": 0,
+          "notVoting": 10
+        },
+        "result": "Passed"
+      },
+      "position": "nay",
+      "choice": null,
+      "measure": {
+        "id": "119-hr-1013",
+        "kind": "bill",
+        "citation": "H.R. 1013",
+        "title": "Retirement Fairness for Charities and Educational Institutions Act of 2025"
+      }
+    },
+    {
+      "vote": {
+        "id": "house-119-2-320",
+        "kind": "question",
+        "candidates": [],
+        "chamber": "house",
+        "congress": 119,
+        "session": 2,
+        "rollNumber": 320,
+        "question": "On Motion to Discharge",
+        "billId": "119-hres-1247",
+        "nominationId": null,
+        "billRef": "H RES 1247",
+        "occurredAt": "2026-11-11T18:04:00.000Z",
+        "state": "final",
+        "threshold": "majority",
+        "totals": {
+          "yea": 245,
+          "nay": 175,
+          "present": 0,
+          "notVoting": 13
+        },
+        "result": "Passed"
+      },
+      "position": "yea",
+      "choice": null,
+      "measure": {
+        "id": "119-hres-1247",
+        "kind": "bill",
+        "citation": "H.Res. 1247",
+        "title": "Providing for consideration of the bill (H.R. 2102) to amend title 10, United States Code, to provide for concurrent receipt of veterans' disability compensation and retired pay for disability retirees with combat-related disabilities, and for other purposes."
+      }
+    },
+    {
+      "vote": {
+        "id": "house-119-2-319",
+        "kind": "question",
+        "candidates": [],
+        "chamber": "house",
+        "congress": 119,
+        "session": 2,
+        "rollNumber": 319,
+        "question": "On Agreeing to the Resolution",
+        "billId": "119-hres-1650",
+        "nominationId": null,
+        "billRef": "H RES 1650",
+        "occurredAt": "2026-11-10T23:20:00.000Z",
+        "state": "final",
+        "threshold": "majority",
+        "totals": {
+          "yea": 215,
+          "nay": 209,
+          "present": 0,
+          "notVoting": 9
+        },
+        "result": "Passed"
+      },
+      "position": "nay",
+      "choice": null,
+      "measure": {
+        "id": "119-hres-1650",
+        "kind": "bill",
+        "citation": "H.Res. 1650",
+        "title": "Providing for consideration of the bill (H.R. 1013) to amend the Federal securities laws to enhance 403(b) plans, and for other purposes."
+      }
+    },
+    {
+      "vote": {
+        "id": "house-119-2-318",
+        "kind": "question",
+        "candidates": [],
+        "chamber": "house",
+        "congress": 119,
+        "session": 2,
+        "rollNumber": 318,
+        "question": "On Ordering the Previous Question",
+        "billId": "119-hres-1650",
+        "nominationId": null,
+        "billRef": "H RES 1650",
+        "occurredAt": "2026-11-10T23:10:00.000Z",
+        "state": "final",
+        "threshold": "majority",
+        "totals": {
+          "yea": 213,
+          "nay": 207,
+          "present": 0,
+          "notVoting": 13
+        },
+        "result": "Passed"
+      },
+      "position": "nay",
+      "choice": null,
+      "measure": {
+        "id": "119-hres-1650",
+        "kind": "bill",
+        "citation": "H.Res. 1650",
+        "title": "Providing for consideration of the bill (H.R. 1013) to amend the Federal securities laws to enhance 403(b) plans, and for other purposes."
+      }
+    },
+    {
+      "vote": {
+        "id": "house-119-2-317",
+        "kind": "question",
+        "candidates": [],
+        "chamber": "house",
+        "congress": 119,
+        "session": 2,
+        "rollNumber": 317,
+        "question": "On Motion to Refer",
+        "billId": "119-hres-1655",
+        "nominationId": null,
+        "billRef": "H RES 1655",
+        "occurredAt": "2026-11-10T23:02:00.000Z",
+        "state": "final",
+        "threshold": "majority",
+        "totals": {
+          "yea": 211,
+          "nay": 204,
+          "present": 0,
+          "notVoting": 18
+        },
+        "result": "Passed"
+      },
+      "position": "nay",
+      "choice": null,
+      "measure": {
+        "id": "119-hres-1655",
+        "kind": "bill",
+        "citation": "H.Res. 1655",
+        "title": "Impeaching Peter Brian Hegseth, Secretary of Defense, for high crimes and misdemeanors."
+      }
+    },
+    {
+      "vote": {
+        "id": "house-119-2-316",
+        "kind": "question",
+        "candidates": [],
+        "chamber": "house",
+        "congress": 119,
+        "session": 2,
+        "rollNumber": 316,
+        "question": "On Motion to Suspend the Rules and Pass, as Amended",
+        "billId": "119-hr-9612",
+        "nominationId": null,
+        "billRef": "H R 9612",
+        "occurredAt": "2026-11-10T00:07:00.000Z",
+        "state": "final",
+        "threshold": "two_thirds",
+        "totals": {
+          "yea": 394,
+          "nay": 3,
+          "present": 0,
+          "notVoting": 36
+        },
+        "result": "Passed"
+      },
+      "position": "not_voting",
+      "choice": null,
+      "measure": {
+        "id": "119-hr-9612",
+        "kind": "bill",
+        "citation": "H.R. 9612",
+        "title": "American Enrichment Deployment Act"
+      }
+    },
+    {
+      "vote": {
+        "id": "house-119-2-315",
+        "kind": "question",
+        "candidates": [],
+        "chamber": "house",
+        "congress": 119,
+        "session": 2,
+        "rollNumber": 315,
+        "question": "On Motion to Suspend the Rules and Pass, as Amended",
+        "billId": "119-hr-3978",
+        "nominationId": null,
+        "billRef": "H R 3978",
+        "occurredAt": "2026-11-09T23:59:00.000Z",
+        "state": "final",
+        "threshold": "two_thirds",
+        "totals": {
+          "yea": 397,
+          "nay": 2,
+          "present": 0,
+          "notVoting": 34
+        },
+        "result": "Passed"
+      },
+      "position": "not_voting",
+      "choice": null,
+      "measure": {
+        "id": "119-hr-3978",
+        "kind": "bill",
+        "citation": "H.R. 3978",
+        "title": "Nuclear REFUEL (Recycling Efficient Fuels Utilizing Expedited Licensing) Act"
+      }
+    },
+    {
+      "vote": {
+        "id": "house-119-2-314",
+        "kind": "question",
+        "candidates": [],
+        "chamber": "house",
+        "congress": 119,
+        "session": 2,
+        "rollNumber": 314,
+        "question": "On Motion to Suspend the Rules and Pass",
+        "billId": "119-s-2403",
+        "nominationId": null,
+        "billRef": "S 2403",
+        "occurredAt": "2026-09-16T23:05:00.000Z",
+        "state": "final",
+        "threshold": "two_thirds",
+        "totals": {
+          "yea": 401,
+          "nay": 14,
+          "present": 0,
+          "notVoting": 18
+        },
+        "result": "Passed"
+      },
+      "position": "yea",
+      "choice": null,
+      "measure": {
+        "id": "119-s-2403",
+        "kind": "bill",
+        "citation": "S. 2403",
+        "title": "Retire through Ownership Act"
+      }
+    },
+    {
+      "vote": {
+        "id": "house-119-2-313",
+        "kind": "question",
+        "candidates": [],
+        "chamber": "house",
+        "congress": 119,
+        "session": 2,
+        "rollNumber": 313,
+        "question": "On Motion to Suspend the Rules and Pass, as Amended",
+        "billId": "119-hr-9497",
+        "nominationId": null,
+        "billRef": "H R 9497",
+        "occurredAt": "2026-09-16T22:58:00.000Z",
+        "state": "final",
+        "threshold": "two_thirds",
+        "totals": {
+          "yea": 415,
+          "nay": 9,
+          "present": 0,
+          "notVoting": 9
+        },
+        "result": "Passed"
+      },
+      "position": "yea",
+      "choice": null,
+      "measure": {
+        "id": "119-hr-9497",
+        "kind": "bill",
+        "citation": "H.R. 9497",
+        "title": "Water Resources Development Act of 2026"
+      }
+    },
+    {
+      "vote": {
+        "id": "house-119-2-312",
+        "kind": "question",
+        "candidates": [],
+        "chamber": "house",
+        "congress": 119,
+        "session": 2,
+        "rollNumber": 312,
+        "question": "On Motion to Suspend the Rules and Pass, as Amended",
+        "billId": "119-hr-9340",
+        "nominationId": null,
+        "billRef": "H R 9340",
+        "occurredAt": "2026-09-16T22:53:00.000Z",
+        "state": "final",
+        "threshold": "two_thirds",
+        "totals": {
+          "yea": 417,
+          "nay": 3,
+          "present": 0,
+          "notVoting": 12
+        },
+        "result": "Passed"
+      },
+      "position": "yea",
+      "choice": null,
+      "measure": {
+        "id": "119-hr-9340",
+        "kind": "bill",
+        "citation": "H.R. 9340",
+        "title": "Ratepayer Protection Act"
+      }
+    },
+    {
+      "vote": {
+        "id": "house-119-2-311",
+        "kind": "question",
+        "candidates": [],
+        "chamber": "house",
+        "congress": 119,
+        "session": 2,
+        "rollNumber": 311,
+        "question": "On Passage",
+        "billId": "119-hjres-213",
+        "nominationId": null,
+        "billRef": "H J RES 213",
+        "occurredAt": "2026-09-16T22:49:00.000Z",
+        "state": "final",
+        "threshold": "majority",
+        "totals": {
+          "yea": 214,
+          "nay": 208,
+          "present": 0,
+          "notVoting": 11
+        },
+        "result": "Passed"
+      },
+      "position": "nay",
+      "choice": null,
+      "measure": {
+        "id": "119-hjres-213",
+        "kind": "bill",
+        "citation": "H.J.Res. 213",
+        "title": "Providing for congressional disapproval under chapter 8 of title 5, United States Code, of the rule issued by the Environmental Protection Agency relating to the \"California State Nonroad Engine Pollution Control Standards; Commercial Harbor Craft Regulations; Notice of Decision\"."
+      }
+    },
+    {
+      "vote": {
+        "id": "house-119-2-310",
+        "kind": "question",
+        "candidates": [],
+        "chamber": "house",
+        "congress": 119,
+        "session": 2,
+        "rollNumber": 310,
+        "question": "On Passage",
+        "billId": "119-hr-10326",
+        "nominationId": null,
+        "billRef": "H R 10326",
+        "occurredAt": "2026-09-16T22:43:00.000Z",
+        "state": "final",
+        "threshold": "majority",
+        "totals": {
+          "yea": 217,
+          "nay": 207,
+          "present": 0,
+          "notVoting": 9
+        },
+        "result": "Passed"
+      },
+      "position": "nay",
+      "choice": null,
+      "measure": {
+        "id": "119-hr-10326",
+        "kind": "bill",
+        "citation": "H.R. 10326",
+        "title": "Preventing Rip-offs and Obtaining Oversight of Funds Act"
+      }
+    },
+    {
+      "vote": {
+        "id": "house-119-2-309",
+        "kind": "question",
+        "candidates": [],
+        "chamber": "house",
+        "congress": 119,
+        "session": 2,
+        "rollNumber": 309,
+        "question": "On Passage",
+        "billId": "119-hr-9576",
+        "nominationId": null,
+        "billRef": "H R 9576",
+        "occurredAt": "2026-09-16T22:37:00.000Z",
+        "state": "final",
+        "threshold": "majority",
+        "totals": {
+          "yea": 352,
+          "nay": 72,
+          "present": 0,
+          "notVoting": 9
+        },
+        "result": "Passed"
+      },
+      "position": "yea",
+      "choice": null,
+      "measure": {
+        "id": "119-hr-9576",
+        "kind": "bill",
+        "citation": "H.R. 9576",
+        "title": "National Fraud Enforcement Division Act of 2026"
+      }
+    },
+    {
+      "vote": {
+        "id": "house-119-2-308",
+        "kind": "question",
+        "candidates": [],
+        "chamber": "house",
+        "congress": 119,
+        "session": 2,
+        "rollNumber": 308,
+        "question": "On Motion to Concur in the Senate Amendments",
+        "billId": "119-hr-5334",
+        "nominationId": null,
+        "billRef": "H R 5334",
+        "occurredAt": "2026-09-16T22:28:00.000Z",
+        "state": "final",
+        "threshold": "majority",
+        "totals": {
+          "yea": 262,
+          "nay": 159,
+          "present": 0,
+          "notVoting": 12
+        },
+        "result": "Passed"
+      },
+      "position": "nay",
+      "choice": null,
+      "measure": {
+        "id": "119-hr-5334",
+        "kind": "bill",
+        "citation": "H.R. 5334",
+        "title": "SEED Act"
+      }
+    },
+    {
+      "vote": {
+        "id": "house-119-2-307",
+        "kind": "question",
+        "candidates": [],
+        "chamber": "house",
+        "congress": 119,
+        "session": 2,
+        "rollNumber": 307,
+        "question": "On Agreeing to the Resolution",
+        "billId": "119-hconres-93",
+        "nominationId": null,
+        "billRef": "H CON RES 93",
+        "occurredAt": "2026-09-16T02:32:00.000Z",
+        "state": "final",
+        "threshold": "majority",
+        "totals": {
+          "yea": 220,
+          "nay": 204,
+          "present": 0,
+          "notVoting": 9
+        },
+        "result": "Passed"
+      },
+      "position": "yea",
+      "choice": null,
+      "measure": {
+        "id": "119-hconres-93",
+        "kind": "bill",
+        "citation": "H.Con.Res. 93",
+        "title": "Directing the President, pursuant to section 5(c) of the War Powers Resolution, to remove United States Armed Forces from hostilities with Iran."
+      }
+    },
+    {
+      "vote": {
+        "id": "house-119-2-306",
+        "kind": "question",
+        "candidates": [],
+        "chamber": "house",
+        "congress": 119,
+        "session": 2,
+        "rollNumber": 306,
+        "question": "On Passage",
+        "billId": "119-hjres-210",
+        "nominationId": null,
+        "billRef": "H J RES 210",
+        "occurredAt": "2026-09-16T02:21:00.000Z",
+        "state": "final",
+        "threshold": "majority",
+        "totals": {
+          "yea": 216,
+          "nay": 211,
+          "present": 0,
+          "notVoting": 6
+        },
+        "result": "Passed"
+      },
+      "position": "nay",
+      "choice": null,
+      "measure": {
+        "id": "119-hjres-210",
+        "kind": "bill",
+        "citation": "H.J.Res. 210",
+        "title": "Providing for congressional disapproval under chapter 8 of title 5, United States Code, of the rule submitted by the Environmental Protection Agency relating to \"California State Nonroad Engine Pollution Control Standards; Ocean-Going Vessels At-Berth; Notice of Decision\"."
+      }
+    },
+    {
+      "vote": {
+        "id": "house-119-2-305",
+        "kind": "question",
+        "candidates": [],
+        "chamber": "house",
+        "congress": 119,
+        "session": 2,
+        "rollNumber": 305,
+        "question": "On Motion to Suspend the Rules and Pass, as Amended",
+        "billId": "119-hr-9500",
+        "nominationId": null,
+        "billRef": "H R 9500",
+        "occurredAt": "2026-09-16T02:15:00.000Z",
+        "state": "final",
+        "threshold": "two_thirds",
+        "totals": {
+          "yea": 408,
+          "nay": 17,
+          "present": 0,
+          "notVoting": 8
+        },
+        "result": "Passed"
+      },
+      "position": "yea",
+      "choice": null,
+      "measure": {
+        "id": "119-hr-9500",
+        "kind": "bill",
+        "citation": "H.R. 9500",
+        "title": "Tax Relief for Fraud Victims Act"
+      }
+    },
+    {
+      "vote": {
+        "id": "house-119-2-304",
+        "kind": "question",
+        "candidates": [],
+        "chamber": "house",
+        "congress": 119,
+        "session": 2,
+        "rollNumber": 304,
+        "question": "On Motion to Suspend the Rules and Pass",
+        "billId": "119-hr-2140",
+        "nominationId": null,
+        "billRef": "H R 2140",
+        "occurredAt": "2026-09-16T02:11:00.000Z",
+        "state": "final",
+        "threshold": "two_thirds",
+        "totals": {
+          "yea": 343,
+          "nay": 79,
+          "present": 0,
+          "notVoting": 10
+        },
+        "result": "Passed"
+      },
+      "position": "yea",
+      "choice": null,
+      "measure": {
+        "id": "119-hr-2140",
+        "kind": "bill",
+        "citation": "H.R. 2140",
+        "title": "Diesel Emissions Reduction Act of 2025"
+      }
+    },
+    {
+      "vote": {
+        "id": "house-119-2-303",
+        "kind": "question",
+        "candidates": [],
+        "chamber": "house",
+        "congress": 119,
+        "session": 2,
+        "rollNumber": 303,
+        "question": "On Motion to Suspend the Rules and Pass, as Amended",
+        "billId": "119-hr-4646",
+        "nominationId": null,
+        "billRef": "H R 4646",
+        "occurredAt": "2026-09-16T02:06:00.000Z",
+        "state": "final",
+        "threshold": "two_thirds",
+        "totals": {
+          "yea": 424,
+          "nay": 0,
+          "present": 0,
+          "notVoting": 9
+        },
+        "result": "Passed"
+      },
+      "position": "yea",
+      "choice": null,
+      "measure": {
+        "id": "119-hr-4646",
+        "kind": "bill",
+        "citation": "H.R. 4646",
+        "title": "Whistleblower Protection Act of 2025"
+      }
+    },
+    {
+      "vote": {
+        "id": "house-119-2-302",
+        "kind": "question",
+        "candidates": [],
+        "chamber": "house",
+        "congress": 119,
+        "session": 2,
+        "rollNumber": 302,
+        "question": "On Motion to Suspend the Rules and Pass, as Amended",
+        "billId": "119-hr-8278",
+        "nominationId": null,
+        "billRef": "H R 8278",
+        "occurredAt": "2026-09-16T02:03:00.000Z",
+        "state": "final",
+        "threshold": "two_thirds",
+        "totals": {
+          "yea": 417,
+          "nay": 7,
+          "present": 0,
+          "notVoting": 9
+        },
+        "result": "Passed"
+      },
+      "position": "yea",
+      "choice": null,
+      "measure": {
+        "id": "119-hr-8278",
+        "kind": "bill",
+        "citation": "H.R. 8278",
+        "title": "Fostering the Use of Technology to Uphold Regulatory Effectiveness in Supervision Act"
+      }
+    },
+    {
+      "vote": {
+        "id": "house-119-2-301",
+        "kind": "question",
+        "candidates": [],
+        "chamber": "house",
+        "congress": 119,
+        "session": 2,
+        "rollNumber": 301,
+        "question": "On Motion to Suspend the Rules and Pass, as Amended",
+        "billId": "119-hr-2978",
+        "nominationId": null,
+        "billRef": "H R 2978",
+        "occurredAt": "2026-09-16T01:57:00.000Z",
+        "state": "final",
+        "threshold": "two_thirds",
+        "totals": {
+          "yea": 414,
+          "nay": 7,
+          "present": 0,
+          "notVoting": 12
+        },
+        "result": "Passed"
+      },
+      "position": "yea",
+      "choice": null,
+      "measure": {
+        "id": "119-hr-2978",
+        "kind": "bill",
+        "citation": "H.R. 2978",
+        "title": "GUARD Act"
+      }
+    },
+    {
+      "vote": {
+        "id": "house-119-2-300",
+        "kind": "question",
+        "candidates": [],
+        "chamber": "house",
+        "congress": 119,
+        "session": 2,
+        "rollNumber": 300,
+        "question": "On Agreeing to the Resolution",
+        "billId": "119-hres-1530",
+        "nominationId": null,
+        "billRef": "H RES 1530",
+        "occurredAt": "2026-09-15T21:27:00.000Z",
+        "state": "final",
+        "threshold": "majority",
+        "totals": {
+          "yea": 214,
+          "nay": 211,
+          "present": 0,
+          "notVoting": 8
+        },
+        "result": "Passed"
+      },
+      "position": "nay",
+      "choice": null,
+      "measure": {
+        "id": "119-hres-1530",
+        "kind": "bill",
+        "citation": "H.Res. 1530",
+        "title": "Providing for consideration of the bill (H.R. 9576) to establish the National Fraud Enforcement Division of the Department of Justice; providing for consideration of the bill (H.R. 10326) to enhance information-sharing capabilities between Federal law enforcement and State agencies to detect, investigate, and prosecute fraud in certain Federal programs, and to protect individual privacy; providing for consideration of the joint resolution (H.J. Res. 210) providing for congressional disapproval under chapter 8 of title 5, United States Code, of the rule submitted by the Environmental Protection Agency relating to \u2018\u2018California State Nonroad Engine Pollution Control Standards; Ocean-Going Vessels At-Berth; Notice of Decision''; providing for consideration of the joint resolution (H.J. Res. 213) providing for congressional disapproval under chapter 8 of title 5, United States Code, of the rule issued by the Environmental Protection Agency relating to the \u2018\u2018California State Nonroad Engine Pollution Control Standards; Commercial Harbor Craft Regulations; Notice of Decision''; and providing for consideration of the Senate amendments to the bill (H.R. 5334) to amend the Internal Revenue Code of 1986 to allow early childhood educators to take the educator expense deduction, and for other purposes."
+      }
+    },
+    {
+      "vote": {
+        "id": "house-119-2-299",
+        "kind": "question",
+        "candidates": [],
+        "chamber": "house",
+        "congress": 119,
+        "session": 2,
+        "rollNumber": 299,
+        "question": "On Ordering the Previous Question",
+        "billId": "119-hres-1530",
+        "nominationId": null,
+        "billRef": "H RES 1530",
+        "occurredAt": "2026-09-15T20:54:00.000Z",
+        "state": "final",
+        "threshold": "majority",
+        "totals": {
+          "yea": 214,
+          "nay": 208,
+          "present": 0,
+          "notVoting": 11
+        },
+        "result": "Passed"
+      },
+      "position": "nay",
+      "choice": null,
+      "measure": {
+        "id": "119-hres-1530",
+        "kind": "bill",
+        "citation": "H.Res. 1530",
+        "title": "Providing for consideration of the bill (H.R. 9576) to establish the National Fraud Enforcement Division of the Department of Justice; providing for consideration of the bill (H.R. 10326) to enhance information-sharing capabilities between Federal law enforcement and State agencies to detect, investigate, and prosecute fraud in certain Federal programs, and to protect individual privacy; providing for consideration of the joint resolution (H.J. Res. 210) providing for congressional disapproval under chapter 8 of title 5, United States Code, of the rule submitted by the Environmental Protection Agency relating to \u2018\u2018California State Nonroad Engine Pollution Control Standards; Ocean-Going Vessels At-Berth; Notice of Decision''; providing for consideration of the joint resolution (H.J. Res. 213) providing for congressional disapproval under chapter 8 of title 5, United States Code, of the rule issued by the Environmental Protection Agency relating to the \u2018\u2018California State Nonroad Engine Pollution Control Standards; Commercial Harbor Craft Regulations; Notice of Decision''; and providing for consideration of the Senate amendments to the bill (H.R. 5334) to amend the Internal Revenue Code of 1986 to allow early childhood educators to take the educator expense deduction, and for other purposes."
+      }
+    },
+    {
+      "vote": {
+        "id": "house-119-2-298",
+        "kind": "question",
+        "candidates": [],
+        "chamber": "house",
+        "congress": 119,
+        "session": 2,
+        "rollNumber": 298,
+        "question": "On Motion to Table",
+        "billId": "119-hres-1486",
+        "nominationId": null,
+        "billRef": "H RES 1486",
+        "occurredAt": "2026-09-15T20:46:00.000Z",
+        "state": "final",
+        "threshold": "majority",
+        "totals": {
+          "yea": 232,
+          "nay": 147,
+          "present": 47,
+          "notVoting": 7
+        },
+        "result": "Passed"
+      },
+      "position": "nay",
+      "choice": null,
+      "measure": {
+        "id": "119-hres-1486",
+        "kind": "bill",
+        "citation": "H.Res. 1486",
+        "title": "Impeaching Donald John Trump, President of the United States, for high crimes and misdemeanors."
+      }
+    },
+    {
+      "vote": {
+        "id": "house-119-2-297",
+        "kind": "question",
+        "candidates": [],
+        "chamber": "house",
+        "congress": 119,
+        "session": 2,
+        "rollNumber": 297,
+        "question": "On Motion to Suspend the Rules and Pass, as Amended",
+        "billId": "119-hr-3276",
+        "nominationId": null,
+        "billRef": "H R 3276",
+        "occurredAt": "2026-09-14T23:16:00.000Z",
+        "state": "final",
+        "threshold": "two_thirds",
+        "totals": {
+          "yea": 345,
+          "nay": 60,
+          "present": 0,
+          "notVoting": 27
+        },
+        "result": "Passed"
+      },
+      "position": "yea",
+      "choice": null,
+      "measure": {
+        "id": "119-hr-3276",
+        "kind": "bill",
+        "citation": "H.R. 3276",
+        "title": "Local Communities & Bird Habitat Stewardship Act of 2026"
+      }
+    },
+    {
+      "vote": {
+        "id": "house-119-2-296",
+        "kind": "question",
+        "candidates": [],
+        "chamber": "house",
+        "congress": 119,
+        "session": 2,
+        "rollNumber": 296,
+        "question": "On Motion to Suspend the Rules and Pass, as Amended",
+        "billId": "119-hr-4219",
+        "nominationId": null,
+        "billRef": "H R 4219",
+        "occurredAt": "2026-09-14T23:04:00.000Z",
+        "state": "final",
+        "threshold": "two_thirds",
+        "totals": {
+          "yea": 371,
+          "nay": 33,
+          "present": 0,
+          "notVoting": 28
+        },
+        "result": "Passed"
+      },
+      "position": "yea",
+      "choice": null,
+      "measure": {
+        "id": "119-hr-4219",
+        "kind": "bill",
+        "citation": "H.R. 4219",
+        "title": "National Wildlife Refuge System Invasive Species Strike Team Act of 2025"
+      }
+    },
+    {
+      "vote": {
+        "id": "house-119-2-295",
+        "kind": "question",
+        "candidates": [],
+        "chamber": "house",
+        "congress": 119,
+        "session": 2,
+        "rollNumber": 295,
+        "question": "On Passage",
+        "billId": "119-hr-4795",
+        "nominationId": null,
+        "billRef": "H R 4795",
+        "occurredAt": "2026-09-03T14:24:00.000Z",
+        "state": "final",
+        "threshold": "majority",
+        "totals": {
+          "yea": 237,
+          "nay": 169,
+          "present": 0,
+          "notVoting": 27
+        },
+        "result": "Passed"
+      },
+      "position": "nay",
+      "choice": null,
+      "measure": {
+        "id": "119-hr-4795",
+        "kind": "bill",
+        "citation": "H.R. 4795",
+        "title": "Protect Economic and Academic Freedom Act of 2026"
+      }
+    },
+    {
+      "vote": {
+        "id": "house-119-2-294",
+        "kind": "question",
+        "candidates": [],
+        "chamber": "house",
+        "congress": 119,
+        "session": 2,
+        "rollNumber": 294,
+        "question": "On Passage",
+        "billId": "119-hr-1501",
+        "nominationId": null,
+        "billRef": "H R 1501",
+        "occurredAt": "2026-09-02T20:49:00.000Z",
+        "state": "final",
+        "threshold": "majority",
+        "totals": {
+          "yea": 218,
+          "nay": 201,
+          "present": 0,
+          "notVoting": 14
+        },
+        "result": "Passed"
+      },
+      "position": "nay",
+      "choice": null,
+      "measure": {
+        "id": "119-hr-1501",
+        "kind": "bill",
+        "citation": "H.R. 1501",
+        "title": "Protecting Domestic Mining Act of 2025"
+      }
+    },
+    {
+      "vote": {
+        "id": "house-119-2-293",
+        "kind": "question",
+        "candidates": [],
+        "chamber": "house",
+        "congress": 119,
+        "session": 2,
+        "rollNumber": 293,
+        "question": "On Motion to Suspend the Rules and Pass",
+        "billId": "119-hjres-1",
+        "nominationId": null,
+        "billRef": "H J RES 1",
+        "occurredAt": "2026-09-02T20:34:00.000Z",
+        "state": "final",
+        "threshold": "two_thirds",
+        "totals": {
+          "yea": 212,
+          "nay": 206,
+          "present": 0,
+          "notVoting": 15
+        },
+        "result": "Failed"
+      },
+      "position": "nay",
+      "choice": null,
+      "measure": {
+        "id": "119-hjres-1",
+        "kind": "bill",
+        "citation": "H.J.Res. 1",
+        "title": "Proposing an amendment to the Constitution of the United States to require that the Supreme Court of the United States be composed of nine justices."
+      }
+    },
+    {
+      "vote": {
+        "id": "house-119-2-292",
+        "kind": "question",
+        "candidates": [],
+        "chamber": "house",
+        "congress": 119,
+        "session": 2,
+        "rollNumber": 292,
+        "question": "On Agreeing to the Resolution",
+        "billId": "119-hres-1498",
+        "nominationId": null,
+        "billRef": "H RES 1498",
+        "occurredAt": "2026-09-01T22:09:00.000Z",
+        "state": "final",
+        "threshold": "majority",
+        "totals": {
+          "yea": 413,
+          "nay": 2,
+          "present": 0,
+          "notVoting": 17
+        },
+        "result": "Passed"
+      },
+      "position": "yea",
+      "choice": null,
+      "measure": {
+        "id": "119-hres-1498",
+        "kind": "bill",
+        "citation": "H.Res. 1498",
+        "title": "In the matter of allegations relating to Representative Chuck Edwards."
+      }
+    },
+    {
+      "vote": {
+        "id": "house-119-2-291",
+        "kind": "question",
+        "candidates": [],
+        "chamber": "house",
+        "congress": 119,
+        "session": 2,
+        "rollNumber": 291,
+        "question": "On Passage",
+        "billId": "119-hr-9436",
+        "nominationId": null,
+        "billRef": "H R 9436",
+        "occurredAt": "2026-09-01T22:00:00.000Z",
+        "state": "final",
+        "threshold": "majority",
+        "totals": {
+          "yea": 219,
+          "nay": 196,
+          "present": 0,
+          "notVoting": 17
+        },
+        "result": "Passed"
+      },
+      "position": "nay",
+      "choice": null,
+      "measure": {
+        "id": "119-hr-9436",
+        "kind": "bill",
+        "citation": "H.R. 9436",
+        "title": "Northeast Lobsterman Protection Act of 2026"
+      }
+    },
+    {
+      "vote": {
+        "id": "house-119-2-290",
+        "kind": "question",
+        "candidates": [],
+        "chamber": "house",
+        "congress": 119,
+        "session": 2,
+        "rollNumber": 290,
+        "question": "On Motion to Recommit",
+        "billId": "119-hr-9436",
+        "nominationId": null,
+        "billRef": "H R 9436",
+        "occurredAt": "2026-09-01T21:55:00.000Z",
+        "state": "final",
+        "threshold": "majority",
+        "totals": {
+          "yea": 202,
+          "nay": 212,
+          "present": 0,
+          "notVoting": 18
+        },
+        "result": "Failed"
+      },
+      "position": "yea",
+      "choice": null,
+      "measure": {
+        "id": "119-hr-9436",
+        "kind": "bill",
+        "citation": "H.R. 9436",
+        "title": "Northeast Lobsterman Protection Act of 2026"
+      }
+    },
+    {
+      "vote": {
+        "id": "house-119-2-289",
+        "kind": "question",
+        "candidates": [],
+        "chamber": "house",
+        "congress": 119,
+        "session": 2,
+        "rollNumber": 289,
+        "question": "On Agreeing to the Resolution",
+        "billId": "119-hres-1490",
+        "nominationId": null,
+        "billRef": "H RES 1490",
+        "occurredAt": "2026-09-01T21:47:00.000Z",
+        "state": "final",
+        "threshold": "majority",
+        "totals": {
+          "yea": 220,
+          "nay": 192,
+          "present": 2,
+          "notVoting": 18
+        },
+        "result": "Passed"
+      },
+      "position": "nay",
+      "choice": null,
+      "measure": {
+        "id": "119-hres-1490",
+        "kind": "bill",
+        "citation": "H.Res. 1490",
+        "title": "Providing for the condemnation and denouncement of socialism in all its forms, and for other purposes."
+      }
+    },
+    {
+      "vote": {
+        "id": "house-119-2-288",
+        "kind": "question",
+        "candidates": [],
+        "chamber": "house",
+        "congress": 119,
+        "session": 2,
+        "rollNumber": 288,
+        "question": "On Agreeing to the Resolution",
+        "billId": "119-hres-1499",
+        "nominationId": null,
+        "billRef": "H RES 1499",
+        "occurredAt": "2026-09-01T18:20:00.000Z",
+        "state": "final",
+        "threshold": "majority",
+        "totals": {
+          "yea": 210,
+          "nay": 208,
+          "present": 0,
+          "notVoting": 14
+        },
+        "result": "Passed"
+      },
+      "position": "nay",
+      "choice": null,
+      "measure": {
+        "id": "119-hres-1499",
+        "kind": "bill",
+        "citation": "H.Res. 1499",
+        "title": "Providing for consideration of the bill (H.R. 1501) to amend the FAST Act to include certain mineral production activities as a covered project, and for other purposes; providing for consideration of the bill (H.R. 9436) to amend the Consolidated Appropriations Act, 2023 to extend the time period for which certain regulations concerning the North Atlantic right whale are effective; providing for consideration of the resolution (H. Res. 1490) providing for the condemnation and denouncement of socialism in all its forms, and for other purposes; providing for consideration of the bill (H.R. 4795) to amend the Higher Education Act of 1965 to prohibit an institution that participates in a nonexpressive commercial boycott of Israel from being eligible for certain funds under that Act, to require an institution that participates in certain programs under that Act to certify that students are not unreasonably obstructed from participating in academic programs in Israel, and for other purposes; and relating to consideration of motions to suspend the rules."
+      }
+    },
+    {
+      "vote": {
+        "id": "house-119-2-287",
+        "kind": "question",
+        "candidates": [],
+        "chamber": "house",
+        "congress": 119,
+        "session": 2,
+        "rollNumber": 287,
+        "question": "On Ordering the Previous Question",
+        "billId": "119-hres-1499",
+        "nominationId": null,
+        "billRef": "H RES 1499",
+        "occurredAt": "2026-09-01T18:12:00.000Z",
+        "state": "final",
+        "threshold": "majority",
+        "totals": {
+          "yea": 212,
+          "nay": 205,
+          "present": 0,
+          "notVoting": 15
+        },
+        "result": "Passed"
+      },
+      "position": "nay",
+      "choice": null,
+      "measure": {
+        "id": "119-hres-1499",
+        "kind": "bill",
+        "citation": "H.Res. 1499",
+        "title": "Providing for consideration of the bill (H.R. 1501) to amend the FAST Act to include certain mineral production activities as a covered project, and for other purposes; providing for consideration of the bill (H.R. 9436) to amend the Consolidated Appropriations Act, 2023 to extend the time period for which certain regulations concerning the North Atlantic right whale are effective; providing for consideration of the resolution (H. Res. 1490) providing for the condemnation and denouncement of socialism in all its forms, and for other purposes; providing for consideration of the bill (H.R. 4795) to amend the Higher Education Act of 1965 to prohibit an institution that participates in a nonexpressive commercial boycott of Israel from being eligible for certain funds under that Act, to require an institution that participates in certain programs under that Act to certify that students are not unreasonably obstructed from participating in academic programs in Israel, and for other purposes; and relating to consideration of motions to suspend the rules."
+      }
+    },
+    {
+      "vote": {
+        "id": "house-119-2-286",
+        "kind": "question",
+        "candidates": [],
+        "chamber": "house",
+        "congress": 119,
+        "session": 2,
+        "rollNumber": 286,
+        "question": "On Motion to Suspend the Rules and Concur in the Senate Amendments",
+        "billId": "119-hr-6500",
+        "nominationId": null,
+        "billRef": "H R 6500",
+        "occurredAt": "2026-09-01T18:03:00.000Z",
+        "state": "final",
+        "threshold": "two_thirds",
+        "totals": {
+          "yea": 370,
+          "nay": 48,
+          "present": 0,
+          "notVoting": 14
+        },
+        "result": "Passed"
+      },
+      "position": "yea",
+      "choice": null,
+      "measure": {
+        "id": "119-hr-6500",
+        "kind": "bill",
+        "citation": "H.R. 6500",
+        "title": "AGOA Extension Act"
+      }
+    },
+    {
+      "vote": {
+        "id": "house-119-2-285",
+        "kind": "question",
+        "candidates": [],
+        "chamber": "house",
+        "congress": 119,
+        "session": 2,
+        "rollNumber": 285,
+        "question": "On Motion to Suspend the Rules and Pass",
+        "billId": "119-s-32",
+        "nominationId": null,
+        "billRef": "S 32",
+        "occurredAt": "2026-08-31T23:10:00.000Z",
+        "state": "final",
+        "threshold": "two_thirds",
+        "totals": {
+          "yea": 378,
+          "nay": 10,
+          "present": 0,
+          "notVoting": 42
+        },
+        "result": "Passed"
+      },
+      "position": "yea",
+      "choice": null,
+      "measure": {
+        "id": "119-s-32",
+        "kind": "bill",
+        "citation": "S. 32",
+        "title": "LACA"
+      }
+    },
+    {
+      "vote": {
+        "id": "house-119-2-284",
+        "kind": "question",
+        "candidates": [],
+        "chamber": "house",
+        "congress": 119,
+        "session": 2,
+        "rollNumber": 284,
+        "question": "On Motion to Suspend the Rules and Pass",
+        "billId": "119-s-307",
+        "nominationId": null,
+        "billRef": "S 307",
+        "occurredAt": "2026-08-31T22:56:00.000Z",
+        "state": "final",
+        "threshold": "two_thirds",
+        "totals": {
+          "yea": 376,
+          "nay": 8,
+          "present": 0,
+          "notVoting": 46
+        },
+        "result": "Passed"
+      },
+      "position": "yea",
+      "choice": null,
+      "measure": {
+        "id": "119-s-307",
+        "kind": "bill",
+        "citation": "S. 307",
+        "title": "Prison Staff Safety Enhancement Act"
+      }
+    },
+    {
+      "vote": {
+        "id": "house-119-2-283",
+        "kind": "question",
+        "candidates": [],
+        "chamber": "house",
+        "congress": 119,
+        "session": 2,
+        "rollNumber": 283,
+        "question": "On Passage",
+        "billId": "119-hr-8884",
+        "nominationId": null,
+        "billRef": "H R 8884",
+        "occurredAt": "2026-07-23T14:32:00.000Z",
+        "state": "final",
+        "threshold": "majority",
+        "totals": {
+          "yea": 232,
+          "nay": 188,
+          "present": 0,
+          "notVoting": 11
+        },
+        "result": "Passed"
+      },
+      "position": "nay",
+      "choice": null,
+      "measure": {
+        "id": "119-hr-8884",
+        "kind": "bill",
+        "citation": "H.R. 8884",
+        "title": "Removing Barriers to Work for Disabled Americans Act"
+      }
+    },
+    {
+      "vote": {
+        "id": "house-119-2-282",
+        "kind": "question",
+        "candidates": [],
+        "chamber": "house",
+        "congress": 119,
+        "session": 2,
+        "rollNumber": 282,
+        "question": "On Agreeing to the Resolution",
+        "billId": "119-hconres-89",
+        "nominationId": null,
+        "billRef": "H CON RES 89",
+        "occurredAt": "2026-07-23T14:24:00.000Z",
+        "state": "final",
+        "threshold": "majority",
+        "totals": {
+          "yea": 214,
+          "nay": 208,
+          "present": 0,
+          "notVoting": 9
+        },
+        "result": "Passed"
+      },
+      "position": "yea",
+      "choice": null,
+      "measure": {
+        "id": "119-hconres-89",
+        "kind": "bill",
+        "citation": "H.Con.Res. 89",
+        "title": "Directing the President, pursuant to section 5(c) of the War Powers Resolution, to remove United States Armed Forces from hostilities with Iran."
+      }
+    }
+  ]
+}

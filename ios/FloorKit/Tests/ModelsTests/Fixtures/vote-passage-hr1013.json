@@ -1,0 +1,61 @@
+{
+  "id": "house-119-2-321",
+  "kind": "question",
+  "candidates": [],
+  "chamber": "house",
+  "congress": 119,
+  "session": 2,
+  "rollNumber": 321,
+  "question": "On Passage",
+  "billId": "119-hr-1013",
+  "nominationId": null,
+  "billRef": "H R 1013",
+  "occurredAt": "2026-11-11T19:43:00.000Z",
+  "state": "final",
+  "threshold": "majority",
+  "totals": {
+    "yea": 295,
+    "nay": 128,
+    "present": 0,
+    "notVoting": 10
+  },
+  "result": "Passed",
+  "partyTotals": [
+    {
+      "party": "R",
+      "yea": 212,
+      "nay": 0,
+      "present": 0,
+      "notVoting": 7
+    },
+    {
+      "party": "D",
+      "yea": 83,
+      "nay": 128,
+      "present": 0,
+      "notVoting": 3
+    }
+  ],
+  "candidateTotals": [],
+  "positions": [
+    {
+      "member": {
+        "bioguideId": "J000294",
+        "firstName": "Hakeem",
+        "lastName": "Jeffries",
+        "party": "D",
+        "state": "NY",
+        "district": 8,
+        "chamber": "house"
+      },
+      "position": "nay",
+      "choice": null
+    }
+  ],
+  "measure": {
+    "id": "119-hr-1013",
+    "kind": "bill",
+    "citation": "H.R. 1013",
+    "title": "Retirement Fairness for Charities and Educational Institutions Act of 2025"
+  }
+}

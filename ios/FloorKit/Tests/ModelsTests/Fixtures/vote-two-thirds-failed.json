@@ -1,0 +1,61 @@
+{
+  "id": "house-119-2-293",
+  "kind": "question",
+  "candidates": [],
+  "chamber": "house",
+  "congress": 119,
+  "session": 2,
+  "rollNumber": 293,
+  "question": "On Motion to Suspend the Rules and Pass",
+  "billId": "119-hjres-1",
+  "nominationId": null,
+  "billRef": "H J RES 1",
+  "occurredAt": "2026-09-02T20:34:00.000Z",
+  "state": "final",
+  "threshold": "two_thirds",
+  "totals": {
+    "yea": 212,
+    "nay": 206,
+    "present": 0,
+    "notVoting": 15
+  },
+  "result": "Failed",
+  "partyTotals": [
+    {
+      "party": "R",
+      "yea": 211,
+      "nay": 1,
+      "present": 0,
+      "notVoting": 7
+    },
+    {
+      "party": "D",
+      "yea": 1,
+      "nay": 205,
+      "present": 0,
+      "notVoting": 8
+    }
+  ],
+  "candidateTotals": [],
+  "positions": [
+    {
+      "member": {
+        "bioguideId": "D000399",
+        "firstName": "Lloyd",
+        "lastName": "Doggett",
+        "party": "D",
+        "state": "TX",
+        "district": 37,
+        "chamber": "house"
+      },
+      "position": "nay",
+      "choice": null
+    }
+  ],
+  "measure": {
+    "id": "119-hjres-1",
+    "kind": "bill",
+    "citation": "H.J.Res. 1",
+    "title": "Proposing an amendment to the Constitution of the United States to require that the Supreme Court of the United States be composed of nine justices."
+  }
+}

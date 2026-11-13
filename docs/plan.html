@@ -275,6 +275,7 @@ flowchart LR
         <li>Swift packages (one <code>FloorKit</code> package, one library per area): <code>Models</code> (checked against the OpenAPI contract), <code>APIClient</code>, <code>DesignSystem</code> (scoreboard cards, crests, bars), and one per feature — built: <code>Onboarding</code>, <code>Home</code>, <code>VoteScreen</code>, <code>BillScreen</code>, <code>RepScreen</code>; still to come: <code>Realtime</code>, <code>Alerts</code>.</li>
         <li>The widget and Live Activity extensions share <code>Models</code> and <code>DesignSystem</code> through an App Group.</li>
         <li>Notification categories: vote opened, rep voted, bill passed or failed, scheduled vote reminder.</li>
+        <li>Navigation (v0.3.0): three tabs (Finals, Bills, Your three), each with its own stack. Display type is Barlow Condensed (OFL, bundled); colours stay in <code>Palette</code>. The screens follow the locked phone mocks in the design canvas.</li>
         <li>Tests: Swift Testing for models and parsers, snapshot tests for every card state (open, live tally, pending, final), and UI tests for onboarding.</li>
       </ul>
     </div>

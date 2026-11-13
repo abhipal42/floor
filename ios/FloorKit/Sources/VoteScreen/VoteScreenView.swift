@@ -1,13 +1,15 @@
 import APIClient
+import BillScreen
 import DesignSystem
 import Models
 import SwiftUI
 
-/// One vote in full: the score with each party's split, how close it came to its threshold, and how
-/// your own members voted.
+/// One vote, as the locked Vote mock draws it: a broadcast scoreboard, the threshold bar, the box
+/// score by party, your three, the bill's level of six, and the full roll as squares by party.
 ///
-/// Follows the v2 canvas's Matchup artboard minus what needs data we do not have — the live timer,
-/// pending-member count, projection and "what it means for you" block are M3 and M4.
+/// The mock's full roll says "tap a square to see who". The API reports a vote's party counts and
+/// your own members' positions, not every member's, so the squares here are counts and carry no
+/// names; the caption says what they are instead.
 public struct VoteScreenView: View {
     @State private var model: VoteScreenModel
     private let onOpenMeasure: (MeasureSummary) -> Void
@@ -15,10 +17,10 @@ public struct VoteScreenView: View {
 
     /// - Parameters:
     ///   - onOpenMeasure: pushes the bill or nomination this vote was on.
-    ///   - onOpenMember: pushes one of your own members' records.
+    ///   - onOpenMember: shows one of your own members' records.
     ///
-    /// Both are passed in rather than linked directly, so this package need not depend on the bill
-    /// or rep screens — the bill screen links back to votes, which would be a cycle.
+    /// Both are passed in rather than linked directly: the bill screen links back to votes, so the
+    /// navigation lives with whoever owns the stack.
     public init(
         model: VoteScreenModel,
         onOpenMeasure: @escaping (MeasureSummary) -> Void = { _ in },
@@ -34,7 +36,7 @@ public struct VoteScreenView: View {
             Palette.ground.ignoresSafeArea()
             content
         }
-        .task { await model.load() }
+        .task { if case .loading = model.phase { await model.load() } }
         .preferredColorScheme(.dark)
     }
 
@@ -57,329 +59,440 @@ public struct VoteScreenView: View {
         case let .loaded(detail):
             ScrollView {
                 VStack(alignment: .leading, spacing: 18) {
-                    header(detail)
                     if detail.vote.kind == .election {
                         electionBoard(detail)
+                        candidateTable(detail)
                     } else {
-                        scoreboard(detail)
-                        thresholdBar(detail)
+                        broadcast(detail)
+                        if let line = detail.vote.line { thresholdBar(line, detail.vote.totals) }
+                        boxScore(detail)
                     }
-                    if !detail.positions.isEmpty {
-                        yourMembers(detail)
-                    }
-                    partyTable(detail)
+                    yourThree(detail)
                     if let measure = detail.measure {
                         measureLink(measure)
                     }
+                    if detail.vote.kind == .question, !detail.rollParties.isEmpty {
+                        fullRoll(detail)
+                    }
                 }
                 .padding(.horizontal, 16)
-                .padding(.vertical, 18)
+                .padding(.top, 8)
+                .padding(.bottom, 32)
             }
-        }
-    }
-
-    private func header(_ detail: VoteDetail) -> some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Text(eyebrow(detail.vote))
-                .font(Typography.eyebrow)
-                .tracking(0.9)
-                .foregroundStyle(Palette.textMuted)
-            Text(detail.title)
-                .font(.system(size: 22, weight: .bold))
-                .foregroundStyle(Palette.text)
-                .fixedSize(horizontal: false, vertical: true)
-            if detail.measure != nil {
-                // The question is the headline only when there is no measure to name.
-                Text(detail.vote.question)
-                    .font(Typography.body)
-                    .foregroundStyle(Palette.textSecondary)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-            if let result = detail.vote.result {
-                Text(result.uppercased())
-                    .font(.system(size: 12, weight: .heavy))
-                    .tracking(0.6)
-                    .foregroundStyle(outcomeColor(detail))
-                    .padding(.horizontal, 10)
-                    .frame(height: 26)
-                    .background(outcomeColor(detail).opacity(0.14), in: .capsule)
-                    .padding(.top, 2)
-            }
-        }
-    }
-
-    private func eyebrow(_ vote: Vote) -> String {
-        var parts = [vote.chamber.rawValue.uppercased()]
-        if let roll = vote.rollNumber { parts.append("ROLL CALL \(roll)") }
-        if let date = vote.occurredAtDate {
-            parts.append(date.formatted(.dateTime.month(.abbreviated).day().year()).uppercased())
-        }
-        return parts.joined(separator: " · ")
-    }
-
-    private func outcomeColor(_ detail: VoteDetail) -> Color {
-        guard detail.vote.kind == .question else { return Palette.textSecondary }
-        return detail.votesShortOfThreshold == nil && detail.vote.leader == .yea
-            ? Palette.yea
-            : Palette.nay
-    }
-
-    private func scoreboard(_ detail: VoteDetail) -> some View {
-        HStack(spacing: 0) {
-            sideColumn(
-                label: "Yea", value: detail.vote.totals.yea, split: detail.partySplit(.yea),
-                color: Palette.yea, leading: detail.vote.leader != .nay
-            )
-            Rectangle()
-                .fill(Palette.track)
-                .frame(width: 1, height: 68)
-            sideColumn(
-                label: "Nay", value: detail.vote.totals.nay, split: detail.partySplit(.nay),
-                color: Palette.nay, leading: detail.vote.leader != .yea
-            )
-        }
-        .padding(.vertical, 18)
-        .background(Palette.card, in: .rect(cornerRadius: 22))
-        .overlay(RoundedRectangle(cornerRadius: 22).stroke(Palette.cardBorder, lineWidth: 1))
-    }
-
-    private func sideColumn(
-        label: String, value: Int, split: String, color: Color, leading: Bool
-    ) -> some View {
-        VStack(spacing: 4) {
-            Text(label)
-                .font(.system(size: 12, weight: .semibold))
-                .foregroundStyle(color)
-            Text("\(value)")
-                .font(Typography.score(52))
-                .monospacedDigit()
-                .foregroundStyle(leading ? Palette.text : Palette.trailing)
-                .lineLimit(1)
-                .minimumScaleFactor(0.6)
-            Text(split)
-                .font(.system(size: 12))
-                .foregroundStyle(Palette.textMuted)
-                .lineLimit(1)
-                .minimumScaleFactor(0.7)
-        }
-        .frame(maxWidth: .infinity)
-        .accessibilityElement(children: .combine)
-        .accessibilityLabel("\(label) \(value). \(split)")
-    }
-
-    private func thresholdBar(_ detail: VoteDetail) -> some View {
-        let totals = detail.vote.totals
-        let cast = max(totals.voting, 1)
-        let needed = detail.vote.votesNeeded
-        return VStack(alignment: .leading, spacing: 8) {
-            GeometryReader { geo in
-                let width = geo.size.width
-                ZStack(alignment: .leading) {
-                    Capsule().fill(Palette.track)
-                    HStack(spacing: 0) {
-                        Rectangle().fill(Palette.yea)
-                            .frame(width: width * CGFloat(totals.yea) / CGFloat(cast))
-                        Rectangle().fill(Palette.nay)
-                            .frame(width: width * CGFloat(totals.nay) / CGFloat(cast))
-                        Spacer(minLength: 0)
-                    }
-                    .clipShape(Capsule())
-                    // The line the winning side had to cross.
-                    Rectangle()
-                        .fill(Palette.text)
-                        .frame(width: 2, height: 16)
-                        .offset(x: min(width - 2, width * CGFloat(needed) / CGFloat(cast)))
+            .toolbar {
+                // The mocks show only the back link and this label; an empty principal item hides the
+                // screen's title, which still names the back link on the next screen.
+                ToolbarItem(placement: .principal) { Text(verbatim: " ").accessibilityHidden(true) }
+                ToolbarItem(placement: .primaryAction) {
+                    Text(rollLabel(detail.vote))
+                        .font(.system(size: 12))
+                        .foregroundStyle(Palette.textMuted)
+                        .fixedSize()
                 }
             }
-            .frame(height: 8)
+        }
+    }
 
-            HStack(spacing: 4) {
-                Text("Needed \(needed) of \(cast) cast")
-                if let short = detail.votesShortOfThreshold {
-                    Text("· \(short) short").foregroundStyle(Palette.nay)
+    private func rollLabel(_ vote: Vote) -> String {
+        [vote.chamber.name.uppercased(), vote.rollNumber.map { "ROLL \($0)" }].compactMap(\.self).joined(separator: " · ")
+    }
+
+    private func when(_ vote: Vote) -> String? {
+        vote.occurredAtDate?.formatted(.dateTime.month(.abbreviated).day().hour().minute())
+    }
+
+    // MARK: - Scoreboard
+
+    private func turf<Content: View>(@ViewBuilder _ content: () -> Content) -> some View {
+        content()
+            .background {
+                Canvas { context, size in
+                    var x: CGFloat = 0
+                    var alt = false
+                    while x < size.width {
+                        context.fill(Path(CGRect(x: x, y: 0, width: 48, height: size.height)),
+                                     with: .color(alt ? Palette.turfAlt : Palette.turf))
+                        x += 48
+                        alt.toggle()
+                    }
+                }
+            }
+            .clipShape(.rect(cornerRadius: 18))
+            .overlay(RoundedRectangle(cornerRadius: 18).stroke(Palette.turfBorder, lineWidth: 1))
+    }
+
+    private func broadcast(_ detail: VoteDetail) -> some View {
+        let vote = detail.vote
+        return turf {
+            VStack(spacing: 0) {
+                HStack {
+                    Text([vote.questionKind, when(vote)].compactMap(\.self).joined(separator: " · "))
+                        .foregroundStyle(Palette.textSecondary)
+                    Spacer()
+                    Text("NEEDED \(vote.votesNeeded)")
+                        .fontWeight(.semibold)
+                        .foregroundStyle(Palette.threshold)
+                }
+                .font(.system(size: 11))
+                .padding(.horizontal, 14)
+                .padding(.top, 14)
+                .padding(.bottom, 6)
+
+                HStack(alignment: .bottom, spacing: 22) {
+                    bigSide("YEA", vote.totals.yea, Palette.yea)
+                    SkewChip(vote.state == .final ? "FINAL" : "VOTING", size: 16)
+                        .padding(.bottom, 26)
+                    bigSide("NAY", vote.totals.nay, Palette.nay)
+                }
+                .padding(.horizontal, 10)
+                .padding(.top, 6)
+                .padding(.bottom, 14)
+
+                HStack(spacing: 0) {
+                    Text(vote.outcomeWord ?? "FINAL")
+                        .font(Typography.label(15))
+                        .foregroundStyle(Palette.ground)
+                        .padding(.horizontal, 12)
+                        .frame(maxHeight: .infinity)
+                        .background(Palette.outcome(vote.outcome))
+                    Text(detail.title)
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundStyle(Palette.text)
+                        .lineLimit(2)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 9)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .background(Palette.ground.opacity(0.92))
+                }
+                .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(
+            "\(vote.questionKind). \(detail.title). Yea \(vote.totals.yea), Nay \(vote.totals.nay). "
+                + "\(vote.outcomeWord?.capitalized ?? "Final"). Needed \(vote.votesNeeded)."
+        )
+    }
+
+    private func bigSide(_ label: String, _ value: Int, _ color: Color) -> some View {
+        VStack(spacing: 0) {
+            Text(label).font(Typography.label(14)).tracking(1.7).foregroundStyle(color)
+            Text("\(value)")
+                .font(Typography.display(96, weight: .blackItalic, scales: false))
+                .monospacedDigit()
+                .foregroundStyle(color)
+                .lineLimit(1)
+                .minimumScaleFactor(0.5)
+        }
+    }
+
+    private func thresholdBar(_ line: ThresholdLine, _ totals: VoteTotals) -> some View {
+        VStack(spacing: 8) {
+            ThresholdBar(line: line, height: 12)
+            HStack {
+                if let over = line.over {
+                    Text(over == 1 ? "1 vote over the line" : "\(over) votes over the line")
+                } else if let short = line.short {
+                    Text("\(short) short").foregroundStyle(Palette.nay)
                 }
                 Spacer()
-                if totals.notVoting > 0 {
-                    Text("\(totals.notVoting) did not vote")
-                }
+                if totals.notVoting > 0 { Text("\(totals.notVoting) did not vote") }
             }
             .font(.system(size: 12))
             .foregroundStyle(Palette.textMuted)
         }
+    }
+
+    private func boxScore(_ detail: VoteDetail) -> some View {
+        let present = detail.anyPresent
+        let totals = detail.vote.totals
+        return VStack(alignment: .leading, spacing: 6) {
+            Text("BOX SCORE").font(Typography.label(20)).foregroundStyle(Palette.text)
+            Grid(horizontalSpacing: 12, verticalSpacing: 0) {
+                GridRow {
+                    Text("TEAM").gridColumnAlignment(.leading)
+                    Text("YEA")
+                    Text("NAY")
+                    if present { Text("PRES") }
+                    Text("DNP")
+                }
+                .font(.system(size: 11, weight: .semibold))
+                .foregroundStyle(Palette.textMuted)
+                .padding(.vertical, 6)
+                ForEach(detail.boxScore) { row in
+                    Divider().overlay(Palette.panelBorder)
+                    GridRow {
+                        Text(PartyName.plural(row.party)).fontWeight(.semibold).foregroundStyle(Palette.text)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                        Text("\(row.yea)").fontWeight(.bold).foregroundStyle(Palette.yea)
+                        Text("\(row.nay)").fontWeight(.bold).foregroundStyle(Palette.nay)
+                        if present { Text("\(row.present)").foregroundStyle(Palette.textMuted) }
+                        Text("\(row.notVoting)").foregroundStyle(Palette.textMuted)
+                    }
+                    .font(.system(size: 14))
+                    .padding(.vertical, 9)
+                    .accessibilityElement(children: .ignore)
+                    .accessibilityLabel("\(PartyName.plural(row.party)): \(row.yea) yea, \(row.nay) nay, \(row.present) present, \(row.notVoting) did not play")
+                }
+                Divider().overlay(Palette.panelBorder)
+                GridRow {
+                    Text("TOTAL").frame(maxWidth: .infinity, alignment: .leading)
+                    Text("\(totals.yea)").foregroundStyle(Palette.yea)
+                    Text("\(totals.nay)").foregroundStyle(Palette.nay)
+                    if present { Text("\(totals.present)").foregroundStyle(Palette.textMuted) }
+                    Text("\(totals.notVoting)").foregroundStyle(Palette.textMuted)
+                }
+                .font(Typography.label(18))
+                .padding(.vertical, 9)
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel("Total: \(totals.yea) yea, \(totals.nay) nay, \(totals.notVoting) did not vote")
+            }
+            .monospacedDigit()
+            if let sentence = detail.crossoverSentence {
+                Text(sentence)
+                    .font(.system(size: 12))
+                    .foregroundStyle(Palette.textSecondary)
+                    .lineSpacing(3)
+                    .padding(.top, 4)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+        .panel()
+    }
+
+    // MARK: - Speaker election
+
+    private func electionBoard(_ detail: VoteDetail) -> some View {
+        let leaders = detail.candidatesByStrength.prefix(2)
+        let elected = detail.vote.electedSpeaker
+        return turf {
+            VStack(spacing: 0) {
+                HStack {
+                    Text([detail.vote.question, when(detail.vote)].compactMap(\.self).joined(separator: " · "))
+                        .foregroundStyle(Palette.textSecondary)
+                    Spacer()
+                    Text("MAJORITY OF NAMES CAST").fontWeight(.semibold).foregroundStyle(Palette.threshold)
+                }
+                .font(.system(size: 11))
+                .padding(.horizontal, 14)
+                .padding(.top, 14)
+                HStack(alignment: .bottom, spacing: 18) {
+                    ForEach(Array(leaders.enumerated()), id: \.element.candidate) { index, entry in
+                        VStack(spacing: 0) {
+                            Text(entry.candidate.uppercased()).font(Typography.label(14)).tracking(1.2)
+                                .foregroundStyle(Palette.textSecondary).lineLimit(1)
+                            Text("\(entry.total)")
+                                .font(Typography.display(80, weight: .blackItalic, scales: false))
+                                .foregroundStyle(index == 0 ? Palette.text : Palette.trailing)
+                                .lineLimit(1)
+                                .minimumScaleFactor(0.5)
+                        }
+                    }
+                }
+                .padding(.vertical, 14)
+                HStack(spacing: 0) {
+                    Text(elected == nil ? "NO WINNER" : "ELECTED")
+                        .font(Typography.label(15))
+                        .foregroundStyle(elected == nil ? Palette.text : Palette.ground)
+                        .padding(.horizontal, 12)
+                        .frame(maxHeight: .infinity)
+                        .background(elected == nil ? Palette.raised : Palette.yea)
+                    // Leading a ballot is not winning it: 17 of the 20 Speaker ballots since 2023
+                    // elected nobody (lesson 16).
+                    Text(elected.map { "\($0.name) elected Speaker" } ?? "No candidate reached a majority; the House balloted again.")
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundStyle(Palette.text)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 9)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .background(Palette.ground.opacity(0.92))
+                }
+                .fixedSize(horizontal: false, vertical: true)
+            }
+        }
         .accessibilityElement(children: .combine)
     }
 
-    private func electionBoard(_ detail: VoteDetail) -> some View {
-        VStack(alignment: .leading, spacing: 10) {
-            Text("Ballot")
-                .font(Typography.sectionTitle)
-                .foregroundStyle(Palette.text)
+    private func candidateTable(_ detail: VoteDetail) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text("BALLOT").font(Typography.label(20)).foregroundStyle(Palette.text)
             ForEach(detail.candidatesByStrength, id: \.candidate) { entry in
+                Divider().overlay(Palette.panelBorder)
                 HStack(spacing: 12) {
-                    Text(entry.candidate)
-                        .font(.system(size: 15, weight: .semibold))
-                        .foregroundStyle(Palette.text)
+                    Text(entry.candidate).font(.system(size: 14, weight: .semibold)).foregroundStyle(Palette.text)
                     Spacer(minLength: 8)
                     Text(entry.parties.map { "\($0.party) \($0.total)" }.joined(separator: " · "))
                         .font(.system(size: 12))
                         .foregroundStyle(Palette.textMuted)
-                    Text("\(entry.total)")
-                        .font(Typography.score(26))
-                        .monospacedDigit()
-                        .foregroundStyle(Palette.text)
+                    Text("\(entry.total)").font(Typography.label(18)).monospacedDigit().foregroundStyle(Palette.text)
                 }
-                .padding(.vertical, 10)
-                .padding(.horizontal, 14)
-                .background(Palette.card, in: .rect(cornerRadius: 16))
-            }
-            if let elected = detail.vote.electedSpeaker {
-                Text("\(elected.name) elected Speaker")
-                    .font(Typography.body)
-                    .foregroundStyle(Palette.yea)
-            } else {
-                // Most ballots of a contested election settle nothing, and the card must not imply
-                // the leader won.
-                Text("No candidate reached a majority; the House balloted again.")
-                    .font(Typography.body)
-                    .foregroundStyle(Palette.textMuted)
-                    .fixedSize(horizontal: false, vertical: true)
+                .padding(.vertical, 8)
+                .accessibilityElement(children: .combine)
             }
         }
+        .panel()
     }
 
-    private func yourMembers(_ detail: VoteDetail) -> some View {
-        VStack(alignment: .leading, spacing: 10) {
-            Text("Your members")
-                .font(Typography.sectionTitle)
-                .foregroundStyle(Palette.text)
+    // MARK: - Your three
+
+    private func yourThree(_ detail: VoteDetail) -> some View {
+        let note = detail.otherChamberNote(delegation: model.delegation)
+        return VStack(alignment: .leading, spacing: 10) {
+            Text("YOUR THREE").font(Typography.label(20)).foregroundStyle(Palette.text)
             ForEach(detail.positions) { position in
-                Button { onOpenMember(position.member) } label: {
-                    memberRow(position)
-                }
-                .buttonStyle(.plain)
+                Button { onOpenMember(position.member) } label: { memberRow(position, detail) }
+                    .buttonStyle(.plain)
             }
+            if detail.positions.isEmpty, note == nil {
+                Text("None of your members were on this roll call.")
+                    .font(.system(size: 13))
+                    .foregroundStyle(Palette.textMuted)
+            }
+            if let note {
+                HStack(spacing: 12) {
+                    ZStack {
+                        ForEach(Array(note.members.prefix(2).enumerated()), id: \.element.bioguideId) { index, member in
+                            MemberPortrait(member).frame(width: 40, height: 40).offset(x: CGFloat(index) * 10)
+                        }
+                    }
+                    .frame(width: 40 + CGFloat(min(note.members.count, 2) - 1) * 10, alignment: .leading)
+                    Text(note.text).font(.system(size: 13)).foregroundStyle(Palette.text)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                .opacity(0.55)
+                .accessibilityElement(children: .combine)
+            }
+        }
+        .panel()
+    }
+
+    private func memberRow(_ position: MemberPosition, _ detail: VoteDetail) -> some View {
+        let seat = position.member.chamber == .house
+            ? "House · \(position.member.state)-\(position.member.district.map { $0 == 0 ? "AL" : String($0) } ?? "")"
+            : "Senate · \(position.member.state)"
+        let sub = [seat, detail.withParty(position)].compactMap(\.self).joined(separator: " · ")
+        let label = position.position == .candidate ? (position.choice ?? "BALLOT").uppercased()
+            : (position.position == .notVoting ? "DNP" : position.position.shortLabel)
+        return HStack(spacing: 12) {
+            MemberPortrait(position.member).frame(width: 40, height: 40)
+            VStack(alignment: .leading, spacing: 1) {
+                Text(position.member.fullName).font(.system(size: 15, weight: .semibold)).foregroundStyle(Palette.text)
+                Text(sub).font(.system(size: 12)).foregroundStyle(Palette.textMuted)
+            }
+            Spacer(minLength: 8)
+            Text(label)
+                .font(Typography.display(24, weight: .blackItalic))
+                .foregroundStyle(Palette.position(position.position))
+                .lineLimit(1)
+                .minimumScaleFactor(0.6)
+        }
+        .contentShape(.rect)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("\(position.member.fullName), \(sub), \(label.capitalized)")
+        .accessibilityHint("Opens their record")
+    }
+
+    // MARK: - The bill
+
+    @ViewBuilder
+    private func measureLink(_ measure: MeasureSummary) -> some View {
+        if measure.kind == .bill {
+            Button { onOpenMeasure(measure) } label: { billCard(measure) }
+                .buttonStyle(.plain)
+        } else {
+            // A nomination has no screen of its own yet, so this is information, not a link.
+            VStack(alignment: .leading, spacing: 4) {
+                Text("THE NOMINATION · \(measure.citation)").font(.system(size: 11)).foregroundStyle(Palette.textMuted)
+                Text(measure.title).font(.system(size: 15, weight: .semibold)).foregroundStyle(Palette.text)
+            }
+            .panel()
         }
     }
 
-    private func memberRow(_ position: MemberPosition) -> some View {
-        HStack(spacing: 12) {
-                    Text(position.member.party)
-                        .font(.system(size: 12, weight: .bold))
-                        .foregroundStyle(Palette.party(position.member.party))
-                        .frame(width: 28, height: 28)
-                        .background(Palette.party(position.member.party).opacity(0.16), in: .circle)
-                    VStack(alignment: .leading, spacing: 1) {
-                        Text(position.member.fullName)
-                            .font(.system(size: 15, weight: .semibold))
-                            .foregroundStyle(Palette.text)
-                        Text(position.member.partyAndSeat)
-                            .font(.system(size: 12))
-                            .foregroundStyle(Palette.textMuted)
+    private func billCard(_ measure: MeasureSummary) -> some View {
+        let levels = model.bill.map(LawLevels.init(bill:))
+        return HStack(spacing: 12) {
+            VStack(alignment: .leading, spacing: 4) {
+                Text(levels.map { "THE BILL · LEVEL \($0.reached) OF 6" } ?? "THE BILL · \(measure.citation)")
+                    .font(.system(size: 11))
+                    .foregroundStyle(Palette.textMuted)
+                Text(levels?.sentence ?? measure.title)
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundStyle(Palette.text)
+                    .multilineTextAlignment(.leading)
+                    .fixedSize(horizontal: false, vertical: true)
+                if let levels {
+                    HStack(spacing: 3) {
+                        ForEach(levels.levels) { level in
+                            RoundedRectangle(cornerRadius: 2)
+                                .fill(level.state == .done ? Palette.yea
+                                      : (level.state == .stuck || level.state == .failed) ? Palette.nay : Palette.panelBorder)
+                                .frame(height: 5)
+                        }
                     }
-                    Spacer(minLength: 8)
-            Text(positionLabel(position))
-                .font(.system(size: 13, weight: .bold))
-                .foregroundStyle(positionColor(position.position))
-            Image(systemName: "chevron.right")
-                .font(.system(size: 11, weight: .bold))
+                    .padding(.top, 4)
+                }
+            }
+            Spacer(minLength: 0)
+            Text("›").font(.system(size: 20)).foregroundStyle(Palette.textMuted)
+        }
+        .panel()
+        .accessibilityElement(children: .combine)
+        .accessibilityHint("Opens the bill")
+    }
+
+    // MARK: - Full roll
+
+    private func fullRoll(_ detail: VoteDetail) -> some View {
+        let parties = detail.rollParties
+        let selected = parties.first { $0.party == model.rollParty } ?? parties[0]
+        return VStack(alignment: .leading, spacing: 10) {
+            HStack(alignment: .firstTextBaseline) {
+                Text("FULL ROLL").font(Typography.label(20)).foregroundStyle(Palette.text)
+                Spacer()
+                Text("\(detail.rollCount) members").font(.system(size: 12)).foregroundStyle(Palette.textMuted)
+            }
+            HStack(spacing: 6) {
+                ForEach(parties) { party in
+                    let on = party.party == selected.party
+                    Button { model.rollParty = party.party } label: {
+                        Text(PartyName.plural(party.party))
+                            .font(.system(size: 12, weight: .semibold))
+                            .foregroundStyle(on ? Palette.ground : Palette.textSecondary)
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 5)
+                            .background(on ? Palette.text : .clear, in: .rect(cornerRadius: 7))
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityAddTraits(on ? [.isSelected] : [])
+                }
+            }
+            LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 2), count: 22), spacing: 2) {
+                ForEach(Array(selected.squares.enumerated()), id: \.offset) { _, position in
+                    RoundedRectangle(cornerRadius: 2)
+                        .fill(squareColor(position))
+                        .aspectRatio(1, contentMode: .fit)
+                }
+            }
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel(
+                "\(PartyName.plural(selected.party)): \(selected.yea) yea, \(selected.nay) nay, "
+                    + "\(selected.present) present, \(selected.notVoting) did not vote"
+            )
+            Text("One square per member, by count: yea · nay · present · did not vote.")
+                .font(.system(size: 12))
                 .foregroundStyle(Palette.textMuted)
         }
-        .padding(14)
-        .background(Palette.card, in: .rect(cornerRadius: 18))
-        .accessibilityElement(children: .combine)
-        .accessibilityLabel("\(position.member.fullName) \(positionLabel(position))")
+        .panel()
     }
 
-    private func positionLabel(_ position: MemberPosition) -> String {
-        switch position.position {
-        case .yea: "Yea"
-        case .nay: "Nay"
-        case .present: "Present"
-        case .notVoting: "Did not vote"
-        case .candidate: position.choice ?? "Candidate"
-        }
-    }
-
-    private func positionColor(_ position: Position) -> Color {
+    private func squareColor(_ position: Position) -> Color {
         switch position {
         case .yea: Palette.yea
         case .nay: Palette.nay
-        case .present, .notVoting: Palette.textMuted
-        case .candidate: Palette.text
+        case .present: Palette.textMuted
+        case .notVoting, .candidate: Palette.raised
         }
-    }
-
-    private func partyTable(_ detail: VoteDetail) -> some View {
-        VStack(alignment: .leading, spacing: 10) {
-            Text("By party")
-                .font(Typography.sectionTitle)
-                .foregroundStyle(Palette.text)
-            VStack(spacing: 0) {
-                ForEach(Array(detail.significantParties.enumerated()), id: \.element.party) { index, row in
-                    if index > 0 { Divider().overlay(Palette.track) }
-                    HStack(spacing: 10) {
-                        Text(row.party)
-                            .font(.system(size: 12, weight: .bold))
-                            .foregroundStyle(Palette.party(row.party))
-                            .frame(width: 28, height: 28)
-                            .background(Palette.party(row.party).opacity(0.16), in: .circle)
-                        cell("Yea", row.yea, Palette.yea)
-                        cell("Nay", row.nay, Palette.nay)
-                        cell("Present", row.present, Palette.textMuted)
-                        cell("Absent", row.notVoting, Palette.textMuted)
-                    }
-                    .padding(.horizontal, 14)
-                    .padding(.vertical, 12)
-                    .accessibilityElement(children: .combine)
-                    .accessibilityLabel(
-                        "\(row.party): \(row.yea) yea, \(row.nay) nay, \(row.present) present, \(row.notVoting) did not vote"
-                    )
-                }
-            }
-            .background(Palette.card, in: .rect(cornerRadius: 18))
-            .overlay(RoundedRectangle(cornerRadius: 18).stroke(Palette.cardBorder, lineWidth: 1))
-        }
-    }
-
-    private func measureLink(_ measure: MeasureSummary) -> some View {
-        Button { onOpenMeasure(measure) } label: {
-            HStack(spacing: 10) {
-                Image(systemName: measure.kind == .bill ? "doc.text" : "person.crop.square")
-                    .font(.system(size: 14))
-                    .foregroundStyle(Palette.accent)
-                VStack(alignment: .leading, spacing: 1) {
-                    Text(measure.kind == .bill ? "The bill" : "The nomination")
-                        .font(.system(size: 14, weight: .semibold))
-                        .foregroundStyle(Palette.text)
-                    Text(measure.citation)
-                        .font(.system(size: 12))
-                        .foregroundStyle(Palette.textMuted)
-                }
-                Spacer(minLength: 8)
-                Image(systemName: "chevron.right")
-                    .font(.system(size: 11, weight: .bold))
-                    .foregroundStyle(Palette.textMuted)
-            }
-            .padding(14)
-            .background(Palette.card, in: .rect(cornerRadius: 16))
-        }
-        .buttonStyle(.plain)
-        // A nomination has no screen yet, so only offer the one that does.
-        .disabled(measure.kind != .bill)
-        .opacity(measure.kind == .bill ? 1 : 0.5)
-    }
-
-    private func cell(_ label: String, _ value: Int, _ color: Color) -> some View {
-        VStack(spacing: 2) {
-            Text("\(value)")
-                .font(.system(size: 16, weight: .semibold))
-                .monospacedDigit()
-                .foregroundStyle(value > 0 ? Palette.text : Palette.trailing)
-            Text(label)
-                .font(.system(size: 10))
-                .foregroundStyle(color)
-        }
-        .frame(maxWidth: .infinity)
     }
 }
 
@@ -388,8 +501,8 @@ public struct VoteScreenView: View {
     NavigationStack {
         VoteScreenView(
             model: VoteScreenModel(
-                voteId: "house-119-1-100",
-                memberIds: ["A000370", "K000401"],
+                voteId: "house-119-2-321",
+                memberIds: ["J000294", "S000148", "G000555"],
                 api: FloorAPI(baseURL: FloorAPI.localDevelopment)
             )
         )
