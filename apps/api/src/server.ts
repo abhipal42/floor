@@ -1,7 +1,7 @@
 import { serve } from "@hono/node-server";
 import pg from "pg";
 import { createApp, type AppDeps } from "./app.js";
-import { geocodeDistrict } from "./district.js";
+import { locateDistrict } from "./district.js";
 import { pgRepositories, type Db } from "./pg.js";
 
 const CONGRESS = Number(process.env.CONGRESS ?? 119);
@@ -31,7 +31,7 @@ function repositories(): Pick<AppDeps, "votes" | "members" | "bills" | "nominati
 
 const app = createApp({
   ...repositories(),
-  geocode: (address) => geocodeDistrict(address, CONGRESS),
+  locate: (place) => locateDistrict(place, CONGRESS),
 });
 const port = Number(process.env.PORT ?? 8787);
 

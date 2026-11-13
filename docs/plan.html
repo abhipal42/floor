@@ -275,7 +275,7 @@ flowchart LR
         <li>Swift packages (one <code>FloorKit</code> package, one library per area): <code>Models</code> (checked against the OpenAPI contract), <code>APIClient</code>, <code>DesignSystem</code> (scoreboard cards, crests, bars), and one per feature — built: <code>Onboarding</code>, <code>Home</code>, <code>VoteScreen</code>, <code>BillScreen</code>, <code>RepScreen</code>; still to come: <code>Realtime</code>, <code>Alerts</code>.</li>
         <li>The widget and Live Activity extensions share <code>Models</code> and <code>DesignSystem</code> through an App Group.</li>
         <li>Notification categories: vote opened, rep voted, bill passed or failed, scheduled vote reminder.</li>
-        <li>Navigation (v0.3.0): three tabs (Finals, Bills, Your three), each with its own stack. Display type is Barlow Condensed (OFL, bundled); colours stay in <code>Palette</code>. The screens follow the locked phone mocks in the design canvas.</li>
+        <li>Navigation (v0.2.3): three tabs (Finals, Bills, Your three), each with its own stack. Display type is Barlow Condensed (OFL, bundled); colours stay in <code>Palette</code>. The screens follow the locked phone mocks in the design canvas.</li>
         <li>Tests: Swift Testing for models and parsers, snapshot tests for every card state (open, live tally, pending, final), and UI tests for onboarding.</li>
       </ul>
     </div>
@@ -312,6 +312,7 @@ flowchart LR
     <div class="m"><span class="id">M3</span><div><h3>Live layer</h3><p>Session-aware floor polling, vote open/close events, realtime channels, APNs, Live Activities and widgets. Measure real Clerk and LIS roll call posting latency, which needs polling running on a live session day. Prototype the House tally OCR and decide go/no-go on it.</p><p class="exit">Exit: during a real House vote, the phone shows "vote open" in under 30 s and your rep's vote in under 60 s after the roll call posts.</p></div></div>
     <div class="m"><span class="id">M4</span><div><h3>Understanding: AI + projections</h3><p>Layer 1 and Layer 2 AI analysis with citations and the eval set. Projection model v1 with backtest and calibration page. Optional market odds line.</p><p class="exit">Exit: the eval set passes the factuality bar; projections beat the party-line baseline on backtest.</p></div></div>
     <div class="m"><span class="id">M5</span><div><h3>Beta hardening and App Store</h3><p>Accessibility (Dynamic Type, VoiceOver on score cards), privacy labels, a load test for vote-night spikes, App Review prep, public TestFlight. The web landing page was built early, in v0.2.0 (<code>apps/web</code>).</p><p class="exit">Exit: submitted to App Review.</p></div></div>
+    <div class="m"><span class="id">v0.3.0</span><div><h3>Your members on the web</h3><p>In progress, alongside M2. Location → your members on the landing page; live finals, scouting report and player cards from the API; campaign finance for every member from OpenFEC; donor context from Senate LDA lobbying filings; a financial-disclosure spike (PDF parsing and the 5 U.S.C. §13107 commercial-use question) before any build.</p><p class="exit">Exit: the landing page shows the visitor's own three members, with real data or a visible placeholder in every section.</p></div></div>
   </div>
 </section>
 

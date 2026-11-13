@@ -1,6 +1,6 @@
 import { OpenAPIHono, createRoute, z } from "@hono/zod-openapi";
 import { cors } from "hono/cors";
-import type { DistrictMatch } from "./district.js";
+import type { DistrictMatch, Place } from "./district.js";
 import { rateLimit, type LimitStore } from "./limit.js";
 
 /*
@@ -338,7 +338,8 @@ export interface AppDeps {
   nominations: NominationRepository;
   status: StatusRepository;
   now?: () => Date;
-  geocode: (address: string) => Promise<DistrictMatch | null>;
+  /** Resolves an address or coordinates to a district (the Census geocoder in production). */
+  locate: (place: Place) => Promise<DistrictMatch | null>;
   /**
    * Browser origins allowed to call the API. The iOS app is not a browser and is unaffected either
    * way; this is for a future web client and for anyone poking at the docs. Omitted or empty means
@@ -388,20 +389,39 @@ const getVoteRoute = createRoute({
 const getRepsRoute = createRoute({
   method: "get",
   path: "/v1/reps",
-  summary: "Find your district and members of Congress from an address",
-  description: "The address is sent to the U.S. Census geocoder and is not stored or logged.",
+  summary: "Find your district and members of Congress from an address or your location",
+  description:
+    "Send either `address`, or `lat` and `lng` (for example from the browser's location). Coordinates are " +
+    "rounded to 4 decimal places (about 11 m). Either is sent to the U.S. Census geocoder and is not stored or logged.",
   request: {
     query: z.object({
       address: z
         .string()
         .min(5, "Enter a street address, city and state")
         .max(200)
+        .optional()
         .openapi({ example: "1100 Congress Ave, Austin, TX 78701" }),
+      lat: z.coerce
+        .number()
+        .min(-90, "lat must be between -90 and 90")
+        .max(90, "lat must be between -90 and 90")
+        .optional()
+        .openapi({ example: 30.2747 }),
+      lng: z.coerce
+        .number()
+        .min(-180, "lng must be between -180 and 180")
+        .max(180, "lng must be between -180 and 180")
+        .optional()
+        .openapi({ example: -97.7404 }),
     }),
   },
   responses: {
     200: { content: { "application/json": { schema: RepsSchema } }, description: "Your district and members" },
-    404: { content: { "application/json": { schema: ErrorSchema } }, description: "Address not found" },
+    400: {
+      content: { "application/json": { schema: ErrorSchema } },
+      description: "Neither or both of an address and coordinates, or values out of range",
+    },
+    404: { content: { "application/json": { schema: ErrorSchema } }, description: "Place not in a U.S. congressional district" },
   },
 });
 
@@ -542,10 +562,26 @@ export function createApp(deps: AppDeps) {
   });
 
   app.openapi(getRepsRoute, async (c) => {
-    const { address } = c.req.valid("query");
-    const match = await deps.geocode(address);
+    const { address, lat, lng } = c.req.valid("query");
+    const hasCoordinates = lat !== undefined || lng !== undefined;
+    if (address !== undefined && hasCoordinates) {
+      return c.json({ error: "Send either an address or lat and lng, not both." }, 400);
+    }
+    if (address === undefined && (lat === undefined || lng === undefined)) {
+      return c.json({ error: "Send an address, or both lat and lng." }, 400);
+    }
+    const place: Place = address !== undefined ? { address } : { lat: lat!, lng: lng! };
+    const match = await deps.locate(place);
     if (!match) {
-      return c.json({ error: "We couldn't find that address. Try adding the city, state and ZIP code." }, 404);
+      return c.json(
+        {
+          error:
+            "address" in place
+              ? "We couldn't find that address. Try adding the city, state and ZIP code."
+              : "That location isn't in a U.S. congressional district. Try entering an address instead.",
+        },
+        404,
+      );
     }
     const members = await deps.members.membersFor(match.state, match.district);
     return c.json(

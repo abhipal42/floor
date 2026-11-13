@@ -4,7 +4,7 @@ Last updated 2026-11-12. Read this first, then [`plan.md`](plan.md) for the full
 
 **In one paragraph:** M0 (foundation) is done. M1 (data backbone) is done; the one item still open against it, measured posting latency, has moved to M3, because it can only be taken on a live session day with polling running. Staging Postgres holds every House and Senate roll call since January 2023, and every one matches the official totals; every vote now has a subject attached, bills and nominations alike. The API serves district lookup, member votes, votes, bills, nominations and data freshness from that database, and now also the per-party breakdown of a vote, your own delegation's positions on it, and a member's party-loyalty record. **M2 is nearly done:** the API is deployed at <https://floor-api.vercel.app> and a Release build of
 the app runs the whole flow against it — onboarding to a real district, then Home, Vote, Bill and
-Rep. Since v0.3.0 those screens match the landing page (three tabs: Finals, Bills, Your three). Three
+Rep. Since v0.2.3 those screens match the landing page (three tabs: Finals, Bills, Your three). Three
 items remain, listed at the top of the M2 section: a SwiftData offline cache, snapshot tests, and
 TestFlight distribution.
 
@@ -81,7 +81,7 @@ Command Line Tools rather than Xcode: run it with `DEVELOPER_DIR=/Applications/X
 
 | Route | Returns |
 |---|---|
-| `GET /v1/reps?address=` | District (119th Congress map) + House member + senators. The address goes only to the Census geocoder and isn't stored or logged. |
+| `GET /v1/reps?address=` or `?lat=&lng=` | District (119th Congress map) + House member + senators. Send an address *or* coordinates (e.g. from the browser's location), not both. Coordinates are rounded to 4 decimals (~11 m). Either goes only to the Census geocoder and isn't stored or logged. |
 | `GET /v1/members/{id}` | A member, plus how often they sided with their own party's majority |
 | `GET /v1/members/{bioguideId}/votes?limit=` | A member's recent votes with their position (and candidate, for Speaker elections) |
 | `GET /v1/votes/{id}` | One vote: totals, threshold, kind, bill link, **per-party breakdown**, and for a Speaker election **which candidate each party backed**. `?members=A000370,C001098` (up to ten) also returns those members' own positions, so the vote screen loads your delegation in one round trip. IDs look like `house-119-1-100` |
@@ -179,17 +179,22 @@ Real data broke our first assumptions several times. Each case below is now hand
    only component carrying component-level nullability. Check how a component is used before widening
    that list.
 18. **Applying migrations to staging:** apply each new file in `supabase/migrations` in order (Supabase SQL editor or `supabase db push`). Tests run all migrations against PGlite, so a migration that breaks shows up in `npm run check` first.
-19. **Portraits come from `unitedstates.github.io/images/congress/<size>/<bioguide>.jpg`.** The
+19. **The Census coordinates lookup answers in a different shape.** `geographies/coordinates` puts
+    the layers straight on `result.geographies`; `geographies/onelineaddress` nests them under
+    `result.addressMatches[0].geographies`. A point outside the U.S. (we checked London) is not an
+    error: it comes back `200` with an empty `geographies` object. `parseCensusDistrict` reads
+    both shapes and returns null for the empty one, which `/v1/reps` turns into a 404.
+20. **Portraits come from `unitedstates.github.io/images/congress/<size>/<bioguide>.jpg`.** The
     `theunitedstates.io` host for the same project failed its TLS handshake from here (2026-11-12).
-20. **A `.safeAreaInset` on a `NavigationStack` does not reach the screens pushed onto it.** The
+21. **A `.safeAreaInset` on a `NavigationStack` does not reach the screens pushed onto it.** The
     floating tab bar covered the bottom of every pushed Vote and Bill screen until the inset moved
     onto each screen itself.
-21. **The count and the record can disagree, and the record wins.** A Vice President breaks a 50–50
+22. **The count and the record can disagree, and the record wins.** A Vice President breaks a 50–50
     tie ("Motion Agreed to"), a unanimous-consent agreement sets 60 on a vote the API reports as
     majority, and the arithmetic counts "present" where the House doesn't. `ThresholdLine` then
     reports `contradicted` and no over/short, so nothing prints "1 short" under AGREED. And
     **"Veto Sustained" is a failure**: the veto stands and the override lost. Found by review of
-    v0.3.0, not by data, so watch real results for wordings the lists in `recordedOutcome` miss.
+    v0.2.3, not by data, so watch real results for wordings the lists in `recordedOutcome` miss.
 
 ---
 
@@ -239,7 +244,7 @@ The working rhythm: break each milestone into tasks. For each task, write tests 
 > Vote, Bill and Your three, all on real data — but three items from the list below are still open
 > (item 1 is kept for the record):
 >
-> 1. ~~**The Speaker election card on Home.**~~ **Done in v0.3.0** (`ScoreboardCard`'s Speaker-ballot
+> 1. ~~**The Speaker election card on Home.**~~ **Done in v0.2.3** (`ScoreboardCard`'s Speaker-ballot
 >    variant, "MAJORITY OF NAMES"). What it was: Built on the Vote screen, never on the feed. `HomeView`
 >    hands every vote to `ScoreboardCard`, and a Speaker ballot has `yea: 0, nay: 0`, so it renders
 >    as "0 … Final … 0, Needs 1" — a meaningless card, under a row summary that is correct
@@ -408,7 +413,7 @@ the product rules they settled are in `CLAUDE.md` › Product rules). What to kn
   bulk index. Disclosures report value **ranges** and omit homes, which is why the page shows ranges.
 - **Forms are inert.** Beta sign-up and address entry show "opens soon" until there is a backend.
 
-### The app redesign (v0.3.0)
+### The app redesign (v0.2.3)
 
 The iOS screens were rebuilt to the phone mocks in round 6 of the same canvas
 (<https://claude.ai/artifact/FKWYDhCej75UPy94csYLsU>): `AppOnboarding`, `AppHome`, `AppVote`, `AppBill`,
@@ -429,6 +434,31 @@ build differs from the mocks, and why:
   60 or two-thirds; Signed is always marked (veto override).
 - **"Winning side" is the outcome, not the larger side** (`sidedWithOutcome`). They differ when a
   majority loses to a threshold — H.J.Res. 1 lost 212–206.
+
+### v0.3.0: Your members on the web (in progress)
+
+**Goal:** the landing page shows *your* three members, found from your location, instead of the
+fixed New York demo (Jeffries, Schumer, Gillibrand). Approved by Sourav on 2026-11-12. Intermediate
+steps ship as 0.2.x PATCH releases; 0.3.0 closes the milestone with its retro.
+
+1. **Location → your members (API).** Landed in 0.2.2: `/v1/reps?lat=&lng=`. Still needed before the
+   site can call it: `https://floor-web-seven.vercel.app` in `ALLOWED_ORIGINS` on the `floor-api`
+   Vercel project, then a redeploy (someone on the Abtanix Labs team).
+2. **Mock for Ishan.** The location prompt, the "your members" switcher, and the loading, denied,
+   not-found and no-data states, as a claude.ai artifact. The web UI work waits for his lock
+   (`CLAUDE.md` › Large UI changes).
+3. **Sections the API already serves:** five finals (how *your* members voted), scouting report
+   (last 40 roll calls), player cards (party loyalty).
+4. **Campaign finance for every member** from OpenFEC: principal committee totals (small-dollar,
+   itemized, PAC, other, cash on hand) and the biggest PAC checks with FEC's organization type as the
+   "kind". Ingest, table, API route, section.
+5. **Donor context** from Senate LDA lobbying filings (what each PAC's organization lobbies on),
+   matched to the member's votes by topic. The plain-English "who they are" lines are AI-written and
+   wait for M4's label-and-cite pipeline.
+6. **Financial disclosures: spike first.** House filings are PDFs (some scanned); Senate eFD has no
+   bulk index. 5 U.S.C. §13107 bars using these reports for commercial purposes other than news
+   media, so the spike reports both what parses reliably and the open legal question before any
+   build.
 
 ### M5: Beta hardening + App Store
 Accessibility (Dynamic Type, VoiceOver on score cards), privacy labels, a vote-night load test, App Review prep, public TestFlight.

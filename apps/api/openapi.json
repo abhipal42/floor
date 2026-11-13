@@ -919,8 +919,8 @@
     },
     "/v1/reps": {
       "get": {
-        "summary": "Find your district and members of Congress from an address",
-        "description": "The address is sent to the U.S. Census geocoder and is not stored or logged.",
+        "summary": "Find your district and members of Congress from an address or your location",
+        "description": "Send either `address`, or `lat` and `lng` (for example from the browser's location). Coordinates are rounded to 4 decimal places (about 11 m). Either is sent to the U.S. Census geocoder and is not stored or logged.",
         "parameters": [
           {
             "schema": {
@@ -929,8 +929,32 @@
               "maxLength": 200,
               "example": "1100 Congress Ave, Austin, TX 78701"
             },
-            "required": true,
+            "required": false,
             "name": "address",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "number",
+              "nullable": true,
+              "minimum": -90,
+              "maximum": 90,
+              "example": 30.2747
+            },
+            "required": false,
+            "name": "lat",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "number",
+              "nullable": true,
+              "minimum": -180,
+              "maximum": 180,
+              "example": -97.7404
+            },
+            "required": false,
+            "name": "lng",
             "in": "query"
           }
         ],
@@ -945,8 +969,18 @@
               }
             }
           },
+          "400": {
+            "description": "Neither or both of an address and coordinates, or values out of range",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
           "404": {
-            "description": "Address not found",
+            "description": "Place not in a U.S. congressional district",
             "content": {
               "application/json": {
                 "schema": {

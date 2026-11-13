@@ -3,7 +3,7 @@ import { createApp, REPS_RATE_LIMIT, type AppDeps } from "./app.js";
 import { MemoryLimitStore } from "./limit.js";
 
 /** Repositories that answer nothing; these tests only exercise the middleware. */
-const empty: Omit<AppDeps, "geocode"> = {
+const empty: Omit<AppDeps, "locate"> = {
   votes: {
     getVote: async () => null,
     voteBreakdown: async () => ({ partyTotals: [], candidateTotals: [], positions: [], measure: null }),
@@ -27,7 +27,7 @@ function appWith(options: { origins?: string[]; now?: () => Date } = {}) {
     allowedOrigins: options.origins,
     limitStore: new MemoryLimitStore(),
     now: options.now,
-    geocode: async () => {
+    locate: async () => {
       geocodeCalls++;
       return { congress: 119, state: "TX", stateFips: "48", district: 37, countyFips: "48453" };
     },
