@@ -243,7 +243,10 @@ Real data broke our first assumptions several times. Each case below is now hand
     this Mac's Xcode-beta has no Simulator.app GUI, so nothing can tap the app (`simctl` cannot);
     and the deployed API answered 500 on `/v1/members/…` on 2026-11-13 while the cache was being
     checked, so do not assume it is up.
-28. **A delegation is not always three, and district 0 means two things.** `/v1/reps` for D.C.
+28. **The local web server lets the browser cache.** `serve.mjs` sends no cache headers, so after a
+    rebuild a normal reload kept the old CSS and title. Hard-reload (Ctrl+Shift+R) before judging a
+    change at `localhost:8790`; the deployed site is unaffected.
+29. **A delegation is not always three, and district 0 means two things.** `/v1/reps` for D.C.
     (38.8977, −77.0365) returns one member — Norton, `chamber: house`, `district: 0` — and no
     senators; Wyoming's at-large seat (Cheyenne) is also `district: 0`, with two senators. Code that
     printed the number straight out wrote "R-WY-0" and "D-DC-0". Use `Member.seatBadge` /
@@ -251,14 +254,14 @@ Real data broke our first assumptions several times. Each case below is now hand
     cases, rather than formatting `district` by hand. Norton's House record is real — 616
     party-counted votes, nearly all "On Agreeing to the Amendment" — because delegates vote in the
     Committee of the Whole but not on passage.
-29. **XcodeGen writes its own version numbers unless told not to.** With `info.properties` set and no
+30. **XcodeGen writes its own version numbers unless told not to.** With `info.properties` set and no
     `CFBundleShortVersionString`, the generated `Info.plist` said `1.0` / `1`, so a build reported
     1.0 whatever `MARKETING_VERSION` was. `project.yml` now maps both keys to `$(MARKETING_VERSION)`
     and `$(CURRENT_PROJECT_VERSION)`; check the built app's plist, not the spec, if it ever looks off.
-30. **`CLLocationManager` calls `locationManagerDidChangeAuthorization` the moment its delegate is
+31. **`CLLocationManager` calls `locationManagerDidChangeAuthorization` the moment its delegate is
     set**, with `.notDetermined`. A permission request that resumes on the first callback returns
     before the person has answered. `CoreLocationProvider` waits for a determined status.
-31. **A mock's faint grey can fail the contrast test it was never measured against.** LocApp's
+32. **A mock's faint grey can fail the contrast test it was never measured against.** LocApp's
     privacy line is `#6B7280`, which reads at 4.1:1 on the dark ground and 3.3:1 on a card. As a
     text token it would fail `PaletteTests`, so `textFaint` is `#858B95` in dark (5.8:1 on the
     ground) and `#636E69` in light (4.6:1). Check a new text colour against the ground, panels and
@@ -659,6 +662,28 @@ the product rules they settled are in `CLAUDE.md` › Product rules). What to kn
   bulk index. Disclosures report value **ranges** and omit homes, which is why the page shows ranges.
 - **The bottom form is inert.** Beta sign-up at the foot of the page shows "opens soon" until there
   is a backend. (Address entry that works is in the strip at the top.)
+
+### Landing page round (v0.2.11)
+
+- **Hero:** stacked and centred, built to <https://claude.ai/artifact/3Qk6vGVNnJ7h9gDjyXjJP9>
+  (option C). The finals board is 24 flaps wide with at most 20 characters a line, so the text always
+  has blank flaps either side; cells size from the board's width with container query units
+  (`100cqi`), and phones (≤600px) hide the four padding flaps.
+- **Road to law:** a sticky title and six-stop map beside one road of level cards, built to
+  <https://claude.ai/artifact/WgULeauwdE8usqmXcXRkwT>. `levelCards()` in `main.ts` renders it and
+  tracks the current level on scroll (rAF-throttled) through `activeLevel()`. Below 900px the aside
+  is `display: contents` so its strip can stay stuck for the whole road.
+- **Design context for agents:** `apps/web/PRODUCT.md` (users, purpose, binding voice and product
+  rules) and `apps/web/DESIGN.md` (the dark "Night Game Broadcast" tokens as shipped). The light mode
+  and Congress patina are designed elsewhere; when they land, re-run `/impeccable document` so
+  DESIGN.md matches the code.
+- **Editing copy visually:** `/impeccable live` (config in `apps/web/.impeccable/live/config.json`;
+  `apps/web/.gitignore` keeps its runtime files out) injects a helper script into
+  `public/index.html` while it runs; `impeccable live-server stop` removes it. Never commit with the
+  `impeccable-live-start` block present. Rebuild (`npm run build -w @floor/web`) after each edit,
+  since `serve` serves `dist/`.
+- The unbuilt part of the mock is a **section rail** (a strip under the header naming the current
+  section, for every section). It was offered and skipped; the mock still has the toggle.
 
 ### The app redesign (v0.2.3)
 

@@ -46,7 +46,7 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: app.floor.ios
         SWIFT_VERSION: "6.0"
-        MARKETING_VERSION: "0.2.11"
+        MARKETING_VERSION: "0.2.12"
         CURRENT_PROJECT_VERSION: "1"
       configs:
         debug:

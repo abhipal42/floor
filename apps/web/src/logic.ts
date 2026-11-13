@@ -1,12 +1,27 @@
 // Pure functions behind the landing page: no DOM, no timers, so every number the page animates
 // toward can be tested in Node. Each one mirrors a calculation in the locked design mock.
 
-export const FLAP_WIDTH = 20;
+/** Flaps per row: 20 for the text plus two blank padding flaps each side (hidden on phones). */
+export const FLAP_WIDTH = 24;
+/** The longest line the board shows, so every line keeps at least two blank flaps each side. */
+export const FLAP_TEXT_MAX = 20;
 export const FLAP_ROWS = 3;
 /** Characters a split-flap cell shows while it is still spinning. */
 export const FLAP_CHARSET = "ABCDEFGHIJKLMNOPRSTUVWXYZ0123456789-";
 /** The scramble runs for this many 50 ms ticks; every cell has settled by then. */
 export const FLAP_TICKS = 24;
+
+/**
+ * The level the reader is on: the last card whose top has scrolled above the reading line.
+ * Before the first card reaches the line, that is still the first level.
+ */
+export function activeLevel(tops: readonly number[], line: number): number {
+  let on = 0;
+  tops.forEach((top, i) => {
+    if (top < line) on = i;
+  });
+  return on;
+}
 
 /** Upper-cases, truncates to the board width and centres a line (extra space goes right). */
 export function padFlap(text: string, width = FLAP_WIDTH): string {
