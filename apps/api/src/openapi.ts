@@ -25,7 +25,7 @@ const app = createApp({
   bills: { getBill: async () => null },
   nominations: { getNomination: async () => null },
   status: { lastRuns: async () => [] },
-  geocode: async () => null,
+  locate: async () => null,
 });
 
 const out = process.argv[2];

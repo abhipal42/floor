@@ -11,7 +11,7 @@
 import { handle } from "@hono/node-server/vercel";
 import pg from "pg";
 import { createApp } from "../src/app.js";
-import { geocodeDistrict } from "../src/district.js";
+import { locateDistrict } from "../src/district.js";
 import { pgRepositories, type Db } from "../src/pg.js";
 
 export const config = { runtime: "nodejs" };
@@ -66,7 +66,7 @@ if (!pool) console.warn("DATABASE_URL is not set: serving empty data");
 const app = createApp({
   ...repositories,
   allowedOrigins,
-  geocode: (address) => geocodeDistrict(address, CONGRESS),
+  locate: (place) => locateDistrict(place, CONGRESS),
 });
 
 export default handle(app);
