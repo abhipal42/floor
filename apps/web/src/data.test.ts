@@ -22,7 +22,7 @@ import {
   ticker,
   type Sourced,
 } from "./data.js";
-import { isMaxed, pct, tierFor, winningSide } from "./logic.js";
+import { FLAP_TEXT_MAX, isMaxed, pct, tierFor, winningSide } from "./logic.js";
 
 const blocks: [string, Sourced][] = [
   ["hero", hero],
@@ -92,8 +92,8 @@ describe("ticker and flap", () => {
     }
   });
 
-  it("flap rows fit the 20-character board", () => {
-    for (const m of flap.messages) for (const r of m.rows) expect(r.length).toBeLessThanOrEqual(20);
+  it("flap rows leave two blank padding flaps each side of the board", () => {
+    for (const m of flap.messages) for (const r of m.rows) expect(r.length).toBeLessThanOrEqual(FLAP_TEXT_MAX);
   });
 });
 

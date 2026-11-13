@@ -28,6 +28,7 @@
   --nay-soft: rgba(251, 146, 60, 0.16);
   --nay-tint: rgba(251, 146, 60, 0.14);
   --accent: #facc15;
+  --accent-line: rgba(250, 204, 21, 0.5);
   --ai: #c4b5fd;
   --ai-soft: rgba(196, 181, 253, 0.14);
   --live: #ff453a;
@@ -447,9 +448,9 @@ button {
   padding-bottom: 14px;
   display: flex;
   flex-wrap: wrap;
-  gap: 12px 24px;
+  gap: 12px 40px;
   align-items: center;
-  justify-content: space-between;
+  justify-content: center;
 }
 .logo {
   color: var(--ink);
@@ -465,7 +466,8 @@ button {
 .site-nav {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px 22px;
+  justify-content: center;
+  gap: 6px 26px;
   align-items: center;
   font-size: 14px;
 }
@@ -490,28 +492,33 @@ button {
 
 /* ------------------------------------------------------------ hero */
 
+/* Stacked and centred (mock locked 2026-11-12): headline, lede and calls to action on top, the
+   finals board as a band beneath, the stats under the board. */
 .hero {
-  padding-top: 56px;
-  padding-bottom: 64px;
+  padding-top: clamp(40px, 6vw, 72px);
+  padding-bottom: clamp(48px, 6vw, 72px);
   display: flex;
-  flex-wrap: wrap;
-  gap: 48px;
+  flex-direction: column;
   align-items: center;
+  gap: clamp(28px, 4vw, 44px);
+  text-align: center;
 }
 .hero__copy {
-  flex: 1 1 420px;
+  width: 100%;
   min-width: 0;
   display: flex;
   flex-direction: column;
+  align-items: center;
   gap: 22px;
 }
 .hero__title {
   font-family: var(--cond);
   font-style: italic;
   font-weight: 900;
-  font-size: clamp(64px, 8.4vw, 124px);
-  line-height: 0.84;
+  font-size: clamp(52px, 4.2vw + 40px, 120px);
+  line-height: 0.86;
   text-transform: uppercase;
+  text-wrap: balance;
 }
 .hl {
   padding: 0 6px;
@@ -524,14 +531,16 @@ button {
   to { background-size: 100% 28%; }
 }
 .hero__lede {
-  font-size: 19px;
+  font-size: clamp(17px, 0.4vw + 15px, 20px);
   line-height: 1.5;
   color: var(--body);
-  max-width: 460px;
+  max-width: 34em;
+  text-wrap: pretty;
 }
 .hero__ctas {
   display: flex;
   flex-wrap: wrap;
+  justify-content: center;
   gap: 12px;
   align-items: center;
 }
@@ -581,9 +590,8 @@ button {
 .hero__stats {
   display: flex;
   flex-wrap: wrap;
-  gap: 28px;
-  padding-top: 10px;
-  border-top: 1px solid var(--line-soft);
+  justify-content: center;
+  gap: 20px clamp(28px, 5vw, 56px);
 }
 .stat {
   display: flex;
@@ -593,7 +601,7 @@ button {
 .stat__n {
   font-family: var(--cond);
   font-weight: 800;
-  font-size: 40px;
+  font-size: clamp(32px, 1.2vw + 26px, 42px);
   line-height: 1;
   color: var(--ink);
 }
@@ -605,7 +613,8 @@ button {
   color: var(--muted);
 }
 .hero__board {
-  flex: 1 1 560px;
+  width: 100%;
+  max-width: 940px;
   min-width: 0;
 }
 
@@ -621,22 +630,28 @@ button {
   flex-direction: column;
   gap: 6px;
   box-shadow: inset 0 2px 0 var(--inset), 0 30px 60px var(--shadow);
+  text-align: left;
+  /* Cells size from the board's own width, so the letters scale with it at every viewport. */
+  container-type: inline-size;
+  --flap-cols: 24;
+  --flap-gap: 3px;
 }
 .flap__row {
   display: grid;
-  grid-template-columns: repeat(20, minmax(0, 1fr));
-  gap: 3px;
+  grid-template-columns: repeat(var(--flap-cols), minmax(0, 1fr));
+  gap: var(--flap-gap);
+  --cw: calc((100cqi - (var(--flap-cols) - 1) * var(--flap-gap)) / var(--flap-cols));
 }
 .flap__cell {
   position: relative;
-  height: 46px;
+  height: calc(var(--cw) * 1.6);
   border-radius: 4px;
   background: linear-gradient(180deg, var(--flap-top) 0%, var(--flap-top) 49%, var(--flap-bottom) 51%, var(--flap-bottom) 100%);
   display: flex;
   align-items: center;
   justify-content: center;
   font-weight: 800;
-  font-size: 28px;
+  font-size: calc(var(--cw) * 0.98);
   overflow: hidden;
   white-space: pre;
 }
@@ -743,6 +758,17 @@ button {
 }
 .split__copy .lede {
   max-width: 420px;
+}
+/* Side by side, the copy centres on the card itself rather than on the card plus its controls,
+   so the heading sits level with the card instead of floating above the Back / Next row. */
+@media (min-width: 1016px) {
+  .split {
+    align-items: flex-start;
+  }
+  .split__copy {
+    min-height: 520px;
+    justify-content: center;
+  }
 }
 .split__deck {
   flex: 1 1 560px;
@@ -988,105 +1014,391 @@ button {
   background: var(--ink);
 }
 
-/* ------------------------------------------------------------ 02 · levels */
+/* ------------------------------------------------------------ 02 · road to law */
 
-.levels {
+/* Locked mock 2026-11-12: the title and a six-stop map hold still in the left column while the
+   level cards scroll past as one road; on narrow screens the map becomes a sticky strip. */
+.law {
+  display: grid;
+  grid-template-columns: minmax(0, 4fr) minmax(0, 7fr);
+  gap: 56px;
+}
+.law__map {
+  position: sticky;
+  top: calc(var(--head-h) + 40px);
+  align-self: start;
+  display: flex;
+  flex-direction: column;
+  gap: 32px;
+}
+.law__head {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.law__head .lede {
+  max-width: 400px;
+}
+.law__now {
+  display: none;
+}
+
+.track {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  position: relative;
   display: flex;
   flex-direction: column;
 }
-.level {
-  position: sticky;
-  top: calc(var(--head-h) + 19px + var(--i) * 18px);
+.track::before,
+.track__fill {
+  content: "";
+  position: absolute;
+  left: 15px;
+  top: 16px;
+  width: 2px;
 }
-.level__card {
+.track::before {
+  bottom: 16px;
+  background: var(--line);
+}
+.track__fill {
+  height: var(--fill-y, 0);
+  background: var(--yea);
+  transition: height 0.45s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+.stop {
+  position: relative;
+  display: grid;
+  grid-template-columns: 32px minmax(0, 1fr);
+  gap: 14px;
+  align-items: center;
+  width: 100%;
+  padding: 7px 0;
+  background: none;
+  border: 0;
+  text-align: left;
+  cursor: pointer;
+}
+.stop__dot {
+  position: relative;
+  z-index: 1;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: var(--surface);
+  border: 2px solid var(--line);
+  font-family: var(--cond);
+  font-style: italic;
+  font-weight: 900;
+  font-size: 17px;
+  color: var(--dim);
+  transition: background 0.3s ease, border-color 0.3s ease, color 0.3s ease, transform 0.3s ease;
+}
+.stop--boss .stop__dot {
+  border-color: var(--accent-line);
+  color: var(--accent);
+}
+.stop__name {
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+  font-family: var(--cond);
+  font-weight: 800;
+  font-size: 20px;
+  text-transform: uppercase;
+  color: var(--dim);
+  transition: color 0.3s ease;
+}
+.stop__boss {
+  font-family: var(--sans);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: var(--accent);
+}
+.stop:hover .stop__name {
+  color: var(--body);
+}
+.stop.is-cleared .stop__dot {
+  background: var(--yea);
+  border-color: var(--yea);
+  color: var(--ground);
+}
+.stop.is-cleared .stop__name {
+  color: var(--body);
+}
+.stop.is-on .stop__dot {
+  background: var(--ink);
+  border-color: var(--ink);
+  color: var(--ground);
+  transform: scale(1.12);
+}
+.stop--boss.is-on .stop__dot {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+.stop.is-on .stop__name {
+  color: var(--ink);
+}
+
+/* the road: cards joined by a dashed lane with a pin per level */
+.road {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+.leg {
+  position: relative;
+  padding-left: 44px;
+}
+.leg::before {
+  content: "";
+  position: absolute;
+  left: 15px;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: repeating-linear-gradient(to bottom, var(--line) 0 8px, transparent 8px 16px);
+}
+.leg:first-child::before {
+  top: 40px;
+}
+.leg:last-child::before {
+  bottom: auto;
+  height: 40px;
+}
+.leg + .leg {
+  padding-top: 22px;
+}
+.leg__pin {
+  position: absolute;
+  left: 6px;
+  top: 31px;
+  z-index: 1;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--panel);
+  border: 2px solid var(--line);
+  transition: background 0.3s ease, border-color 0.3s ease;
+}
+.leg + .leg .leg__pin {
+  top: 53px;
+}
+.leg.is-cleared .leg__pin {
+  background: var(--yea);
+  border-color: var(--yea);
+}
+.leg.is-on .leg__pin {
+  background: var(--ink);
+  border-color: var(--ink);
+}
+.leg--boss.is-on .leg__pin {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+.leg__card {
   background: var(--surface);
   border: 1px solid var(--line);
   border-radius: 20px;
   padding: 22px 24px;
   display: flex;
+  flex-direction: column;
+  gap: 16px;
+  opacity: 0.55;
+  transform: scale(0.985);
+  transition: opacity 0.35s ease, transform 0.35s ease, border-color 0.35s ease, box-shadow 0.35s ease;
+}
+.leg.is-cleared .leg__card {
+  opacity: 0.8;
+  transform: none;
+}
+.leg.is-on .leg__card {
+  opacity: 1;
+  transform: none;
+  border-color: var(--dim-2);
+  box-shadow: 0 24px 48px var(--shadow);
+}
+.leg--boss.is-on .leg__card {
+  border-color: var(--accent-line);
+}
+.leg__top {
+  display: flex;
   flex-wrap: wrap;
-  gap: 20px 32px;
-  align-items: center;
-  box-shadow: 0 -12px 32px var(--shadow);
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 8px 14px;
 }
-.level__card--alt {
-  background: var(--surface-alt);
+.leg__id {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 12px;
 }
-.level__n {
-  flex: 0 0 auto;
+.leg__n {
   font-family: var(--cond);
   font-style: italic;
   font-weight: 900;
-  font-size: 84px;
-  line-height: 0.8;
-  color: var(--dim-2);
+  font-size: 22px;
+  color: var(--muted);
 }
-.level__n--boss {
+.leg--boss .leg__n {
   color: var(--accent);
 }
-.level__body {
-  flex: 1 1 320px;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-.level__name-row {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-  align-items: center;
-}
-.level__name {
+.leg__name {
   font-family: var(--cond);
   font-weight: 800;
-  font-size: 30px;
+  font-size: 34px;
   line-height: 1;
   text-transform: uppercase;
 }
-.level__need {
+.leg__need {
   font-size: 13px;
-  color: var(--muted);
   font-weight: 600;
+  color: var(--muted);
 }
-.level__text {
+.leg__cleared {
+  font-family: var(--cond);
+  font-weight: 800;
+  font-size: 14px;
+  color: var(--yea);
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+.leg.is-cleared .leg__cleared {
+  opacity: 1;
+}
+.leg__text {
   font-size: 15px;
   line-height: 1.55;
   color: var(--body);
+  max-width: 60ch;
 }
-.level__ex {
-  flex: 0 1 320px;
-  min-width: 0;
+.play {
   background: var(--ground);
   border-radius: 14px;
   padding: 14px 16px;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 4px 16px;
+  align-items: center;
 }
-.level__ex-t {
+.play__k {
+  grid-column: 1 / -1;
+}
+.play__t {
   font-size: 14px;
   font-weight: 600;
-  line-height: 1.3;
+  line-height: 1.35;
 }
-.level__ex-s {
+.play__s {
   display: flex;
   align-items: baseline;
-  gap: 8px;
+  gap: 10px;
   font-family: var(--cond);
   font-weight: 800;
 }
-.level__ex-s .yea,
-.level__ex-s .nay {
-  font-size: 34px;
+.play__s .yea,
+.play__s .nay {
+  font-size: 30px;
 }
-.level__dash {
-  font-size: 18px;
+.play__dash {
+  font-size: 16px;
   color: var(--dim);
 }
-.level__res {
-  margin-left: auto;
+.play__r {
   font-size: 17px;
+  padding-left: 6px;
+}
+
+@media (max-width: 900px) {
+  .law {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 24px;
+  }
+  /* The aside's children join the grid, so the strip can stay stuck for the whole road. */
+  .law__map {
+    display: contents;
+  }
+  .law__strip {
+    position: sticky;
+    top: var(--head-h);
+    z-index: 5;
+    margin-inline: -24px;
+    padding: 12px 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    background: var(--head-bg);
+    -webkit-backdrop-filter: blur(12px);
+    backdrop-filter: blur(12px);
+    border-bottom: 1px solid var(--line-faint);
+  }
+  .law__now {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 10px;
+  }
+  .law__now b {
+    font-family: var(--cond);
+    font-style: italic;
+    font-weight: 900;
+    font-size: 20px;
+    text-transform: uppercase;
+  }
+  .track {
+    flex-direction: row;
+    justify-content: space-between;
+  }
+  .track::before,
+  .track__fill {
+    top: 15px;
+    left: 16px;
+    height: 2px;
+  }
+  .track::before {
+    right: 16px;
+    bottom: auto;
+    width: auto;
+  }
+  .track__fill {
+    width: var(--fill-x, 0);
+    transition: width 0.45s cubic-bezier(0.2, 0.8, 0.2, 1);
+  }
+  .stop {
+    width: auto;
+    grid-template-columns: 32px;
+    padding: 0;
+  }
+  .stop__name {
+    display: none;
+  }
+}
+
+@media (max-width: 600px) {
+  .leg {
+    padding-left: 34px;
+  }
+  .leg::before {
+    left: 10px;
+  }
+  .leg__pin {
+    left: 1px;
+  }
+  .leg__card {
+    padding: 18px;
+  }
+  .leg__name {
+    font-size: 28px;
+  }
+  .play {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
 
 /* drive chart */
@@ -3250,16 +3562,20 @@ td.c-x {
 /* ------------------------------------------------------------ narrow screens */
 
 @media (max-width: 600px) {
-  /* The 20-column board keeps its grid; the letters shrink to fit the cells. */
+  /* On a phone the two blank padding flaps on each side go, so the 20 flaps that hold text get
+     the width, and the letters run larger against their (narrower) cells. */
   .flap {
     padding: 10px;
+    --flap-cols: 20;
+    --flap-gap: 2px;
   }
-  .flap__row {
-    gap: 2px;
+  .flap__cell:nth-child(-n + 2),
+  .flap__cell:nth-last-child(-n + 2) {
+    display: none;
   }
   .flap__cell {
-    height: 30px;
-    font-size: 17px;
+    height: calc(var(--cw) * 1.75);
+    font-size: calc(var(--cw) * 1.3);
     border-radius: 3px;
   }
   /* Narrow cards wrap their copy and the rep chips onto more lines, so the stack is taller. */
@@ -3297,9 +3613,6 @@ td.c-x {
   }
   .dk-head h3 {
     font-size: 22px;
-  }
-  .level__n {
-    font-size: 60px;
   }
   .rings {
     padding: 18px 4px;

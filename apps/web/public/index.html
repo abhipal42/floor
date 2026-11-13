@@ -3,14 +3,14 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Floor — Congress, called like a game</title>
-<meta name="description" content="Every House and Senate vote as a final score: the box score by party, how your three members played it, how far each bill has driven toward law, and who's paying for the team. Nonpartisan and informational only.">
+<title>Floor — Congress, the game</title>
+<meta name="description" content="A political scoreboard, broadcasting the box score by party. See how bills impact you, how your reps voted, and who's footing their check. Nonpartisan and informational only.">
 <meta name="theme-color" content="#07080A">
 <meta name="color-scheme" content="dark">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="Floor">
-<meta property="og:title" content="Floor — Congress, called like a game">
-<meta property="og:description" content="Every House and Senate vote as a final score. The box score by party, how your three members played it, and how far each bill has driven toward law.">
+<meta property="og:title" content="Floor — Congress, the game">
+<meta property="og:description" content="A political scoreboard, broadcasting the box score by party. See how bills impact you, how your reps voted, and who's footing their check.">
 <meta name="twitter:card" content="summary">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -28,11 +28,8 @@
     <nav aria-label="Sections" class="site-nav">
       <a href="#finals">Finals</a>
       <a href="#law">Road to law</a>
-      <a href="#explained">Explained</a>
       <a href="#scout">Your reps</a>
-      <a href="#cards">Players</a>
       <a href="#money">Money</a>
-      <a href="#portfolio">Portfolio</a>
       <a href="#get" class="site-nav__cta">Get the app</a>
     </nav>
   </div>
@@ -65,17 +62,17 @@
 
 <section id="top" class="wrap hero" aria-labelledby="hero-title">
   <div class="hero__copy">
-    <h1 id="hero-title" class="hero__title">Congress,<br>called like<br><span class="hl" data-reveal>a game.</span></h1>
-    <p class="hero__lede">Every House and Senate vote as a final score. The box score by party, how your three members played it, how far each bill has driven toward law — and who's paying for the team.</p>
+    <h1 id="hero-title" class="hero__title">Congress, called like <span class="hl" data-reveal>a game.</span></h1>
+    <p class="hero__lede">A political scoreboard, broadcasting the box score by party. See how bills impact you, how your reps voted, and who's footing their check.</p>
     <div class="hero__ctas">
       <span class="cool"><a href="#get" class="cool__btn">Get the iPhone beta</a></span>
       <a href="#finals" class="hero__more">Watch five finals ↓</a>
     </div>
-    <div class="hero__stats" id="hero-stats"></div>
   </div>
   <div class="hero__board">
     <div class="flap" id="flap" role="img"></div>
   </div>
+  <div class="hero__stats" id="hero-stats"></div>
 </section>
 
 <div class="ticker" id="ticker" role="region" aria-label="Latest finals"></div>
@@ -92,12 +89,21 @@
 
 <section id="law" class="band" aria-labelledby="law-title">
   <div class="wrap band__in">
-    <div class="sec-head">
-      <div class="sec-head__title"><span class="kicker">02 · HOW BILLS PASS</span>
-      <h2 id="law-title" class="h2">Six levels<br>to law.</h2></div>
-      <p class="lede">Every bill plays the same map. Three of the levels are boss fights a simple majority can't win. Scroll — the levels stack as you clear them.</p>
+    <!-- Locked mock (2026-11-12): https://claude.ai/artifact/WgULeauwdE8usqmXcXRkwT -->
+    <div class="law">
+      <aside class="law__map" aria-label="Level map">
+        <div class="law__head">
+          <span class="kicker">02 · HOW BILLS PASS</span>
+          <h2 id="law-title" class="h2">Six levels<br>to law.</h2>
+          <p class="lede">Every bill plays the same map. Three of the levels are boss fights a simple majority can't win.</p>
+        </div>
+        <div class="law__strip">
+          <p class="law__now"><span class="kicker">02 · HOW BILLS PASS</span><b id="law-now"></b></p>
+          <ol class="track" id="law-track"></ol>
+        </div>
+      </aside>
+      <div class="road" id="levels"></div>
     </div>
-    <div class="levels" id="levels"></div>
 
     <div class="drive" id="drive">
       <div class="drive__head">

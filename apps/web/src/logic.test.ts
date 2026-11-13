@@ -1,7 +1,10 @@
 import { describe, expect, it } from "vitest";
 import {
   FLAP_CHARSET,
+  FLAP_TEXT_MAX,
   FLAP_TICKS,
+  FLAP_WIDTH,
+  activeLevel,
   outcome,
   winningSide,
   cellLook,
@@ -32,20 +35,38 @@ import {
   yeaShare,
 } from "./logic.js";
 
+describe("road to law", () => {
+  it("is on the last card whose top has passed the reading line", () => {
+    expect(activeLevel([500, 900, 1300], 400)).toBe(0);
+    expect(activeLevel([300, 700, 1100], 400)).toBe(0);
+    expect(activeLevel([-200, 350, 750], 400)).toBe(1);
+    expect(activeLevel([-900, -500, -100], 400)).toBe(2);
+    expect(activeLevel([], 400)).toBe(0);
+  });
+});
+
 describe("split-flap", () => {
-  it("centres, upper-cases and pads to 20", () => {
-    expect(padFlap("abc")).toBe("        ABC         ");
-    expect(padFlap("HOUSE  ROLL 321")).toBe("  HOUSE  ROLL 321   ");
-    expect(padFlap("x".repeat(25))).toBe("X".repeat(20));
-    expect(padFlap("RATEPAYER PROTECTION")).toHaveLength(20);
+  it("centres, upper-cases and pads to the 24-flap board", () => {
+    expect(FLAP_WIDTH).toBe(24);
+    expect(padFlap("abc")).toBe("          ABC           ");
+    expect(padFlap("HOUSE  ROLL 321")).toBe("    HOUSE  ROLL 321     ");
+    expect(padFlap("x".repeat(30))).toBe("X".repeat(24));
+    expect(padFlap("abc", 20)).toBe("        ABC         ");
+  });
+
+  it("a longest line keeps two blank padding flaps on each side", () => {
+    const line = padFlap("R".repeat(FLAP_TEXT_MAX));
+    expect(line.slice(0, 2)).toBe("  ");
+    expect(line.slice(-2)).toBe("  ");
+    expect(line.trim()).toHaveLength(FLAP_TEXT_MAX);
   });
 
   it("settle ticks grow left to right and finish within the scramble", () => {
     const zero = flapSettle(() => 0);
-    expect(zero).toHaveLength(60);
+    expect(zero).toHaveLength(72);
     expect(zero[0]).toBe(3);
-    expect(zero[19]).toBe(3 + Math.floor(19 * 0.55));
-    expect(zero[20]).toBe(3 + Math.floor(1.5));
+    expect(zero[23]).toBe(3 + Math.floor(23 * 0.55));
+    expect(zero[24]).toBe(3 + Math.floor(1.5));
     const max = flapSettle(() => 0.9999);
     expect(Math.max(...max)).toBeLessThanOrEqual(FLAP_TICKS);
   });

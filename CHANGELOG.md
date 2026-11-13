@@ -8,6 +8,32 @@ is a milestone and ships a retro under `docs/retros/`.
 Older series live in [`docs/changelog/`](docs/changelog) (0.1.x: [`0.1.md`](docs/changelog/0.1.md)).
 Before 0.1.0 the history is the commit log on `main`.
 
+## 0.2.11 — 2026-11-13
+
+A round of landing page changes, made by clicking on the live page with Impeccable's live mode.
+
+### Changed
+
+- **Hero, stacked and centred** (locked mock <https://claude.ai/artifact/3Qk6vGVNnJ7h9gDjyXjJP9>,
+  option C): headline, lede and calls to action on top, the finals board as a band beneath, the stats
+  under the board. New lede: "A political scoreboard, broadcasting the box score by party. See how
+  bills impact you, how your reps voted, and who's footing their check." The page title, description
+  and share tags follow it (`Floor — Congress, the game`).
+- **The finals board is 24 flaps wide**, so every 20-character line keeps at least two blank flaps
+  each side. Cells and letters size from the board's own width (container query units); phones hide
+  the four padding flaps. `FLAP_WIDTH` is 24 and `FLAP_TEXT_MAX` 20, with tests for both.
+- **Road to law, rebuilt** (locked mock <https://claude.ai/artifact/WgULeauwdE8usqmXcXRkwT>): the
+  section title and a six-stop level map hold still in the left column while the levels scroll past
+  as one connected road. The current stop and card light up, earlier ones read as cleared, and a stop
+  jumps to its level. Below 900px the map becomes a sticky strip under the header. The level the
+  reader is on comes from `activeLevel()` in `logic.ts`, tested.
+- **Header centred and trimmed** to Finals, Road to law, Your reps and Money plus Get the app.
+- **Finals section:** the copy centres on the card rather than on the card plus its controls.
+
+### Added
+
+- `apps/web/PRODUCT.md` and `apps/web/DESIGN.md`: product truth and the incumbent visual system, which
+  Impeccable reads before any design work, plus `apps/web/.impeccable/live/config.json` for live mode.
 ## 0.2.10 — 2026-11-13
 
 Steps 2–3 of the v0.3.0 milestone, "Your members on the web": the landing page finds *your*

@@ -243,6 +243,9 @@ Real data broke our first assumptions several times. Each case below is now hand
     this Mac's Xcode-beta has no Simulator.app GUI, so nothing can tap the app (`simctl` cannot);
     and the deployed API answered 500 on `/v1/members/…` on 2026-11-13 while the cache was being
     checked, so do not assume it is up.
+28. **The local web server lets the browser cache.** `serve.mjs` sends no cache headers, so after a
+    rebuild a normal reload kept the old CSS and title. Hard-reload (Ctrl+Shift+R) before judging a
+    change at `localhost:8790`; the deployed site is unaffected.
 
 ---
 
@@ -576,6 +579,28 @@ the product rules they settled are in `CLAUDE.md` › Product rules). What to kn
   bulk index. Disclosures report value **ranges** and omit homes, which is why the page shows ranges.
 - **The bottom form is inert.** Beta sign-up at the foot of the page shows "opens soon" until there
   is a backend. (Address entry that works is in the strip at the top.)
+
+### Landing page round (v0.2.11)
+
+- **Hero:** stacked and centred, built to <https://claude.ai/artifact/3Qk6vGVNnJ7h9gDjyXjJP9>
+  (option C). The finals board is 24 flaps wide with at most 20 characters a line, so the text always
+  has blank flaps either side; cells size from the board's width with container query units
+  (`100cqi`), and phones (≤600px) hide the four padding flaps.
+- **Road to law:** a sticky title and six-stop map beside one road of level cards, built to
+  <https://claude.ai/artifact/WgULeauwdE8usqmXcXRkwT>. `levelCards()` in `main.ts` renders it and
+  tracks the current level on scroll (rAF-throttled) through `activeLevel()`. Below 900px the aside
+  is `display: contents` so its strip can stay stuck for the whole road.
+- **Design context for agents:** `apps/web/PRODUCT.md` (users, purpose, binding voice and product
+  rules) and `apps/web/DESIGN.md` (the dark "Night Game Broadcast" tokens as shipped). The light mode
+  and Congress patina are designed elsewhere; when they land, re-run `/impeccable document` so
+  DESIGN.md matches the code.
+- **Editing copy visually:** `/impeccable live` (config in `apps/web/.impeccable/live/config.json`;
+  `apps/web/.gitignore` keeps its runtime files out) injects a helper script into
+  `public/index.html` while it runs; `impeccable live-server stop` removes it. Never commit with the
+  `impeccable-live-start` block present. Rebuild (`npm run build -w @floor/web`) after each edit,
+  since `serve` serves `dist/`.
+- The unbuilt part of the mock is a **section rail** (a strip under the header naming the current
+  section, for every section). It was offered and skipped; the mock still has the toggle.
 
 ### The app redesign (v0.2.3)
 
