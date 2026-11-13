@@ -17,11 +17,40 @@ import {
   mavericks,
   portfolio,
   portrait,
+  sampleReps,
   scouting,
   ticker,
   type MemberId,
   type Tone,
 } from "./data.js";
+import { API_BASE } from "./config.js";
+import {
+  INITIAL,
+  PRIVACY,
+  STORE_KEY,
+  foundFrom,
+  gridLabel,
+  isSample,
+  memberUrl,
+  nextState,
+  parseFound,
+  portraitUrl,
+  repsOutcome,
+  repsUrl,
+  scoutFrom,
+  seatShort,
+  serializeFound,
+  stripView,
+  votesUrl,
+  type ApiMember,
+  type ApiMemberVote,
+  type ApiReps,
+  type FoundRow,
+  type FoundScout,
+  type LocEvent,
+  type LocState,
+  type Place,
+} from "./locate.js";
 import {
   FLAP_ROWS,
   FLAP_TICKS,
@@ -284,7 +313,7 @@ function deck(): void {
           '<div class="dk-bar"><div class="dk-bar__y" data-w></div><div class="dk-bar__line" style="left:' + c.line + '%"></div></div>' +
           '<div class="dk-foot"><span class="num">' + esc(splitText(c.splits)) + '</span><span class="dk-need">' + esc(c.need) + "</span></div></div>" +
           '<div class="dk-twist" data-twist><span class="dk-twist__k">THE TWIST</span><span>' + esc(c.twist) + "</span></div>" +
-          '<div class="dk-reps"><span class="eyebrow">YOUR THREE</span>' +
+          '<div class="dk-reps"><span class="eyebrow" data-your-three>YOUR THREE</span>' +
           c.reps
             .map(
               (r) =>
@@ -509,16 +538,65 @@ function explain(): void {
 
 // ------------------------------------------------------------------ 04 · scouting
 
-function scout(): void {
+/** One scouting card, from the sample snapshot or built from the API (`scoutFrom`). */
+interface ScoutCard {
+  id: string;
+  label: string;
+  full: string;
+  seat: string;
+  chamber: "House" | "Senate";
+  unity: number | null;
+  withParty: number;
+  partyVotes: number;
+  played: number;
+  playedSub: string;
+  won: number;
+  of: number;
+  cross: number;
+  note: string;
+  grid: readonly FoundRow[];
+  img: string;
+  box: { k: string; t: string } | null;
+  delegate: string;
+}
+
+const SAMPLE_CARDS: ScoutCard[] = scouting.members.map((m) => ({
+  ...m,
+  img: portrait(m.id),
+  box: { k: "DID YOU KNOW", t: m.fact },
+  delegate: "",
+}));
+
+function foundCard(f: FoundScout): ScoutCard {
+  return { ...f, img: portraitUrl(f.id), box: f.latest ? { k: "LATEST CALL", t: f.latest } : null };
+}
+
+type ScoutMode =
+  | { kind: "sample" }
+  | { kind: "skeleton" }
+  | { kind: "loading"; members: ApiMember[] }
+  | { kind: "error"; members: ApiMember[] }
+  | { kind: "found"; cards: ScoutCard[] };
+
+function scout(onRetry: () => void): (mode: ScoutMode) => void {
   const tabs = el("#scout-tabs");
-  memberTabs(tabs);
   const panel = el("#scout-panel");
+  const kicker = el("#scout-kicker");
+  let cards: ScoutCard[] = SAMPLE_CARDS;
   let who = 0;
   let hi = 39;
   let seen = false;
 
+  const tabsFor = (list: { id: string; label: string; img: string }[]) => {
+    tabs.innerHTML = list
+      .map((m) => '<button type="button" role="tab" class="ptab"><img src="' + esc(m.img) + '" alt="" width="36" height="36">' + esc(m.label) + "</button>")
+      .join("");
+  };
+  const memberList = (ms: ApiMember[]) => ms.map((m) => ({ id: m.bioguideId, label: m.lastName, img: portraitUrl(m.bioguideId) }));
+
   const readout = () => {
-    const sc = scouting.members[who]!;
+    const sc = cards[who]!;
+    if (!sc.grid.length) return;
     const i = Math.min(hi, sc.grid.length - 1);
     const r = sc.grid[i]!;
     const look = cellLook(r[4]);
@@ -531,23 +609,32 @@ function scout(): void {
   };
 
   const rings = (p: number) => {
-    const sc = scouting.members[who]!;
-    const vals = ringValues(sc);
+    const sc = cards[who];
+    if (!sc) return;
+    // Showed up is out of 40 in the sample; ringValues scales by 2.5, so scale a shorter grid to match.
+    const vals = ringValues({ unity: sc.unity ?? 0, played: (sc.played * 40) / Math.max(1, sc.grid.length), won: sc.won, of: Math.max(1, sc.of) });
     all<SVGCircleElement>("[data-ring]", panel).forEach((c, k) => c.setAttribute("stroke-dasharray", ringDash(vals[k] ?? 0, p)));
   };
 
   const show = (i: number) => {
     who = i;
-    hi = 39;
-    const sc = scouting.members[i]!;
+    const sc = cards[i]!;
+    const n = sc.grid.length;
+    hi = n - 1;
     const ringDefs = [
-      { label: "With party", big: sc.unity.toFixed(1) + "%", sub: sc.withParty.toLocaleString("en-US") + " of " + sc.partyVotes.toLocaleString("en-US"), color: "yea" },
-      { label: "Showed up", big: sc.played + "/40", sub: sc.playedSub, color: "ink" },
-      { label: "Winning side", big: sc.won + "/" + sc.of, sub: "last 40 calls", color: "nay" },
+      {
+        label: "With party",
+        big: sc.unity === null ? "—" : sc.unity.toFixed(1) + "%",
+        sub: sc.withParty.toLocaleString("en-US") + " of " + sc.partyVotes.toLocaleString("en-US"),
+        color: "yea",
+      },
+      { label: "Showed up", big: sc.played + "/" + n, sub: sc.playedSub, color: "ink" },
+      { label: "Winning side", big: sc.won + "/" + sc.of, sub: "last " + n + " calls", color: "nay" },
     ];
+    const hasC = sc.grid.some((r) => r[4] === "C");
     panel.innerHTML =
       '<div class="sc-card card">' +
-      '<div class="sc-id"><img src="' + portrait(sc.id) + '" alt="' + esc(sc.full) + '" width="80" height="96"><div><span class="sc-name">' + esc(sc.full) + '</span><span class="sc-seat">' +
+      '<div class="sc-id"><img src="' + esc(sc.img) + '" alt="' + esc(sc.full) + '" width="80" height="96"><div><span class="sc-name">' + esc(sc.full) + '</span><span class="sc-seat">' +
       esc(sc.seat) + "</span></div></div>" +
       '<div class="rings">' +
       ringDefs
@@ -562,8 +649,9 @@ function scout(): void {
       '<div class="sc-cross"><span class="sc-cross__n"><span class="sc-cross__k">Crossovers since 2023</span><span class="sc-cross__v num">' + sc.cross + '</span></span><span class="sc-cross__note">' +
       esc(sc.note) + "</span></div></div>" +
       '<div class="sc-grid card">' +
-      '<div class="sc-grid__head"><h3 class="h4">Last 40 calls</h3><span class="legend"><span><i class="lg lg--y"></i>Yea</span><span><i class="lg lg--n"></i>Nay</span><span><i class="lg lg--p"></i>Present</span><span><i class="lg lg--m"></i>Missed</span></span></div>' +
-      '<div class="squares" role="group" aria-label="Last 40 roll calls, oldest first">' +
+      '<div class="sc-grid__head"><h3 class="h4">Last ' + n + ' calls</h3><span class="legend"><span><i class="lg lg--y"></i>Yea</span><span><i class="lg lg--n"></i>Nay</span><span><i class="lg lg--p"></i>Present</span><span><i class="lg lg--m"></i>Missed</span>' +
+      (hasC ? '<span><i class="lg lg--c"></i>Speaker vote</span>' : "") + "</span></div>" +
+      '<div class="squares" role="group" aria-label="' + esc(gridLabel(sc.grid)) + '">' +
       sc.grid
         .map((r, k) => {
           const look = cellLook(r[4]);
@@ -571,12 +659,27 @@ function scout(): void {
         })
         .join("") +
       "</div>" +
-      '<div class="ro fade" data-readout aria-live="polite"></div>' +
-      '<div class="dyk"><span class="dyk__k">DID YOU KNOW</span><span class="dyk__t">' + esc(sc.fact) + "</span></div>" +
+      (n ? '<div class="ro fade" data-readout aria-live="polite"></div>' : '<p class="fine">No recorded votes yet this Congress.</p>') +
+      (sc.delegate ? '<div class="dyk dyk--delegate"><span class="dyk__k">DELEGATE</span><span class="dyk__t">' + esc(sc.delegate) + "</span></div>" : "") +
+      (sc.box ? '<div class="dyk"><span class="dyk__k">' + esc(sc.box.k) + '</span><span class="dyk__t">' + esc(sc.box.t) + "</span></div>" : "") +
       "</div>";
     readout();
     rings(0);
     if (seen) afterPaint(() => rings(1));
+  };
+
+  const skeleton = (msg: string) => {
+    panel.innerHTML =
+      '<div class="sc-card card sc-skel" aria-hidden="true"><div class="sc-id"><span class="skel skel--img"></span><div><span class="skel skel--line"></span><span class="skel skel--line skel--short"></span></div></div></div>' +
+      '<div class="sc-grid card"><div class="sc-grid__head"><h3 class="h4">Last 40 calls</h3></div><div class="squares" aria-hidden="true">' +
+      '<span class="sq sq--M"></span>'.repeat(40) + '</div><p class="fine">' + esc(msg) + "</p></div>";
+  };
+
+  const errorCard = () => {
+    panel.innerHTML =
+      '<div class="sc-err card"><h3 class="h4">Couldn\'t load their records</h3><p>Floor found your district but its vote server didn\'t answer. Your three are kept; nothing else is lost.</p>' +
+      '<button type="button" class="sc-err__retry" data-retry>Try again</button></div>';
+    el("[data-retry]", panel).addEventListener("click", onRetry);
   };
 
   const over = (e: Event) => {
@@ -592,13 +695,36 @@ function scout(): void {
   panel.addEventListener("focusin", over);
   panel.addEventListener("click", over);
 
-  const set = wireTabs(tabs, show);
-  set(0);
-  show(0);
+  // Tabs pick a card only while cards are showing; in the other modes they just name the members.
+  let live = true;
+  const set = wireTabs(tabs, (i) => {
+    if (live) show(i);
+  });
   onVisible(panel, () => {
     seen = true;
     afterPaint(() => rings(1));
   }, 0.3);
+
+  return (mode: ScoutMode) => {
+    kicker.textContent = mode.kind === "sample" || mode.kind === "skeleton" ? "04 · YOUR REPS · SAMPLE · NY-8" : "04 · YOUR MEMBERS";
+    live = mode.kind === "sample" || mode.kind === "found";
+    if (mode.kind === "sample" || mode.kind === "found") {
+      cards = mode.kind === "sample" ? SAMPLE_CARDS : mode.cards;
+      tabsFor(cards);
+      set(0);
+      show(0);
+      return;
+    }
+    if (mode.kind === "skeleton") {
+      tabs.innerHTML = "";
+      skeleton("Finding your district…");
+      return;
+    }
+    tabsFor(memberList(mode.members));
+    set(0);
+    if (mode.kind === "loading") skeleton("Loading their records…");
+    else errorCard();
+  };
 }
 
 // ------------------------------------------------------------------ 05 · players
@@ -928,6 +1054,227 @@ function phone(): void {
   show();
 }
 
+// ------------------------------------------------------------------ your members, from your location
+
+/** GETs JSON; `status` is null when fetch itself threw (offline, or a response without CORS). */
+async function getJson(url: string): Promise<{ status: number | null; body: unknown }> {
+  try {
+    const res = await fetch(url);
+    let body: unknown = null;
+    try {
+      body = await res.json();
+    } catch {
+      body = null;
+    }
+    return { status: res.status, body };
+  } catch {
+    return { status: null, body: null };
+  }
+}
+
+function storeGet(): string | null {
+  try {
+    return window.localStorage.getItem(STORE_KEY);
+  } catch {
+    return null;
+  }
+}
+
+function storeSet(value: string | null): void {
+  try {
+    if (value === null) window.localStorage.removeItem(STORE_KEY);
+    else window.localStorage.setItem(STORE_KEY, value);
+  } catch {
+    // Private windows and blocked storage: the page works, it just won't remember.
+  }
+}
+
+const LOCATE_ICON =
+  '<svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="3" fill="currentColor"></circle><circle cx="8" cy="8" r="6.2" fill="none" stroke="currentColor" stroke-width="1.6"></circle></svg>';
+
+function chipHtml(m: ApiMember, img: string): string {
+  return (
+    '<span class="ychip"><img src="' + esc(img) + '" alt="" width="40" height="40"><span class="ychip__t"><span class="ychip__n">' + esc(m.lastName) +
+    '</span><span class="ychip__s">' + esc(seatShort(m) + " · " + m.party) + "</span></span></span>"
+  );
+}
+
+function yours(): void {
+  const strip = el("#yours-strip");
+  const kicker = el("#yours-kicker");
+  const chips = el("#yours-chips");
+  const note = el("#yours-note");
+  const title = el("#yours-title");
+  const locate = el<HTMLButtonElement>("#yours-locate");
+  const form = el<HTMLFormElement>("#yours-addr");
+  const input = el<HTMLInputElement>("#yours-input");
+  const err = el("#yours-err");
+  const toAddr = el<HTMLButtonElement>("#yours-to-addr");
+  const back = el<HTMLButtonElement>("#yours-back");
+  const status = el("#yours-status");
+  el("#yours-privacy").textContent = PRIVACY;
+
+  let state: LocState = INITIAL;
+  let gen = 0;
+  let scoutKey = "";
+  let found: ScoutCard[] = [];
+  const showScout = scout(() => dispatch({ type: "retry" }));
+
+  const sampleChips = sampleReps.members.map((m) => chipHtml(m, portrait(m.bioguideId as MemberId))).join("");
+
+  const announce = (s: LocState, prev: LocState) => {
+    if (s.step === prev.step && s.records === prev.records && s.addrErr === prev.addrErr) return;
+    const v = stripView(s);
+    let msg = "";
+    if (s.step === "found") {
+      if (prev.step !== "found") msg = "Found " + (s.found?.label ?? "your district") + ": " + (s.found?.members.map((m) => m.firstName + " " + m.lastName).join(", ") ?? "") + ". " + v.note;
+      else if (s.records === "error") msg = "Couldn't load their records.";
+      else if (s.records === "ready") msg = "Loaded the records for " + (s.found?.label ?? "your district") + ".";
+    } else if (s.step === "asking") msg = "Waiting for your browser's location prompt.";
+    else if (s.step === "loading") msg = "Finding your district.";
+    else if (s.step === "address" && s.addrErr) msg = "";
+    else if (s.step !== "idle" && s.step !== "address") msg = v.kicker.toLowerCase() + ". " + v.title + " " + v.note;
+    else if (s.step === "idle" && prev.step !== "idle") msg = "Showing the New York sample.";
+    if (msg) status.textContent = msg.trim();
+  };
+
+  const render = (prev: LocState) => {
+    const s = state;
+    const v = stripView(s);
+    strip.dataset.tone = v.tone;
+    strip.dataset.step = s.step;
+    kicker.textContent = v.kicker;
+    chips.classList.toggle("is-dim", v.dim);
+    if (v.chips === "skeleton") chips.innerHTML = '<span class="ychip ychip--skel"></span>'.repeat(3);
+    else if (v.chips === "found" && s.found) chips.innerHTML = s.found.members.map((m) => chipHtml(m, portraitUrl(m.bioguideId))).join("");
+    else chips.innerHTML = sampleChips;
+    chips.setAttribute("aria-busy", String(v.chips === "skeleton"));
+    note.hidden = !v.note;
+    note.textContent = v.note;
+    title.hidden = !v.title;
+    title.textContent = v.title;
+    locate.hidden = !v.locate;
+    locate.innerHTML = LOCATE_ICON + "<span>" + esc(v.locate ?? "") + "</span>";
+    locate.disabled = s.step === "asking";
+    form.hidden = !v.address;
+    input.setAttribute("aria-invalid", String(s.addrErr));
+    err.hidden = !s.addrErr;
+    err.textContent = s.addrErr ? "Enter a street address — a ZIP alone can sit across two districts." : "";
+    toAddr.hidden = !v.addressLink;
+    toAddr.textContent = v.addressLink ?? "";
+    back.hidden = !v.back;
+    el(".yours__links").hidden = !v.addressLink && !v.back;
+    // The address has done its job once a district is found; don't leave it sitting in the page.
+    if (s.step === "found") input.value = "";
+
+    // Everything that still shows New York says so once the strip shows someone else's members.
+    const sample = isSample(s);
+    for (const f of all("[data-sample-flag]")) f.hidden = sample;
+    for (const e of all("[data-your-three]")) e.textContent = sample ? "YOUR THREE" : "NY-8 SAMPLE";
+
+    const key =
+      s.step === "loading" ? "skeleton" : sample ? "sample" : "found:" + (s.found?.members.map((m) => m.bioguideId).join(",") ?? "") + ":" + s.records;
+    if (key !== scoutKey) {
+      scoutKey = key;
+      const members = s.found?.members ?? [];
+      if (key === "skeleton") showScout({ kind: "skeleton" });
+      else if (sample) showScout({ kind: "sample" });
+      else if (s.records === "ready") showScout({ kind: "found", cards: found });
+      else showScout({ kind: s.records === "error" ? "error" : "loading", members });
+    }
+
+    announce(s, prev);
+    // A control that just disappeared took focus with it: hand it to the strip, not the page top.
+    const a = document.activeElement;
+    if (!a || a === document.body || (a instanceof HTMLElement && a.closest("[hidden]"))) {
+      if (prev.step !== s.step && s.step !== "idle") strip.focus({ preventScroll: true });
+    }
+  };
+
+  const dispatch = (e: LocEvent) => {
+    const prev = state;
+    state = nextState(state, e);
+    if (state.step === "found" && state.found && (prev.step !== "found" || prev.found !== state.found)) storeSet(serializeFound(state.found));
+    if (e.type === "reset") storeSet(null);
+    render(prev);
+    if (state.step === "found" && state.records === "loading" && (prev.records !== "loading" || prev.step !== "found")) void loadRecords();
+  };
+
+  const loadRecords = async () => {
+    const my = ++gen;
+    const members = state.found?.members ?? [];
+    const cards = await Promise.all(
+      members.map(async (m) => {
+        const [detail, votes] = await Promise.all([getJson(memberUrl(API_BASE, m.bioguideId)), getJson(votesUrl(API_BASE, m.bioguideId))]);
+        const loyalty = (detail.body as { partyLoyalty?: { votes: number; withParty: number; againstParty: number } } | null)?.partyLoyalty;
+        const list = (votes.body as { votes?: ApiMemberVote[] } | null)?.votes;
+        if (repsOutcome(detail.status) !== "ok" || repsOutcome(votes.status) !== "ok" || !loyalty || !Array.isArray(list)) return null;
+        return foundCard(scoutFrom(m, loyalty, list));
+      }),
+    );
+    if (my !== gen) return;
+    const ok = cards.every((c): c is ScoutCard => c !== null);
+    if (ok) found = cards;
+    dispatch({ type: "records", ok });
+  };
+
+  const lookup = async (place: Place) => {
+    const my = ++gen;
+    const res = await getJson(repsUrl(API_BASE, place));
+    if (my !== gen) return;
+    const outcome = repsOutcome(res.status);
+    const body = res.body as ApiReps | null;
+    if (outcome === "ok" && body && Array.isArray(body.members) && body.district) dispatch({ type: "reps", outcome, found: foundFrom(body) });
+    else dispatch({ type: "reps", outcome: outcome === "ok" ? "error" : outcome });
+  };
+
+  locate.addEventListener("click", () => {
+    const geo = "geolocation" in navigator ? navigator.geolocation : null;
+    dispatch({ type: "locate", supported: !!geo });
+    if (!geo) {
+      input.focus();
+      return;
+    }
+    const my = ++gen;
+    geo.getCurrentPosition(
+      (pos) => {
+        if (my !== gen) return;
+        dispatch({ type: "geoFix" });
+        void lookup({ lat: pos.coords.latitude, lng: pos.coords.longitude });
+      },
+      (e) => {
+        if (my !== gen) return;
+        dispatch({ type: "geoError", code: e.code });
+        if (!form.hidden) input.focus();
+      },
+      { enableHighAccuracy: false, timeout: 20_000, maximumAge: 300_000 },
+    );
+  });
+  toAddr.addEventListener("click", () => {
+    gen++;
+    dispatch({ type: "toAddress" });
+    input.focus();
+  });
+  back.addEventListener("click", () => {
+    gen++;
+    input.value = "";
+    dispatch({ type: "reset" });
+    locate.focus();
+  });
+  input.addEventListener("input", () => dispatch({ type: "typed" }));
+  form.addEventListener("submit", (e) => {
+    e.preventDefault();
+    const text = input.value;
+    dispatch({ type: "submitAddress", text });
+    if (state.step === "loading") void lookup({ address: text });
+    else input.focus();
+  });
+
+  render(state);
+  const saved = parseFound(storeGet());
+  if (saved) dispatch({ type: "restore", found: saved });
+}
+
 // ------------------------------------------------------------------ sign-up
 
 function signUp(): void {
@@ -949,10 +1296,11 @@ deck();
 levelCards();
 driveChart();
 explain();
-scout();
 players();
 money();
 context();
 portfolioView();
 phone();
 signUp();
+// Last: it owns the scouting report and relabels the sample sections above once it finds yours.
+yours();

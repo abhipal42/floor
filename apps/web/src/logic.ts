@@ -141,14 +141,18 @@ export interface CellLook {
   chipFg: string;
 }
 
-const CELL: Record<VotePos, CellLook> = {
+/** A cell's position: a VotePos, or C for a Speaker-election vote for a named candidate (live data only). */
+export type CellPos = VotePos | "C";
+
+const CELL: Record<CellPos, CellLook> = {
   Y: { word: "YEA", chipBg: "yea-soft", chipFg: "yea" },
   N: { word: "NAY", chipBg: "nay-soft", chipFg: "nay" },
   P: { word: "PRESENT", chipBg: "line", chipFg: "body" },
   M: { word: "MISSED", chipBg: "line", chipFg: "muted" },
+  C: { word: "VOTED", chipBg: "line", chipFg: "ink" },
 };
 
-export function cellLook(pos: VotePos): CellLook {
+export function cellLook(pos: CellPos): CellLook {
   return CELL[pos];
 }
 

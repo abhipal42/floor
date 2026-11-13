@@ -1,6 +1,11 @@
+import { readFileSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
+import { districtLabel } from "./locate.js";
 import {
   YOUR_THREE,
+  sampleReps,
   contextNone,
   donorContext,
   drives,
@@ -33,6 +38,7 @@ const blocks: [string, Sourced][] = [
   ["donorContext", donorContext],
   ["portfolio", portfolio],
   ["live", live],
+  ["sampleReps", sampleReps],
 ];
 
 describe("every block is sourced and dated", () => {
@@ -291,5 +297,16 @@ describe("live replay", () => {
     const row = scouting.members[0]!.grid.at(-1)!;
     expect(row[4]).toBe(live.vote.repPos === "NAY" ? "N" : "Y");
     expect(live.steps).toHaveLength(4);
+  });
+});
+
+describe("sample district", () => {
+  it("is the API's answer for Brooklyn, in the page's tab order", () => {
+    const here = dirname(fileURLToPath(import.meta.url));
+    const captured = JSON.parse(readFileSync(join(here, "../fixtures/reps-brooklyn.json"), "utf8"));
+    const byId = (a: { bioguideId: string }, b: { bioguideId: string }) => a.bioguideId.localeCompare(b.bioguideId);
+    expect([...sampleReps.members].sort(byId)).toEqual([...captured.members].sort(byId));
+    expect(sampleReps.members.map((m) => m.bioguideId)).toEqual([...YOUR_THREE]);
+    expect(districtLabel(captured.district)).toBe(sampleReps.label);
   });
 });

@@ -4,6 +4,7 @@
 // reading the API, these blocks are what it has to reproduce. `data.test.ts` checks the invariants
 // (splits sum to totals, grids match their stats, segments sum to totals) that catch a mistyped number.
 
+import type { ApiMember } from "./locate.js";
 import type { Split, VotePos } from "./logic.js";
 
 export interface Sourced {
@@ -35,6 +36,21 @@ export function portrait(id: MemberId): string {
 /** The demo user's three members, in the order the page's member tabs show them. */
 export const YOUR_THREE = ["J000294", "S000148", "G000555"] as const;
 export type YourMember = (typeof YOUR_THREE)[number];
+
+/**
+ * The sample district, as `/v1/reps` returns it for Brooklyn (40.6782, -73.9442), in the page's
+ * tab order. The "your members" strip shows it until someone finds their own.
+ */
+export const sampleReps: Sourced & { label: string; members: ApiMember[] } = {
+  source: "Floor API /v1/reps (U.S. Census geocoder; members from Congress.gov)",
+  asOf: "2026-11-12",
+  label: "New York's 8th District",
+  members: [
+    { bioguideId: "J000294", firstName: "Hakeem", lastName: "Jeffries", party: "D", state: "NY", district: 8, chamber: "house" },
+    { bioguideId: "S000148", firstName: "Chuck", lastName: "Schumer", party: "D", state: "NY", district: null, chamber: "senate" },
+    { bioguideId: "G000555", firstName: "Kirsten", lastName: "Gillibrand", party: "D", state: "NY", district: null, chamber: "senate" },
+  ],
+};
 
 const CLERKS = "Clerk of the House and Senate roll call votes";
 

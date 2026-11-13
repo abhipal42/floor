@@ -33,6 +33,11 @@
   --live: #ff453a;
   --live-text: #ff6b5e;
   --teal: #2dd4bf;
+  --error: #ff6b61;
+  --found-a: #0f2a20;
+  --found-b: #0b0d10;
+  --found-line: #1f4d3a;
+  --warn-line: #5a3a1e;
 
   --flap-top: #1c1f25;
   --flap-bottom: #121418;
@@ -2952,6 +2957,291 @@ td.c-x {
 }
 .foot a:hover {
   color: var(--ink);
+}
+
+/* ------------------------------------------------------------ your members (the strip under the header) */
+
+.yours {
+  padding-top: 28px;
+}
+.yours__strip {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 20px;
+  padding: 24px 28px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 460px);
+  gap: 20px 36px;
+  align-items: center;
+}
+.yours__strip:focus {
+  outline: none;
+}
+.yours__strip:focus-visible {
+  outline: 2px solid var(--accent);
+}
+.yours__strip[data-tone="yea"] {
+  background: linear-gradient(120deg, var(--found-a), var(--found-b) 60%);
+  border-color: var(--found-line);
+}
+.yours__strip[data-tone="nay"] {
+  border-color: var(--warn-line);
+}
+.yours__l,
+.yours__r {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+}
+.yours__l {
+  gap: 14px;
+}
+.yours__k {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+}
+.yours__strip[data-tone="yea"] .yours__k {
+  color: var(--yea);
+}
+.yours__strip[data-tone="nay"] .yours__k {
+  color: var(--nay);
+}
+.yours__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.yours__chips.is-dim .ychip {
+  opacity: 0.45;
+}
+.ychip {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 5px 16px 5px 5px;
+  transition: opacity 0.2s ease;
+}
+.ychip img {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  object-fit: cover;
+  object-position: center 18%;
+  background: var(--line-soft);
+}
+.ychip__t {
+  display: flex;
+  flex-direction: column;
+}
+.ychip__n {
+  font-family: var(--cond);
+  font-weight: 800;
+  font-size: 19px;
+  text-transform: uppercase;
+  line-height: 1;
+}
+.ychip__s {
+  font-size: 11px;
+  color: var(--muted);
+}
+.ychip--skel {
+  width: 170px;
+  height: 52px;
+  padding: 0;
+  border: 0;
+  background: var(--line-soft);
+}
+.yours__note {
+  font-size: 14px;
+  line-height: 1.55;
+  color: var(--body);
+  max-width: 680px;
+}
+.yours__title {
+  font-family: var(--cond);
+  font-style: italic;
+  font-weight: 900;
+  font-size: 40px;
+  line-height: 0.9;
+  text-transform: uppercase;
+}
+.yours__locate {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  background: var(--yea);
+  color: var(--ground);
+  border: 0;
+  border-radius: 14px;
+  padding: 15px;
+  font-size: 16px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.yours__locate:hover {
+  background: var(--yea-hover);
+}
+.yours__locate:disabled {
+  cursor: progress;
+  opacity: 0.85;
+}
+.yours__addr {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.yours__row {
+  display: flex;
+  gap: 8px;
+}
+.yours__row input {
+  flex: 1;
+  min-width: 0;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  color: var(--ink);
+  border-radius: 12px;
+  padding: 13px;
+  font: inherit;
+  font-size: 16px;
+}
+.yours__row input[aria-invalid="true"] {
+  border-color: var(--error);
+}
+.yours__row button {
+  background: var(--ink);
+  color: var(--ground);
+  border: 0;
+  border-radius: 12px;
+  padding: 0 16px;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.yours__err {
+  font-size: 12px;
+  color: var(--error);
+}
+.yours__links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  font-size: 13px;
+}
+.yours__link {
+  background: transparent;
+  border: 0;
+  padding: 0;
+  color: var(--body);
+  text-decoration: underline;
+  cursor: pointer;
+}
+.yours__link--dim {
+  color: var(--muted);
+}
+.yours__privacy {
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--muted);
+}
+[hidden] {
+  display: none !important;
+}
+
+/* Sections that still show New York once the strip shows someone else's members. */
+.sample-flag {
+  background: var(--surface);
+  border: 1px dashed var(--accent);
+  border-radius: 12px;
+  padding: 12px 14px;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--body);
+  max-width: 720px;
+}
+.sample-flag__k {
+  font-family: var(--cond);
+  font-style: italic;
+  font-weight: 900;
+  font-size: 16px;
+  color: var(--accent);
+  margin-right: 8px;
+}
+
+/* Scouting report: live-data states. */
+.skel {
+  display: block;
+  background: var(--line-soft);
+  border-radius: 8px;
+}
+.skel--img {
+  width: 80px;
+  height: 96px;
+  border-radius: 12px;
+}
+.skel--line {
+  width: 220px;
+  height: 22px;
+  margin-bottom: 8px;
+}
+.skel--short {
+  width: 140px;
+  height: 14px;
+}
+.sc-skel {
+  min-height: 200px;
+}
+.sc-err {
+  flex: 1 1 100%;
+  padding: 40px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  align-items: flex-start;
+}
+.sc-err p {
+  font-size: 14px;
+  color: var(--body);
+}
+.sc-err__retry {
+  background: var(--ink);
+  color: var(--ground);
+  border: 0;
+  border-radius: 10px;
+  padding: 10px 16px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.dyk--delegate {
+  background: var(--surface-2);
+  border-top: 0;
+  border-radius: 12px;
+  padding: 14px 16px;
+}
+.sq--C { background: var(--ink); }
+.lg--c { background: var(--ink); }
+
+@media (max-width: 860px) {
+  .yours__strip {
+    grid-template-columns: minmax(0, 1fr);
+    padding: 20px;
+  }
+  /* Seven section links wrap to two rows here and the sticky header grew to ~130px, about a
+     sixth of a phone screen, covering the top of every section. On narrow screens the header
+     keeps the logo and "Get the app"; the page itself is the navigation. */
+  .site-head__in {
+    flex-wrap: nowrap;
+  }
+  .site-nav a:not(.site-nav__cta) {
+    display: none;
+  }
 }
 
 /* ------------------------------------------------------------ narrow screens */

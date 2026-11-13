@@ -156,6 +156,7 @@ describe("scouting grid", () => {
     expect(cellLook("Y")).toEqual({ word: "YEA", chipBg: "yea-soft", chipFg: "yea" });
     expect(cellLook("M")).toEqual({ word: "MISSED", chipBg: "line", chipFg: "muted" });
     expect(cellLook("P").word).toBe("PRESENT");
+    expect(cellLook("C").word).toBe("VOTED");
   });
 
   it("names the question when the measure is a bare amendment", () => {
