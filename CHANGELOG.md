@@ -10,7 +10,6 @@ Before 0.1.0 the history is the commit log on `main`.
 
 ## 0.2.12 — 2026-11-13
 
-<<<<<<< HEAD
 "Use my location" on the iOS app's onboarding, built to the locked canvas round 7 board `LocApp`
 (<https://claude.ai/artifact/FKWYDhCej75UPy94csYLsU>).
 
