@@ -4,9 +4,10 @@ import { beforeAll, describe, expect, it } from "vitest";
 import { pgRepositories, type Db } from "./pg.js";
 
 let repos: ReturnType<typeof pgRepositories>;
+let pg: PGlite;
 
 beforeAll(async () => {
-  const pg = new PGlite();
+  pg = new PGlite();
   await pg.exec(`
     create schema auth;
     create table auth.users (id uuid primary key);
@@ -56,6 +57,34 @@ beforeAll(async () => {
     update votes set nomination_id = '119-pn-900' where id = 'senate-119-1-91';
     update votes set bill_id = '119-hr-1' where id = 'house-119-1-1';
     update votes set nomination_id = '119-pn-12-12' where id = 'senate-119-1-90';
+
+    -- Campaign finance. H000010 deliberately has no row: FEC has no current-campaign totals for
+    -- some members, and the route must say so rather than invent zeroes.
+    insert into campaign_finance (member_id, fec_candidate_id, cycle, coverage_start, coverage_end, receipts,
+                                  individual_unitemized, individual_itemized, pac, party, other, cash_on_hand) values
+      ('H000037', 'H0TX37001', 2026, '2025-01-01', '2026-10-14', 2412880.50, 402118, 1204902, 611500, 5000, 189360, 884398),
+      ('H000011', 'H0TX11001', 2026, '2025-01-01', '2026-10-14', 500000, 100000, 200000, 150000, 0, 50000, null),
+      ('H000040', 'H0TX40001', 2026, '2025-01-01', '2026-10-14', 100000, 10000, 20000, 60000, 0, 10000, 5000),
+      -- A senator elected in 2022: their campaign is for 2028, but the committee filings we hold
+      -- are the 2026 cycle. The two columns are not the same thing (lesson 33).
+      ('S000001', 'S0TX00001', 2028, '2023-01-01', '2026-10-14', 900000, 100000, 300000, 400000, 0, 100000, 250000);
+    -- Direct and earmarked are different money, so the order is by direct alone: Small Company PAC
+    -- passed through far more than it gave and still comes last.
+    insert into pac_contributions (member_id, cycle, committee_id, committee_name, committee_designation,
+                                   committee_type, org_type, connected_org, direct_amount, earmarked_amount) values
+      ('H000037', 2026, 'C00000001', 'Big Trade PAC',      'U', 'Q', 'T',  'Big Trade Association', 15000, 0),
+      ('H000037', 2026, 'C00000002', 'Midsize Union PAC',  'U', 'Q', 'L',  'Midsize Union',          7500, 1200),
+      ('H000037', 2026, 'C00000003', 'Small Company PAC',  'U', 'Q', 'C',  'Small Company Inc',      2500, 48000),
+      -- Excluded by the PAC rule, though both gave more than any of the above.
+      ('H000037', 2026, 'C00000004', 'State Party Committee', 'U', 'X', null, null,                 40000, 0),
+      ('H000037', 2026, 'C00000005', 'Joint Fundraising Cmte', 'J', 'N', null, null,               250000, 0),
+      -- A different cycle entirely; the totals above cover 2026.
+      ('H000037', 2024, 'C00000006', 'Old Cycle PAC',      'U', 'Q', 'T',  'Old Trade Group',       99000, 0),
+      -- FEC classifies neither of these by organization; one is a leadership PAC by designation,
+      -- the other is nothing at all and must come back without a label.
+      ('H000011', 2026, 'C00000007', 'A Leadership PAC',   'D', 'Q', null, null,                     5000, 0),
+      ('H000011', 2026, 'C00000008', 'Unclassified PAC',   'U', 'Q', null, null,                     1000, 0),
+      ('S000001', 2026, 'C00000009', 'Senate Giver PAC',   'U', 'Q', 'T',  'Some Trade Group',      9000, 0);
     -- Five Democrats vote each time, so the bloc is big enough for a majority to mean something.
     -- Hand-checkable majorities for H000037 (D):
     --   vote 1: D votes yea 5-0, they voted yea  -> with party
@@ -290,5 +319,108 @@ describe("Postgres repositories", () => {
   it("reads one member by Bioguide ID", async () => {
     expect(await repos.members.getMember("H000037")).toMatchObject({ bioguideId: "H000037", party: "D", district: 37 });
     expect(await repos.members.getMember("X000000")).toBeNull();
+  });
+
+  describe("funding", () => {
+    it("reads a campaign's totals, with the figures as numbers rather than numeric strings", async () => {
+      const f = await repos.members.funding("H000037", 10);
+      expect(f).toMatchObject({
+        cycle: 2026,
+        coverageStart: "2025-01-01",
+        coverageEnd: "2026-10-14",
+        receipts: 2412880.5,
+        smallDollar: 402118,
+        itemized: 1204902,
+        pac: 611500,
+        party: 5000,
+        other: 189360,
+        cashOnHand: 884398,
+      });
+      // numeric columns come back as strings from node-postgres; a client doing arithmetic on
+      // "2412880.50" would concatenate instead of adding.
+      for (const k of ["receipts", "smallDollar", "pac", "cashOnHand"] as const) expect(typeof f![k]).toBe("number");
+    });
+
+    it("returns null for a member FEC has no totals for, rather than an empty shell", async () => {
+      expect(await repos.members.funding("H000010", 10)).toBeNull();
+    });
+
+    it("lists the biggest direct givers first and keeps earmarked money apart from direct", async () => {
+      const f = await repos.members.funding("H000037", 10);
+      expect(f!.committees.map((c) => c.name)).toEqual(["Big Trade PAC", "Midsize Union PAC", "Small Company PAC"]);
+      // Pass-through money is not the committee's own check: a committee can be third by its own
+      // giving while passing through the most (lesson 23).
+      expect(f!.committees.find((c) => c.name === "Small Company PAC")).toMatchObject({ direct: 2500, earmarked: 48000 });
+    });
+
+    it("labels a committee from FEC's own classification, and leaves it null when FEC says nothing", async () => {
+      const f = await repos.members.funding("H000037", 10);
+      const kinds = Object.fromEntries(f!.committees.map((c) => [c.name, c.kind]));
+      expect(kinds).toEqual({ "Big Trade PAC": "Trade group", "Midsize Union PAC": "Union", "Small Company PAC": "Company" });
+      // An unclassified committee is shown without a label rather than guessed into a category.
+      expect((await repos.members.funding("H000011", 10))!.committees.map((c) => c.kind)).toEqual(["Leadership PAC", null]);
+    });
+
+    it("caps the list at the limit it was given", async () => {
+      expect((await repos.members.funding("H000037", 2))!.committees).toHaveLength(2);
+      expect((await repos.members.funding("H000037", 0))!.committees).toEqual([]);
+    });
+
+    it("takes the most recent filing cycle, not older ones", async () => {
+      // H000037 has a 2024 row too. Mixing cycles would double-count a committee that gave in both.
+      const f = await repos.members.funding("H000037", 10);
+      expect(f!.committees.map((c) => c.name)).not.toContain("Old Cycle PAC");
+      expect(f!.committeesCycle).toBe(2026);
+    });
+
+    it("finds a senator's committees, whose filing cycle is not the cycle their campaign is for", async () => {
+      // Regression: matching pac_contributions.cycle to campaign_finance.cycle returned nothing
+      // for every senator, because a senator up in 2028 still takes PAC money in the 2026 cycle.
+      // Real data caught it — Schumer, Gillibrand and Murkowski all came back with no committees
+      // while plainly having them (lesson 33).
+      const f = await repos.members.funding("S000001", 10);
+      expect(f!.cycle).toBe(2028);
+      expect(f!.committeesCycle).toBe(2026);
+      expect(f!.committees.map((c) => c.name)).toEqual(["Senate Giver PAC"]);
+    });
+
+    it("reports no committee cycle when we hold no committee rows for them", async () => {
+      const f = await repos.members.funding("H000042", 10);
+      expect(f).toBeNull();
+    });
+
+    /**
+     * The SQL filter must agree with `isPac` in apps/worker/src/fec.ts for every designation and
+     * type FEC uses. The rule is written out twice — apps/api has no workspace dependencies, see
+     * the comment on the query — so this walks the whole grid rather than trusting that the two
+     * copies were changed together.
+     */
+    it("excludes exactly the committees isPac excludes: party committees and joint fundraisers", async () => {
+      const designations = ["A", "B", "D", "J", "P", "U", ""];
+      const types = ["N", "Q", "O", "X", "Y", "Z", "H", ""];
+      const isPac = (designation: string, type: string) => designation !== "J" && !["X", "Y", "Z"].includes(type);
+
+      let i = 0;
+      const expected: string[] = [];
+      for (const designation of designations) {
+        for (const type of types) {
+          const id = `C${String(i).padStart(8, "0")}`;
+          const name = `Grid ${designation || "-"}${type || "-"}`;
+          await pg.query(
+            `insert into pac_contributions (member_id, cycle, committee_id, committee_name, committee_designation,
+                                            committee_type, direct_amount) values ('H000040', 2026, $1, $2, $3, $4, $5)`,
+            [id, name, designation || null, type || null, 1000 - i],
+          );
+          if (isPac(designation, type)) expected.push(name);
+          i++;
+        }
+      }
+      const f = await repos.members.funding("H000040", 100);
+      expect(f!.committees.map((c) => c.name).sort()).toEqual(expected.sort());
+      // And the grid genuinely exercises both outcomes, so a filter that dropped everything,
+      // or nothing, could not pass by accident.
+      expect(expected.length).toBeGreaterThan(0);
+      expect(expected.length).toBeLessThan(designations.length * types.length);
+    });
   });
 });
