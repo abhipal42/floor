@@ -7,11 +7,14 @@ import {
   PRIVACY,
   STORE_KEY,
   addressOk,
+  canCancel,
+  congressOn,
   districtLabel,
   foundFrom,
   gridCounts,
   gridLabel,
   gridRows,
+  httpOk,
   isDelegate,
   isSample,
   latestLine,
@@ -19,7 +22,11 @@ import {
   oneMemberNote,
   ordinal,
   parseFound,
+  partyName,
   portraitUrl,
+  posLetter,
+  recordsError,
+  stateName,
   repsOutcome,
   repsUrl,
   roundCoord,
@@ -70,15 +77,29 @@ describe("the request", () => {
     expect(addressOk("78701-1234")).toBe(true);
   });
 
-  it("maps a 404 to outside the U.S. and everything else that isn't 2xx to an error", () => {
+  it("a 404 for a point is outside the U.S.", () => {
     expect(fixture("reps-london.json").error).toMatch(/isn't in a U.S. congressional district/);
-    expect(repsOutcome(200)).toBe("ok");
-    expect(repsOutcome(404)).toBe("outside");
-    expect(repsOutcome(400)).toBe("error");
-    expect(repsOutcome(429)).toBe("error");
-    expect(repsOutcome(500)).toBe("error");
-    // fetch threw: offline, or the browser refused a response with no CORS header (today's case).
-    expect(repsOutcome(null)).toBe("error");
+    expect(repsOutcome(200, "coords")).toBe("ok");
+    expect(repsOutcome(404, "coords")).toBe("outside");
+  });
+
+  it("a 404 for an address is the geocoder not finding it, as the API says", () => {
+    expect(fixture("reps-mistyped.json").error).toBe("We couldn't find that address. Try adding the city, state and ZIP code.");
+    expect(repsOutcome(404, "address")).toBe("notfound");
+    expect(repsOutcome(200, "address")).toBe("ok");
+  });
+
+  it("400 on an address is an address problem; 429 is the rate limit; the rest are errors", () => {
+    expect(repsOutcome(400, "address")).toBe("badaddr");
+    expect(repsOutcome(400, "coords")).toBe("error");
+    expect(repsOutcome(429, "address")).toBe("busy");
+    expect(repsOutcome(429, "coords")).toBe("busy");
+    expect(repsOutcome(500, "coords")).toBe("error");
+    // fetch threw: offline, or the browser refused a response with no CORS header.
+    expect(repsOutcome(null, "address")).toBe("error");
+    expect(httpOk(200)).toBe(true);
+    expect(httpOk(404)).toBe(false);
+    expect(httpOk(null)).toBe(false);
   });
 });
 
@@ -88,7 +109,7 @@ describe("the state machine", () => {
     expect(run({ type: "locate", supported: true }, { type: "geoFix" }).step).toBe("loading");
     const s = run({ type: "locate", supported: true }, { type: "geoFix" }, { type: "reps", outcome: "ok", found });
     expect(s).toMatchObject({ step: "found", records: "loading", found: { label: "Texas's 37th District" } });
-    expect(nextState(s, { type: "records", ok: true }).records).toBe("ready");
+    expect(nextState(s, { type: "records", loaded: 3, of: 3 }).records).toBe("ready");
   });
 
   it("block → denied; unavailable or timeout → no fix", () => {
@@ -117,17 +138,66 @@ describe("the state machine", () => {
   });
 
   it("records failing keeps the found members; Try again reloads them", () => {
-    const s = run({ type: "restore", found }, { type: "records", ok: false });
+    const s = run({ type: "restore", found }, { type: "records", loaded: 0, of: 3 });
     expect(s).toMatchObject({ step: "found", records: "error", found });
     expect(nextState(s, { type: "retry" }).records).toBe("loading");
+  });
+
+  it("one member failing is partial: the others show, and Try again is offered", () => {
+    const s = run({ type: "restore", found }, { type: "records", loaded: 2, of: 3 });
+    expect(s.records).toBe("partial");
+    expect(isSample(s)).toBe(false);
+    expect(nextState(s, { type: "retry" }).records).toBe("loading");
+  });
+
+  it("an address 404, a 400 and a 429 each have their own step", () => {
+    const loading = run({ type: "toAddress" }, { type: "submitAddress", text: "zzzz nowhere qqq" });
+    expect(nextState(loading, { type: "reps", outcome: "notfound" }).step).toBe("notfound");
+    expect(nextState(loading, { type: "reps", outcome: "badaddr" }).step).toBe("badaddr");
+    expect(nextState(loading, { type: "reps", outcome: "busy" }).step).toBe("busy");
+  });
+
+  it("a 200 with no members is a vacant seat, not a found district", () => {
+    const loading = run({ type: "toAddress" }, { type: "submitAddress", text: "1100 Congress Ave, Austin" });
+    const s = nextState(loading, { type: "reps", outcome: "ok", found: { ...found, members: [] } });
+    expect(s).toMatchObject({ step: "vacant", vacant: "Texas's 37th District" });
+    expect(isSample(s)).toBe(true);
+  });
+
+  it("Cancel on the address field goes back where it came from", () => {
+    expect(run({ type: "toAddress" }, { type: "cancel" })).toEqual(INITIAL);
+    const fromFound = run({ type: "restore", found }, { type: "records", loaded: 3, of: 3 }, { type: "toAddress" });
+    expect(fromFound).toMatchObject({ step: "address", returnTo: "found" });
+    expect(canCancel(fromFound)).toBe(true);
+    expect(nextState(fromFound, { type: "cancel" })).toMatchObject({ step: "found", found, records: "ready" });
+    // A lookup that fails after "Not your district?" still cancels back to the district on show.
+    const failed = [{ type: "submitAddress", text: "zzzz nowhere qqq" }, { type: "reps", outcome: "notfound" }] as const;
+    const after = failed.reduce(nextState, fromFound);
+    expect(after.step).toBe("notfound");
+    expect(nextState(after, { type: "cancel" }).step).toBe("found");
+    // Denied from the sample cancels to the sample.
+    expect(run({ type: "locate", supported: true }, { type: "geoError", code: 1 }, { type: "cancel" })).toEqual(INITIAL);
+    expect(canCancel(INITIAL)).toBe(false);
+    expect(nextState(INITIAL, { type: "cancel" })).toEqual(INITIAL);
   });
 
   it("ignores late answers that no longer apply", () => {
     const idle = run({ type: "locate", supported: true }, { type: "reset" });
     expect(nextState(idle, { type: "reps", outcome: "ok", found })).toEqual(INITIAL);
     expect(nextState(idle, { type: "geoFix" })).toEqual(INITIAL);
-    const ready = run({ type: "restore", found }, { type: "records", ok: true });
-    expect(nextState(ready, { type: "records", ok: false }).records).toBe("ready");
+    const ready = run({ type: "restore", found }, { type: "records", loaded: 3, of: 3 });
+    expect(nextState(ready, { type: "records", loaded: 0, of: 3 }).records).toBe("ready");
+  });
+
+  it("the records error never says three for one member, and names a single failure", () => {
+    expect(recordsError(1).body).toContain("Your member is kept");
+    expect(recordsError(1).body).not.toMatch(/three/);
+    expect(recordsError(3).body).toContain("Your three are kept");
+    expect(recordsError(2).body).toContain("Your members are kept");
+    expect(recordsError(3, "Cruz")).toEqual({
+      title: "Couldn't load Cruz's records",
+      body: "Floor's vote server didn't answer for Cruz. The others loaded; nothing else is lost.",
+    });
   });
 
   it("Back to the sample returns to idle", () => {
@@ -162,8 +232,20 @@ describe("the strip's copy", () => {
     );
   });
 
-  it("the privacy line is the mock's", () => {
-    expect(PRIVACY).toBe("Your browser asks first. Floor rounds the point to about 11 m, finds the district, and keeps neither the point nor the address.");
+  it("the privacy line claims only what the page does (diverges from the mock on purpose)", () => {
+    expect(PRIVACY).toBe("Your browser asks first. Floor rounds the point to about 11 m and uses it once to find your district; this page stores only the district.");
+    expect(PRIVACY).not.toMatch(/keeps neither/);
+  });
+
+  it("the new failure steps say what happened", () => {
+    const at = (outcome: "notfound" | "badaddr" | "busy") =>
+      stripView(run({ type: "toAddress" }, { type: "submitAddress", text: "zzzz nowhere qqq" }, { type: "reps", outcome }));
+    expect(at("notfound")).toMatchObject({ kicker: "WE COULDN'T FIND THAT ADDRESS", address: true, note: "We couldn't find that address. Try adding the city, state and ZIP code." });
+    expect(at("notfound").note).not.toMatch(/abroad|at sea/);
+    expect(at("badaddr")).toMatchObject({ address: true, title: "Check the address." });
+    expect(at("busy").note).toMatch(/^Too many lookups, try again in a minute/);
+    const vacant = run({ type: "toAddress" }, { type: "submitAddress", text: "1100 Congress Ave" }, { type: "reps", outcome: "ok", found: { ...found, members: [] } });
+    expect(stripView(vacant).note).toMatch(/^Floor found Texas's 37th District, but no one holds its seats/);
   });
 });
 
@@ -207,8 +289,7 @@ describe("records → scouting card", () => {
     // Expected values counted from the fixture by hand (python, not this module).
     const sc = scoutFrom(austin.members[0]!, loyalty("D000399"), votes("D000399"));
     expect(sc.unity).toBe(96.9);
-    expect(sc.withParty).toBe(1782);
-    expect(sc.partyVotes).toBe(1839);
+    expect(sc.withPartySub).toBe("1,782 of 1,839");
     expect(sc.cross).toBe(57);
     expect(sc.grid).toHaveLength(40);
     expect(gridCounts(sc.grid)).toEqual({ Y: 19, N: 19, P: 0, M: 2, C: 0 });
@@ -267,6 +348,52 @@ describe("records → scouting card", () => {
     expect(scoutFrom(austin.members[0]!, { votes: 0, withParty: 0, againstParty: 0 }, []).unity).toBeNull();
   });
 
+  it("an independent has no party bloc: dashes, not zeros", () => {
+    // Real: /v1/reps for Burlington, VT, and Sanders' /v1/members/S000033 (partyLoyalty all zeros).
+    const vermont: ApiReps = fixture("reps-vermont.json");
+    const sanders = vermont.members.find((m) => m.bioguideId === "S000033")!;
+    expect(loyalty("S000033")).toEqual({ votes: 0, withParty: 0, againstParty: 0 });
+    const sc = scoutFrom(sanders, loyalty("S000033"), votes("S000033"));
+    expect(sc.unity).toBeNull();
+    // His own record still counts: 10 yea, 29 nay, 1 missed in the last 40.
+    expect(gridCounts(sc.grid)).toEqual({ Y: 10, N: 29, P: 0, M: 1, C: 0 });
+    expect(sc.played).toBe(39);
+    expect(sc.cross).toBeNull();
+    expect(sc.withPartySub).toBe("—");
+    expect(sc.note).toMatch(/^No party bloc to measure against/);
+    expect(sc.seat).toBe("Senate · Vermont · Independent");
+  });
+
+  it("a Speaker ballot counts as showing up but has no winning side", () => {
+    const v = votes("D000399");
+    const ballot = { ...v[0]!, position: "candidate" as const, choice: "Jeffries", vote: { ...v[0]!.vote, kind: "election" as const, result: "Johnson" } };
+    const sc = scoutFrom(austin.members[0]!, loyalty("D000399"), [ballot, ...v.slice(1)]);
+    // Doggett's newest vote was a nay on a bill that passed (a loss); swapping it for a ballot
+    // keeps him at 38 shown up (the ballot replaces a cast vote), takes one call out of `of`, and
+    // leaves `won` alone.
+    expect(gridCounts(sc.grid)).toEqual({ Y: 19, N: 18, P: 0, M: 2, C: 1 });
+    expect(sc.played).toBe(38);
+    expect(sc.of).toBe(37);
+    expect(sc.won).toBe(19);
+  });
+
+  it("a vote with an unknown position fails that member, loudly", () => {
+    const v = votes("D000399");
+    const bad = [{ ...v[0]!, position: "abstain" as unknown as ApiMemberVote["position"] }, ...v.slice(1)];
+    expect(() => scoutFrom(austin.members[0]!, loyalty("D000399"), bad)).toThrow(/unknown vote position/);
+    expect(() => scoutFrom(austin.members[0]!, loyalty("D000399"), [{ ...v[0]!, vote: { ...v[0]!.vote, totals: undefined as never } }])).toThrow();
+    expect(() => posLetter("toString" as ApiMemberVote["position"])).toThrow();
+  });
+
+  it("Senate results that are truncated or unfamiliar are left out of winning side", () => {
+    const odd = votes("D000399").map((x) => ({ ...x, vote: { ...x.vote, result: "Motion to Discharge Re" } }));
+    const sc = scoutFrom(austin.members[0]!, loyalty("D000399"), odd);
+    expect([sc.won, sc.of, sc.played]).toEqual([0, 0, 38]);
+    const senate = votes("C001056").map((x) => ({ ...x, vote: { ...x.vote, result: "Veto Overridden" } }));
+    // Cornyn: 27 yea and 9 nay; an override carried, so the 27 yeas are the winning side.
+    expect(scoutFrom(austin.members[1]!, loyalty("C001056"), senate)).toMatchObject({ won: 27, of: 36 });
+  });
+
   it("shortens the clerks' questions", () => {
     expect(shortQuestion("On Motion to Suspend the Rules and Pass, as Amended")).toBe("Suspension");
     expect(shortQuestion("On the Cloture Motion")).toBe("Cloture");
@@ -280,11 +407,43 @@ describe("records → scouting card", () => {
 describe("remembering a district", () => {
   const coords = /30\.27|97\.74|lat|lng|address|Congress Ave|78701/i;
 
-  it("stores the district and members, never the point or the address", () => {
+  it("stores the district, its Congress and members, never the point or the address", () => {
     const raw = serializeFound(found);
     expect(raw).not.toMatch(coords);
     expect(STORE_KEY).not.toMatch(coords);
-    expect(parseFound(raw)).toEqual(found);
+    expect(found.congress).toBe(119);
+    expect(parseFound(raw, 119)).toEqual(found);
+  });
+
+  it("drops a district saved for an older Congress", () => {
+    expect(parseFound(serializeFound(found), 120)).toBeNull();
+    expect(parseFound(JSON.stringify({ label: "x", members: JSON.parse(serializeFound(found)).members }), 119)).toBeNull();
+  });
+
+  it("knows which Congress is sitting: the 120th from 2027-01-03 (lesson 4)", () => {
+    expect(congressOn(new Date("2026-11-12T12:00:00Z"))).toBe(119);
+    expect(congressOn(new Date("2025-01-03T18:00:00Z"))).toBe(119);
+    expect(congressOn(new Date("2027-01-02T12:00:00Z"))).toBe(119);
+    expect(congressOn(new Date("2027-01-03T18:00:00Z"))).toBe(120);
+    expect(congressOn(new Date("2029-02-01T00:00:00Z"))).toBe(121);
+  });
+
+  it("requires an integer district, or null for a senator", () => {
+    const member = (district: unknown) =>
+      JSON.stringify({ label: "x", congress: 119, members: [{ bioguideId: "D000399", firstName: "a", lastName: "b", party: "D", state: "TX", district, chamber: "house" }] });
+    expect(parseFound(member(37), 119)).not.toBeNull();
+    expect(parseFound(member(null), 119)).not.toBeNull();
+    expect(parseFound(member(3.5), 119)).toBeNull();
+    expect(parseFound(member(-1), 119)).toBeNull();
+    expect(parseFound(member("37"), 119)).toBeNull();
+  });
+
+  it("looks state and party names up as own keys only", () => {
+    expect(stateName("toString")).toBe("toString");
+    expect(stateName("__proto__")).toBe("__proto__");
+    expect(partyName("constructor")).toBe("constructor");
+    expect(stateName("VT")).toBe("Vermont");
+    expect(partyName("I")).toBe("Independent");
   });
 
   it("drops anything extra a response carries, such as county", () => {
@@ -295,10 +454,10 @@ describe("remembering a district", () => {
   });
 
   it("rejects corrupt or foreign values", () => {
-    expect(parseFound(null)).toBeNull();
-    expect(parseFound("{")).toBeNull();
-    expect(parseFound('{"label":"x","members":[]}')).toBeNull();
-    expect(parseFound('{"label":"x","members":[{"bioguideId":"<img>","firstName":"a","lastName":"b","party":"D","state":"TX","district":1,"chamber":"house"}]}')).toBeNull();
-    expect(parseFound(serializeFound(foundFrom(dc)))?.members[0]?.bioguideId).toBe("N000147");
+    expect(parseFound(null, 119)).toBeNull();
+    expect(parseFound("{", 119)).toBeNull();
+    expect(parseFound('{"label":"x","congress":119,"members":[]}', 119)).toBeNull();
+    expect(parseFound('{"label":"x","congress":119,"members":[{"bioguideId":"<img>","firstName":"a","lastName":"b","party":"D","state":"TX","district":1,"chamber":"house"}]}', 119)).toBeNull();
+    expect(parseFound(serializeFound(foundFrom(dc)), 119)?.members[0]?.bioguideId).toBe("N000147");
   });
 });

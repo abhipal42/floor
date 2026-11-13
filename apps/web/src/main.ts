@@ -28,9 +28,13 @@ import {
   INITIAL,
   PRIVACY,
   STORE_KEY,
+  canCancel,
+  congressOn,
   foundFrom,
   gridLabel,
+  httpOk,
   isSample,
+  recordsError,
   memberUrl,
   nextState,
   parseFound,
@@ -546,22 +550,31 @@ interface ScoutCard {
   seat: string;
   chamber: "House" | "Senate";
   unity: number | null;
-  withParty: number;
-  partyVotes: number;
+  withPartySub: string;
   played: number;
   playedSub: string;
   won: number;
   of: number;
-  cross: number;
+  cross: number | null;
   note: string;
   grid: readonly FoundRow[];
   img: string;
   box: { k: string; t: string } | null;
   delegate: string;
+  failed?: false;
+}
+
+/** A member whose own records didn't load while the others' did. */
+interface FailedCard {
+  failed: true;
+  id: string;
+  label: string;
+  img: string;
 }
 
 const SAMPLE_CARDS: ScoutCard[] = scouting.members.map((m) => ({
   ...m,
+  withPartySub: m.withParty.toLocaleString("en-US") + " of " + m.partyVotes.toLocaleString("en-US"),
   img: portrait(m.id),
   box: { k: "DID YOU KNOW", t: m.fact },
   delegate: "",
@@ -576,13 +589,13 @@ type ScoutMode =
   | { kind: "skeleton" }
   | { kind: "loading"; members: ApiMember[] }
   | { kind: "error"; members: ApiMember[] }
-  | { kind: "found"; cards: ScoutCard[] };
+  | { kind: "found"; cards: (ScoutCard | FailedCard)[] };
 
 function scout(onRetry: () => void): (mode: ScoutMode) => void {
   const tabs = el("#scout-tabs");
   const panel = el("#scout-panel");
   const kicker = el("#scout-kicker");
-  let cards: ScoutCard[] = SAMPLE_CARDS;
+  let cards: (ScoutCard | FailedCard)[] = SAMPLE_CARDS;
   let who = 0;
   let hi = 39;
   let seen = false;
@@ -596,36 +609,44 @@ function scout(onRetry: () => void): (mode: ScoutMode) => void {
 
   const readout = () => {
     const sc = cards[who]!;
-    if (!sc.grid.length) return;
+    if (sc.failed || !sc.grid.length) return;
     const i = Math.min(hi, sc.grid.length - 1);
     const r = sc.grid[i]!;
     const look = cellLook(r[4]);
     all(".sq", panel).forEach((q, k) => q.classList.toggle("is-hi", k === i));
     el("[data-readout]", panel).innerHTML =
-      '<span class="ro__pos" style="background:var(--' + look.chipBg + ");color:var(--" + look.chipFg + ')">' + look.word + "</span>" +
+      '<span class="ro__pos" style="background:var(--' + look.chipBg + ");color:var(--" + look.chipFg + ')">' + esc(look.word) + "</span>" +
       '<span class="ro__what"><span class="ro__t">' + esc(readoutCite(r[2], r[3])) + " · " + esc(r[3]) + '</span><span class="ro__m">' + esc(sc.chamber) +
-      " roll " + r[0] + " · " + esc(r[1]) + " · " + esc(r[7].trim()) + "</span></span>" +
-      '<span class="ro__s num"><span class="yea">' + r[5] + '</span>–<span class="nay">' + r[6] + "</span></span>";
+      (r[0] ? " roll " + esc(Number(r[0])) : "") + " · " + esc(r[1]) + " · " + esc(r[7].trim()) + "</span></span>" +
+      '<span class="ro__s num"><span class="yea">' + esc(Number(r[5])) + '</span>–<span class="nay">' + esc(Number(r[6])) + "</span></span>";
   };
 
   const rings = (p: number) => {
     const sc = cards[who];
-    if (!sc) return;
+    if (!sc || sc.failed) return;
     // Showed up is out of 40 in the sample; ringValues scales by 2.5, so scale a shorter grid to match.
     const vals = ringValues({ unity: sc.unity ?? 0, played: (sc.played * 40) / Math.max(1, sc.grid.length), won: sc.won, of: Math.max(1, sc.of) });
-    all<SVGCircleElement>("[data-ring]", panel).forEach((c, k) => c.setAttribute("stroke-dasharray", ringDash(vals[k] ?? 0, p)));
+    all<SVGCircleElement>("[data-ring]", panel).forEach((c, k) => {
+      c.setAttribute("stroke-dasharray", ringDash(vals[k] ?? 0, p));
+      // No party votes to count: draw no ring at all, not the dot a zero-length round cap leaves.
+      c.style.opacity = k === 0 && sc.unity === null ? "0" : "";
+    });
   };
 
   const show = (i: number) => {
     who = i;
     const sc = cards[i]!;
+    if (sc.failed) {
+      errorCard(recordsError(cards.length, sc.label));
+      return;
+    }
     const n = sc.grid.length;
     hi = n - 1;
     const ringDefs = [
       {
         label: "With party",
         big: sc.unity === null ? "—" : sc.unity.toFixed(1) + "%",
-        sub: sc.withParty.toLocaleString("en-US") + " of " + sc.partyVotes.toLocaleString("en-US"),
+        sub: sc.withPartySub,
         color: "yea",
       },
       { label: "Showed up", big: sc.played + "/" + n, sub: sc.playedSub, color: "ink" },
@@ -646,7 +667,7 @@ function scout(onRetry: () => void): (mode: ScoutMode) => void {
         )
         .join("") +
       "</div>" +
-      '<div class="sc-cross"><span class="sc-cross__n"><span class="sc-cross__k">Crossovers since 2023</span><span class="sc-cross__v num">' + sc.cross + '</span></span><span class="sc-cross__note">' +
+      '<div class="sc-cross"><span class="sc-cross__n"><span class="sc-cross__k">Crossovers since 2023</span><span class="sc-cross__v num">' + (sc.cross === null ? "—" : esc(Number(sc.cross))) + '</span></span><span class="sc-cross__note">' +
       esc(sc.note) + "</span></div></div>" +
       '<div class="sc-grid card">' +
       '<div class="sc-grid__head"><h3 class="h4">Last ' + n + ' calls</h3><span class="legend"><span><i class="lg lg--y"></i>Yea</span><span><i class="lg lg--n"></i>Nay</span><span><i class="lg lg--p"></i>Present</span><span><i class="lg lg--m"></i>Missed</span>' +
@@ -675,11 +696,14 @@ function scout(onRetry: () => void): (mode: ScoutMode) => void {
       '<span class="sq sq--M"></span>'.repeat(40) + '</div><p class="fine">' + esc(msg) + "</p></div>";
   };
 
-  const errorCard = () => {
+  const errorCard = (copy: { title: string; body: string }) => {
     panel.innerHTML =
-      '<div class="sc-err card"><h3 class="h4">Couldn\'t load their records</h3><p>Floor found your district but its vote server didn\'t answer. Your three are kept; nothing else is lost.</p>' +
+      '<div class="sc-err card"><h3 class="h4">' + esc(copy.title) + "</h3><p>" + esc(copy.body) + "</p>" +
       '<button type="button" class="sc-err__retry" data-retry>Try again</button></div>';
-    el("[data-retry]", panel).addEventListener("click", onRetry);
+    el("[data-retry]", panel).addEventListener("click", () => {
+      onRetry();
+      panel.focus({ preventScroll: true });
+    });
   };
 
   const over = (e: Event) => {
@@ -710,7 +734,7 @@ function scout(onRetry: () => void): (mode: ScoutMode) => void {
     live = mode.kind === "sample" || mode.kind === "found";
     if (mode.kind === "sample" || mode.kind === "found") {
       cards = mode.kind === "sample" ? SAMPLE_CARDS : mode.cards;
-      tabsFor(cards);
+      tabsFor(cards.map((c) => ({ id: c.id, label: c.label, img: c.img })));
       set(0);
       show(0);
       return;
@@ -723,7 +747,7 @@ function scout(onRetry: () => void): (mode: ScoutMode) => void {
     tabsFor(memberList(mode.members));
     set(0);
     if (mode.kind === "loading") skeleton("Loading their records…");
-    else errorCard();
+    else errorCard(recordsError(mode.members.length));
   };
 }
 
@@ -1111,13 +1135,14 @@ function yours(): void {
   const err = el("#yours-err");
   const toAddr = el<HTMLButtonElement>("#yours-to-addr");
   const back = el<HTMLButtonElement>("#yours-back");
+  const cancel = el<HTMLButtonElement>("#yours-cancel");
   const status = el("#yours-status");
   el("#yours-privacy").textContent = PRIVACY;
 
   let state: LocState = INITIAL;
   let gen = 0;
   let scoutKey = "";
-  let found: ScoutCard[] = [];
+  let found: (ScoutCard | FailedCard)[] = [];
   const showScout = scout(() => dispatch({ type: "retry" }));
 
   const sampleChips = sampleReps.members.map((m) => chipHtml(m, portrait(m.bioguideId as MemberId))).join("");
@@ -1128,8 +1153,11 @@ function yours(): void {
     let msg = "";
     if (s.step === "found") {
       if (prev.step !== "found") msg = "Found " + (s.found?.label ?? "your district") + ": " + (s.found?.members.map((m) => m.firstName + " " + m.lastName).join(", ") ?? "") + ". " + v.note;
-      else if (s.records === "error") msg = "Couldn't load their records.";
-      else if (s.records === "ready") msg = "Loaded the records for " + (s.found?.label ?? "your district") + ".";
+      else if (s.records === "error") msg = recordsError(s.found?.members.length ?? 0).title + ".";
+      else if (s.records === "partial") {
+        const failed = found.filter((c) => c.failed).map((c) => c.label);
+        msg = "Loaded the records for " + (s.found?.label ?? "your district") + ", except " + failed.join(" and ") + ".";
+      } else if (s.records === "ready") msg = "Loaded the records for " + (s.found?.label ?? "your district") + ".";
     } else if (s.step === "asking") msg = "Waiting for your browser's location prompt.";
     else if (s.step === "loading") msg = "Finding your district.";
     else if (s.step === "address" && s.addrErr) msg = "";
@@ -1155,7 +1183,8 @@ function yours(): void {
     title.textContent = v.title;
     locate.hidden = !v.locate;
     locate.innerHTML = LOCATE_ICON + "<span>" + esc(v.locate ?? "") + "</span>";
-    locate.disabled = s.step === "asking";
+    // aria-disabled, not disabled: a disabled button drops the focus it holds while the browser asks.
+    locate.setAttribute("aria-disabled", String(s.step === "asking"));
     form.hidden = !v.address;
     input.setAttribute("aria-invalid", String(s.addrErr));
     err.hidden = !s.addrErr;
@@ -1163,7 +1192,8 @@ function yours(): void {
     toAddr.hidden = !v.addressLink;
     toAddr.textContent = v.addressLink ?? "";
     back.hidden = !v.back;
-    el(".yours__links").hidden = !v.addressLink && !v.back;
+    cancel.hidden = !canCancel(s);
+    el(".yours__links").hidden = !v.addressLink && !v.back && cancel.hidden;
     // The address has done its job once a district is found; don't leave it sitting in the page.
     if (s.step === "found") input.value = "";
 
@@ -1179,7 +1209,7 @@ function yours(): void {
       const members = s.found?.members ?? [];
       if (key === "skeleton") showScout({ kind: "skeleton" });
       else if (sample) showScout({ kind: "sample" });
-      else if (s.records === "ready") showScout({ kind: "found", cards: found });
+      else if (s.records === "ready" || s.records === "partial") showScout({ kind: "found", cards: found });
       else showScout({ kind: s.records === "error" ? "error" : "loading", members });
     }
 
@@ -1194,41 +1224,61 @@ function yours(): void {
   const dispatch = (e: LocEvent) => {
     const prev = state;
     state = nextState(state, e);
-    if (state.step === "found" && state.found && (prev.step !== "found" || prev.found !== state.found)) storeSet(serializeFound(state.found));
-    if (e.type === "reset") storeSet(null);
+    // Storage follows the screen: what a reload brings back is what the strip is showing. Leaving a
+    // found district (to type another address, or back to the sample) clears it; Cancel back to it,
+    // or a new district, writes it again. So a failed lookup after "Not your district?" never
+    // resurrects the old district on reload.
+    if (state.step === "found" && state.found) {
+      if (prev.step !== "found" || prev.found !== state.found) storeSet(serializeFound(state.found));
+    } else if (prev.step === "found" || e.type === "reset") storeSet(null);
     render(prev);
     if (state.step === "found" && state.records === "loading" && (prev.records !== "loading" || prev.step !== "found")) void loadRecords();
+  };
+
+  /** One member's card, or a failed placeholder: a bad response or a malformed vote fails that member only. */
+  const loadMember = async (m: ApiMember): Promise<ScoutCard | FailedCard> => {
+    const failed: FailedCard = { failed: true, id: m.bioguideId, label: m.lastName, img: portraitUrl(m.bioguideId) };
+    try {
+      const [detail, votes] = await Promise.all([getJson(memberUrl(API_BASE, m.bioguideId)), getJson(votesUrl(API_BASE, m.bioguideId))]);
+      const loyalty = (detail.body as { partyLoyalty?: { votes: number; withParty: number; againstParty: number } } | null)?.partyLoyalty;
+      const list = (votes.body as { votes?: ApiMemberVote[] } | null)?.votes;
+      if (!httpOk(detail.status) || !httpOk(votes.status) || !loyalty || !Array.isArray(list)) return failed;
+      if (![loyalty.votes, loyalty.withParty, loyalty.againstParty].every(Number.isFinite)) return failed;
+      return foundCard(scoutFrom(m, loyalty, list));
+    } catch {
+      return failed;
+    }
   };
 
   const loadRecords = async () => {
     const my = ++gen;
     const members = state.found?.members ?? [];
-    const cards = await Promise.all(
-      members.map(async (m) => {
-        const [detail, votes] = await Promise.all([getJson(memberUrl(API_BASE, m.bioguideId)), getJson(votesUrl(API_BASE, m.bioguideId))]);
-        const loyalty = (detail.body as { partyLoyalty?: { votes: number; withParty: number; againstParty: number } } | null)?.partyLoyalty;
-        const list = (votes.body as { votes?: ApiMemberVote[] } | null)?.votes;
-        if (repsOutcome(detail.status) !== "ok" || repsOutcome(votes.status) !== "ok" || !loyalty || !Array.isArray(list)) return null;
-        return foundCard(scoutFrom(m, loyalty, list));
-      }),
-    );
+    const cards = await Promise.all(members.map(loadMember));
     if (my !== gen) return;
-    const ok = cards.every((c): c is ScoutCard => c !== null);
-    if (ok) found = cards;
-    dispatch({ type: "records", ok });
+    found = cards;
+    dispatch({ type: "records", loaded: cards.filter((c) => !c.failed).length, of: cards.length });
   };
 
   const lookup = async (place: Place) => {
     const my = ++gen;
     const res = await getJson(repsUrl(API_BASE, place));
     if (my !== gen) return;
-    const outcome = repsOutcome(res.status);
+    const outcome = repsOutcome(res.status, "address" in place ? "address" : "coords");
     const body = res.body as ApiReps | null;
     if (outcome === "ok" && body && Array.isArray(body.members) && body.district) dispatch({ type: "reps", outcome, found: foundFrom(body) });
     else dispatch({ type: "reps", outcome: outcome === "ok" ? "error" : outcome });
+    // An address that needs fixing gets the cursor back, rather than leaving it on the strip.
+    if (!form.hidden) input.focus();
   };
 
+  cancel.addEventListener("click", () => {
+    gen++;
+    dispatch({ type: "cancel" });
+    (state.step === "found" ? toAddr : locate).focus();
+  });
+
   locate.addEventListener("click", () => {
+    if (state.step === "asking") return;
     const geo = "geolocation" in navigator ? navigator.geolocation : null;
     dispatch({ type: "locate", supported: !!geo });
     if (!geo) {
@@ -1271,7 +1321,8 @@ function yours(): void {
   });
 
   render(state);
-  const saved = parseFound(storeGet());
+  const saved = parseFound(storeGet(), congressOn(new Date()));
+  if (!saved) storeSet(null);
   if (saved) dispatch({ type: "restore", found: saved });
 }
 

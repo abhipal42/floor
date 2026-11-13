@@ -438,15 +438,25 @@ the product rules they settled are in `CLAUDE.md` › Product rules). What to kn
     sample labelled SAMPLE → *Use my location* (button reads "Waiting for your browser…" while the
     permission prompt is up) → skeleton chips → your district, members as chips, "Not your district?
     Type an address", "Back to the sample". Blocked location and no fix (timeout/unavailable) open the
-    address field; a 404 from `/v1/reps` is "Not in a U.S. district"; a network or CORS failure is
-    "Couldn't reach Floor's vote server" and the page stays on the sample. Addresses shorter than six
-    characters or a bare 5-digit ZIP are refused before any request, as in the mock. Coordinates are
-    rounded to 4 decimals in the page before they are sent.
+    address field. A 404 from `/v1/reps` means two things: for a **point** it is "Not in a U.S.
+    district"; for an **address** it is the geocoder not matching it, "We couldn't find that address"
+    (the API's own words). A 400 on an address is an address problem, 429 is "Too many lookups, try
+    again in a minute", a 200 with no members is the vacant-seat wording, and a network or CORS
+    failure is "Couldn't reach Floor's vote server"; in all of them the page stays on the sample. Every
+    step with the address field has a *Cancel* back to where you came from (the sample, or the
+    district you had). Addresses shorter than six characters or a bare 5-digit ZIP are refused before
+    any request, as in the mock. Coordinates are rounded to 4 decimals in the page before they are
+    sent.
   - **Scouting report** (`#scout`) switches to the found members: per-member tabs, portrait
     (`unitedstates.github.io/images/congress/225x275/<id>.jpg`; the `theunitedstates.io` host fails
     TLS), with-party % and "X of Y" from `/v1/members/{id}`, showed-up / winning-side / crossovers and
-    the last-40 grid from `/v1/members/{id}/votes?limit=40`, and the latest call. If those calls fail
-    the members stay and the panel says "Couldn't load their records" with *Try again*. A delegate
+    the last-40 grid from `/v1/members/{id}/votes?limit=40`, and the latest call. Each member loads on
+    its own: if one member's calls fail (or a vote comes back with a position outside the five the
+    API documents), that tab says "Couldn't load <name>'s records" with *Try again* and the others
+    show; if all fail the members stay and the panel says "Couldn't load their records". An
+    independent has `partyLoyalty.votes === 0` (Sanders, checked 2026-11-12), so with-party,
+    "X of Y" and crossovers read "—" and the note says there's no party bloc to measure against. A
+    Speaker-ballot vote for a candidate counts as showing up but has no winning side. A delegate
     (D.C., and the territories) gets the one-member note in the strip and a DELEGATE box whose count
     and date are computed from her votes (Norton, 2026-11-12: all 40 of her last 40 are amendment
     votes, the latest Jul 22).
@@ -455,8 +465,28 @@ the product rules they settled are in `CLAUDE.md` › Product rules). What to kn
     member's vote list; its "Your three" chips read "NY-8 SAMPLE"), money and donor context, the
     portfolio, and the live replay. None of them ever shows New York's money under another member's
     name. The player cards and leaderboard are national and don't change.
-  - **Remembered:** the found district label and members go in `localStorage` (`floor.yours.v1`) so a
-    return visit opens on them; never the point or the address. *Back to the sample* clears it.
+  - **Winning side reads the recorded result the way the app does** (`logic.ts` `outcome`, mirroring
+    FloorKit `Vote.recordedOutcome`): rejection words first ("Not Agreed to", "Not Guilty", "Veto
+    Sustained" are failures), then "Passed", "Agreed", "Confirmed", "Overridden", "Guilty"… carry. A
+    truncated or unfamiliar result ("Motion to Discharge Re") has no outcome and is left out of the
+    count instead of counted as a loss. That changed two sample figures from the locked mock:
+    Schumer's winning side 14/40 → 14/38 and Gillibrand's 12/39 → 12/37 (two Senate results in their
+    last 40 are truncated by the clerk).
+  - **Remembered:** the found district, its Congress and its members go in `localStorage`
+    (`floor.yours.v1`) so a return visit opens on them; never the point or the address. Storage
+    follows the screen: leaving a found district (*Not your district?*, *Back to the sample*) clears
+    it, and a new district or *Cancel* back to it writes it again, so an address lookup that fails
+    after *Not your district?* can't bring the old district back on reload. A district saved for an
+    earlier Congress is dropped (the 120th starts 2027-01-03; lesson 4).
+  - **Privacy line diverges from the locked mock on purpose.** The mock said Floor "keeps neither the
+    point nor the address". The page now says only what it does itself: "Floor rounds the point to
+    about 11 m and uses it once to find your district; this page stores only the district." See the
+    open item below.
+  - **Open (for the API team): `/v1/reps` puts the address and coordinates in the URL.** It is a GET,
+    so the address or rounded point is a query string that Vercel's request logs may record. That
+    contradicts "keeps neither the point nor the address" unless log retention is short or the query
+    is redacted, or the route moves to POST with the place in the body. Until one of those is done,
+    the page must not make that claim.
   - **API base** is `src/config.ts` (production); `FLOOR_API_BASE=<url> npm run build -w @floor/web`
     points a build elsewhere (https or localhost only).
   - Dates on vote rows are Eastern time: a Senate vote at 7:37 p.m. on Nov 10 is `2026-11-11T00:37Z`
@@ -541,7 +571,7 @@ steps ship as 0.2.x PATCH releases; 0.3.0 closes the milestone with its retro.
    totals for each member's current campaign: small-dollar, itemized, PAC, party, other, cash on
    hand) and `pac_contributions` (every committee's direct and earmarked totals per member from the
    2026 bulk file, with FEC's organization type for the "kind"). Still to do: the API route and the
-   section (the location mock it waited on was locked 2026-11-13).
+   section (the location mock it waited on was locked 2026-11-12).
 5. **Donor context** from Senate LDA lobbying filings (what each PAC's organization lobbies on),
    matched to the member's votes by topic. The plain-English "who they are" lines are AI-written and
    wait for M4's label-and-cite pipeline.

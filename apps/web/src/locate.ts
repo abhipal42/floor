@@ -2,7 +2,7 @@
 // the pure mapping from the API's responses (apps/api/openapi.json: Reps, MemberDetail, MemberVote)
 // to what the strip and the scouting report show. No DOM, no fetch, so all of it runs in Node.
 
-import { carried, type CellPos } from "./logic.js";
+import { winningSide, type CellPos } from "./logic.js";
 
 // ---------------------------------------------------------------- API shapes (subset of openapi.json)
 
@@ -80,34 +80,59 @@ export function addressOk(text: string): boolean {
   return a.length >= 6 && !/^\d{5}$/.test(a);
 }
 
-/** How a /v1/reps answer reads: found, not in any U.S. district (404), or no usable answer. */
-export type RepsOutcome = "ok" | "outside" | "error";
+/**
+ * How a /v1/reps answer reads. A 404 means different things for the two kinds of request: for a
+ * point it is outside every U.S. district; for an address the Census geocoder couldn't match it
+ * (`apps/api/src/app.ts`, "We couldn't find that address"). 400 on an address is the API refusing
+ * its shape; 429 is the lookup rate limit.
+ */
+export type RepsOutcome = "ok" | "outside" | "notfound" | "badaddr" | "busy" | "error";
 
 /** `status` is the HTTP status, or null when fetch itself threw (offline, or CORS refused it). */
-export function repsOutcome(status: number | null): RepsOutcome {
+export function repsOutcome(status: number | null, kind: "coords" | "address"): RepsOutcome {
   if (status === null) return "error";
   if (status >= 200 && status < 300) return "ok";
-  if (status === 404) return "outside";
+  if (status === 404) return kind === "address" ? "notfound" : "outside";
+  if (status === 429) return "busy";
+  if (status === 400 && kind === "address") return "badaddr";
   return "error";
+}
+
+/** Whether a member's own record calls (`/v1/members/{id}`, `/votes`) answered. */
+export function httpOk(status: number | null): boolean {
+  return status !== null && status >= 200 && status < 300;
 }
 
 // ---------------------------------------------------------------- the state machine
 
-export type Step = "idle" | "asking" | "loading" | "found" | "denied" | "nofix" | "outside" | "error" | "address";
+export type Step =
+  | "idle" | "asking" | "loading" | "found" | "denied" | "nofix" | "outside" | "notfound" | "badaddr" | "busy" | "vacant" | "error" | "address";
+
+/** Steps that show the address field; each has a Cancel back to where the person came from. */
+const ADDRESS_STEPS: readonly Step[] = ["address", "denied", "nofix", "outside", "notfound", "badaddr"];
 
 export interface Found {
   /** "Texas's 37th District" */
   label: string;
+  /** The Congress the members were looked up for; a saved district from an older one is dropped. */
+  congress: number;
   members: ApiMember[];
 }
 
 export interface LocState {
   step: Step;
-  /** The district and members on show while `step` is "found". */
+  /** The district and members on show while `step` is "found" (kept while typing a new address). */
   found: Found | null;
-  /** Their records (loyalty and votes), fetched after the district is found. */
-  records: "loading" | "ready" | "error";
+  /**
+   * Their records (loyalty and votes), fetched after the district is found. "partial" is some
+   * members loaded and some didn't.
+   */
+  records: "loading" | "ready" | "partial" | "error";
   addrErr: boolean;
+  /** Where Cancel on the address field goes. */
+  returnTo: "idle" | "found";
+  /** A 200 with no members: the district's label, for the vacant-seat wording. */
+  vacant: string;
 }
 
 export type LocEvent =
@@ -115,15 +140,16 @@ export type LocEvent =
   | { type: "geoFix" }
   | { type: "geoError"; code: number }
   | { type: "toAddress" }
+  | { type: "cancel" }
   | { type: "submitAddress"; text: string }
   | { type: "typed" }
   | { type: "reps"; outcome: RepsOutcome; found?: Found }
-  | { type: "records"; ok: boolean }
+  | { type: "records"; loaded: number; of: number }
   | { type: "retry" }
   | { type: "reset" }
   | { type: "restore"; found: Found };
 
-export const INITIAL: LocState = { step: "idle", found: null, records: "loading", addrErr: false };
+export const INITIAL: LocState = { step: "idle", found: null, records: "loading", addrErr: false, returnTo: "idle", vacant: "" };
 
 /** GeolocationPositionError.PERMISSION_DENIED; 2 (unavailable) and 3 (timeout) are "no fix". */
 const PERMISSION_DENIED = 1;
@@ -132,33 +158,59 @@ export function nextState(s: LocState, e: LocEvent): LocState {
   switch (e.type) {
     case "locate":
       // No geolocation in this browser: straight to typing an address.
-      return e.supported ? { ...s, step: "asking", addrErr: false } : { ...s, step: "address", addrErr: false };
+      return { ...s, step: e.supported ? "asking" : "address", addrErr: false, returnTo: "idle" };
     case "geoFix":
       return s.step === "asking" ? { ...s, step: "loading" } : s;
     case "geoError":
       if (s.step !== "asking") return s;
       return { ...s, step: e.code === PERMISSION_DENIED ? "denied" : "nofix" };
     case "toAddress":
-      return { ...s, step: "address", addrErr: false };
+      if (ADDRESS_STEPS.includes(s.step)) return s;
+      return { ...s, step: "address", addrErr: false, returnTo: s.step === "found" && s.found ? "found" : "idle" };
+    case "cancel":
+      if (!ADDRESS_STEPS.includes(s.step)) return s;
+      return s.returnTo === "found" && s.found ? { ...s, step: "found", addrErr: false } : { ...INITIAL };
     case "typed":
       return s.addrErr ? { ...s, addrErr: false } : s;
     case "submitAddress":
       return addressOk(e.text) ? { ...s, step: "loading", addrErr: false } : { ...s, addrErr: true };
     case "reps":
       if (s.step !== "loading") return s;
-      if (e.outcome === "ok" && e.found?.members.length) return { ...s, step: "found", found: e.found, records: "loading" };
-      if (e.outcome === "outside") return { ...s, step: "outside" };
-      return { ...s, step: "error" };
+      if (e.outcome === "ok" && e.found) {
+        if (!e.found.members.length) return { ...s, step: "vacant", vacant: e.found.label };
+        return { ...s, step: "found", found: e.found, records: "loading", returnTo: "idle" };
+      }
+      return { ...s, step: e.outcome === "ok" ? "error" : e.outcome };
     case "records":
       if (s.step !== "found" || s.records !== "loading") return s;
-      return { ...s, records: e.ok ? "ready" : "error" };
+      return { ...s, records: e.loaded === e.of ? "ready" : e.loaded > 0 ? "partial" : "error" };
     case "retry":
-      return s.step === "found" && s.records === "error" ? { ...s, records: "loading" } : s;
+      return s.step === "found" && (s.records === "error" || s.records === "partial") ? { ...s, records: "loading" } : s;
     case "reset":
       return INITIAL;
     case "restore":
-      return { step: "found", found: e.found, records: "loading", addrErr: false };
+      return { ...INITIAL, step: "found", found: e.found };
   }
+}
+
+/** Steps that offer the address field's Cancel. */
+export function canCancel(s: LocState): boolean {
+  return ADDRESS_STEPS.includes(s.step);
+}
+
+/**
+ * The records-error copy. It names the one member who failed when the others loaded, and never
+ * says "three" for a place with one member.
+ */
+export function recordsError(count: number, failedName?: string): { title: string; body: string } {
+  if (failedName) {
+    return {
+      title: "Couldn't load " + failedName + "'s records",
+      body: "Floor's vote server didn't answer for " + failedName + ". The others loaded; nothing else is lost.",
+    };
+  }
+  const kept = count === 1 ? "Your member is kept" : count === 3 ? "Your three are kept" : "Your members are kept";
+  return { title: "Couldn't load their records", body: "Floor found your district but its vote server didn't answer. " + kept + "; nothing else is lost." };
 }
 
 /** Whether the page is showing the New York sample rather than someone's own members. */
@@ -234,6 +286,44 @@ export function stripView(s: LocState): StripView {
         note: "That point isn’t inside any U.S. congressional district — abroad, or out at sea. Floor covers the House and Senate, so it needs a U.S. address.",
         address: true,
       };
+    case "notfound":
+      return {
+        ...base,
+        kicker: "WE COULDN'T FIND THAT ADDRESS",
+        tone: "nay",
+        title: "Check the address.",
+        note: "We couldn't find that address. Try adding the city, state and ZIP code.",
+        address: true,
+      };
+    case "badaddr":
+      return {
+        ...base,
+        kicker: "THAT ADDRESS DIDN'T GO THROUGH",
+        tone: "nay",
+        title: "Check the address.",
+        note: "Floor couldn't read that as an address. Type a street address with the city, state and ZIP, in under 200 characters.",
+        address: true,
+      };
+    case "busy":
+      return {
+        ...base,
+        kicker: "TOO MANY LOOKUPS",
+        tone: "nay",
+        title: "Try again in a minute.",
+        note: "Too many lookups, try again in a minute. Floor limits how often a district can be looked up.",
+        locate: "Use my location",
+        addressLink: "or type an address",
+      };
+    case "vacant":
+      return {
+        ...base,
+        kicker: "NO SITTING MEMBERS FOUND",
+        tone: "nay",
+        title: "Those seats look vacant.",
+        note: "Floor found " + (s.vacant || "your district") + ", but no one holds its seats in Floor's records right now — they may be vacant until a special election. The page is still showing the sample.",
+        locate: "Use my location",
+        addressLink: "or type an address",
+      };
     case "error":
       return {
         ...base,
@@ -249,8 +339,12 @@ export function stripView(s: LocState): StripView {
   }
 }
 
-export const PRIVACY =
-  "Your browser asks first. Floor rounds the point to about 11 m, finds the district, and keeps neither the point nor the address.";
+/**
+ * Says only what this page does. The locked mock said Floor "keeps neither the point nor the
+ * address", but /v1/reps takes both as GET query strings, which the host's request logs may record
+ * (HANDOFF › The landing page, open item). Until that is settled, the page doesn't claim it.
+ */
+export const PRIVACY = "Your browser asks first. Floor rounds the point to about 11 m and uses it once to find your district; this page stores only the district.";
 
 // ---------------------------------------------------------------- places and seats
 
@@ -271,7 +365,7 @@ const STATES: Record<string, string> = {
 const NON_STATES = new Set(["DC", "PR", "GU", "VI", "AS", "MP"]);
 
 export function stateName(code: string): string {
-  return STATES[code] ?? code;
+  return Object.hasOwn(STATES, code) ? STATES[code]! : code;
 }
 
 export function ordinal(n: number): string {
@@ -309,7 +403,7 @@ export function oneMemberNote(m: ApiMember): string {
 const PARTY: Record<string, string> = { D: "Democrat", R: "Republican", I: "Independent", ID: "Independent" };
 
 export function partyName(p: string): string {
-  return PARTY[p] ?? p;
+  return Object.hasOwn(PARTY, p) ? PARTY[p]! : p;
 }
 
 /** The chip's line: "House · TX-37", "Senate · TX", "House · WY-AL", "Delegate · DC". */
@@ -338,18 +432,20 @@ export type FoundPos = CellPos;
 /** One cell of the grid: [roll, date, measure, question, position, yea, nay, result as recorded]. */
 export type FoundRow = readonly [number, string, string, string, FoundPos, number, number, string];
 
+const POSITIONS: Record<ApiMemberVote["position"], FoundPos> = { yea: "Y", nay: "N", present: "P", not_voting: "M", candidate: "C" };
+
+/** The grid letter for an API position; anything outside the five the API documents throws. */
 export function posLetter(p: ApiMemberVote["position"]): FoundPos {
-  switch (p) {
-    case "yea":
-      return "Y";
-    case "nay":
-      return "N";
-    case "present":
-      return "P";
-    case "not_voting":
-      return "M";
-    case "candidate":
-      return "C";
+  if (typeof p !== "string" || !Object.hasOwn(POSITIONS, p)) throw new Error("unknown vote position: " + String(p));
+  return POSITIONS[p];
+}
+
+/** Throws unless a vote has the fields the card reads, so a bad row fails the member, not the page. */
+function checkVote(v: ApiMemberVote): void {
+  posLetter(v?.position);
+  const t = v?.vote?.totals;
+  if (!t || !Number.isFinite(t.yea) || !Number.isFinite(t.nay) || typeof v.vote.question !== "string") {
+    throw new Error("malformed vote");
   }
 }
 
@@ -382,16 +478,17 @@ export function shortQuestion(q: string): string {
 
 /** API votes (newest first) → grid rows, oldest first like the sample's. */
 export function gridRows(votes: readonly ApiMemberVote[]): FoundRow[] {
+  votes.forEach(checkVote);
   return votes
     .map((v): FoundRow => [
-      v.vote.rollNumber ?? 0,
+      Number(v.vote.rollNumber ?? 0),
       shortDate(v.vote.occurredAt),
       v.measure?.citation ?? "Procedural",
       shortQuestion(v.vote.question),
       posLetter(v.position),
-      v.vote.totals.yea,
-      v.vote.totals.nay,
-      v.vote.result ?? "",
+      Number(v.vote.totals.yea),
+      Number(v.vote.totals.nay),
+      String(v.vote.result ?? ""),
     ])
     .reverse();
 }
@@ -424,15 +521,16 @@ export interface FoundScout {
   full: string;
   seat: string;
   chamber: "House" | "Senate";
-  /** Percent with party, one decimal; null when there are no counted party votes yet. */
+  /** Percent with party, one decimal; null when there are no counted party votes (an independent). */
   unity: number | null;
-  withParty: number;
-  partyVotes: number;
+  /** "1,782 of 1,839", or "—" with no party votes to count. */
+  withPartySub: string;
   played: number;
   playedSub: string;
   won: number;
   of: number;
-  cross: number;
+  /** Crossovers; null with no party votes to count, shown as "—" rather than a made-up 0. */
+  cross: number | null;
   note: string;
   latest: string;
   delegate: string;
@@ -443,26 +541,33 @@ export interface FoundScout {
 export function scoutFrom(m: ApiMember, loyalty: ApiLoyalty, votes: readonly ApiMemberVote[]): FoundScout {
   const grid = gridRows(votes);
   const t = gridCounts(grid);
-  const played = t.Y + t.N + t.P;
+  // A Speaker ballot for a named candidate is a vote cast: it counts as showing up, though it has
+  // no winning side.
+  const played = t.Y + t.N + t.P + t.C;
   const extras = [t.P ? t.P + " present" : "", t.M ? t.M + " missed" : ""].filter(Boolean);
-  const cast = grid.filter((r) => r[4] === "Y" || r[4] === "N");
-  const won = cast.filter((r) => (r[4] === "Y") === carried(r[7])).length;
+  const { won, of } = winningSide(grid);
   const newest = votes[0];
+  const counted = Number(loyalty.votes);
+  const fmt = (n: number) => Number(n).toLocaleString("en-US");
+  const independent = m.party === "I" || m.party === "ID";
   return {
     id: m.bioguideId,
     label: m.lastName,
     full: m.firstName + " " + m.lastName,
     seat: seatLong(m),
     chamber: m.chamber === "house" ? "House" : "Senate",
-    unity: loyalty.votes ? Math.round((1000 * loyalty.withParty) / loyalty.votes) / 10 : null,
-    withParty: loyalty.withParty,
-    partyVotes: loyalty.votes,
+    unity: counted ? Math.round((1000 * loyalty.withParty) / counted) / 10 : null,
+    withPartySub: counted ? fmt(loyalty.withParty) + " of " + fmt(counted) : "—",
     played,
     playedSub: [played + " of " + grid.length, ...extras].join(" · "),
     won,
-    of: cast.length,
-    cross: loyalty.againstParty,
-    note: "Votes against their party’s majority, out of " + loyalty.votes.toLocaleString("en-US") + " where it had a clear side.",
+    of,
+    cross: counted ? Number(loyalty.againstParty) : null,
+    note: counted
+      ? "Votes against their party’s majority, out of " + fmt(counted) + " where it had a clear side."
+      : independent
+        ? "No party bloc to measure against: an independent has no party majority to vote with or against, so Floor counts no crossovers."
+        : "No votes yet where their party’s majority had a clear side, so there are no crossovers to count.",
     latest: newest ? latestLine(newest) : "",
     delegate: isDelegate(m) ? delegateNote(m, votes) : "",
     grid,
@@ -505,6 +610,7 @@ export const STORE_KEY = "floor.yours.v1";
 export function serializeFound(f: Found): string {
   return JSON.stringify({
     label: f.label,
+    congress: f.congress,
     members: f.members.map((m) => ({
       bioguideId: m.bioguideId,
       firstName: m.firstName,
@@ -517,8 +623,22 @@ export function serializeFound(f: Found): string {
   });
 }
 
-/** Reads back what serializeFound wrote; anything else (old, edited, corrupt) is null. */
-export function parseFound(raw: string | null): Found | null {
+/**
+ * The Congress sitting on a date: each starts at noon on Jan 3 of an odd year (the 119th in 2025),
+ * so on 2027-01-03 a district saved for the 119th stops being trusted (lesson 4). Day precision;
+ * the morning of Jan 3 is a few hours early, which only drops a saved district a little sooner.
+ */
+export function congressOn(date: Date): number {
+  const y = date.getUTCFullYear();
+  const beforeJan3 = date.getUTCMonth() === 0 && date.getUTCDate() < 3;
+  return Math.floor(((beforeJan3 ? y - 1 : y) - 1789) / 2) + 1;
+}
+
+/**
+ * Reads back what serializeFound wrote; anything else (old, edited, corrupt, or saved for a
+ * different Congress, when the members may have changed) is null.
+ */
+export function parseFound(raw: string | null, congress: number): Found | null {
   if (!raw) return null;
   let v: unknown;
   try {
@@ -526,15 +646,16 @@ export function parseFound(raw: string | null): Found | null {
   } catch {
     return null;
   }
-  const o = v as { label?: unknown; members?: unknown };
-  if (typeof o?.label !== "string" || !Array.isArray(o.members) || o.members.length < 1 || o.members.length > 3) return null;
+  const o = v as { label?: unknown; congress?: unknown; members?: unknown };
+  if (typeof o?.label !== "string" || o.congress !== congress) return null;
+  if (!Array.isArray(o.members) || o.members.length < 1 || o.members.length > 3) return null;
   const members: ApiMember[] = [];
   for (const x of o.members as Record<string, unknown>[]) {
     if (
       typeof x?.bioguideId !== "string" || !/^[A-Z]\d{6}$/.test(x.bioguideId) ||
       typeof x.firstName !== "string" || typeof x.lastName !== "string" || typeof x.party !== "string" ||
       typeof x.state !== "string" || (x.chamber !== "house" && x.chamber !== "senate") ||
-      !(x.district === null || typeof x.district === "number")
+      !(x.district === null || (Number.isInteger(x.district) && (x.district as number) >= 0))
     ) {
       return null;
     }
@@ -543,9 +664,9 @@ export function parseFound(raw: string | null): Found | null {
       state: x.state, district: x.district as number | null, chamber: x.chamber,
     });
   }
-  return { label: o.label, members };
+  return { label: o.label, congress, members };
 }
 
 export function foundFrom(r: ApiReps): Found {
-  return { label: districtLabel(r.district), members: r.members };
+  return { label: districtLabel(r.district), congress: r.district.congress, members: Array.isArray(r.members) ? r.members : [] };
 }

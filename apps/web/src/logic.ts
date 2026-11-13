@@ -161,13 +161,38 @@ export function readoutCite(cite: string, question: string): string {
   return cite === "Amendment" && question !== "Amendment" ? question : cite;
 }
 
+export type Outcome = "carried" | "failed";
+
+// The iOS rule (FloorKit `Vote.recordedOutcome`), plus impeachment verdicts. Rejection words are
+// checked first: "Not Agreed to" contains "agreed", "Not Guilty" contains "guilty", and "Veto
+// Sustained" is a failed override even though "Decision of Chair Sustained" carried.
+const FAILED_WORDS = ["rejected", "failed", "not agreed", "not sustained", "not invoked", "defeated", "veto sustained", "not guilty"];
+const CARRIED_WORDS = ["passed", "agreed", "confirmed", "sustained", "adopted", "invoked", "concurred", "overridden", "guilty"];
+
 /**
- * Whether a roll call's recorded result carried. Results are copied verbatim from the clerks, a few
- * of them truncated ("Concurrent Resolution ", "Motion to Discharge Re"): those are not counted as
- * carried, which is what the stated winning-side stats imply.
+ * What a roll call's recorded result says happened, or null when the wording is missing, truncated
+ * by the clerk ("Concurrent Resolution ", "Motion to Discharge Re") or unfamiliar. A null outcome
+ * has no winning side, so it is left out of the winning-side count rather than counted as a loss.
  */
-export function carried(result: string): boolean {
-  return /Agreed|Passed|Confirmed/.test(result) && !/Rejected|Failed/.test(result);
+export function outcome(result: string | null): Outcome | null {
+  const r = (result ?? "").toLowerCase();
+  if (FAILED_WORDS.some((w) => r.includes(w))) return "failed";
+  if (CARRIED_WORDS.some((w) => r.includes(w))) return "carried";
+  return null;
+}
+
+/** Winning side over the last calls: yea on what carried, nay on what failed, out of decided yea/nay votes. */
+export function winningSide(rows: readonly { readonly 4: string; readonly 7: string }[]): { won: number; of: number } {
+  let won = 0;
+  let of = 0;
+  for (const r of rows) {
+    if (r[4] !== "Y" && r[4] !== "N") continue;
+    const o = outcome(r[7]);
+    if (!o) continue;
+    of++;
+    if ((r[4] === "Y") === (o === "carried")) won++;
+  }
+  return { won, of };
 }
 
 export interface Tier {

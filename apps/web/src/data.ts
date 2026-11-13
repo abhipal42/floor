@@ -511,7 +511,11 @@ export interface Scout {
   /** Of the last 40 calls: how many the member cast a vote on (yea, nay or present). */
   played: number;
   playedSub: string;
-  /** Winning-side calls, out of `of` yea/nay votes cast, in the last 40. */
+  /**
+   * Winning-side calls, out of `of` yea/nay votes cast in the last 40 whose recorded result states
+   * an outcome (`logic.ts` `outcome`). Two Senate results are truncated by the clerk, so the senators'
+   * `of` is two short of their yea/nay count (v0.3.0; the mock counted them as losses: 14/40, 12/39).
+   */
   won: number;
   of: number;
   /** Crossovers since 2023: partyVotes − withParty. */
@@ -685,7 +689,7 @@ export const scouting: Sourced & { members: Scout[] } = {
       played: 40,
       playedSub: "40 of 40",
       won: 14,
-      of: 40,
+      of: 38,
       cross: 37,
       note: "Votes against his party’s majority, out of 1,600 where it had a clear side.",
       fact: "Your two senators voted the same way on 35 of the 39 calls they both cast — they split on S. 4668 twice, and on two August votes.",
@@ -703,7 +707,7 @@ export const scouting: Sourced & { members: Scout[] } = {
       played: 39,
       playedSub: "39 of 40 · 1 missed",
       won: 12,
-      of: 39,
+      of: 37,
       cross: 53,
       note: "Votes against her party’s majority, out of 1,580 where it had a clear side.",
       fact: "Your two senators voted the same way on 35 of the 39 calls they both cast. Her one missed vote: the Sonderling confirmation, Oct 1.",
