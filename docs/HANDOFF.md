@@ -373,11 +373,20 @@ the product rules they settled are in `CLAUDE.md` › Product rules). What to kn
   `data.test.ts`. Votes come from this API; funding from FEC filings (OpenFEC); holdings and trades
   from House Clerk financial disclosures and periodic transaction reports. Refreshing it is a manual
   edit today.
-- **It is not hosted.** Contributors here can't create the Vercel project or enable Pages. To host on
-  Vercel: new project, root directory `apps/web`, build command `npm run build -w @floor/web` run from
-  the repo root (or `cd ../.. && npm run build -w @floor/web`), output directory `apps/web/dist`.
-- **Live data needs CORS.** For the page to read the API in the browser, add the site's origin to
-  `ALLOWED_ORIGINS` on the `floor-api` Vercel project and redeploy.
+- **It is deployed:** <https://floor-web-seven.vercel.app> (Vercel project `floor-web`, team Abtanix
+  Labs, linked to `abhipal42/floor`, so each merge into `main` redeploys it). Unlike `floor-api`, its
+  **root directory is the repo root, not `apps/web`** — the build script resolves `tsc` from the root
+  `node_modules`, which a root directory of `apps/web` does not install. Settings: framework
+  detection **off**, build command `npm run build -w @floor/web`, output directory `apps/web/dist`,
+  install command default, Node 22. Builds in about 5s.
+  Two things to know about the URL: the public one is `floor-web-seven.vercel.app`, the suffix being
+  Vercel's own when the plain project name is taken; and the `floor-web-abtanix-labs.vercel.app` and
+  `-git-main-` aliases sit behind the team's Vercel Authentication, so they answer `302` to anyone not
+  signed in. A custom domain, when there is one, is public by the same setting.
+- **Live data needs CORS — but not yet.** The page makes no requests at all today: it is pure static
+  HTML, CSS and compiled TypeScript, with every figure baked in at build time. If it ever reads the
+  API in the browser, add its origin to `ALLOWED_ORIGINS` on the `floor-api` Vercel project and
+  redeploy, since unset means no browser origin may read a response.
 - **New data sources, not yet ingested:** FEC (the same api.data.gov key as Congress.gov works; the
   shared `DEMO_KEY` allows 40 calls an hour) and House financial disclosures
   (`disclosures-clerk.house.gov/public_disc/financial-pdfs/<year>FD.zip` is a tab-separated index of
