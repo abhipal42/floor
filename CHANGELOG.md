@@ -12,7 +12,7 @@ Before 0.1.0 the history is the commit log on `main`.
 
 The iOS app has a light mode and follows the system appearance. Light is direction D, "Marble &
 Patina", from the re-theme proposal (<https://claude.ai/artifact/AinA8SbyMWgrsC2rsB5U9h>); dark is
-unchanged. Skips 0.2.4, which the open `feat/fec-funding` branch has taken.
+unchanged.
 
 ### Added
 - **Light mode.** Every `Palette` token now has a light and a dark value (`Swatch`, listed in
@@ -31,6 +31,25 @@ unchanged. Skips 0.2.4, which the open `feat/fec-funding` branch has taken.
 - No screen forces dark mode any more: `.preferredColorScheme(.dark)` is gone from the app and
   every screen. The pushed screens' navigation bar sits on the ground colour in either appearance
   (`groundNavigationBar()`, formerly `darkNavigationBar()`).
+
+## 0.2.4 — 2026-11-13
+
+Step 4 of the v0.3.0 milestone, "Your members on the web": campaign finance for every member.
+
+### Added
+
+- **`campaign_finance`**: OpenFEC totals for each current member's campaign to date (House: the
+  2025–26 cycle; senators: since their last election): small-dollar, itemized, PAC, party, other
+  receipts and cash on hand. `npm run ingest -w @floor/worker -- fec-totals` (about 10 minutes for
+  everyone at FEC's 60 requests a minute; skips members refreshed in the last 20 hours).
+- **`pac_contributions`**: every committee's direct and earmarked totals per member, from the FEC
+  bulk file of committee-to-candidate contributions, with FEC's committee designation, type and
+  organization type (corporation, labor, trade, membership…). `fec-pacs 2026`, about 30 seconds.
+- Earmarked pass-throughs are separated from a committee's own checks, and the memo text that names
+  individual donors is never stored (product rule: no individual donors' names). `isPac()` leaves
+  party and joint fundraising committees out of PAC lists.
+- Members now keep their FEC candidate IDs (`members.ids.fec`).
+- `docs/HANDOFF.md` lessons 23–24: what the FEC files actually contain, and the rate limit.
 
 ## 0.2.3 — 2026-11-12
 
