@@ -36,11 +36,17 @@ targets:
         CFBundleDisplayName: Floor
         UILaunchScreen: {}
         FloorAPIBaseURL: $(FLOOR_API_BASE_URL)
+        # Without these XcodeGen writes its own defaults ("1.0", "1"), and the build shows 1.0
+        # whatever MARKETING_VERSION says.
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        # Onboarding's "Use my location": when-in-use only, one fix, never stored.
+        NSLocationWhenInUseUsageDescription: Floor finds your congressional district from where you are, then forgets the location.
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: app.floor.ios
         SWIFT_VERSION: "6.0"
-        MARKETING_VERSION: "0.2.11"
+        MARKETING_VERSION: "0.2.12"
         CURRENT_PROJECT_VERSION: "1"
       configs:
         debug:

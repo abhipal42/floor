@@ -291,6 +291,29 @@ struct ResponseCacheTests {
         await #expect(throws: (any Error).self) { try await client.savedOnly()!.api.reps(address: address) }
     }
 
+    /// Nor does the point a location lookup sends: the key would be the coordinates themselves.
+    @Test func neverStoresTheCoordinates() async throws {
+        let cache = try SwiftDataResponseCache.inMemory()
+        let server = Server(.success(try fixtureData("reps-location-dc")))
+        let client = api(server, cache: cache, clock: Clock(ten))
+        let reps = try await client.reps(latitude: 38.8977, longitude: -77.0365)
+        #expect(reps.members.map(\.lastName) == ["Norton"])
+        #expect(await cache.entries().isEmpty)
+
+        server.answer(.success(try fixtureData("member-detail")))
+        _ = try await client.member(id: "A000370")
+        let entries = await cache.entries()
+        #expect(entries.map(\.key) == ["api.example.test/v1/members/A000370"])
+        for entry in entries {
+            #expect(!entry.key.contains("38.8977"))
+            #expect(!entry.key.contains("lat="))
+        }
+        // And a saved-only client has nothing to answer the lookup with.
+        await #expect(throws: (any Error).self) {
+            try await client.savedOnly()!.api.reps(latitude: 38.8977, longitude: -77.0365)
+        }
+    }
+
     /// Nor does URLSession keep one: the session FloorAPI uses by default has no URLCache, which
     /// would otherwise write `/v1/reps?address=…` to `Caches/Cache.db`.
     @Test func theDefaultSessionHasNoURLCache() {

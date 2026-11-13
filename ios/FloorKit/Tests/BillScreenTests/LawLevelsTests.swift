@@ -88,6 +88,9 @@ struct LawLevelsTests {
 
     @Test func writesTheSponsorLine() throws {
         #expect(try bill("bill-stuck-senate").sponsor?.sponsorLine == "Rep. Gabe Evans (R-CO-8)")
+        let norton = Member(bioguideId: "N000147", firstName: "Eleanor", lastName: "Norton", party: "D",
+                            state: "DC", district: 0, chamber: .house)
+        #expect(norton.sponsorLine == "Del. Eleanor Norton (D-DC)")
     }
 
     /// Cloture failed, then a later cloture vote carried: the Senate is no longer stuck. Built on

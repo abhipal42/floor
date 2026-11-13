@@ -27,7 +27,7 @@ listed at the top of the M2 section: snapshot tests and TestFlight distribution.
 git clone https://github.com/abhipal42/floor.git && cd floor
 npm install
 cp .env.example .env    # then fill in the two values (see below)
-npm run check           # lint + typecheck + 131 tests; must pass before every PR
+npm run check           # lint + typecheck + 286 tests; must pass before every PR
 ```
 
 `.env` (never committed):
@@ -48,7 +48,7 @@ npm run ingest -w @floor/worker -- fec-totals                     # campaign tot
 npm run ingest -w @floor/worker -- fec-pacs 2026                  # committee-to-candidate totals from the FEC bulk files (~30 s)
 npm run openapi -w @floor/api                                    # regenerate apps/api/openapi.json after changing routes
 npm run build -w @floor/web && npm run serve -w @floor/web       # build and serve the landing page from apps/web/dist
-swift test --package-path ios/FloorKit                           # all FloorKit tests (96): models, contract, client, screen models
+swift test --package-path ios/FloorKit                           # all FloorKit tests (222): models, contract, client, screen models
 ```
 
 `apps/api/openapi.json` is the committed contract. Re-run `npm run openapi` after any change to
@@ -246,6 +246,26 @@ Real data broke our first assumptions several times. Each case below is now hand
 28. **The local web server lets the browser cache.** `serve.mjs` sends no cache headers, so after a
     rebuild a normal reload kept the old CSS and title. Hard-reload (Ctrl+Shift+R) before judging a
     change at `localhost:8790`; the deployed site is unaffected.
+29. **A delegation is not always three, and district 0 means two things.** `/v1/reps` for D.C.
+    (38.8977, −77.0365) returns one member — Norton, `chamber: house`, `district: 0` — and no
+    senators; Wyoming's at-large seat (Cheyenne) is also `district: 0`, with two senators. Code that
+    printed the number straight out wrote "R-WY-0" and "D-DC-0". Use `Member.seatBadge` /
+    `seatCaption` / `title` (`Delegate`, `Resident Commissioner` for Puerto Rico), which know both
+    cases, rather than formatting `district` by hand. Norton's House record is real — 616
+    party-counted votes, nearly all "On Agreeing to the Amendment" — because delegates vote in the
+    Committee of the Whole but not on passage.
+30. **XcodeGen writes its own version numbers unless told not to.** With `info.properties` set and no
+    `CFBundleShortVersionString`, the generated `Info.plist` said `1.0` / `1`, so a build reported
+    1.0 whatever `MARKETING_VERSION` was. `project.yml` now maps both keys to `$(MARKETING_VERSION)`
+    and `$(CURRENT_PROJECT_VERSION)`; check the built app's plist, not the spec, if it ever looks off.
+31. **`CLLocationManager` calls `locationManagerDidChangeAuthorization` the moment its delegate is
+    set**, with `.notDetermined`. A permission request that resumes on the first callback returns
+    before the person has answered. `CoreLocationProvider` waits for a determined status.
+32. **A mock's faint grey can fail the contrast test it was never measured against.** LocApp's
+    privacy line is `#6B7280`, which reads at 4.1:1 on the dark ground and 3.3:1 on a card. As a
+    text token it would fail `PaletteTests`, so `textFaint` is `#858B95` in dark (5.8:1 on the
+    ground) and `#636E69` in light (4.6:1). Check a new text colour against the ground, panels and
+    cards before taking it from a mock.
 
 ---
 
@@ -358,9 +378,8 @@ The working rhythm: break each milestone into tasks. For each task, write tests 
 > 4. **TestFlight distribution.** Needs an Apple Developer account, signing and the upload. The
 >    build itself is proven: see **Exit** below.
 >
-> One judgement call to be aware of: the Onboarding bullet reads *an address field (**or** "use my
-> location" …)*, and only the address field is built. Read strictly that satisfies the bullet; if
-> you want both, it is unbuilt work and not tracked anywhere.
+> "Use my location" on onboarding, once noted here as unbuilt, **is built** — see the Onboarding
+> bullet below.
 
 - ~~Complete the API contract the screens need~~ **Done.** The Vote screen's party breakdown and
   delegation positions, and the Rep screen's party-loyalty record, did not exist and would have
@@ -385,11 +404,75 @@ The working rhythm: break each milestone into tasks. For each task, write tests 
   `URLProtocol`; six more run against a real server and are skipped unless `FLOOR_API_URL` is set:
   `npm run dev -w @floor/api` then
   `FLOOR_API_URL=http://localhost:8787 swift test --package-path ios/FloorKit`.
-- ~~**Onboarding**~~ **Done** (address field only; see the note above about "use my location").
-  Resolves through `/v1/reps`, shows who it found, and stores the district and members only once
-  confirmed. The address is used for one request and dropped — it is not part of `Delegation`, so it
-  never reaches disk, and a test encodes a saved record to assert the typed address does not appear
-  in it.
+- ~~**Onboarding**~~ **Done**, address field **and "Use my location"**. Resolves through
+  `/v1/reps`, shows who it found, and stores the district and members only once confirmed. The
+  address is used for one request and dropped — it is not part of `Delegation`, so it never reaches
+  disk, and a test encodes a saved record to assert the typed address does not appear in it.
+
+  **"Use my location"** is built to round 7 of the canvas (`LocApp`, "Onboarding with location").
+  When-in-use permission only (`NSLocationWhenInUseUsageDescription` in `ios/project.yml`), one
+  `requestLocation()` fix with a 15 s timeout, then `GET /v1/reps?lat=&lng=` with both rounded to 4
+  decimals on the phone as well as on the server (`FloorAPI.reps(latitude:longitude:)`). The point
+  lives in one local for one request: never stored, never logged and **never cached** — the
+  coordinates lookup passes `cacheable: false`, as the address lookup does, because the offline
+  cache's key would be the location, and the app's session (`FloorAPI.defaultSession`) has no
+  `URLCache`. Tests check the saved record, the whole `UserDefaults` suite, the response cache and
+  the model itself for it. Core Location sits behind `LocationProvider` (`Onboarding/Location.swift`),
+  so `OnboardingModel` is tested with a stub, and `OnboardingModel` builds its `CoreLocationProvider`
+  on first use rather than with the model, which SwiftUI may build and discard.
+
+  The provider always answers, so the disabled button cannot stick. Location Services off for the
+  whole phone is checked first (`CLLocationManager.locationServicesEnabled()`, off the main thread).
+  A permission request ends with the delegate's answer, or `.denied` when the app comes back active
+  with nothing decided, or after a 120 s backstop; a fix ends with a location, a `LocationFailure`,
+  or the 15 s timeout. A second tap while one is pending joins it, and a late callback after a
+  timeout is ignored (`PendingAnswer`, tested on its own). `CLError.denied` mid-fix reads as
+  "Location is off", not "no fix in time". `OnboardingModel` ignores a second lookup while one runs
+  and drops a result that lands after an edit or "Not your district?" (a generation counter).
+  How each mock state maps:
+
+  | Mock state | Code |
+  |---|---|
+  | System alert | The OS's own, from `requestWhenInUseAuthorization()`; the screen behind stays as it is |
+  | Loading | `phase == .looking` with `source == .location`: "FINDING YOUR DISTRICT…" over three skeleton cards; the field is hidden |
+  | Done | `.found`: district label and member cards; "Not your district? Type an address" (`typeAddressInstead()`) when `source == .location` |
+  | Location off | `notice == .locationOff` (denied): banner + "Open Settings ›" (`UIApplication.openSettingsURLString`); field stays usable |
+  | Outside the U.S. | the API's 404 for a point → `notice == .outsideUS`, field shown |
+  | Precise off | `accuracyAuthorization == .reducedAccuracy` → `.found` plus `notice == .approximate` above it |
+  | D.C. | one card in a three-column row, plus the "One, not three" note (`OnboardingModel.singleMemberNote`) |
+
+  Where the build differs from the mock, and why:
+  - **Restricted** (Screen Time, a profile) has its own banner body and **no** Settings link: Settings
+    › Floor can't lift a restriction, so the link would be a dead end. The mock has only "denied".
+  - **Location Services off** for the whole phone is its own banner: "Location Services are off on
+    this iPhone — Settings › Privacy & Security › Location Services", with no app link, since
+    Floor's own Settings page has no switch for it.
+  - **No fix in time** is a fifth banner ("Couldn’t find where you are"), and it is the one case that
+    offers "Use my location" again; the mock has no location-error state. A network error after a
+    fix lands on the address field with the client's usual message.
+  - **After an address lookup the field stays visible**, as in the earlier locked AppOnboarding
+    build, where typing again is how a wrong match is corrected; the mock hides it in every done
+    state. It is hidden only behind a location result, which has its own "Not your district?" link.
+  - **Coming back from Settings retries by itself** while the "Location is off" or "Location
+    Services are off" banner is up (`retryAfterSettings()`, on a return from the background, not on
+    the alert closing): the mock offers no button in that state, so without it turning location on
+    would change nothing. If it is still off, nothing changes on screen and the banner is not
+    re-posted, so VoiceOver does not announce it again.
+  - **Puerto Rico and the territories** get the D.C. note in their own words ("a resident
+    commissioner", "Guam"), since `/v1/reps` treats them the same way.
+
+  **One member, and district 0.** `/v1/reps` for D.C. returns only Eleanor Norton
+  (`chamber: house`, `district: 0`, no senators); an at-large state like Wyoming also sends
+  `district: 0`. What that touched outside onboarding: `Member.partyAndSeat` printed `R-WY-0` and
+  `D-DC-0` (now `R-WY-AL` and `D-DC`); `Member` gained `isDelegate`, `title`, `seatBadge` and
+  `seatCaption`, which the Home strip, the vote screen's rows, onboarding's cards and the Rep
+  screen's `roleLine`/`seatLine` now share (Norton reads "Delegate · DC", not "House · DC-AL" or
+  "U.S. Representative"); the sponsor line reads "Del."; `District.name` (Home's header chip) reads `DC`, not `DC-AL`; `StateName.districtName` says "District of
+  Columbia", not "District of Columbia's at-large district"; and Home's Senate filter says D.C. has
+  no senators instead of "No recent votes in this chamber". Already fine with one member: the feed
+  merge, `YourThreeModel` (its agreement fact needs exactly two senators and falls back otherwise),
+  the vote screen's other-chamber note and the bill screen's member list. The tab is still called
+  "Your three" for D.C. — a name, not a count, and the mock keeps "Pull your three." too.
 - ~~**Home**~~ **Done, except the election variant.** Delegation strip, chamber filter, and the
   merged feed of recent votes. One request per member in parallel, grouped by vote so two senators
   on one roll call make one card carrying both positions. **Still to do:** the Speaker election card

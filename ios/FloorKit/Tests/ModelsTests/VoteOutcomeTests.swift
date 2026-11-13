@@ -119,6 +119,9 @@ struct VoteOutcomeTests {
         #expect(StateName.districtName(state: "TX", district: 37) == "Texas' 37th District")
         #expect(StateName.districtName(state: "WY", district: 0) == "Wyoming's at-large district")
         #expect(StateName.districtName(state: "IL", district: 11) == "Illinois' 11th District")
+        // One delegate covers the whole place, so there is no district to name.
+        #expect(StateName.districtName(state: "DC", district: 0) == "District of Columbia")
+        #expect(StateName.districtName(state: "PR", district: 0) == "Puerto Rico")
         #expect(StateName.ordinal(1) == "1st")
         #expect(StateName.ordinal(22) == "22nd")
         #expect(StateName.ordinal(13) == "13th")

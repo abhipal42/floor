@@ -103,7 +103,7 @@ public struct HomeView: View {
                 .foregroundStyle(Palette.text)
                 .lineLimit(1)
                 .minimumScaleFactor(0.6)
-            Text(member.chamber == .house ? "House · \(member.badge)" : "Senate · \(member.state)")
+            Text(member.seatCaption)
                 .font(.system(size: 10))
                 .foregroundStyle(Palette.textMuted)
         }
@@ -114,7 +114,7 @@ public struct HomeView: View {
         .overlay(RoundedRectangle(cornerRadius: 14).stroke(Palette.panelBorder, lineWidth: 1))
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(
-            "\(member.fullName), \(member.chamber == .house ? "Representative" : "Senator"). "
+            "\(member.fullName), \(member.title). "
                 + (share.map { "Voted with their party \(String(format: "%.1f", $0 * 100)) percent of the time" }
                     ?? "No party-loyalty figure")
         )
@@ -185,7 +185,7 @@ public struct HomeView: View {
     @ViewBuilder
     private var feed: some View {
         if model.visibleItems.isEmpty {
-            Text("No recent votes in this chamber.")
+            Text(model.emptyFeedMessage)
                 .font(Typography.body)
                 .foregroundStyle(Palette.textMuted)
         } else {

@@ -121,8 +121,14 @@ public extension Vote {
 }
 
 public extension Member {
-    /// `Rep. Gabe Evans (R-CO-8)`, `Sen. Ted Cruz (R-TX)`.
+    /// `Rep. Gabe Evans (R-CO-8)`, `Sen. Ted Cruz (R-TX)`, `Del. Eleanor Norton (D-DC)`.
     var sponsorLine: String {
-        "\(chamber == .house ? "Rep." : "Sen.") \(fullName) (\(partyAndSeat))"
+        let prefix = switch title {
+        case "Senator": "Sen."
+        case "Delegate": "Del."
+        case "Resident Commissioner": "Res. Comm."
+        default: "Rep."
+        }
+        return "\(prefix) \(fullName) (\(partyAndSeat))"
     }
 }
