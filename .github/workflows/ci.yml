@@ -1,8 +1,17 @@
 name: CI
+#
+# Runs on the trunk only, by the owner's decision on 2026-11-13: no
+# `pull_request` trigger, so nothing here compiles or tests a PR before it
+# merges. The guards still run on every PR (guards.yml, template-owned), but
+# they read git and metadata — they never build the code.
+#
+# What that moves onto you: `npm run check` and, for anything under `ios/`,
+# `swift test --package-path ios/FloorKit` before you open the PR. They are the
+# gate now; see CLAUDE.md › Before every PR. A failure that used to turn a PR
+# red lands on `main` instead and is found here, after the fact.
 on:
   push:
     branches: [main]
-  pull_request:
 
 jobs:
   node:

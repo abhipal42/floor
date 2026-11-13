@@ -8,6 +8,17 @@ is a milestone and ships a retro under `docs/retros/`.
 Older series live in [`docs/changelog/`](docs/changelog) (0.1.x: [`0.1.md`](docs/changelog/0.1.md)).
 Before 0.1.0 the history is the commit log on `main`.
 
+## 0.2.5 — 2026-11-13
+
+### Changed
+
+- **CI runs on `main` only.** `ci.yml` loses its `pull_request` trigger, so a PR no longer compiles
+  or tests the code; the node and macOS jobs run once, on the push that merges. `guards.yml` is
+  unchanged and still runs on every PR, but it reads git and PR metadata and builds nothing.
+- `CLAUDE.md` and `docs/HANDOFF.md` say so where they used to promise CI on a PR: the commands under
+  **Before every PR** (`npm run check`, and `swift test` for anything under `ios/`) are the gate now,
+  and a failure that used to turn a PR red lands on the trunk, where it is reverted rather than left.
+
 ## 0.2.4 — 2026-11-13
 
 Step 4 of the v0.3.0 milestone, "Your members on the web": campaign finance for every member.

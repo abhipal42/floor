@@ -52,9 +52,11 @@ swift test --package-path ios/FloorKit                           # all FloorKit 
 ```
 
 `apps/api/openapi.json` is the committed contract. Re-run `npm run openapi` after any change to
-`app.ts`; CI fails if it has drifted, and the Swift contract tests check the models against it.
+`app.ts`; CI fails if it has drifted — on `main`, after the merge, so run it yourself first — and
+the Swift contract tests check the models against it.
 
-iOS (needs a Mac with Xcode 16+): `brew install xcodegen && cd ios && xcodegen && open Floor.xcodeproj`. CI builds it on a macOS runner on every push and PR.
+iOS (needs a Mac with Xcode 16+): `brew install xcodegen && cd ios && xcodegen && open Floor.xcodeproj`. CI builds it on a macOS runner on pushes to `main` only, so run
+`swift test --package-path ios/FloorKit` locally before you open a PR.
 If `swift test` dies with `Library not loaded: … SWBBuildService.framework`, `xcode-select` points at the
 Command Line Tools rather than Xcode: run it with `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer`
 (or `sudo xcode-select -s` that path).
@@ -74,8 +76,8 @@ Command Line Tools rather than Xcode: run it with `DEVELOPER_DIR=/Applications/X
 | `apps/api` | Hono REST API with OpenAPI at `/openapi.json` | `src/app.ts` (routes + schemas), `pg.ts` (Postgres), `district.ts` (Census) |
 | `apps/web` | Landing page (v0.2.0): static HTML/CSS/TypeScript built with `tsc`, no framework | `src/data.ts` (every figure, with source and date), `src/logic.ts` (pure helpers), `src/main.ts` (rendering), `public/` |
 | `ios/` | SwiftUI app (XcodeGen, `project.yml`), `FloorKit` package: `Models`, `APIClient`, `DesignSystem`, `Onboarding`, `Home`, `VoteScreen`, `BillScreen`, `RepScreen` | `FloorKit/Sources/Models/` (one file per area, `Samples.swift` for previews), `FloorKit/Tests/ModelsTests/ContractTests.swift`, `DesignSystem/ScoreboardCard.swift`, `DesignSystem/Components.swift`, `DesignSystem/Fonts/` (Barlow Condensed, OFL), `Home/FloorShell.swift` (tabs), `Home/CatchUp.swift`, `Models/VoteOutcome.swift`, `BillScreen/LawLevels.swift` |
-| `.github/workflows/ci.yml` | Node job (lint/typecheck/tests + OpenAPI drift) + macOS job (Swift tests + simulator build) | |
-| `.github/workflows/guards.yml` | Shipping guards on every PR: changelog, version, docs, tests, retro, PR title | `.github/scripts/guards.conf` (this repo's settings), `guards.sh` (shared, do not edit) |
+| `.github/workflows/ci.yml` | Node job (lint/typecheck/tests + OpenAPI drift) + macOS job (Swift tests + simulator build). **Pushes to `main` only** since 2026-11-13 — a PR never builds the code | |
+| `.github/workflows/guards.yml` | Shipping guards on every PR (the only workflow that still runs there): changelog, version, docs, tests, retro, PR title | `.github/scripts/guards.conf` (this repo's settings), `guards.sh` (shared, do not edit) |
 | `docs/` | `plan.md` / `plan.html` (design + plan), this file, `retros/` (one per milestone) | |
 | `VERSION`, `CHANGELOG.md` | Current version (mirrored by `MARKETING_VERSION` in `ios/project.yml`) and what each version shipped | |
 
@@ -257,7 +259,7 @@ Real data broke our first assumptions several times. Each case below is now hand
 
 ## 5. Remaining milestones
 
-The working rhythm: break each milestone into tasks. For each task, write tests on real saved data first, then build and run `npm run check`. Ship it as a short branch and a PR into `main` — bump `VERSION` (and `MARKETING_VERSION` in `ios/project.yml`), add a `CHANGELOG.md` entry, and title the PR `vX.Y.Z type: summary`. The `guards` and CI checks must be green before merging; a MINOR bump (a milestone) also ships a retro in `docs/retros/`. The full rules are in [`CLAUDE.md`](../CLAUDE.md#shipping).
+The working rhythm: break each milestone into tasks. For each task, write tests on real saved data first, then build and run `npm run check`. Ship it as a short branch and a PR into `main` — bump `VERSION` (and `MARKETING_VERSION` in `ios/project.yml`), add a `CHANGELOG.md` entry, and title the PR `vX.Y.Z type: summary`. The `guards` check must be green before merging, but it does not build anything: `ci.yml` runs on `main` after the merge, so the local commands in `CLAUDE.md` › Before every PR are the real gate, and a red trunk is reverted rather than left. A MINOR bump (a milestone) also ships a retro in `docs/retros/`. The full rules are in [`CLAUDE.md`](../CLAUDE.md#shipping).
 
 ### M2: iOS core on real data
 **Goal:** a TestFlight build that shows how your reps voted, from real data. No live updates yet.
