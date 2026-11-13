@@ -84,7 +84,7 @@ public struct RepScreenView: View {
                     .padding(.bottom, 32)
             }
         }
-        .task { if case .loading = model.phase { await model.load() } }
+        .task { if model.needsRefresh { await model.load() } }
     }
 }
 
@@ -113,6 +113,7 @@ struct RepRecordContent: View {
             let stats = RecordStats(votes: record.votes)
             let member = record.detail.member
             VStack(alignment: .leading, spacing: 16) {
+                if let saved = model.saved { SavedDataNote(saved) }
                 playerCard(record.detail)
                 rings(record.detail.partyLoyalty, stats, member: member)
                 grid(stats)

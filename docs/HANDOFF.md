@@ -4,9 +4,9 @@ Last updated 2026-11-12. Read this first, then [`plan.md`](plan.md) for the full
 
 **In one paragraph:** M0 (foundation) is done. M1 (data backbone) is done; the one item still open against it, measured posting latency, has moved to M3, because it can only be taken on a live session day with polling running. Staging Postgres holds every House and Senate roll call since January 2023, and every one matches the official totals; every vote now has a subject attached, bills and nominations alike. The API serves district lookup, member votes, votes, bills, nominations and data freshness from that database, and now also the per-party breakdown of a vote, your own delegation's positions on it, and a member's party-loyalty record. **M2 is nearly done:** the API is deployed at <https://floor-api.vercel.app> and a Release build of
 the app runs the whole flow against it — onboarding to a real district, then Home, Vote, Bill and
-Rep. Since v0.2.3 those screens match the landing page (three tabs: Finals, Bills, Your three). Three
-items remain, listed at the top of the M2 section: a SwiftData offline cache, snapshot tests, and
-TestFlight distribution.
+Rep. Since v0.2.3 those screens match the landing page (three tabs: Finals, Bills, Your three). Every
+screen now opens on its last-seen data when offline or slow, from a SwiftData cache. Two items remain,
+listed at the top of the M2 section: snapshot tests and TestFlight distribution.
 
 ---
 
@@ -75,7 +75,7 @@ Command Line Tools rather than Xcode: run it with `DEVELOPER_DIR=/Applications/X
 | `apps/worker` | Ingest CLI: members, roll calls, bills, nominations | `src/cli.ts`, `rollcalls.ts`, `bills.ts`, `nominations.ts`, `members.ts`, `db.ts` |
 | `apps/api` | Hono REST API with OpenAPI at `/openapi.json` | `src/app.ts` (routes + schemas), `pg.ts` (Postgres), `district.ts` (Census) |
 | `apps/web` | Landing page (v0.2.0): static HTML/CSS/TypeScript built with `tsc`, no framework | `src/data.ts` (every figure, with source and date), `src/logic.ts` (pure helpers), `src/main.ts` (rendering), `public/` |
-| `ios/` | SwiftUI app (XcodeGen, `project.yml`), `FloorKit` package: `Models`, `APIClient`, `DesignSystem`, `Onboarding`, `Home`, `VoteScreen`, `BillScreen`, `RepScreen` | `FloorKit/Sources/Models/` (one file per area, `Samples.swift` for previews), `FloorKit/Tests/ModelsTests/ContractTests.swift`, `DesignSystem/ScoreboardCard.swift`, `DesignSystem/Components.swift`, `DesignSystem/Fonts/` (Barlow Condensed, OFL), `Home/FloorShell.swift` (tabs), `Home/CatchUp.swift`, `Models/VoteOutcome.swift`, `BillScreen/LawLevels.swift` |
+| `ios/` | SwiftUI app (XcodeGen, `project.yml`), `FloorKit` package: `Models`, `APIClient`, `DesignSystem`, `Onboarding`, `Home`, `VoteScreen`, `BillScreen`, `RepScreen` | `FloorKit/Sources/Models/` (one file per area, `Samples.swift` for previews), `FloorKit/Tests/ModelsTests/ContractTests.swift`, `DesignSystem/ScoreboardCard.swift`, `DesignSystem/Components.swift`, `DesignSystem/Fonts/` (Barlow Condensed, OFL), `Home/FloorShell.swift` (tabs), `Home/CatchUp.swift`, `Models/VoteOutcome.swift`, `BillScreen/LawLevels.swift`, `APIClient/ResponseCache.swift` (offline cache), `DesignSystem/SavedDataNote.swift` |
 | `.github/workflows/ci.yml` | `scope` job (which parts changed) + node job (lint/typecheck/tests + OpenAPI drift) + macOS job (Swift tests + simulator build). **Pushes to `main` only** since 2026-11-13 — a PR never builds the code — and the macOS job runs only when the push touched `ios/` or `.github/` | |
 | `.github/workflows/guards.yml` | Shipping guards on every PR (the only workflow that still runs there): changelog, version, docs, tests, retro, PR title | `.github/scripts/guards.conf` (this repo's settings), `guards.sh` (shared, do not edit) |
 | `docs/` | `plan.md` / `plan.html` (design + plan), this file, `retros/` (one per milestone) | |
@@ -224,6 +224,25 @@ Real data broke our first assumptions several times. Each case below is now hand
     white and the threshold yellow `#FACC15` at about 1.5:1, so light mode cannot reuse them. Every
     text colour in light mode is a darker partner of its dark value (yea `#0B7A57`, nay `#A8481A`,
     threshold `#8A6500`), and `PaletteTests` checks each one at 4.5:1 on the ground, panels and cards.
+26. **A screen's secondary requests must neither blank nor hide.** The models loaded the bill
+    under a vote with `bill = try? await api.bill(...)`, which writes nil when it fails. Harmless
+    with one pass; with the offline cache's second (network) pass it blanked the level the saved
+    pass had just drawn. The first fix (keep what is on screen) then hid the problem instead: the
+    vote refreshed, the bill silently stayed saved, and the screen claimed to be fresh. So every
+    best-effort load (the vote's bill, the bill's member positions, the loyalty rings) goes through
+    `Pass.bestEffort`, which falls back to the saved copy *and records that it did*, keeping the note
+    up. Any new best-effort load must use it.
+27. **The simulator cannot be taken offline on its own; swap what serves the API's port instead.**
+    It shares the Mac's network, and cache keys carry the host and port, so two builds pointed at
+    different URLs do not share a cache. Use one Debug build (it talks to `localhost:8787`) and swap
+    the server behind that port: one that answers (the API, or the captured fixtures in
+    `Tests/ModelsTests/Fixtures`), then one that accepts and never answers (weak signal: the note
+    reads "refreshing…" for the 60 s request timeout, then "Offline"), or nothing at all (refused:
+    "Offline" at once). The delegation can be seeded without typing an address via `simctl spawn
+    <udid> defaults write app.floor.ios floor.delegation.v1 -data <hex of the JSON>`. Two traps:
+    this Mac's Xcode-beta has no Simulator.app GUI, so nothing can tap the app (`simctl` cannot);
+    and the deployed API answered 500 on `/v1/members/…` on 2026-11-13 while the cache was being
+    checked, so do not assume it is up.
 
 ---
 
@@ -270,8 +289,8 @@ The working rhythm: break each milestone into tasks. For each task, write tests 
 **Goal:** a TestFlight build that shows how your reps voted, from real data. No live updates yet.
 
 > **M2 is not finished.** The app works end to end against the deployed API — onboarding, Finals,
-> Vote, Bill and Your three, all on real data — but three items from the list below are still open
-> (item 1 is kept for the record):
+> Vote, Bill and Your three, all on real data — but two items from the list below are still open
+> (items 1 and 2 are kept for the record):
 >
 > 1. ~~**The Speaker election card on Home.**~~ **Done in v0.2.3** (`ScoreboardCard`'s Speaker-ballot
 >    variant, "MAJORITY OF NAMES"). What it was: Built on the Vote screen, never on the feed. `HomeView`
@@ -281,7 +300,55 @@ The working rhythm: break each milestone into tasks. For each task, write tests 
 >    Rare today (one member has a ballot in their last 25 votes) but it is the top of every feed in
 >    January of a new Congress, fifteen times over in a contested one. Smallest of the four and the
 >    only one that is visibly wrong.
-> 2. **SwiftData offline cache.** Not started.
+> 2. ~~**SwiftData offline cache.**~~ **Done.** How it works:
+>    - **What is stored:** the JSON body of every successful response a screen reads, exactly as
+>      sent, with its fetch date — one SwiftData row per key (`CachedResponse` in
+>      `APIClient/ResponseCache.swift`), in `Caches/FloorResponses.store`, so the system may purge it
+>      and it is not backed up. The key is host (and port), path and percent-encoded query:
+>      `floor-api.vercel.app/v1/members/D000399/votes?limit=25`. The host keeps a Debug build's
+>      localhost responses apart from the deployment's; the encoded query keeps a value holding `&`
+>      or `=` from reading as another parameter. Bodies, not an `@Model` per type: the screens already
+>      decode them, `ContractTests` already pins their shape, and a second schema for the same types
+>      is a second place for the contract to drift. A body the current build cannot decode is a miss.
+>    - **What is not:** `/v1/reps?address=` (the key would be the street address; the district and
+>      members are already kept by `UserDefaultsDelegationStore`, unchanged) and `/v1/status` (a
+>      saved freshness report is wrong by its own age). `FloorAPI`'s default session has **no
+>      `URLCache`** (`FloorAPI.defaultSession`, `.reloadIgnoringLocalCacheData`): the shared session's
+>      would have written the address lookup to `Caches/Cache.db`. Changing district
+>      (`startOver`) clears the cache before onboarding shows, since the old members' entries name
+>      the old district. Tests assert no key or body holds the address and the session has no cache.
+>    - **Stale-while-revalidate:** `revalidate(api, report:) { pass in … }` runs a screen's whole
+>      load twice, first against `api.savedOnly()` (cache only, no network), then against the
+>      network, which saves as it goes. A screen with several requests therefore shows all its saved
+>      data at once. `report` hears the screen's state as it changes, and the model keeps it in
+>      `saved`:
+>      - saved pass drew → `.refreshing`, dated by the oldest response it read;
+>      - network pass succeeded → nil, unless a best-effort request (`pass.bestEffort`: the vote's
+>        bill, the bill's positions, the loyalty rings) failed and fell back to its saved copy — then
+>        `.offline` or `.refreshFailed`, dated by that copy, because the screen is partly saved;
+>      - network pass failed → `.offline` (transport) or `.refreshFailed` (the server answered),
+>        dated by the saved pass; with nothing saved, the error is rethrown and the screen fails
+>        exactly as before.
+>    - **Cancellation is not failure.** A pushed screen or a tab switched away cancels the view's
+>      `.task`; `FloorAPI` turns a cancelled request into `CancellationError` (never `.transport`),
+>      `revalidate` reports nothing for it, and the note stays at "refreshing…". Each model has
+>      `needsRefresh` — true until a load has finished with everything fresh — and the screens'
+>      `.task` (Finals, Vote, rep, and Your three's `loadAll`) load when it is true, so a refresh that
+>      was cancelled, or ended on saved data, runs again when the screen reappears. A screen already
+>      showing data keeps it while it reloads rather than flashing a spinner.
+>    - **Overlapping loads** (pull-to-refresh beside the screen's own task): each model counts its
+>      loads, and a load that has been overtaken drops its results — items, phase and note alike.
+>    - **UI:** one muted caption, `SavedDataNote`, at the top of a loaded Finals, Bills, Vote, Bill
+>      or rep record while any of it is saved: "Saved 2 h ago · refreshing…", then "Offline · saved
+>      2 h ago" or "Couldn't refresh · saved 2 h ago", gone once everything is fresh. Nothing else
+>      changed visually.
+>    - **Bounds:** 30 days and 200 entries (`CachePolicy`). An entry past 30 days is neither served
+>      nor kept; beyond 200 the oldest go first. Eviction fetches only the rows to delete, and only
+>      their keys. A screen costs one to six entries at tens of KB each.
+>    - **Seam:** `FloorAPI(baseURL:session:cache:now:)` takes any `ResponseCache`; tests use
+>      `SwiftDataResponseCache.inMemory()`, previews pass none. A store that will not open (a failed
+>      migration, a corrupt file) is deleted with its `-wal` and `-shm` and opened once more; only if
+>      that fails too does the app run with no cache.
 > 3. **Snapshot tests per card state.** Not started; filed as
 >    [#1](https://github.com/abhipal42/floor/issues/1) with the states to cover and the
 >    Xcode-version tension against running CI on `macos-latest`.
@@ -345,7 +412,7 @@ The working rhythm: break each milestone into tasks. For each task, write tests 
   they sided with the outcome. The screen spells out the denominator — votes where their party had a
   clear majority, not every vote cast — because a bare percentage invites the wrong reading, and
   shows a sentence rather than a figure when `partyLoyalty.votes` is 0 (lesson 15).
-- **SwiftData cache for offline — not started.** Items 2 and 3 above.
+- ~~**SwiftData cache for offline**~~ **Done**; see item 2 above.
 - **Snapshot tests for each card state — not started**, filed as
   [#1](https://github.com/abhipal42/floor/issues/1). Worth knowing why it matters here: every layout
   bug in this milestone — the stacked digits, a duplicated title, a date rendering a day early — was
