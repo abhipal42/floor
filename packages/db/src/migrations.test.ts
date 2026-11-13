@@ -26,6 +26,7 @@ describe("migrations", () => {
     expect(rows.map((r) => r.table_name)).toEqual([
       "actions",
       "bill_analyses",
+      "bill_analysis_runs",
       "bill_versions",
       "bills",
       "campaign_finance",
@@ -83,6 +84,18 @@ describe("migrations", () => {
         where schemaname = 'public' and policyname = 'public read' and cmd <> 'SELECT'`,
     );
     expect(writable).toEqual([]);
+  });
+
+  it("keep AI run bookkeeping private: no policy on bill_analysis_runs, and no stats on the public table", async () => {
+    // bill_analysis_runs holds the claims the verifier rejected and the cost of each run. With RLS
+    // on and no policy, PostgREST's anon and authenticated roles see nothing; only the service role
+    // (the worker) can read it.
+    const { rows: policies } = await db.query("select policyname from pg_policies where tablename = 'bill_analysis_runs'");
+    expect(policies).toEqual([]);
+    const { rows: columns } = await db.query<{ column_name: string }>(
+      "select column_name from information_schema.columns where table_name = 'bill_analyses' and column_name = 'stats'",
+    );
+    expect(columns).toEqual([]);
   });
 
   it("enable row level security on every per-user table", async () => {

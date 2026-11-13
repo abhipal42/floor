@@ -8,6 +8,44 @@ is a milestone and ships a retro under `docs/retros/`.
 Older series live in [`docs/changelog/`](docs/changelog) (0.1.x: [`0.1.md`](docs/changelog/0.1.md)).
 Before 0.1.0 the history is the commit log on `main`.
 
+## 0.2.22 — 2026-11-13
+
+M4 Layer 1, server side: an AI analysis of each bill's CRS summary, every line cited and checked.
+No app or web UI shows it yet; that needs a locked design. A PATCH on the 0.2 line by the team's
+convention: 0.3.0 is reserved for the "your members on the web" milestone.
+
+### Added
+- **`analyze` worker job** (`apps/worker/src/analysis.ts`): for each bill whose CRS summary has no
+  analysis at this prompt version, Claude (`claude-sonnet-5-5`, structured JSON output, cached system
+  prompt, server-side refusal fallback) writes purpose, provisions, affected groups and impact, each
+  citing summary paragraphs with verbatim quotes. A citation must resolve, quote its paragraph
+  exactly, and be at least 20 characters with a word outside CRS boilerplate; claims left without
+  one are cut. A second call verifies each remaining claim against its cited paragraphs; a claim is
+  kept only if every verdict for it supports it. The bill section is the last CRS "(Sec. N)" label
+  before the quote. Regenerates only when the summary (sha256 of stage and text) or the prompt
+  version changes.
+- **Run safety**: a session advisory lock, so overlapping runs never pay twice; at most 3 failed
+  attempts per source (bill, summary hash, prompt version); summaries over 600k characters never
+  sent; bad credentials, no permission or an exhausted rate limit end the run without charging the
+  bill an attempt; `FLOOR_AI_EFFORT` and the limit are validated before any call. Cost is summed
+  per model over `usage.iterations` (fallback attempts included) and reported as unknown when a
+  model has no known price.
+- **Migration `20261114000000_bill_analyses_ai.sql`**: `bill_analyses` (public read, as before) keyed
+  by bill and CRS summary stage with source hash, prompt version, verifier model and generated-at,
+  and a new **private** `bill_analysis_runs` (RLS on, no policy) for attempts, errors, tokens, cost
+  and the claims the verifier rejected. Not yet applied to staging; re-run Supabase's security
+  advisor after applying it.
+- **`GET /v1/bills/{id}/analysis`**: the analysis with `ai: true` on the response and every line, a
+  disclaimer, the analysed paragraphs, and a `stale` flag when the summary has changed since.
+  FloorKit models for it (no views).
+- **Eval**: 51 real bills from staging (`apps/worker/fixtures/analysis/bills.json`) and
+  `npm run eval:analysis -w @floor/worker`, scoring citation validity, verifier drop rate, output
+  validity and cost. Not run yet (no Claude key available).
+- Env: `ANTHROPIC_API_KEY`, `FLOOR_AI_MODEL`, `FLOOR_AI_VERIFIER_MODEL`, `FLOOR_AI_EFFORT`.
+
+### Changed
+- `zod` resolves to 3.25.76 (was 3.24.1): `@anthropic-ai/sdk` 1.8.0 needs `^3.25`.
+
 ## 0.2.21 — 2026-11-13
 
 The member screen in the app gets its Money segment.

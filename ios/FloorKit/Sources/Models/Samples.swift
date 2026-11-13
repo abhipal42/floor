@@ -160,6 +160,41 @@ public extension CboEstimate {
     )
 }
 
+public extension AnalysisCitation {
+    static let sample = AnalysisCitation(
+        paragraph: 1, quote: "designates the facility of the United States Postal Service", section: nil
+    )
+}
+
+public extension AnalysisClaim {
+    /// For tests and previews only: real analyses come from the API, never from the app.
+    static let sample = AnalysisClaim(
+        text: "Names the post office at 616 East Main Street in St. Charles, Illinois, for Vietnam War veterans.",
+        citations: [.sample]
+    )
+}
+
+public extension AnalysisSource {
+    /// The real CRS summary of H.R. 2379 (118th), Public Law stage.
+    static let sample = AnalysisSource(
+        kind: "crs_summary", stage: "Public Law",
+        paragraphs: [
+            "This bill designates the facility of the United States Postal Service located at 616 East Main Street in St. Charles, Illinois, as the Veterans of the Vietnam War Memorial Post Office.",
+        ],
+        stale: false
+    )
+}
+
+public extension BillAnalysis {
+    static let sample = BillAnalysis(
+        billId: "118-hr-2379", label: "AI-generated",
+        disclaimer: "Written by AI from the Congressional Research Service summary, and checked against it by a second AI pass. It may contain errors. Each line links to the paragraph it came from; read that before relying on it.",
+        source: .sample, model: "claude-sonnet-5-5", verifierModel: "claude-sonnet-5-5",
+        promptVersion: "bill-analysis/1", generatedAt: "2026-11-13T12:00:00.000Z",
+        provisions: [], affectedGroups: [], impact: [], purpose: .sample
+    )
+}
+
 public extension BillAction {
     static let sample = BillAction(
         actedOn: "2025-04-10", chamber: .house, text: "On motion to concur Agreed to by the Yeas and Nays: 216 - 214."

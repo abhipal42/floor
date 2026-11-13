@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { PGlite } from "@electric-sql/pglite";
 import { loadMigrations } from "@floor/db";
 import { beforeAll, describe, expect, it } from "vitest";
@@ -218,6 +219,43 @@ describe("Postgres repositories", () => {
     });
     expect(bill?.votes.map((v) => v.id)).toEqual(["house-119-1-1"]);
     expect(await repos.bills.getBill("119-hr-999")).toBeNull();
+  });
+
+  it("reads the analysis of a bill's current summary, and says when the summary has moved on", async () => {
+    expect(await repos.bills.getAnalysis("119-hr-1")).toBeNull();
+    const stored = {
+      purpose: { text: "The bill does things.", citations: [{ paragraph: 1, quote: "This bill does things.", section: null }] },
+      provisions: [{ text: "Section 2 does a thing.", citations: [{ paragraph: 1, quote: "This bill does things.", section: "Sec. 2" }] }],
+      affectedGroups: [],
+      impact: [],
+      sourceParagraphs: ["This bill does things."],
+    };
+    // Hash as the worker computes it: sha256(stage || '\n' || summary).
+    const hash = createHash("sha256").update("Introduced in House\nThis bill does things.").digest("hex");
+    await pg.query(
+      `insert into bill_analyses (bill_id, source_stage, source_hash, prompt_version, analysis, model, verifier_model, generated_at)
+       values ('119-hr-1', 'Older stage', 'x', 'bill-analysis/1', $1, 'claude-sonnet-5-5', null, '2026-11-14T00:00:00Z'),
+              ('119-hr-1', 'Introduced in House', $2, 'bill-analysis/1', $1, 'claude-sonnet-5-5', 'claude-sonnet-5-5', '2026-11-13T00:00:00Z')`,
+      [JSON.stringify(stored), hash],
+    );
+    const a = await repos.bills.getAnalysis("119-hr-1");
+    expect(a).toMatchObject({
+      billId: "119-hr-1",
+      ai: true,
+      label: "AI-generated",
+      source: { kind: "crs_summary", stage: "Introduced in House", paragraphs: ["This bill does things."], stale: false },
+      verifierModel: "claude-sonnet-5-5",
+      promptVersion: "bill-analysis/1",
+      generatedAt: "2026-11-13T00:00:00.000Z",
+      purpose: { ai: true, text: "The bill does things." },
+      provisions: [{ ai: true, citations: [{ paragraph: 1, section: "Sec. 2" }] }],
+    });
+    expect(a?.disclaimer).toMatch(/may contain errors/);
+
+    await pg.query("update bills set summary = 'This bill does more things.' where id = '119-hr-1'");
+    expect((await repos.bills.getAnalysis("119-hr-1"))?.source.stale).toBe(true);
+    await pg.query("update bills set summary = 'This bill does things.' where id = '119-hr-1'");
+    await pg.query("delete from bill_analyses");
   });
 
   it("reads a nomination with its nominee, position and votes", async () => {

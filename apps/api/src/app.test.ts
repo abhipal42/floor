@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { createApp, type Member, type Vote, type VoteRepository } from "./app.js";
+import { AI_DISCLAIMER, createApp, type Member, type Vote, type VoteRepository } from "./app.js";
 
 const sample: Vote = {
   id: "house-119-1-100",
@@ -120,6 +120,20 @@ const app = createApp({
             sponsor: null, introducedOn: "2025-02-18", originChamber: "house", policyArea: "Economics and Public Finance",
             summary: "This concurrent resolution establishes the budget.", summaryStage: "Introduced in House",
             latestAction: { on: "2025-05-20", text: "Star Print ordered." }, cboEstimates: [], actions: [], votes: [sample],
+          }
+        : null,
+    getAnalysis: async (id) =>
+      id === "119-hconres-14"
+        ? {
+            billId: id, ai: true, label: "AI-generated", disclaimer: AI_DISCLAIMER,
+            source: { kind: "crs_summary", stage: "Introduced in House", paragraphs: ["This concurrent resolution establishes the budget."], stale: false },
+            model: "claude-sonnet-5-5", verifierModel: "claude-sonnet-5-5", promptVersion: "bill-analysis/1",
+            generatedAt: "2026-11-13T12:00:00.000Z",
+            purpose: {
+              text: "The resolution sets out the congressional budget.", ai: true,
+              citations: [{ paragraph: 1, quote: "establishes the budget", section: null }],
+            },
+            provisions: [], affectedGroups: [], impact: [],
           }
         : null,
   },
@@ -357,6 +371,20 @@ describe("API", () => {
     expect((await app.request("/v1/bills/HR2207")).status).toBe(400);
   });
 
+  it("returns a bill's AI analysis labelled, cited and with its disclaimer", async () => {
+    const res = await app.request("/v1/bills/119-hconres-14/analysis");
+    expect(res.status).toBe(200);
+    const a = await res.json();
+    expect(a).toMatchObject({ ai: true, label: "AI-generated", disclaimer: AI_DISCLAIMER });
+    expect(a.disclaimer).toMatch(/may contain errors/);
+    expect(a.purpose).toMatchObject({ ai: true, citations: [{ paragraph: 1, quote: "establishes the budget" }] });
+    expect(a.source.paragraphs[a.purpose.citations[0].paragraph - 1]).toContain(a.purpose.citations[0].quote);
+    const missing = await app.request("/v1/bills/119-hr-404/analysis");
+    expect(missing.status).toBe(404);
+    expect(await missing.json()).toEqual({ error: "No AI analysis for bill 119-hr-404 yet" });
+    expect((await app.request("/v1/bills/HR2207/analysis")).status).toBe(400);
+  });
+
   it("returns a nomination with its votes, and validates nomination IDs", async () => {
     const res = await app.request("/v1/nominations/119-pn-1093-3");
     expect(res.status).toBe(200);
@@ -409,7 +437,7 @@ describe("API", () => {
         partyLoyalty: async () => ({ votes: 0, withParty: 0, againstParty: 0 }),
         funding: async () => null,
       },
-      bills: { getBill: async () => null },
+      bills: { getBill: async () => null, getAnalysis: async () => null },
       nominations: { getNomination: async () => null },
       status: {
         lastRuns: async () => {

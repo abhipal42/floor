@@ -858,6 +858,178 @@
           "votes"
         ]
       },
+      "AnalysisSource": {
+        "type": "object",
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "crs_summary"
+            ]
+          },
+          "stage": {
+            "type": "string",
+            "description": "The CRS summary version analysed",
+            "example": "Public Law"
+          },
+          "paragraphs": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "The summary as analysed; citations index into this"
+          },
+          "stale": {
+            "type": "boolean",
+            "description": "The bill's summary has changed since; a new analysis is pending. Citations still resolve against paragraphs."
+          }
+        },
+        "required": [
+          "kind",
+          "stage",
+          "paragraphs",
+          "stale"
+        ]
+      },
+      "AnalysisCitation": {
+        "type": "object",
+        "properties": {
+          "paragraph": {
+            "type": "integer",
+            "description": "1-based index into source.paragraphs",
+            "example": 3
+          },
+          "quote": {
+            "type": "string",
+            "description": "Verbatim excerpt of that paragraph",
+            "example": "extends several expiring programs and authorities"
+          },
+          "section": {
+            "type": "string",
+            "nullable": true,
+            "description": "The bill section, as CRS labels the paragraph; null when it names none",
+            "example": "Sec. 101"
+          }
+        },
+        "required": [
+          "paragraph",
+          "quote",
+          "section"
+        ]
+      },
+      "AnalysisClaim": {
+        "type": "object",
+        "properties": {
+          "text": {
+            "type": "string"
+          },
+          "ai": {
+            "type": "boolean",
+            "enum": [
+              true
+            ],
+            "description": "Always true: this line was written by AI"
+          },
+          "citations": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AnalysisCitation"
+            },
+            "description": "At least one"
+          }
+        },
+        "required": [
+          "text",
+          "ai",
+          "citations"
+        ]
+      },
+      "BillAnalysis": {
+        "type": "object",
+        "properties": {
+          "billId": {
+            "type": "string",
+            "example": "118-hr-6363"
+          },
+          "ai": {
+            "type": "boolean",
+            "enum": [
+              true
+            ]
+          },
+          "label": {
+            "type": "string",
+            "enum": [
+              "AI-generated"
+            ]
+          },
+          "disclaimer": {
+            "type": "string"
+          },
+          "source": {
+            "$ref": "#/components/schemas/AnalysisSource"
+          },
+          "model": {
+            "type": "string",
+            "example": "claude-sonnet-5-5"
+          },
+          "verifierModel": {
+            "type": "string",
+            "nullable": true
+          },
+          "promptVersion": {
+            "type": "string",
+            "example": "bill-analysis/1"
+          },
+          "generatedAt": {
+            "type": "string"
+          },
+          "provisions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AnalysisClaim"
+            }
+          },
+          "affectedGroups": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AnalysisClaim"
+            }
+          },
+          "impact": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AnalysisClaim"
+            }
+          },
+          "purpose": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/AnalysisClaim"
+              },
+              {
+                "nullable": true,
+                "description": "null when no purpose line survived verification"
+              }
+            ]
+          }
+        },
+        "required": [
+          "billId",
+          "ai",
+          "label",
+          "disclaimer",
+          "source",
+          "model",
+          "verifierModel",
+          "promptVersion",
+          "generatedAt",
+          "provisions",
+          "affectedGroups",
+          "impact",
+          "purpose"
+        ]
+      },
       "Nomination": {
         "type": "object",
         "properties": {
@@ -1271,6 +1443,46 @@
           },
           "404": {
             "description": "No bill with that ID",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/bills/{id}/analysis": {
+      "get": {
+        "summary": "AI analysis of a bill's CRS summary: purpose, provisions, affected groups and impact, each line cited",
+        "description": "Every line is AI-written (`ai: true`) and cites the summary paragraph it came from, quoted verbatim. Lines whose citation didn't check out, or that a second AI pass found unsupported, have been removed. Show `disclaimer` with it.",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d{2,3}-(hr|hres|hjres|hconres|s|sres|sjres|sconres)-\\d+$",
+              "example": "118-hr-6363"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The analysis",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BillAnalysis"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No analysis for that bill yet",
             "content": {
               "application/json": {
                 "schema": {

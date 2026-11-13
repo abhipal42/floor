@@ -341,8 +341,65 @@ export const BillSchema = z
 
 export type Bill = z.infer<typeof BillSchema>;
 
+/** Shown with every AI analysis. The app shows it too; it is in the response so no client can omit it by accident. */
+export const AI_DISCLAIMER =
+  "Written by AI from the Congressional Research Service summary, and checked against it by a second AI pass. " +
+  "It may contain errors. Each line links to the paragraph it came from; read that before relying on it.";
+
+export const AnalysisCitationSchema = z
+  .object({
+    paragraph: z.number().int().openapi({ description: "1-based index into source.paragraphs", example: 3 }),
+    quote: z.string().openapi({ description: "Verbatim excerpt of that paragraph", example: "extends several expiring programs and authorities" }),
+    section: z
+      .string()
+      .nullable()
+      .openapi({ description: "The bill section, as CRS labels the paragraph; null when it names none", example: "Sec. 101" }),
+  })
+  .openapi("AnalysisCitation");
+
+export const AnalysisClaimSchema = z
+  .object({
+    text: z.string(),
+    ai: z.literal(true).openapi({ description: "Always true: this line was written by AI" }),
+    citations: z.array(AnalysisCitationSchema).openapi({ description: "At least one" }),
+  })
+  .openapi("AnalysisClaim");
+
+export const BillAnalysisSchema = z
+  .object({
+    billId: z.string().openapi({ example: "118-hr-6363" }),
+    ai: z.literal(true),
+    label: z.literal("AI-generated"),
+    disclaimer: z.string(),
+    source: z
+      .object({
+        kind: z.literal("crs_summary"),
+        stage: z.string().openapi({ example: "Public Law", description: "The CRS summary version analysed" }),
+        paragraphs: z.array(z.string()).openapi({ description: "The summary as analysed; citations index into this" }),
+        stale: z
+          .boolean()
+          .openapi({ description: "The bill's summary has changed since; a new analysis is pending. Citations still resolve against paragraphs." }),
+      })
+      .openapi("AnalysisSource"),
+    model: z.string().openapi({ example: "claude-sonnet-5-5" }),
+    verifierModel: z.string().nullable(),
+    promptVersion: z.string().openapi({ example: "bill-analysis/1" }),
+    generatedAt: z.string(),
+    // The non-nullable uses come first on purpose: registered after them, `purpose`'s nullable stays
+    // on this property instead of being hoisted onto the shared AnalysisClaim component.
+    provisions: z.array(AnalysisClaimSchema),
+    affectedGroups: z.array(AnalysisClaimSchema),
+    impact: z.array(AnalysisClaimSchema),
+    purpose: AnalysisClaimSchema.nullable().openapi({ description: "null when no purpose line survived verification" }),
+  })
+  .openapi("BillAnalysis");
+
+export type BillAnalysis = z.infer<typeof BillAnalysisSchema>;
+
 export interface BillRepository {
   getBill(id: string): Promise<Bill | null>;
+  /** The analysis of the bill's current summary stage, else its most recent one; null when there is none. */
+  getAnalysis(id: string): Promise<BillAnalysis | null>;
 }
 
 export const NominationSchema = z
@@ -595,6 +652,28 @@ const getBillRoute = createRoute({
   },
 });
 
+const getBillAnalysisRoute = createRoute({
+  method: "get",
+  path: "/v1/bills/{id}/analysis",
+  summary: "AI analysis of a bill's CRS summary: purpose, provisions, affected groups and impact, each line cited",
+  description:
+    "Every line is AI-written (`ai: true`) and cites the summary paragraph it came from, quoted verbatim. " +
+    "Lines whose citation didn't check out, or that a second AI pass found unsupported, have been removed. " +
+    "Show `disclaimer` with it.",
+  request: {
+    params: z.object({
+      id: z
+        .string()
+        .regex(/^\d{2,3}-(hr|hres|hjres|hconres|s|sres|sjres|sconres)-\d+$/, "Bill IDs look like 119-hr-2207")
+        .openapi({ param: { name: "id", in: "path" }, example: "118-hr-6363" }),
+    }),
+  },
+  responses: {
+    200: { content: { "application/json": { schema: BillAnalysisSchema } }, description: "The analysis" },
+    404: { content: { "application/json": { schema: ErrorSchema } }, description: "No analysis for that bill yet" },
+  },
+});
+
 const getNominationRoute = createRoute({
   method: "get",
   path: "/v1/nominations/{id}",
@@ -723,6 +802,13 @@ export function createApp(deps: AppDeps) {
     const bill = await deps.bills.getBill(id);
     if (!bill) return c.json({ error: `No bill with ID ${id}` }, 404);
     return c.json(bill, 200);
+  });
+
+  app.openapi(getBillAnalysisRoute, async (c) => {
+    const { id } = c.req.valid("param");
+    const analysis = await deps.bills.getAnalysis(id);
+    if (!analysis) return c.json({ error: `No AI analysis for bill ${id} yet` }, 404);
+    return c.json(analysis, 200);
   });
 
   app.openapi(getNominationRoute, async (c) => {
