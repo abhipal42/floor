@@ -17,18 +17,24 @@ Sections that hold still while you scroll through them.
 - **Pinned sections on wide screens.** 01 Finals, 02 Road to law, 03 Explained, 04 Your reps,
   05 Players and 06 Money stay put while the reader scrolls, and each stretch of scroll moves them one
   step: the next final, the next level, the next explained point (with its source paragraph lit), the
-  next member, and from the player cards to the leaderboard. Steps swap with a short transition. It
+  next member. Steps swap with a short transition. It
   is sticky positioning over empty scroll space, so scrolling is never intercepted; a pill shows the
   step and offers **Skip**. Phones, short windows and reduced motion get the ordinary page.
 - **Road to law, pinned:** the connected road stays, moving so the focused card sits centred while
   the others fade.
-- **"Make it your three" moved** from the top of the page into 04 · Your reps, next to the report it
-  fills.
+- **"Make it your three" moved** from the top of the page into 04 · Your reps, under the report it
+  fills, as a slim bar (tagline, location button, address link; the member chips are left to the
+  report's own tabs).
+- **Players:** the card fan holds for one stretch of scroll, then the leaderboard scrolls up below it,
+  spaced like the drive chart under the levels.
 - Left unpinned on purpose: the drive chart, the donor explainer, 07 Portfolio and 08 Live.
 
 ### Added
 
 - `stickTop`, `stepLength` and `scrollStep` in `logic.ts`, with tests.
+- **A layout rule in `CLAUDE.md`:** any change to the website's shape or layout is checked at six
+  standard viewports (320×640, 375×812, 820×1180, 1280×760, 1440×900, 1920×1080) before it ships,
+  and the PR says how.
 
 ## 0.2.12 — 2026-11-13
 

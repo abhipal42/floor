@@ -585,7 +585,7 @@ the product rules they settled are in `CLAUDE.md` › Product rules). What to kn
   `-git-main-` aliases sit behind the team's Vercel Authentication, so they answer `302` to anyone not
   signed in. A custom domain, when there is one, is public by the same setting.
 - **What's live and what's the sample (v0.3.0 steps 2–3).** The "your members" strip (since
-  v0.2.13 it sits inside 04 · Your reps, between the heading and the report) and the scouting report read the API in the browser; everything else is still the
+  v0.2.13 a slim bar inside 04 · Your reps, under the report; its member chips are hidden there) and the scouting report read the API in the browser; everything else is still the
   `data.ts` snapshot. Built to the locked mock `LocWeb` (canvas round "Your members"):
   - **Strip** (`#yours`, `src/locate.ts` state machine + `yours()` in `main.ts`): idle shows the NY-8
     sample labelled SAMPLE → *Use my location* (button reads "Waiting for your browser…" while the
@@ -699,8 +699,8 @@ shows the step with a **Skip** button.
 | 01 Finals | the five finals (a step forward keeps the deal animation) | — |
 | 02 Road to law | six levels: the connected road moves so the focused card sits centred, the rest fade | the drive chart |
 | 03 Explained | the first bill's points, each lighting its source paragraph; only the current point opens | bill tabs stay manual |
-| 04 Your reps | your three members, with the "Make it your three" box now inside the section | — |
-| 05 Players | two views: the card fan, then the leaderboard fading in over it | — |
+| 04 Your reps | your three members; the "Make it your three" bar sits under the report | — |
+| 05 Players | one: the card fan holds, then the leaderboard scrolls up below it | the leaderboard |
 | 06 Money | your three members' funding | the donor explainer |
 
 07 Portfolio and 08 Live are deliberately not pinned (another three-member bounce straight after

@@ -161,8 +161,6 @@ function afterPaint(fn: () => void): void {
 interface Steps {
   /** What the progress pill calls one step: "Final", "Level". */
   noun: string;
-  /** Names for the steps, when they are views rather than items in a series. */
-  names?: string[];
   count: number;
   go: (i: number) => void;
   /** The step a reader's own click (a tab, a card, Next) moves the section to, if any. */
@@ -279,7 +277,8 @@ function pin(stage: HTMLElement, s: Steps): void {
       if (!on) return null;
       const sc = scrolled();
       if (sc < 0 || sc >= len * s.count) return null;
-      return (s.names?.[cur] ?? s.noun + " " + (cur + 1)) + " · " + (cur + 1) + " of " + s.count;
+      if (s.count === 1) return s.noun;
+      return s.noun + " " + (cur + 1) + " of " + s.count;
     },
     skip: () => window.scrollBy({ top: len * s.count - scrolled() + 2, behavior: "instant" as ScrollBehavior }),
   });
@@ -1196,26 +1195,10 @@ function players(): void {
     afterPaint(bars);
   }, 0.3);
 
-  // Pinned: the cards hold still, and one more stretch of scroll fades the leaderboard in over
-  // them. The fan itself is not stepped through; hovering it still picks a card.
-  const stage = document.createElement("div");
-  stage.className = "cards__stage";
-  const top = el("#cards .players");
-  const board = el("#cards .board");
-  top.before(stage);
-  stage.append(top, board);
-  pin(stage, {
-    noun: "Players",
-    names: ["The cards", "The leaderboard"],
-    count: 2,
-    go: (i) => {
-      stage.dataset.step = String(i);
-      if (i === 1) {
-        seen = true;
-        afterPaint(bars);
-      }
-    },
-  });
+  // Pinned: the cards hold still for one stretch of scroll, then the leaderboard scrolls up below
+  // them, the way the drive chart follows the levels. The fan is not stepped through; hovering it
+  // still picks a card.
+  pin(el("#cards .players"), { noun: "The players", count: 1, go: () => {} });
 }
 
 // ------------------------------------------------------------------ 06 · money
