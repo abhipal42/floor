@@ -758,6 +758,13 @@ after Flighty's header. What to know:
   reads white on their light page because glass takes the colour behind it. On Floor's near-black
   ground it vanishes, so the capsule is `rgba(16,18,22,.62)`.
 - At 860px and under the links hide, as before, and the capsule hugs the mark and the button (250px).
+- **At 900px and under, the band behind the capsule turns solid once it floats.** That is where Road
+  to law's level map becomes a strip stuck straight under the header. With a see-through band the
+  road's cards slid past in the 10px between the floating capsule and the solid strip, which read as
+  unfinished; solid, the header and strip stack as one block. The owner chose this over keeping the
+  glass on phones (2026-11-13). The band carries a 1px border in both states, so the header is 73px
+  here and 72px above 900, the same in both states at each width. **Keep the band's breakpoint equal
+  to the strip's** (`max-width: 900px`): if they drift, the gap comes back.
 - The outer band is `pointer-events: none` so the see-through area around the capsule doesn't
   swallow clicks on what scrolls under it; the bar takes them back.
 

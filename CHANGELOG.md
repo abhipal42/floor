@@ -22,6 +22,9 @@ The landing page's header floats.
   capsule hugs the mark and the button.
 - The header's band keeps one height in both states. Pinned sections, the Road to law strip and
   anchor offsets read it, so only the inner bar animates.
+- **At 900px and under, the band behind the capsule turns solid once it floats**, so the header and
+  Road to law's stuck level strip stack as one block. With a see-through band, the road's cards slid
+  past in the gap between them. On phones and tablets that trades away the glass for a clean edge.
 - "Get the app" moves out of the section links into its own place in the header.
 
 ### Added

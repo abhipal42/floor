@@ -561,6 +561,29 @@ button {
   transform: translateY(-1px);
 }
 
+/* At 900px and under, the band behind the capsule turns solid once it floats. That is where Road to
+   law's level map becomes a strip stuck straight under the header (same breakpoint, below); with a
+   see-through band, the road's cards slid past in the gap between the floating capsule and the solid
+   strip, which read as unfinished. Solid, the header and the strip stack as one block again, as they
+   did before the header floated. Owner's call, 2026-11-13: the see-through effect is given up on
+   phones and tablets for it. Keep this breakpoint equal to the strip's. */
+@media (max-width: 900px) {
+  .site-head {
+    border-bottom: 1px solid transparent;
+    transition:
+      background-color 0.4s var(--head-ease),
+      border-color 0.4s var(--head-ease);
+  }
+  .site-head.is-floating {
+    background: var(--head-bg);
+    -webkit-backdrop-filter: blur(12px);
+    backdrop-filter: blur(12px);
+    border-bottom-color: var(--line-faint);
+    /* Solid now: nothing behind it is visible, so nothing behind it should be clickable. */
+    pointer-events: auto;
+  }
+}
+
 /* ------------------------------------------------------------ hero */
 
 /* Stacked and centred (mock locked 2026-11-12): headline, lede and calls to action on top, the
@@ -3880,6 +3903,7 @@ td.c-x {
   html {
     scroll-behavior: auto;
   }
+  .site-head,
   .site-head__in,
   .site-head__div,
   .logo,
