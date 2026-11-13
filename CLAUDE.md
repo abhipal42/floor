@@ -6,6 +6,10 @@ it is the current state, setup, the lessons real data taught us, and what is lef
 
 ## Before every PR
 
+Since 2026-11-13 `ci.yml` runs on pushes to `main` only — **a PR does not build or
+test your code.** These commands are the gate, not a rehearsal of one: whatever you
+skip here lands on the trunk and is found there.
+
 ```bash
 npm run check                              # lint + typecheck + Node tests
 swift test --package-path ios/FloorKit     # if anything under ios/ changed
@@ -32,6 +36,9 @@ into `main`; nothing is committed straight to it, because that is the one path t
 - **A MINOR bump ships a retro** in `docs/retros/` (copy `TEMPLATE.md`). Every row of its
   `## Gaps found` table is `landed …` or `blocked: <reason>`; a bare "deferred" fails CI.
 - Merge only when **every** check is green (`gh pr checks <N>` exits 0), not just `guards`.
+  Green is a weaker claim than it used to be: on a PR it means the guards and the Vercel
+  deployments, since `ci.yml` no longer runs there. Watch the `CI` run on `main` after you
+  merge, and revert rather than leave the trunk red.
 
 Escape hatches exist for the genuine case — a label (`docs-exempt`, `tests-exempt`,
 `changelog-exempt`, `retro-exempt`, `patch-intentional`) or a tag in a commit subject
