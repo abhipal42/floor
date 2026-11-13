@@ -47,6 +47,7 @@
   --ball: #8b4513;
   --phone-top: #10241a;
   --head-bg: rgba(7, 8, 10, 0.86);
+  --head-ease: cubic-bezier(0.22, 1, 0.36, 1);
   --glass: rgba(242, 244, 247, 0.12);
   --midline: rgba(242, 244, 247, 0.5);
   --badge-bg: rgba(7, 8, 10, 0.8);
@@ -434,23 +435,59 @@ button {
 
 /* ------------------------------------------------------------ header */
 
+/* A full-width bar at the top of the page that draws in to a floating glass capsule once the reader
+   scrolls (owner's pick from the nav options artifact, 2026-11-13, after Flighty's header).
+
+   The outer band never changes height. Pinned sections, the Road to law strip and anchor offsets all
+   read #site-head's height (--head-h, set by main.ts), so a bar that shrank as it floated would make
+   every pinned stage jump mid-scroll. Only the inner bar moves: its width, radius and fill.
+
+   Flighty's capsule is rgba(10,10,10,.2) behind blur(24px), which reads white on their light page
+   because glass takes the colour behind it. On Floor's near-black ground that fill vanishes, so it
+   is raised to .62 here. */
+
 .site-head {
   position: sticky;
   top: 0;
   z-index: 50;
-  background: var(--head-bg);
-  -webkit-backdrop-filter: blur(12px);
-  backdrop-filter: blur(12px);
-  border-bottom: 1px solid var(--line-faint);
+  padding-block: 10px;
+  /* The band around the capsule is see-through, so it must not swallow clicks on what scrolls
+     under it. The bar itself takes pointer events back. */
+  pointer-events: none;
 }
 .site-head__in {
-  padding-top: 14px;
-  padding-bottom: 14px;
+  pointer-events: auto;
+  height: 52px;
+  margin-inline: auto;
+  max-width: 1192px;
+  padding: 0 4px;
   display: flex;
-  flex-wrap: wrap;
-  gap: 12px 40px;
   align-items: center;
-  justify-content: center;
+  gap: 16px;
+  border: 1px solid transparent;
+  border-radius: 14px;
+  background: transparent;
+  transition:
+    max-width 0.55s var(--head-ease),
+    padding 0.55s var(--head-ease),
+    border-radius 0.55s var(--head-ease),
+    background-color 0.4s var(--head-ease),
+    border-color 0.4s var(--head-ease),
+    box-shadow 0.4s var(--head-ease);
+}
+.site-head.is-floating .site-head__in {
+  max-width: 664px;
+  padding: 0 7px 0 18px;
+  border-radius: 999px;
+  border-color: rgba(255, 255, 255, 0.1);
+  background: rgba(16, 18, 22, 0.62);
+  -webkit-backdrop-filter: blur(24px) saturate(1.3);
+  backdrop-filter: blur(24px) saturate(1.3);
+  /* A ramp of faint shadows rather than one drop shadow, as Flighty does. */
+  box-shadow:
+    0 1px 1px 0.5px rgba(0, 0, 0, 0.16),
+    0 3px 3px 1.5px rgba(0, 0, 0, 0.12),
+    0 10px 14px -6px rgba(0, 0, 0, 0.35);
 }
 .logo {
   color: var(--ink);
@@ -459,35 +496,69 @@ button {
   font-style: italic;
   font-weight: 900;
   font-size: 30px;
+  line-height: 1;
+  flex: 0 0 auto;
+  transition: font-size 0.55s var(--head-ease);
 }
 .logo:hover {
   color: var(--ink);
 }
+.site-head.is-floating .logo {
+  font-size: 25px;
+}
+.site-head__div {
+  flex: 0 0 auto;
+  width: 0;
+  height: 20px;
+  margin-inline: -8px;
+  background: rgba(255, 255, 255, 0.14);
+  opacity: 0;
+  transition: width 0.55s var(--head-ease), margin 0.55s var(--head-ease), opacity 0.35s var(--head-ease);
+}
+.site-head.is-floating .site-head__div {
+  width: 1px;
+  margin-inline: 0;
+  opacity: 1;
+}
 .site-nav {
+  flex: 1 1 auto;
+  min-width: 0;
   display: flex;
-  flex-wrap: wrap;
   justify-content: center;
-  gap: 6px 26px;
   align-items: center;
+  gap: 2px;
   font-size: 14px;
 }
 .site-nav a {
   color: var(--muted);
   text-decoration: none;
+  white-space: nowrap;
+  padding: 7px 12px;
+  border-radius: 8px;
+  transition: color 0.2s var(--head-ease), background-color 0.2s var(--head-ease);
 }
-.site-nav a:hover {
+.site-nav a:hover,
+.site-nav a:focus-visible {
   color: var(--ink);
+  background: rgba(255, 255, 255, 0.06);
 }
-.site-nav .site-nav__cta {
+.site-head__cta {
+  flex: 0 0 auto;
+  white-space: nowrap;
   background: var(--yea);
   color: var(--ground);
   font-weight: 700;
-  padding: 9px 14px;
-  border-radius: 8px;
+  font-size: 14px;
+  text-decoration: none;
+  padding: 9px 16px;
+  border-radius: 999px;
+  transition: background-color 0.2s var(--head-ease), transform 0.2s var(--head-ease);
 }
-.site-nav .site-nav__cta:hover {
+.site-head__cta:hover,
+.site-head__cta:focus-visible {
   color: var(--ground);
   background: var(--yea-hover);
+  transform: translateY(-1px);
 }
 
 /* ------------------------------------------------------------ hero */
@@ -3574,11 +3645,17 @@ td.c-x {
   /* Seven section links wrap to two rows here and the sticky header grew to ~130px, about a
      sixth of a phone screen, covering the top of every section. On narrow screens the header
      keeps the logo and "Get the app"; the page itself is the navigation. */
-  .site-head__in {
-    flex-wrap: nowrap;
-  }
-  .site-nav a:not(.site-nav__cta) {
+  .site-nav,
+  .site-head__div {
     display: none;
+  }
+  .site-head__in {
+    justify-content: space-between;
+  }
+  /* With only the mark and the button left, the capsule hugs them rather than spanning the screen. */
+  .site-head.is-floating .site-head__in {
+    max-width: 250px;
+    padding: 0 6px 0 16px;
   }
 }
 
@@ -3802,6 +3879,13 @@ td.c-x {
 @media (prefers-reduced-motion: reduce) {
   html {
     scroll-behavior: auto;
+  }
+  .site-head__in,
+  .site-head__div,
+  .logo,
+  .site-nav a,
+  .site-head__cta {
+    transition: none;
   }
   .hl,
   .hl.is-in {

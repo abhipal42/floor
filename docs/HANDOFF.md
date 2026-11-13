@@ -277,6 +277,17 @@ Real data broke our first assumptions several times. Each case below is now hand
     still taking PAC money in the 2026 cycle. The query now takes the most recent cycle held for
     that member, and the response carries `committeesCycle` next to `cycle` so a client can say
     which period the committee list covers instead of implying it matches the campaign's.
+34. **In the browser pane, a programmatic scroll right after a viewport change can fire no `scroll`
+    event at all.** Testing the floating header, `scrollTo({top: 2445, behavior: "instant"})` moved
+    the page and the bar stayed docked; a fresh listener attached just for the check counted **zero**
+    scroll events while `scrollY` went from 0 to 2445. It happens just after `resize_window` switches
+    device emulation (any width under 768px emulates a phone). Real wheel input fired events and the
+    bar behaved every time, so it was the harness, not the code — but it reads exactly like a bug. Test
+    scroll-driven UI with real wheel scrolls, and if a scripted scroll seems to do nothing, count the
+    events before debugging the handler. Two related traps on this page: `html` has
+    `scroll-behavior: smooth`, so a plain `scrollTo` is still in flight when you read `scrollY` (pass
+    `behavior: "instant"`), and an instant jump across six pinned sections takes over a second to
+    settle while they re-measure.
 
 ---
 
@@ -705,7 +716,7 @@ the product rules they settled are in `CLAUDE.md` › Product rules). What to kn
 - The unbuilt part of the mock is a **section rail** (a strip under the header naming the current
   section, for every section). It was offered and skipped; the mock still has the toggle.
 
-### Pinned sections (v0.2.13)
+### Pinned sections (v0.2.14)
 
 Sections 01–06 hold still while the reader scrolls, and each stretch of scroll moves them one step.
 `pin(stage, steps)` in `main.ts` does it with plain `position: sticky` over an empty run after the
@@ -729,6 +740,26 @@ wide, 640px tall and tall enough for its whole stage (Explained and Money drop o
 screens), and never with reduced motion; otherwise it is the ordinary page. A stage whose content
 grows while pinned (the location form opening) is re-measured by a `ResizeObserver` and lets go if it
 no longer fits.
+
+### The floating header (v0.2.15)
+
+The header starts as a full-width bar (mark left, links centred, "Get the app" right) and draws in to
+a centred glass capsule once the reader scrolls past 48px, settling back under 16px. Picked by the
+owner from three options in the nav artifact (<https://claude.ai/artifact/3hyQwvnXUeJJWtGoKaQCVX>),
+after Flighty's header. What to know:
+
+- **The band's height never changes; only the inner bar moves.** Pinned sections, the Road to law
+  strip and anchor offsets all read `#site-head`'s height (`--head-h`). A bar that shrank as it
+  floated would make every pinned stage jump mid-scroll, so `.site-head` keeps its 72px and
+  `.site-head__in` animates width, radius and fill inside it.
+- **Two thresholds, not one** (`headFloats` in `logic.ts`). A phone's elastic overscroll or a
+  trackpad coming to rest can sit right on a single line and toggle the bar every frame.
+- **The fill is raised from Flighty's.** Theirs is `rgba(10,10,10,.2)` behind `blur(24px)`, which
+  reads white on their light page because glass takes the colour behind it. On Floor's near-black
+  ground it vanishes, so the capsule is `rgba(16,18,22,.62)`.
+- At 860px and under the links hide, as before, and the capsule hugs the mark and the button (250px).
+- The outer band is `pointer-events: none` so the see-through area around the capsule doesn't
+  swallow clicks on what scrolls under it; the bar takes them back.
 
 ### The app redesign (v0.2.3)
 
@@ -795,7 +826,7 @@ steps ship as 0.2.x PATCH releases; 0.3.0 closes the milestone with its retro.
 4. **Campaign finance for every member.** Data landed in 0.2.4: `campaign_finance` (OpenFEC
    totals for each member's current campaign: small-dollar, itemized, PAC, party, other, cash on
    hand) and `pac_contributions` (every committee's direct and earmarked totals per member from the
-   2026 bulk file, with FEC's organization type for the "kind"). **The API route landed in 0.2.12:**
+   2026 bulk file, with FEC's organization type for the "kind"). **The API route landed in 0.2.13:**
    `/v1/members/{id}/funding`, which keeps the two FEC sources apart (lesson 24) and excludes party
    and joint fundraising committees (lesson 23). Still to do: **the page section**, which reads the
    live route for your members instead of the `funding` snapshot in `apps/web/src/data.ts`.

@@ -60,6 +60,7 @@ import {
   FLAP_TICKS,
   FLAP_WIDTH,
   activeLevel,
+  headFloats,
   scrollStep,
   stepLength,
   stickTop,
@@ -412,6 +413,28 @@ function header(): void {
   const setH = () => document.documentElement.style.setProperty("--head-h", head.offsetHeight + "px");
   setH();
   new ResizeObserver(setH).observe(head);
+
+  // The bar draws in to a floating capsule once the reader scrolls. Only the inner bar changes:
+  // the band's height, which pinned sections read, stays put (see .site-head in styles.css).
+  let floating = false;
+  let queued = false;
+  const update = () => {
+    queued = false;
+    const next = headFloats(window.scrollY, floating);
+    if (next === floating) return;
+    floating = next;
+    head.classList.toggle("is-floating", next);
+  };
+  window.addEventListener(
+    "scroll",
+    () => {
+      if (queued) return;
+      queued = true;
+      requestAnimationFrame(update);
+    },
+    { passive: true },
+  );
+  update();
 }
 
 // ------------------------------------------------------------------ hero

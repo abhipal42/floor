@@ -11,6 +11,21 @@ export const FLAP_CHARSET = "ABCDEFGHIJKLMNOPRSTUVWXYZ0123456789-";
 /** The scramble runs for this many 50 ms ticks; every cell has settled by then. */
 export const FLAP_TICKS = 24;
 
+/** Scroll depth past which the header draws in to its floating capsule. */
+export const HEAD_FLOAT_AT = 48;
+/** Scroll depth under which a floating header settles back to a full-width bar. */
+export const HEAD_DOCK_AT = 16;
+
+/**
+ * Whether the header should be floating, given where the page is and what it is now.
+ *
+ * Two thresholds rather than one: a phone's elastic overscroll, or a trackpad coming to rest, can sit
+ * right on a single line and toggle the bar every frame. Between the two it keeps whatever it was.
+ */
+export function headFloats(scrollY: number, floating: boolean): boolean {
+  return floating ? scrollY > HEAD_DOCK_AT : scrollY > HEAD_FLOAT_AT;
+}
+
 /** Where a pinned section's stage sits: centred in the space under the header, or right under it. */
 export function stickTop(head: number, viewport: number, stage: number): number {
   return head + Math.max(0, Math.round((viewport - head - stage) / 2));
