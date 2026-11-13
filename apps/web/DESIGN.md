@@ -74,7 +74,7 @@ components:
 # Design System: Floor
 
 <!-- Records the shipped landing page (apps/web/public/styles.css, locked mock of 2026-11-12).
-     The light theme ("Marble & Patina") landed in v0.2.16; the colour tables below are the dark
+     The light theme ("Marble & Patina") landed in v0.2.17; the colour tables below are the dark
      theme, and the light values live beside them in styles.css. -->
 
 ## Overview
@@ -90,7 +90,7 @@ The page is dense but legible: big numbers lead, the detail sits one step away i
 callouts. Components are punchy and tactile, with collectible-card gradients, hover lift, skewed
 chips and a split-flap board.
 
-**Light theme (v0.2.16):** "Marble & Patina", the materials of the Capitol: a cool marble ground,
+**Light theme (v0.2.17):** "Marble & Patina", the materials of the Capitol: a cool marble ground,
 white panels, and darker partners of every outcome colour. The header button picks System, Light
 or Dark. Lit displays (the finals board, ticker, Road to law field and phone) stay dark in both.
 

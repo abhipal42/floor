@@ -8,7 +8,7 @@ is a milestone and ships a retro under `docs/retros/`.
 Older series live in [`docs/changelog/`](docs/changelog) (0.1.x: [`0.1.md`](docs/changelog/0.1.md)).
 Before 0.1.0 the history is the commit log on `main`.
 
-## 0.2.16 — 2026-11-13
+## 0.2.17 — 2026-11-13
 
 The landing page has a light theme and a switch for it.
 
@@ -27,6 +27,20 @@ The landing page has a light theme and a switch for it.
 - The header's capsule, divider and link hover colours are tokens now (`--head-capsule`,
   `--head-line`, `--head-shadow-*`, `--head-div`, `--nav-hover`). The floating capsule is 52px wider
   (716px, 296px on narrow screens) to fit the button.
+
+## 0.2.16 — 2026-11-13
+
+### Changed
+
+- **01 Finals has no Back or Next.** Scrolling deals the cards where the section pins; the five dots
+  under the card are now buttons that jump to a final (44px tap targets, each named for its vote),
+  which is how phones move through the deck.
+
+### Fixed
+
+- **The score no longer runs into the result chip on small phones.** The score scales with the
+  scoreboard's width, and below about 270px of scoreboard the PASSED/FAILED chip moves above the two
+  numbers. At 320px wide, "417" used to sit on top of "PASSED".
 
 ## 0.2.15 — 2026-11-13
 

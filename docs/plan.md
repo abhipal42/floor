@@ -156,7 +156,7 @@ Targets: floor event to push under 30 s; roll call posted to "your rep voted" un
 | **M2** | iOS core on real data: onboarding, Home, Vote, Bill, Rep (final results only) | TestFlight build shows yesterday's votes for your reps |
 | **M3** | Live layer: floor polling, open/close events, realtime, APNs, Live Activities, widgets; measured Clerk and LIS posting latency; House OCR go/no-go | "Vote open" on phone under 30 s; rep vote under 60 s after posting |
 | **M4** | AI + projections: Layer 1/2 analysis with citations and eval set; projection v1 with backtest; optional odds | Eval set passes the factuality bar; projections beat the party-line baseline |
-| **M5** | Beta hardening and App Store: accessibility, privacy labels, load test, App Review prep, public TestFlight; the web landing page (built early, v0.2.0, `apps/web`; light theme and switch v0.2.16) | Submitted to App Review |
+| **M5** | Beta hardening and App Store: accessibility, privacy labels, load test, App Review prep, public TestFlight; the web landing page (built early, v0.2.0, `apps/web`; light theme and switch v0.2.17) | Submitted to App Review |
 | **v0.3.0** | Your members on the web (in progress, alongside M2): location → your members on the landing page; live finals, scouting report and player cards from the API; campaign finance for every member from OpenFEC; donor context from Senate LDA lobbying filings; a financial-disclosure spike (PDF parsing and the 5 U.S.C. §13107 commercial-use question) before any build | The landing page shows the visitor's own three members, with real data or a visible placeholder in every section |
 
 ## Risks

@@ -727,7 +727,7 @@ shows the step with a **Skip** button.
 
 | Section | Steps | Not pinned |
 |---|---|---|
-| 01 Finals | the five finals (a step forward keeps the deal animation) | — |
+| 01 Finals | the five finals (a step forward keeps the deal animation); since v0.2.16 there is no Back or Next, and the dots under the card jump to a final (the only way through the deck on phones) | — |
 | 02 Road to law | six levels: the connected road moves so the focused card sits centred, the rest fade | the drive chart |
 | 03 Explained | the first bill's points, each lighting its source paragraph; only the current point opens | bill tabs stay manual |
 | 04 Your reps | your three members; the "Make it your three" bar sits under the report | — |
@@ -790,7 +790,7 @@ build differs from the mocks, and why:
 - **"Winning side" is the outcome, not the larger side** (`sidedWithOutcome`). They differ when a
   majority loses to a threshold — H.J.Res. 1 lost 212–206.
 
-### Light mode on the landing page (v0.2.16)
+### Light mode on the landing page (v0.2.17)
 
 The landing page has the same light direction as the app, with its own switch.
 
