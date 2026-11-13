@@ -1,0 +1,98 @@
+{
+  "chambers": [
+    {
+      "chamber": "house",
+      "inSession": true,
+      "convenesAt": null,
+      "legislativeDay": "2026-11-10",
+      "checkedAt": "2026-11-10T23:33:00.000Z"
+    },
+    {
+      "chamber": "senate",
+      "inSession": false,
+      "convenesAt": "2026-11-16T20:00:00.000Z",
+      "legislativeDay": "2026-11-16",
+      "checkedAt": "2026-11-10T23:33:00.000Z"
+    }
+  ],
+  "votes": [
+    {
+      "id": "house-119-2-319",
+      "kind": "question",
+      "candidates": [],
+      "chamber": "house",
+      "congress": 119,
+      "session": 2,
+      "rollNumber": 319,
+      "question": "On Agreeing to the Resolution",
+      "billId": null,
+      "nominationId": null,
+      "billRef": "H RES 1650",
+      "occurredAt": "2026-11-10T23:20:00.000Z",
+      "state": "final",
+      "threshold": "majority",
+      "totals": {
+        "yea": 215,
+        "nay": 209,
+        "present": 0,
+        "notVoting": 9
+      },
+      "result": "Passed",
+      "openedAt": "2026-11-10T23:20:53.000Z",
+      "announcedAt": "2026-11-10T23:33:00.000Z",
+      "postedAt": "2026-11-10T23:33:10.000Z"
+    },
+    {
+      "id": "house-119-2-318",
+      "kind": "question",
+      "candidates": [],
+      "chamber": "house",
+      "congress": 119,
+      "session": 2,
+      "rollNumber": 318,
+      "question": "On ordering the previous question",
+      "billId": null,
+      "nominationId": null,
+      "billRef": "H. Res. 1650",
+      "occurredAt": "2026-11-10T23:10:37.000Z",
+      "state": "open",
+      "threshold": "majority",
+      "totals": {
+        "yea": 213,
+        "nay": 207,
+        "present": 0,
+        "notVoting": 0
+      },
+      "result": "Agreed to",
+      "openedAt": "2026-11-10T23:10:37.000Z",
+      "announcedAt": "2026-11-10T23:33:00.000Z",
+      "postedAt": null
+    },
+    {
+      "id": "house-119-2-317",
+      "kind": "question",
+      "candidates": [],
+      "chamber": "house",
+      "congress": 119,
+      "session": 2,
+      "rollNumber": 317,
+      "question": "On motion to refer",
+      "billId": null,
+      "nominationId": null,
+      "billRef": "H. Res. 1655",
+      "occurredAt": "2026-11-10T23:02:41.000Z",
+      "state": "open",
+      "threshold": "majority",
+      "totals": {
+        "yea": 211,
+        "nay": 204,
+        "present": 0,
+        "notVoting": 0
+      },
+      "result": "Agreed to",
+      "openedAt": "2026-11-10T23:02:41.000Z",
+      "announcedAt": "2026-11-10T23:33:00.000Z",
+      "postedAt": null
+    }
+  ]
+}

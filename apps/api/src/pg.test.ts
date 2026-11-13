@@ -279,6 +279,21 @@ describe("Postgres repositories", () => {
     expect(await repos.nominations.getNomination("119-pn-9999")).toBeNull();
   });
 
+  it("leaves open votes off bill and nomination pages: their tallies are the floor's, not the roll call's", async () => {
+    await pg.exec(`
+      insert into votes (id, chamber, congress, session, roll_number, question, state, yea, nay, bill_id, nomination_id, occurred_at)
+      values ('house-119-1-500', 'house', 119, 1, 500, 'On passage', 'open', 0, 0, '119-hr-1', null, '2026-01-01T00:00:00Z'),
+             ('senate-119-1-500', 'senate', 119, 1, 500, 'On the Nomination', 'open', 0, 0, null, '119-pn-12-12', '2026-01-01T00:00:00Z');
+    `);
+    try {
+      // Without the filter each would come first: occurred_at is newer than every final vote's.
+      expect((await repos.bills.getBill("119-hr-1"))?.votes.map((v) => v.id)).toEqual(["house-119-1-1"]);
+      expect((await repos.nominations.getNomination("119-pn-12-12"))?.votes.map((v) => v.id)).toEqual(["senate-119-1-90"]);
+    } finally {
+      await pg.exec("delete from votes where id in ('house-119-1-500', 'senate-119-1-500')");
+    }
+  });
+
   it("reports the last successful run, the last that stored anything, and the latest outcome's error", async () => {
     const runs = (await repos.status.lastRuns()).sort((a, b) => a.source.localeCompare(b.source));
     expect(runs).toEqual([
@@ -546,5 +561,96 @@ describe("Postgres repositories", () => {
       expect(expected.length).toBeGreaterThan(0);
       expect(expected.length).toBeLessThan(designations.length * types.length);
     });
+  });
+});
+
+describe("live repository", () => {
+  it("reports each chamber as the worker last wrote it", async () => {
+    expect(await repos.live.chambers()).toEqual([]);
+    await pg.exec(`
+      insert into chamber_status (chamber, in_session, convenes_at, legislative_day, source, checked_at) values
+        ('senate', false, '2026-11-16T20:00:00Z', '2026-11-16', 'senate_schedule', '2026-11-13T22:00:00Z'),
+        ('house', true, null, '2026-11-10', 'house_floor', '2026-11-10T23:33:00Z');
+    `);
+    expect(await repos.live.chambers()).toEqual([
+      { chamber: "house", inSession: true, convenesAt: null, legislativeDay: "2026-11-10", checkedAt: "2026-11-10T23:33:00.000Z" },
+      {
+        chamber: "senate",
+        inSession: false,
+        convenesAt: "2026-11-16T20:00:00.000Z",
+        legislativeDay: "2026-11-16",
+        checkedAt: "2026-11-13T22:00:00.000Z",
+      },
+    ]);
+  });
+
+  it("lists open votes from the last day and votes the worker published as final within the window, newest first", async () => {
+    await pg.exec(`
+      insert into votes (id, chamber, congress, session, roll_number, question, state, yea, nay, result, bill_ref,
+                         opened_at, occurred_at, announced_at, posted_at, broadcast_at) values
+        ('house-119-2-319', 'house', 119, 2, 319, 'On agreeing to the resolution', 'open', 215, 209, 'Agreed to',
+         'H. Res. 1650', '2026-11-10T23:20:53Z', '2026-11-10T23:20:53Z', '2026-11-10T23:33:00Z', null, null),
+        ('house-119-2-318', 'house', 119, 2, 318, 'On Ordering the Previous Question', 'final', 213, 207, 'Passed',
+         'H RES 1650', '2026-11-10T23:10:37Z', '2026-11-10T23:10:00Z', '2026-11-10T23:32:00Z', '2026-11-10T23:32:10Z',
+         '2026-11-10T23:32:10Z'),
+        -- Stored by the hourly workflow while the worker was down: no posted_at, but broadcast once the worker came back.
+        ('house-119-2-310', 'house', 119, 2, 310, 'On Passage', 'final', 5, 4, 'Passed', null, null, '2026-11-10T21:00:00Z',
+         null, null, '2026-11-10T23:30:00Z'),
+        -- Published before the window.
+        ('house-119-2-300', 'house', 119, 2, 300, 'On Passage', 'final', 1, 1, 'Passed', null, null, '2026-11-10T19:00:00Z',
+         null, '2026-11-10T20:00:00Z', '2026-11-10T20:00:00Z'),
+        -- A backfill of an old vote, marked in the window without being announced.
+        ('senate-119-1-50', 'senate', 119, 1, 50, 'On Passage', 'final', 1, 1, 'Passed', null, null, '2025-05-01T12:00:00Z',
+         null, null, '2026-11-10T23:31:00Z'),
+        -- Final but never broadcast (the worker has not seen it yet): not "just final" until it is published.
+        ('house-119-2-320', 'house', 119, 2, 320, 'On Passage', 'final', 1, 1, 'Passed', null, null, '2026-11-10T23:30:00Z',
+         null, '2026-11-10T23:33:30Z', null),
+        ('house-119-2-200', 'house', 119, 2, 200, 'On Passage', 'open', 0, 0, null, null, null, null, '2026-11-08T20:00:00Z', null, null);
+    `);
+    const votes = await repos.live.liveVotes(new Date("2026-11-10T22:00:00Z"), new Date("2026-11-10T23:34:00Z"));
+    // 300 was published before the window; 50 is an old vote; 320 is not published yet; 200 has sat
+    // open for two days, which means its XML never parsed.
+    expect(votes.map((v) => `${v.id}:${v.state}`)).toEqual([
+      "house-119-2-319:open",
+      "house-119-2-318:final",
+      "house-119-2-310:final",
+    ]);
+    expect(votes[0]).toMatchObject({
+      totals: { yea: 215, nay: 209, present: 0, notVoting: 0 },
+      openedAt: "2026-11-10T23:20:53.000Z",
+      announcedAt: "2026-11-10T23:33:00.000Z",
+      postedAt: null,
+    });
+    expect(votes[1]!.postedAt).toBe("2026-11-10T23:32:10.000Z");
+    expect(votes[2]!.postedAt).toBeNull();
+  });
+
+  it("answers empty, not an error, on a database without the M3 migration", async () => {
+    const failing = (code: string): Db => ({
+      query: async () => {
+        throw Object.assign(new Error(`simulated ${code}`), { code });
+      },
+    });
+    for (const code of ["42P01", "42703"]) {
+      const live = pgRepositories(failing(code)).live;
+      expect(await live.chambers()).toEqual([]);
+      expect(await live.liveVotes(new Date(0), new Date())).toEqual([]);
+    }
+    // Anything else is a real failure and still throws.
+    await expect(pgRepositories(failing("57P01")).live.chambers()).rejects.toThrow("simulated 57P01");
+  });
+
+  it("really meets 42P01 and 42703 on a database that has not had the M3 migration", async () => {
+    const old = new PGlite();
+    await old.exec(`
+      create schema auth;
+      create table auth.users (id uuid primary key);
+      create function auth.uid() returns uuid language sql stable as $$ select null::uuid $$;
+    `);
+    for (const m of loadMigrations().filter((m) => !m.name.endsWith("_live_layer.sql"))) await old.exec(m.sql);
+    const live = pgRepositories(old as unknown as Db).live;
+    expect(await live.chambers()).toEqual([]); // chamber_status: 42P01
+    expect(await live.liveVotes(new Date(0), new Date())).toEqual([]); // votes.broadcast_at: 42703
+    await old.close();
   });
 });

@@ -8,6 +8,59 @@ is a milestone and ships a retro under `docs/retros/`.
 Older series live in [`docs/changelog/`](docs/changelog) (0.1.x: [`0.1.md`](docs/changelog/0.1.md)).
 Before 0.1.0 the history is the commit log on `main`.
 
+## 0.2.24 — 2026-11-13
+
+The M3 live layer's backend: an always-on worker that tracks the floor, moves votes from `open` to
+`final`, and measures how long the chambers take to post. Built and tested, not deployed (needs a Fly
+account and the new migration applied; HANDOFF › M3 lists every step and variable).
+
+### Added
+- **Floor-event parsers** (`packages/shared/src/floor.ts`) for the House Clerk's floor summary and the
+  Senate's floor schedule, floor activity page and vote menu, with contract tests on real responses
+  saved 2026-11-13.
+- **Vote state.** A roll call a floor source names before its XML posts is stored as `open` (House: with
+  the floor's own time and announced tally); the roll call ingest makes it `final`. Every House floor
+  action is kept in `floor_events`.
+- **The live worker** (`npm run ingest -w @floor/worker -- live`): polls each chamber every 10 s while it
+  sits and every 5 minutes otherwise, backs off a host that answers 403/429 (30 s doubling to 5 min),
+  survives any one upstream failing (a failed Senate source is replaced by its last good copy for 30
+  minutes; a failed chamber's stored status is left alone), revalidates with ETags (a body counts as seen
+  only once it is stored), and on SIGTERM finishes the poll in flight and exits. Timeouts on every
+  outbound call; a dropped database connection or an unhandled rejection is logged, not fatal.
+  `apps/worker/Dockerfile` and `fly.toml` (restart policy `always`) deploy it.
+- **Every final vote is published exactly once**, from the table: each poll publishes
+  `state = 'final' and broadcast_at is null` and stamps it, in a `finally`, so a vote is not lost when a
+  poll throws halfway, when the hourly workflow stored it, or across a restart. Votes found after
+  downtime or on a first run are stored quietly, not announced as open. Votes still open after six hours
+  are logged and posted to the alert webhook once.
+- **`GET /v1/live`**: each chamber's session state and the votes open or just final, edge-cached for 5 s.
+  Swift models `Live`, `LiveVote` and `ChamberStatus` decode it (no screen yet), so the contract
+  test that every schema is modelled stays green.
+- **Realtime broadcast** (Supabase, REST) of every vote state change, **an APNs sender** (ES256 token
+  auth, HTTP/2), and **alerting** to a webhook when `/v1/status` is not ok during a session (three failed
+  checks to alert, three good ones to recover, never two posts within 30 minutes). Each is a
+  no-op until its env vars are set; nothing sends a push yet, because push copy is UI.
+- **Posting latency**: `votes.announced_at` / `posted_at`, a log line per vote, and
+  `npm run ingest -w @floor/worker -- latency`.
+- **Vote-night load test** (`npm run loadtest -w @floor/api`), which refuses the production host.
+- Migration `20261114000100_live_layer.sql`: `chamber_status` (RLS, public read), `votes.announced_at`,
+  `votes.posted_at`, `votes.broadcast_at` (set for every vote already final), `floor_events.observed_at`,
+  `floor_events.roll_number`.
+
+### Changed
+- `lastRollNumber` counts only `final` votes, so an `open` row never makes the roll call ingest skip it.
+- Bill and nomination pages list only `final` votes.
+- `parseHouseFloor` refuses a file without its Congress and session; the roll-result wording must be
+  followed by the tally or the roll number; `parseSenateFloorActivity` refuses a page with no meeting
+  blocks; a Senate vote menu's early-January votes after December ones are dated the next year.
+- `/v1/live` answers empty, not 500, on a database without the M3 migration.
+
+### Learned (HANDOFF lessons 41–44)
+- Neither chamber publishes "vote opened": the Clerk's floor summary adds a vote around its close, with
+  the result, and senate.gov has no per-action feed. `open` means "named, not yet posted".
+- senate.gov answers a missing page with HTTP 200, refuses bursts with 403, and its vote menu lists
+  the whole session.
+
 ## 0.2.23 — 2026-11-13
 
 Floor on the home screen: the last final, and your three.

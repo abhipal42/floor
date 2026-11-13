@@ -250,3 +250,29 @@ public extension DataStatus {
 public extension APIError {
     static let sample = APIError(error: "No vote with ID senate-119-1-9999")
 }
+
+public extension ChamberStatus {
+    /// The House mid-session on 2026-11-10, as the live worker records it.
+    static let sample = ChamberStatus(
+        chamber: .house, inSession: true, convenesAt: nil, legislativeDay: "2026-11-10",
+        checkedAt: "2026-11-10T23:33:00.000Z"
+    )
+}
+
+public extension LiveVote {
+    /// House roll 319 of 2026 (H. Res. 1650) between the floor summary naming it and its XML posting.
+    static let sample = LiveVote(
+        vote: Vote(
+            id: "house-119-2-319", kind: .question, chamber: .house, congress: 119, session: 2,
+            rollNumber: 319, question: "On agreeing to the resolution", billId: nil, nominationId: nil,
+            billRef: "H. Res. 1650", occurredAt: "2026-11-10T23:20:53.000Z", state: .open,
+            threshold: .majority, totals: VoteTotals(yea: 215, nay: 209, present: 0, notVoting: 0),
+            candidates: [], result: "Agreed to"
+        ),
+        openedAt: "2026-11-10T23:20:53.000Z", announcedAt: "2026-11-10T23:33:00.000Z", postedAt: nil
+    )
+}
+
+public extension Live {
+    static let sample = Live(chambers: [.sample], votes: [.sample])
+}

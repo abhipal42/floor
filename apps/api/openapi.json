@@ -1110,6 +1110,164 @@
           "votes"
         ]
       },
+      "ChamberStatus": {
+        "type": "object",
+        "properties": {
+          "chamber": {
+            "$ref": "#/components/schemas/Chamber"
+          },
+          "inSession": {
+            "type": "boolean",
+            "description": "Sitting now, or within 15 minutes of convening"
+          },
+          "convenesAt": {
+            "type": "string",
+            "nullable": true,
+            "description": "Next (or current) convening, when the chamber has published it"
+          },
+          "legislativeDay": {
+            "type": "string",
+            "nullable": true,
+            "example": "2026-11-10"
+          },
+          "checkedAt": {
+            "type": "string",
+            "description": "When the live worker last polled this chamber"
+          }
+        },
+        "required": [
+          "chamber",
+          "inSession",
+          "convenesAt",
+          "legislativeDay",
+          "checkedAt"
+        ]
+      },
+      "LiveVote": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "example": "house-119-1-100"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/VoteKind"
+          },
+          "chamber": {
+            "$ref": "#/components/schemas/Chamber"
+          },
+          "congress": {
+            "type": "integer"
+          },
+          "session": {
+            "type": "integer"
+          },
+          "rollNumber": {
+            "type": "integer",
+            "nullable": true
+          },
+          "question": {
+            "type": "string"
+          },
+          "billId": {
+            "type": "string",
+            "nullable": true
+          },
+          "nominationId": {
+            "type": "string",
+            "nullable": true,
+            "example": "119-pn-1093-3"
+          },
+          "billRef": {
+            "type": "string",
+            "nullable": true,
+            "example": "H CON RES 14"
+          },
+          "occurredAt": {
+            "type": "string",
+            "nullable": true,
+            "example": "2025-04-10T15:08:00.000Z"
+          },
+          "state": {
+            "$ref": "#/components/schemas/VoteState"
+          },
+          "threshold": {
+            "$ref": "#/components/schemas/VoteThreshold"
+          },
+          "totals": {
+            "$ref": "#/components/schemas/VoteTotals"
+          },
+          "candidates": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Candidate"
+            }
+          },
+          "result": {
+            "type": "string",
+            "nullable": true
+          },
+          "openedAt": {
+            "type": "string",
+            "nullable": true,
+            "description": "The floor's own time for the vote (House only)"
+          },
+          "announcedAt": {
+            "type": "string",
+            "nullable": true,
+            "description": "When the worker first saw a floor source name it"
+          },
+          "postedAt": {
+            "type": "string",
+            "nullable": true,
+            "description": "When the worker first saw the roll call XML, polling live; null if it was backfilled"
+          }
+        },
+        "required": [
+          "id",
+          "kind",
+          "chamber",
+          "congress",
+          "session",
+          "rollNumber",
+          "question",
+          "billId",
+          "nominationId",
+          "billRef",
+          "occurredAt",
+          "state",
+          "threshold",
+          "totals",
+          "candidates",
+          "result",
+          "openedAt",
+          "announcedAt",
+          "postedAt"
+        ]
+      },
+      "Live": {
+        "type": "object",
+        "properties": {
+          "chambers": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ChamberStatus"
+            },
+            "description": "Empty until the live worker has run"
+          },
+          "votes": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/LiveVote"
+            },
+            "description": "Open votes named in the last 24 hours, then votes that went final within `since`; newest first"
+          }
+        },
+        "required": [
+          "chambers",
+          "votes"
+        ]
+      },
       "SourceStatus": {
         "type": "object",
         "properties": {
@@ -1526,6 +1684,38 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/live": {
+      "get": {
+        "summary": "What is happening on the floor: each chamber's session state and the votes open or just final",
+        "parameters": [
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 1440,
+              "default": 120,
+              "description": "Include votes that went final within this many minutes",
+              "example": 120
+            },
+            "required": false,
+            "name": "since",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Cached at the edge for 5 seconds (public, max-age=5, s-maxage=5, stale-while-revalidate=5)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Live"
                 }
               }
             }

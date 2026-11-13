@@ -3,10 +3,17 @@ import { lastRollNumber, rollsMissingPositions, startRun, upsertRollCall, type D
 
 export type FetchText = (url: string) => Promise<{ status: number; text: string }>;
 
-export const defaultFetch: FetchText = async (url) => {
-  const res = await fetch(url, { headers: { "user-agent": "floor-ingest/0.1" } });
-  return { status: res.status, text: res.status === 200 ? await res.text() : "" };
-};
+/** A roll call file that has not arrived in this long is retried on the next poll, not waited on. */
+export const ROLL_FETCH_TIMEOUT_MS = 15_000;
+
+export const fetchWithTimeout =
+  (base: typeof fetch = fetch, timeoutMs = ROLL_FETCH_TIMEOUT_MS): FetchText =>
+  async (url) => {
+    const res = await base(url, { headers: { "user-agent": "floor-ingest/0.1" }, signal: AbortSignal.timeout(timeoutMs) });
+    return { status: res.status, text: res.status === 200 ? await res.text() : "" };
+  };
+
+export const defaultFetch: FetchText = (url) => fetchWithTimeout()(url);
 
 /** Calendar year of a congress session (119th, session 1 → 2025). */
 export const yearOf = (congress: number, session: number) => 1789 + 2 * (congress - 1) + (session - 1);
@@ -123,7 +130,14 @@ export async function ingestRollCalls(
   chamber: Chamber,
   congress: number,
   session: number,
-  opts: { from?: number; limit?: number; fetchText?: FetchText; log?: (msg: string) => void } = {},
+  opts: {
+    from?: number;
+    limit?: number;
+    fetchText?: FetchText;
+    log?: (msg: string) => void;
+    /** Re-fetch votes stored without positions first (default true; the live worker does it hourly). */
+    repair?: boolean;
+  } = {},
 ): Promise<{ stored: number; lastRoll: number; skippedPositions: number }> {
   const finish = await startRun(db, `${chamber}_rollcalls`);
   let roll = opts.from ?? 0;
@@ -133,7 +147,7 @@ export async function ingestRollCalls(
     // Inside the try, like everything after startRun: a run that throws here must still record why.
     if (opts.from === undefined) roll = (await lastRollNumber(db, chamber, congress, session)) + 1;
     // Repair votes saved without positions (for example, by an interrupted older run).
-    for (const missing of await rollsMissingPositions(db, chamber, congress, session)) {
+    for (const missing of opts.repair === false ? [] : await rollsMissingPositions(db, chamber, congress, session)) {
       const rc = await fetchRollCall(chamber, congress, session, missing, opts.fetchText);
       if (!rc) continue;
       const result = await withRetry(() => upsertRollCall(db, rc));

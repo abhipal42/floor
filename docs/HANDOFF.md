@@ -6,7 +6,9 @@ Last updated 2026-11-13. Read this first, then [`plan.md`](plan.md) for the full
 the app runs the whole flow against it — onboarding to a real district, then Home, Vote, Bill and
 Rep. Since v0.2.3 those screens match the landing page (three tabs: Finals, Bills, Your three). Every
 screen now opens on its last-seen data when offline or slow, from a SwiftData cache. Two items remain,
-listed at the top of the M2 section: snapshot tests and TestFlight distribution.
+listed at the top of the M2 section: snapshot tests and TestFlight distribution. **M3's backend is
+built but not deployed** (v0.2.24): the live worker, vote state, `/v1/live`, realtime, APNs and
+alerting plumbing. Turning it on needs a Fly account and a migration applied; see the M3 section.
 
 ---
 
@@ -52,9 +54,12 @@ npm run ingest -w @floor/worker -- fec-totals                     # campaign tot
 npm run ingest -w @floor/worker -- fec-pacs 2026                  # committee-to-candidate totals from the FEC bulk files (~30 s)
 npm run ingest -w @floor/worker -- analyze 25                     # AI analysis (M4 Layer 1) of up to 25 bills that need one; costs money
 npm run eval:analysis -w @floor/worker -- --out /tmp/eval.json    # the ~50-bill analysis eval; prints "Not run" without ANTHROPIC_API_KEY
+npm run ingest -w @floor/worker -- live                           # the always-on live worker (M3); Ctrl-C stops it after the poll in flight
+npm run ingest -w @floor/worker -- latency 30                     # roll call posting latency the live worker measured, last 30 days
+npm run loadtest -w @floor/api -- --duration 30 --connections 50 # vote-night load test against a LOCAL API (refuses production)
 npm run openapi -w @floor/api                                    # regenerate apps/api/openapi.json after changing routes
 npm run build -w @floor/web && npm run serve -w @floor/web       # build and serve the landing page from apps/web/dist
-swift test --package-path ios/FloorKit                           # all FloorKit tests (248): models, contract, client, screen models
+swift test --package-path ios/FloorKit                           # all FloorKit tests (252): models, contract, client, screen models
 ```
 
 `apps/api/openapi.json` is the committed contract. Re-run `npm run openapi` after any change to
@@ -75,10 +80,10 @@ Command Line Tools rather than Xcode: run it with `DEVELOPER_DIR=/Applications/X
 
 | Path | What | Key files |
 |---|---|---|
-| `packages/shared` | Types + roll call parsers (House Clerk XML, Senate LIS XML) | `src/rollcall.ts`, fixtures in `fixtures/` (real government files) |
+| `packages/shared` | Types + roll call parsers (House Clerk XML, Senate LIS XML) + floor-event parsers (House floor summary, Senate schedule, floor page and vote menu) and Eastern-time helpers | `src/rollcall.ts`, `src/floor.ts`, fixtures in `fixtures/` (real government files) |
 | `packages/db` | Migration loader used by tests | `src/migrations.test.ts` |
-| `supabase/migrations` | Postgres schema (applied to staging in filename order) | 10 migrations; `20261113000100_ingest_failed.sql` (lesson 38) and `20261114000000_bill_analyses_ai.sql` (M4) are **not yet applied** to staging |
-| `apps/worker` | Ingest CLI: members, roll calls, bills, nominations, campaign finance, AI bill analysis | `src/cli.ts`, `rollcalls.ts`, `bills.ts`, `nominations.ts`, `members.ts`, `fec.ts`, `analysis.ts` (M4 Layer 1), `analysis-eval.ts`, `db.ts` |
+| `supabase/migrations` | Postgres schema (applied to staging in filename order) | 11 migrations; `20261113000100_ingest_failed.sql` (lesson 38), `20261114000000_bill_analyses_ai.sql` (M4) and `20261114000100_live_layer.sql` (M3) are **not yet applied** to staging |
+| `apps/worker` | Ingest CLI: members, roll calls, bills, nominations, campaign finance, AI bill analysis; the always-on live worker (M3) | `src/cli.ts`, `rollcalls.ts`, `bills.ts`, `nominations.ts`, `members.ts`, `fec.ts`, `analysis.ts` (M4 Layer 1), `analysis-eval.ts`, `db.ts`; live: `live.ts`, `realtime.ts`, `apns.ts`, `alert.ts`, `Dockerfile`, `fly.toml` |
 | `apps/api` | Hono REST API with OpenAPI at `/openapi.json` | `src/app.ts` (routes + schemas), `pg.ts` (Postgres), `district.ts` (Census) |
 | `apps/web` | Landing page (v0.2.0): static HTML/CSS/TypeScript built with `tsc`, no framework | `src/data.ts` (every figure, with source and date), `src/logic.ts` (pure helpers), `src/main.ts` (rendering), `public/` |
 | `ios/` | SwiftUI app (XcodeGen, `project.yml`), `FloorKit` package: `Models`, `APIClient`, `DesignSystem`, `Onboarding`, `Home`, `VoteScreen`, `BillScreen`, `RepScreen`, `WidgetFeed`; `FloorWidgets/` (the WidgetKit extension) | `FloorKit/Sources/Models/` (one file per area, `Samples.swift` for previews), `FloorKit/Tests/ModelsTests/ContractTests.swift`, `DesignSystem/ScoreboardCard.swift`, `DesignSystem/Components.swift`, `DesignSystem/Fonts/` (Barlow Condensed, OFL), `Home/FloorShell.swift` (tabs), `Home/CatchUp.swift`, `Models/VoteOutcome.swift`, `BillScreen/LawLevels.swift`, `APIClient/ResponseCache.swift` (offline cache), `DesignSystem/SavedDataNote.swift` |
@@ -100,6 +105,7 @@ Command Line Tools rather than Xcode: run it with `DEVELOPER_DIR=/Applications/X
 | `GET /v1/bills/{id}` | Title, short title, CRS summary, sponsor, policy area, CBO estimates, last 30 actions, every vote on it. IDs look like `119-hr-2207` |
 | `GET /v1/bills/{id}/analysis` | AI analysis of the bill's CRS summary (M4 Layer 1): purpose, provisions, affected groups, impact. `ai: true` on the response and on every line, a `disclaimer` to show with it, and per line the summary paragraph it cites (1-based, into `source.paragraphs`), a verbatim quote and the bill section. `source.stale` means the summary has changed since and a new analysis is pending. 404 until the worker has analysed the bill; **no UI shows it yet** (needs a locked design) |
 | `GET /v1/nominations/{id}` | Nominee, position, agency, received and latest action, every Senate vote on it. IDs look like `119-pn-1093-3` |
+| `GET /v1/live?since=` | Each chamber's session state as the live worker last saw it (`inSession`, `convenesAt`, `checkedAt`), and the votes that are `open` (named in the last day) or that the worker published as `final` within `since` minutes (`broadcast_at`; default 120, max 1440) and that were themselves voted in the last day, with `openedAt` / `announcedAt` / `postedAt`. Sent with `Cache-Control: public, max-age=5, s-maxage=5`, so Vercel's edge answers vote-night polling. Empty — `{chambers: [], votes: []}`, not an error — on a database without the M3 migration (Postgres `42P01`/`42703` are read as "nothing live"), and until the worker runs |
 | `GET /v1/status` | Per ingest source: last successful run, `lastNewDataAt` (last successful run that stored anything — the freshness signal `stale` cannot give once ingest is scheduled, lesson 38), the error of its latest run with an outcome (null once a later run succeeds; `abandoned run` for one that never finished within an hour, lessons 35 and 38), and `stale` |
 | `GET /openapi.json` | The contract. The Swift models are hand-written against it, and `ContractTests` fail CI if they drift (see M2). |
 
@@ -115,7 +121,8 @@ Command Line Tools rather than Xcode: run it with `DEVELOPER_DIR=/Applications/X
 | `campaign_finance` | 512 | One row per current member: OpenFEC totals for their current campaign to date (House 2025–26; senators since their last election), with cash on hand. Of 537 current members, 23 have no totals filed for that campaign and 2 appointed senators (OK, SC) have no FEC ID yet; the page must say so rather than show nothing |
 | `pac_contributions` | 103,564 | Per member and giving committee, 2026 cycle: direct and earmarked totals, committee designation, type and organization type. No memo text, no individual names (lesson 23) |
 | `bill_analyses` / `bill_analysis_runs` | 0 / 0 | M4 Layer 1: the public analysis, one row per bill and CRS summary stage; and the private run log (attempts, errors, cost, rejected claims; no RLS policy, service role only). Their migration is not applied to staging yet, and no analysis has been generated (no Claude key on the project); see M4 |
-| `ingest_runs` | | Every ingest run with item count and error, which feeds `/v1/status` |
+| `ingest_runs` | | Every ingest run with item count and error, which feeds `/v1/status`. The live worker writes one per chamber per poll and prunes empty successful runs older than two days (keeping errors, runs that stored something, and the newest per source) |
+| `floor_events`, `chamber_status`, `votes.announced_at` / `posted_at` / `broadcast_at` | 0 | M3. The migration sets `broadcast_at` on every vote already final (to its `occurred_at`), so the worker's first poll announces none of them. Written only by the live worker, after `20261114000100_live_layer.sql` is applied (not yet) |
 
 Verification query (should return zeros for the last four columns):
 
@@ -373,6 +380,45 @@ Real data broke our first assumptions several times. Each case below is now hand
     naming) to ~292k characters (a continuing resolution with many divisions): median 762, 90th
     percentile ~1,750 (2026-11-13). Paragraph splits are the `\n\n` that `htmlToText` writes, so a
     change to `htmlToText` renumbers every citation and must bump `PROMPT_VERSION`.
+41. **No official source says a vote has opened.** Checked against real files on 2026-11-13:
+    - The **Clerk's floor summary** (`clerk.house.gov/floor/YYYYMMDD.xml`) lists a recorded vote as one
+      action that already carries its roll number, result and tally: *"On agreeing to the resolution
+      Agreed to by recorded vote: 215 - 209 (Roll no. 319)"*. Its `action_time` (6:20:53 p.m.) is the
+      vote's start, but the entry's `update-date-time` is 6:32 — about when the vote ended, and the same
+      stamp as roll 318's. Whether the entry first appears earlier, mid-vote, can only be seen by polling
+      on a session day (the live worker logs it: `announcedAt` vs `openedAt`).
+    - **senate.gov has no per-action feed.** `legislative/LIS/floor_activity/...` daily files are gone
+      (see lesson 42); what exists is `legislative/schedule/floor_schedule.json` (the next convening,
+      rewritten two minutes after the Senate adjourned on 2026-11-12), `legislative/floor_activity_pail.htm`
+      (the last meeting's convene and adjourn times) and the LIS vote menu
+      (`roll_call_lists/vote_menu_{congress}_{session}.xml`), which lists a vote with its result and no time
+      of day. The Democrats' and Republicans' floor pages are end-of-day wrap-ups.
+    - So the worker's `open` means "on the record, roll call XML not posted yet". For "vote open" while
+      members are still voting, the candidate is **live.house.gov's own JSON API**
+      (`liveproxy-azapp-prod-eastus2-003.azurewebsites.net`, routes `/latest/floor`, `/latest/votes`, a
+      websocket), found in its page script. It is undocumented and its host is an Azure app name, so it is
+      **not used yet**; it answered `200` and `[]` from `/latest/votes` out of session. Try it on a session
+      day before building on it.
+42. **senate.gov answers a missing page with `200`.** `floor_activity/2026/11_12_2026_Senate_Floor.xml`
+    (the pattern its own 2014-era index links to) returns HTTP 200 and an HTML page whose
+    `<meta name="description">` is "404 Error Page". Check the body, not the status: the worker requires
+    `<legislative_activity` in a House floor file and an XML root in every parser for the same reason
+    (the Clerk does the same for roll calls; see `fetchRollCall`).
+43. **senate.gov refuses a burst.** On the first real-site run the roll call ingest refetched ~260 Senate
+    files back to back (a test database whose votes had no positions, so each was "repaired"), and the
+    very next request — `floor_schedule.json` — got **HTTP 403**. It was 200 again within a minute. The
+    worker survives it (each step fails on its own and the next poll retries), but anything that sends
+    hundreds of requests to senate.gov at once should pace itself. The live worker now does: it backs off
+    a host for 30 s after a 403 or 429 (doubling to 5 min), polls senate.gov every 10 s only while the
+    Senate sits, and re-fetches position-less votes at most hourly instead of every poll.
+44. **The vote menu lists the whole session.** Treating every menu vote not stored as `final` as "open"
+    announced all 262 of 2026's Senate votes as open against an empty table. Two rules now: only votes
+    after the newest stored `final` roll are stored as `open` at all (an older gap is the roll call
+    ingest's to repair), and of those, only a vote dated today (Eastern) or seen by a poll under 60 s
+    after the previous one is *news* — announced and broadcast. Anything else (the worker was down, or
+    this is its first run against a fresh table) is stored quietly, with no `announced_at`. The House
+    floor summary follows the same news rule. `lastRollNumber` counts only `final` rows, or an `open` row
+    would make the ingest start one past a vote it has never fetched.
 
 ---
 
@@ -407,7 +453,7 @@ Real data broke our first assumptions several times. Each case below is now hand
    Checked beyond that count: Congress.gov stamps the confirmation vote's number into the nomination's latest
    action, and for all 446 nominations that carry one, that exact roll call is the one we linked — so the part
    mapping (lesson 12) is right across the whole set, not just the samples.
-4. **Posting-latency measurement (moved to M3).** We can only measure how long the Clerk and LIS take to post roll call files on a live session day with polling running.
+4. **Posting-latency measurement (moved to M3).** We can only measure how long the Clerk and LIS take to post roll call files on a live session day with polling running. The live worker now records it (`votes.posted_at`); `npm run ingest -w @floor/worker -- latency` reports it once the worker has run through a session.
 
 ---
 
@@ -667,13 +713,72 @@ live `#FF453A`, muted text `#9BA1AD`.
 ### M3: Live layer
 **Goal:** "vote open" on the phone within 30 s, and your rep's vote within 60 s of the roll call posting.
 
-- Deploy the worker as an always-on container (Fly.io or Railway) with session-aware polling: every 10 s in session, every 5 min otherwise. Until then, `.github/workflows/ingest.yml` polls hourly (lesson 37), which keeps `/v1/status` fresh but is far from the 30 s goal.
-- Floor events: House Clerk floor summary XML; Senate floor activity pages (scraped, with contract tests).
-- Votes get state `open` from floor events, then `final` when the roll call XML posts.
-- Supabase Realtime broadcast to open apps; APNs pushes; Live Activities (push-to-start, iOS 17.2+). (Home-screen widgets landed early, in v0.2.23; see "Widgets" below. A widget refreshes on WidgetKit's budget, about every 30 minutes, so it is not part of the 30 s goal.)
-- **Measure** Clerk and LIS posting latency on real session days (deferred from M1).
-- House running-tally OCR prototype from the floor video → go/no-go decision.
-- Alerting: page someone when `/v1/status` reports `ok: false` during a session.
+**The backend is built (v0.2.24) and not deployed.** Read lesson 41 first: neither chamber publishes
+"vote opened", so `open` currently means "named on the floor, roll call not posted yet".
+
+**Built:**
+
+| Piece | Where | Notes |
+|---|---|---|
+| Floor-event parsers | `packages/shared/src/floor.ts` | House floor summary; Senate `floor_schedule.json`, floor activity page, vote menu. Contract tests on real responses saved 2026-11-13 (`packages/shared/fixtures/house-floor-*.xml`, `senate-*`) |
+| Vote state | `apps/worker/src/live.ts` | A roll call named by a floor source and not yet stored goes in as `open` (House: with the floor's time as `opened_at`, plus the announced tally); `upsertRollCall` makes it `final` when the XML lands. A final vote is never reopened. Every House floor action is kept in `floor_events`. A vote is **news** (announced, `announced_at` stamped, broadcast) only when the chamber's previous poll was under 60 s ago or the vote is dated today (Eastern); one found after downtime or on a first run is stored `open` quietly (lesson 44). `parseHouseFloor` refuses a file without its Congress and session, so no vote is filed under Congress 0 to sit open forever |
+| Publishing | `publishFinals` | Every poll, in a `finally` so it runs even when a step threw: select `state = 'final' and broadcast_at is null`, publish, stamp `broadcast_at`. However a vote became final (this poll, a poll that threw halfway, the hourly workflow, a run before a restart) it is announced exactly once; if the broadcast fails nothing is stamped and the next poll retries. A final vote from more than a day ago is stamped without being published. Opens are published from the poll that stored them |
+| Stuck votes | `stuckOpenVotes` | Hourly: votes still `open` six hours after a floor source first named them (`floor_events.observed_at`) are logged, and posted to the alert webhook once each. The bill and nomination pages list only `final` votes (an open vote's tally is the floor's, not the roll call's) |
+| Session awareness | `houseSession`, `senateSession` | House: an unfinished legislative day = sitting (recesses included); a finished one names the next convening, and we poll fast from 15 min before it. Senate: from the schedule's convening (less its offset) until the floor page says that meeting adjourned, 16 h at most. A failed source never flips a chamber: the House keeps its last good day; the Senate keeps its last good schedule and floor page for 30 minutes (a floor page with no meeting blocks — senate.gov's 200 error page — counts as failed), then counts as out. `chamber_status` is written only from a poll that succeeded |
+| Always-on loop | `npm run ingest -w @floor/worker -- live` | **Per chamber**: a chamber's sources and roll calls every 10 s while it sits, every 5 min otherwise, so senate.gov is not asked every 10 s because the House is in. A host that answers 403 or 429 is not asked again for 30 s, doubling to 5 min while it keeps refusing (lesson 43). Votes saved without positions are re-fetched at most hourly; with no House file in the last week, the week's lookback is retried hourly. Roll call fetches time out at 15 s, the Realtime broadcast at 10 s, an APNs stream at 10 s. A pool `error` and an unhandled rejection are logged, not fatal; `fly.toml` restarts the machine on any exit. Each step fails alone. SIGTERM/SIGINT finish the poll in flight, then exit 0 (checked in Docker). ETag/Last-Modified revalidation, so the 170 KB vote menu is a 304 when unchanged; a body is remembered only once what it says is stored, so a failed store is retried next poll rather than skipped as "unchanged". Links bills and nominations for new votes every 5 min when `CONGRESS_API_KEY` is set |
+| Deploy files | `apps/worker/Dockerfile`, `apps/worker/fly.toml`, `/.dockerignore` | Image built and run against a throwaway Postgres on 2026-11-13: one real poll stored House roll 323 and Senate 262, then stopped cleanly on `docker stop` |
+| Realtime | `apps/worker/src/realtime.ts` | Supabase Realtime **broadcast** over REST: each change to topics `floor:votes` and `vote:<id>`, event `vote_state`, payload = id, chamber, state, question, result, the three timestamps. No-op without env |
+| APNs | `apps/worker/src/apns.ts` | Token (ES256 JWT) auth over HTTP/2, alert / background / liveactivity push types, collapse IDs, 410 → `unregistered`. **Nothing calls it**: what a push says is UI (below). No-op without env |
+| Alerting | `apps/worker/src/alert.ts` | While a chamber sits, asks the deployed `/v1/status` at most once a minute. Three failed checks in a row (`ok: false` or no answer) POST `{text, content}` to a webhook (Slack/Discord shape); it repeats every 30 min, and three good checks in a row post "recovered". Never two posts within 30 min, so a flapping status cannot spam. No-op without env |
+| API | `GET /v1/live` | See §2. Edge-cached 5 s. Swift models `Live`, `LiveVote`, `ChamberStatus` (`Models/Live.swift`) decode it, checked by `ContractTests` and `LiveTests` on a response the real API code gave from real 2026-11-10 data; no screen uses them yet |
+| Latency | `votes.announced_at`, `votes.posted_at`; `... -- latency [days]` | `posted_at` (latency only; publishing uses `broadcast_at`) is stamped on a chamber's unpublished final votes only when that chamber's previous roll call poll was under 60 s earlier, so a backfill after downtime records nothing rather than our own outage. A vote the hourly workflow stored between two worker polls is stamped at the next poll, at most 10 s late. `latency` takes a whole number of days, 1 to 3650. Each finalized vote also logs `latency <id>: XML seen N s after the floor's vote time, M s after a floor source named it` |
+| Load test | `npm run loadtest -w @floor/api` | The vote-night mix (`/v1/live` most, then the vote screen, member votes, member, bill, status). Refuses floor-api.vercel.app always, and any non-local host unless named with `--allow-host`. Against a local API with no database on 2026-11-13: 183k requests in 10 s at 50 connections, p95 4.8 ms, 0 errors — the framework's ceiling, not the database's; run it with `DATABASE_URL` pointed at a non-production database for a real number |
+
+**To turn it on (needs accounts we don't have):**
+
+1. **Apply `supabase/migrations/20261114000100_live_layer.sql` to staging** (Supabase SQL editor; needs
+   dashboard access — Sourav), then re-check the **security advisor**: the new `chamber_status` table has
+   RLS with a `public read` policy, like the other public tables. Until then `/v1/live` answers empty
+   (`{chambers: [], votes: []}`), since its tables don't exist.
+2. **Deploy the worker** (needs a Fly.io account; Railway works the same way from the Dockerfile):
+   ```bash
+   fly launch --no-deploy --copy-config --config apps/worker/fly.toml --name floor-worker
+   fly secrets set --config apps/worker/fly.toml DATABASE_URL='postgresql://...'   # plus any below
+   fly deploy --config apps/worker/fly.toml --dockerfile apps/worker/Dockerfile .  # from the repo root
+   fly logs --config apps/worker/fly.toml                                          # "live worker starting: ..."
+   ```
+   Run **one** machine (`fly scale count 1`): two would race for the same rows (harmless, but double
+   broadcasts). It needs no inbound port. It holds **one** connection on the session pooler (port
+   5432, lesson 37) for as long as it runs — one of the 15 slots. The hourly `ingest.yml` workflow can
+   keep running beside it: both upsert the same rows idempotently, `upsertRollCall` locks the vote row
+   first (lesson 36), and the workflow becomes the backstop for when the worker is down. Its roll
+   call steps could be dropped once the worker has run a few weeks.
+3. Environment, all secrets:
+
+   | Var | Needed for | Where it comes from |
+   |---|---|---|
+   | `DATABASE_URL` | everything | Supabase → Connect → **Session pooler** (the direct host is IPv6-only and unreachable from many networks, including this Mac's on 2026-11-13) |
+   | `CONGRESS_API_KEY` | linking new votes to bills/nominations | api.data.gov (already have one) |
+   | `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY` | Realtime broadcast | Supabase → Project settings → API |
+   | `ALERT_WEBHOOK_URL` | paging | a Slack/Discord incoming webhook for whoever is on call |
+   | `FLOOR_STATUS_URL` | optional | defaults to `https://floor-api.vercel.app/v1/status` |
+   | `APNS_KEY_ID`, `APNS_TEAM_ID`, `APNS_PRIVATE_KEY`, `APNS_TOPIC`, `APNS_ENV` | pushes (not wired yet) | Apple Developer → Keys → an APNs key (.p8); topic `app.floor.ios`; `production` for TestFlight |
+
+4. On the first session day with it running, run `latency` and write the numbers here (and answer
+   lesson 41's open question: does the Clerk's entry appear before the vote closes?).
+
+**Left, and what each waits on:**
+
+- **"Vote open" while members are still voting** — needs a source that has it: live.house.gov's
+  undocumented feed (lesson 41) or the OCR prototype. Try the feed on a session day first.
+- **Pushes and Live Activities (push-to-start, iOS 17.2+)** — UI (home-screen widgets landed in v0.2.23, see "Widgets"; they refresh about every 30 minutes, so they are not part of the 30 s goal): what a push says and what a Live
+  Activity shows need a design mock locked first (CLAUDE.md). Also needs a device-registration route: the
+  `devices` table exists, but nothing writes it, and writing it needs Supabase Auth in the app.
+- **The app subscribing to Realtime** — iOS work, behind the same design.
+- **House running-tally OCR prototype** → go/no-go. Not started.
+- **Measured posting latency** — needs the worker running through a session day (above).
+- Watch for wordings `ROLL_TEXT` in `floor.ts` doesn't know (it reads "Agreed to / Passed / Failed /
+  Sustained / Ordered"); an unknown one still opens the vote, with `question` = the whole action text.
 
 ### M4: AI summaries + projections
 - Layer 1 bill analysis per bill version (Claude, server-side): purpose, provisions, affected groups, impact rules, section citations, plus a verifier pass and a ~50-bill eval set.

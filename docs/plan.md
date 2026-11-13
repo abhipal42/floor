@@ -27,6 +27,14 @@ Designs: v2 "Live + impact" canvas (Home, Live vote, Bill, Rep, Live Activity). 
 
 **Design change needed:** replace the live per-member play-by-play with floor events. Show your rep as "Pending · posts after the vote" until the roll call lands. The OCR tally gets validated in M3.
 
+**What the official sources actually give (checked 2026-11-13, M3 backend):** neither chamber's published
+files say a vote has *opened*. The Clerk's floor summary adds a vote's entry, roll number and result
+included, about when it closes (roll 319 on 2026-11-10: floor time 6:20:53 p.m., entry stamped 6:32).
+senate.gov publishes no per-action feed at all: only the next convening (`floor_schedule.json`), the last
+meeting's convene/adjourn times, and the vote menu, which lists a vote with its result. So `open` in the
+data means "named on the floor, roll call details not posted yet", and "vote open in under 30 s" needs a
+source we don't use yet: live.house.gov's own feed (see HANDOFF §3, lesson 41) or the House OCR.
+
 ## Data sources
 
 | Data | Source | Access | Freshness |
@@ -37,8 +45,8 @@ Designs: v2 "Live + impact" canvas (Home, Live vote, Bill, Rep, Live Activity). 
 | Bill text (each version) | GovInfo API + bulk `BILLS` / `BILLSTATUS` | REST/bulk, key | Daily |
 | House roll calls (per member) | Clerk EVS XML `clerk.house.gov/evs/{year}/roll{nnn}.xml`; Congress.gov `/house-vote` (beta) for backfill | XML / REST | Minutes after close |
 | Senate roll calls (per member) | senate.gov LIS vote XML | XML | After close |
-| House floor events | Clerk floor summary XML / live.house.gov | XML polling | ~10–30 s |
-| Senate floor events | senate.gov floor activity + press gallery pages | HTML scrape | ~1 min |
+| House floor events | Clerk floor summary XML `clerk.house.gov/floor/YYYYMMDD.xml` (polled); live.house.gov's feed not yet used | XML polling | Seconds after an entry is written; a vote's entry lands around its close |
+| Senate floor events | senate.gov `floor_schedule.json`, floor activity page, LIS vote menu (no per-action feed exists there) | JSON / HTML scrape / XML | Session state at once; a vote only once it is listed with a result |
 | House running tally (beta) | Public House floor video; OCR of the vote board | Video + OCR | ~5 s |
 | Upcoming votes | docs.house.gov floor schedule XML; Senate calendars | XML / PDF | Daily |
 | Voting history / ideology | Voteview (DW-NOMINATE, all roll calls) | CSV bulk | Weekly |

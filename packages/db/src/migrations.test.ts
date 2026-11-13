@@ -30,6 +30,7 @@ describe("migrations", () => {
       "bill_versions",
       "bills",
       "campaign_finance",
+      "chamber_status",
       "devices",
       "floor_events",
       "follows",

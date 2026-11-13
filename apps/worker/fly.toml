@@ -1,0 +1,37 @@
+# Fly.io config for the always-on live worker. NOT deployed yet (needs a Fly account).
+# Deploy from the repo root, so the build sees the workspace packages:
+#
+#   fly launch --no-deploy --copy-config --config apps/worker/fly.toml --name floor-worker
+#   fly secrets set --config apps/worker/fly.toml DATABASE_URL=... CONGRESS_API_KEY=... \
+#     SUPABASE_URL=... SUPABASE_SERVICE_ROLE_KEY=... ALERT_WEBHOOK_URL=...
+#   fly deploy --config apps/worker/fly.toml --dockerfile apps/worker/Dockerfile .
+#
+# Every secret is optional except DATABASE_URL; see docs/HANDOFF.md "M3: Live layer".
+app = "floor-worker"
+primary_region = "iad"   # next to Supabase us-east-1 and the House/Senate servers
+
+# SIGTERM, then this long before SIGKILL: a poll takes a few seconds, and finishes before exit.
+# (Top-level keys: in TOML anything after a [table] header belongs to that table.)
+kill_signal = "SIGTERM"
+kill_timeout = "30s"
+
+[build]
+  dockerfile = "Dockerfile"
+
+[env]
+  NODE_ENV = "production"
+
+# A worker, not a web service: no [http_service], so Fly never stops it for lack of traffic.
+[processes]
+  worker = "node --import tsx src/cli.ts live"
+
+# Restart on any exit, including a clean exit 0 (a SIGTERM the platform didn't send, a crash that
+# exits cleanly): an always-on worker that stays stopped is an outage nobody is told about.
+[[restart]]
+  policy = "always"
+  processes = ["worker"]
+
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "512mb"
+  processes = ["worker"]
