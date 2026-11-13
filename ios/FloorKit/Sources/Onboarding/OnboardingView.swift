@@ -3,10 +3,12 @@ import DesignSystem
 import Models
 import SwiftUI
 
-/// Asks for an address, shows who it resolves to, and saves it once confirmed.
+/// "Pull your three.": asks for an address, deals the three members it resolves to, and saves them
+/// once confirmed. Follows the locked AppOnboarding mock.
 ///
-/// The canvas has no onboarding artboard, so this is drawn from its tokens: the same near-black
-/// ground, 22pt cards, mint accent and party colours used on Home.
+/// The behaviour is ``OnboardingModel``'s, unchanged: the address is used for one request and never
+/// stored. Typing again after a result goes back to editing, which is how a wrong match is
+/// corrected — the mock has no separate "Not me" button.
 public struct OnboardingView: View {
     @State private var model: OnboardingModel
     @FocusState private var addressFocused: Bool
@@ -15,47 +17,63 @@ public struct OnboardingView: View {
     public init(model: OnboardingModel, onFinished: @escaping (Delegation) -> Void) {
         _model = State(initialValue: model)
         self.onFinished = onFinished
+        FloorFonts.register()
+    }
+
+    private var failure: String? {
+        if case let .failed(message) = model.phase { return message }
+        return nil
     }
 
     public var body: some View {
-        ZStack {
-            Palette.ground.ignoresSafeArea()
-            ScrollView {
-                VStack(alignment: .leading, spacing: 20) {
-                    header
-                    addressField
-                    if case let .found(reps) = model.phase {
-                        resolved(reps)
-                    }
-                    if case let .failed(message) = model.phase {
-                        failure(message)
-                    }
-                    footnote
+        ScrollView {
+            VStack(alignment: .leading, spacing: 18) {
+                Text("FLOOR").font(Typography.headline(30)).foregroundStyle(Palette.text)
+                // Two lines rather than one with a newline: the mock sets them at 0.84 line height,
+                // and SwiftUI's lineSpacing cannot go below the font's own.
+                VStack(alignment: .leading, spacing: -16) {
+                    Text("PULL YOUR").foregroundStyle(Palette.text)
+                    Text("THREE.").foregroundStyle(Palette.yea)
                 }
-                .padding(.horizontal, 20)
-                .padding(.top, 28)
-                .padding(.bottom, 40)
+                .font(Typography.headline(68))
+                .lineLimit(1)
+                .minimumScaleFactor(0.6)
+                .accessibilityElement(children: .combine)
+                .accessibilityAddTraits(.isHeader)
+                Text("Your address finds your district. Floor keeps the district and drops the street.")
+                    .font(.system(size: 16))
+                    .foregroundStyle(Palette.textSecondary)
+                    .lineSpacing(4)
+                    .fixedSize(horizontal: false, vertical: true)
+                field
+                switch model.phase {
+                case .looking:
+                    skeleton
+                case let .found(reps):
+                    dealt(reps)
+                default:
+                    EmptyView()
+                }
             }
-            .scrollDismissesKeyboard(.interactively)
+            .padding(.horizontal, 20)
+            .padding(.top, 24)
+            .padding(.bottom, 24)
         }
+        .scrollDismissesKeyboard(.interactively)
+        .safeAreaInset(edge: .bottom) { cta.padding(.horizontal, 20).padding(.bottom, 8) }
+        .background(alignment: .top) {
+            LinearGradient(colors: [Palette.groundGlow, Palette.ground], startPoint: .top, endPoint: .bottom)
+                .frame(height: 420)
+                .ignoresSafeArea()
+        }
+        .background(Palette.ground)
         .tint(Palette.accent)
         .preferredColorScheme(.dark)
     }
 
-    private var header: some View {
+    private var field: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("Who represents you?")
-                .font(.system(size: 30, weight: .bold))
-                .foregroundStyle(Palette.text)
-            Text("Your address finds your district, so Floor can show how your own members vote.")
-                .font(Typography.body)
-                .foregroundStyle(Palette.textSecondary)
-                .fixedSize(horizontal: false, vertical: true)
-        }
-    }
-
-    private var addressField: some View {
-        VStack(alignment: .leading, spacing: 12) {
+            Text("Your address").font(.system(size: 13, weight: .bold)).foregroundStyle(Palette.text)
             TextField(
                 "",
                 text: $model.address,
@@ -67,143 +85,113 @@ public struct OnboardingView: View {
             .focused($addressFocused)
             .onSubmit { Task { await model.lookUp() } }
             .onChange(of: model.address) { _, _ in
-                // Typing again after a failure clears it, so the error never contradicts the field.
-                if case .failed = model.phase { model.edit() }
+                // Typing again clears a failure, and takes back a result that no longer matches
+                // what is in the field.
+                switch model.phase {
+                case .failed, .found: model.edit()
+                default: break
+                }
             }
-            .font(.system(size: 16))
+            .font(.system(size: 15))
             .foregroundStyle(Palette.text)
-            .padding(.horizontal, 16)
-            .frame(height: 52)
-            .background(Palette.card, in: .rect(cornerRadius: 16))
+            .padding(15)
+            .background(Palette.panel, in: .rect(cornerRadius: 12))
             .overlay(
-                RoundedRectangle(cornerRadius: 16).stroke(Palette.cardBorder, lineWidth: 1)
+                RoundedRectangle(cornerRadius: 12).stroke(failure == nil ? Palette.panelBorder : Palette.liveText, lineWidth: 1)
             )
             .accessibilityLabel("Your address")
-
-            Button {
-                addressFocused = false
-                Task { await model.lookUp() }
-            } label: {
-                HStack(spacing: 8) {
-                    if model.phase == .looking {
-                        ProgressView().controlSize(.small).tint(Palette.ground)
-                    }
-                    Text(model.phase == .looking ? "Looking up…" : "Find my representatives")
-                        .font(.system(size: 16, weight: .semibold))
-                }
-                .frame(maxWidth: .infinity)
-                .frame(height: 52)
-                .background(model.canLookUp ? Palette.accent : Palette.chip, in: .rect(cornerRadius: 16))
-                .foregroundStyle(model.canLookUp ? Palette.ground : Palette.textMuted)
+            if let failure {
+                Text(failure)
+                    .font(.system(size: 13))
+                    .foregroundStyle(Palette.liveText)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .accessibilityAddTraits(.updatesFrequently)
             }
-            .disabled(!model.canLookUp)
         }
     }
 
-    private func resolved(_ reps: Reps) -> some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text(reps.district.name)
-                .font(Typography.eyebrow)
-                .tracking(0.8)
-                .foregroundStyle(Palette.accentSoft)
-
-            VStack(spacing: 0) {
-                ForEach(Array(reps.members.enumerated()), id: \.element.bioguideId) { index, member in
-                    if index > 0 {
-                        Divider().overlay(Palette.track)
-                    }
-                    memberRow(member)
-                }
+    private var skeleton: some View {
+        HStack(spacing: 8) {
+            ForEach(0..<3, id: \.self) { _ in
+                RoundedRectangle(cornerRadius: 12).fill(Palette.card).frame(height: 150)
             }
-            .background(Palette.card, in: .rect(cornerRadius: 22))
-            .overlay(RoundedRectangle(cornerRadius: 22).stroke(Palette.cardBorder, lineWidth: 1))
+        }
+        .accessibilityLabel("Finding your members")
+    }
 
-            HStack(spacing: 12) {
-                Button("Not me") { model.edit() }
-                    .font(.system(size: 16, weight: .semibold))
-                    .frame(maxWidth: .infinity)
-                    .frame(height: 52)
-                    .background(Palette.chip, in: .rect(cornerRadius: 16))
-                    .foregroundStyle(Palette.textSecondary)
-
-                Button("That's right") {
-                    if let delegation = model.confirm() { onFinished(delegation) }
+    private func dealt(_ reps: Reps) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text(StateName.districtName(state: reps.district.state, district: reps.district.district).uppercased())
+                .font(.system(size: 12, weight: .bold))
+                .foregroundStyle(Palette.yea)
+            HStack(alignment: .top, spacing: 8) {
+                ForEach(orderedMembers(reps)) { member in
+                    memberCard(member)
                 }
-                .font(.system(size: 16, weight: .semibold))
-                .frame(maxWidth: .infinity)
-                .frame(height: 52)
-                .background(Palette.accent, in: .rect(cornerRadius: 16))
-                .foregroundStyle(Palette.ground)
             }
         }
         .transition(.opacity)
     }
 
-    private func memberRow(_ member: Member) -> some View {
-        HStack(spacing: 12) {
-            Text(initials(member))
-                .font(.system(size: 14, weight: .bold))
-                .foregroundStyle(Palette.text)
-                .frame(width: 42, height: 42)
-                .background(Palette.partyTint(member.party), in: .circle)
+    /// Representative first, then senators, as the mock deals them.
+    private func orderedMembers(_ reps: Reps) -> [Member] {
+        reps.members.filter { $0.chamber == .house } + reps.members.filter { $0.chamber == .senate }
+    }
 
-            VStack(alignment: .leading, spacing: 2) {
-                Text(member.fullName)
-                    .font(.system(size: 16, weight: .semibold))
+    private func memberCard(_ member: Member) -> some View {
+        let seat = member.chamber == .house ? "House · \(member.badgeText)" : "Senate · \(member.state)"
+        return VStack(alignment: .leading, spacing: 0) {
+            MemberPortrait(member, cornerRadius: 0).frame(height: 96)
+            VStack(alignment: .leading, spacing: 1) {
+                Text(member.lastName.uppercased())
+                    .font(Typography.label(15))
                     .foregroundStyle(Palette.text)
-                Text(role(member))
-                    .font(Typography.caption)
-                    .foregroundStyle(Palette.textMuted)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.6)
+                Text(seat).font(.system(size: 9)).foregroundStyle(Palette.textMuted)
             }
-            Spacer(minLength: 8)
-            Text(member.party)
-                .font(.system(size: 12, weight: .bold))
-                .foregroundStyle(Palette.party(member.party))
-                .frame(width: 26, height: 26)
-                .background(Palette.party(member.party).opacity(0.16), in: .circle)
+            .padding(6)
         }
-        .padding(14)
-        .accessibilityElement(children: .combine)
-        .accessibilityLabel("\(member.fullName), \(role(member))")
+        .frame(maxWidth: .infinity)
+        .background(Palette.panel)
+        .clipShape(.rect(cornerRadius: 9))
+        .padding(3)
+        .background(LinearGradient(colors: Palette.silver, startPoint: .topLeading, endPoint: .bottomTrailing),
+                    in: .rect(cornerRadius: 12))
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("\(member.fullName), \(seat), \(PartyName.singular(member.party))")
     }
 
-    private func failure(_ message: String) -> some View {
-        HStack(alignment: .top, spacing: 10) {
-            Image(systemName: "exclamationmark.circle.fill")
-                .foregroundStyle(Palette.nay)
-                .font(.system(size: 16))
-            Text(message)
-                .font(Typography.body)
-                .foregroundStyle(Palette.textSecondary)
-                .fixedSize(horizontal: false, vertical: true)
+    private var cta: some View {
+        let found: Bool = if case .found = model.phase { true } else { false }
+        let looking = model.phase == .looking
+        // Always the mock's green: tapping with nothing usable typed is how the field's error
+        // appears, so the button only stands down while a lookup is in flight.
+        let enabled = !looking
+        return Button {
+            addressFocused = false
+            if found {
+                if let delegation = model.confirm() { onFinished(delegation) }
+            } else {
+                Task { await model.lookUp() }
+            }
+        } label: {
+            Text(found ? "Deal me in" : looking ? "Finding…" : "Find my three")
+                .font(.system(size: 16, weight: .bold))
+                .foregroundStyle(Palette.ground)
+                .frame(maxWidth: .infinity)
+                .padding(17)
+                .background(Palette.yea, in: .rect(cornerRadius: 14))
         }
-        .padding(14)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Palette.nay.opacity(0.10), in: .rect(cornerRadius: 16))
-        .accessibilityElement(children: .combine)
+        .buttonStyle(.plain)
+        .disabled(!enabled)
     }
+}
 
-    private var footnote: some View {
-        Text("Your address is used once to find your district and is never stored.")
-            .font(Typography.caption)
-            .foregroundStyle(Palette.textMuted)
-            .fixedSize(horizontal: false, vertical: true)
-    }
-
-    private func initials(_ member: Member) -> String {
-        let first = member.firstName.first.map(String.init) ?? ""
-        let last = member.lastName.first.map(String.init) ?? ""
-        return (first + last).uppercased()
-    }
-
-    private func role(_ member: Member) -> String {
-        switch member.chamber {
-        case .house:
-            member.district.map { "Representative, \(member.state)-\($0 == 0 ? "AL" : String($0))" }
-                ?? "Representative, \(member.state)"
-        case .senate:
-            "Senator, \(member.state)"
-        }
+private extension Member {
+    /// `NY-8`, `WY-AL`.
+    var badgeText: String {
+        district.map { "\(state)-\($0 == 0 ? "AL" : String($0))" } ?? state
     }
 }
 

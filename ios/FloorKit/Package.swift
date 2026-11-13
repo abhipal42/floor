@@ -17,9 +17,12 @@ let package = Package(
     targets: [
         .target(name: "Models"),
         .target(name: "APIClient", dependencies: ["Models"]),
-        .target(name: "DesignSystem", dependencies: ["Models"]),
+        // Barlow Condensed (SIL Open Font License, Fonts/OFL.txt), registered at runtime by
+        // `FloorFonts.register()` so the package's previews and the app both find it.
+        .target(name: "DesignSystem", dependencies: ["Models"], resources: [.copy("Fonts")]),
         .target(name: "Onboarding", dependencies: ["Models", "APIClient", "DesignSystem"]),
-        .target(name: "VoteScreen", dependencies: ["Models", "APIClient", "DesignSystem"]),
+        // BillScreen for `LawLevels`: the vote screen's bill card says which of six levels it reached.
+        .target(name: "VoteScreen", dependencies: ["Models", "APIClient", "DesignSystem", "BillScreen"]),
         .target(name: "BillScreen", dependencies: ["Models", "APIClient", "DesignSystem"]),
         .target(name: "RepScreen", dependencies: ["Models", "APIClient", "DesignSystem"]),
         .target(
@@ -44,5 +47,6 @@ let package = Package(
         .testTarget(name: "VoteScreenTests", dependencies: ["VoteScreen"]),
         .testTarget(name: "BillScreenTests", dependencies: ["BillScreen"]),
         .testTarget(name: "RepScreenTests", dependencies: ["RepScreen"]),
+        .testTarget(name: "DesignSystemTests", dependencies: ["DesignSystem"]),
     ]
 )
