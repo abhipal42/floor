@@ -541,7 +541,7 @@ steps ship as 0.2.x PATCH releases; 0.3.0 closes the milestone with its retro.
    totals for each member's current campaign: small-dollar, itemized, PAC, party, other, cash on
    hand) and `pac_contributions` (every committee's direct and earmarked totals per member from the
    2026 bulk file, with FEC's organization type for the "kind"). Still to do: the API route and the
-   section, which waits on the mock lock.
+   section (the location mock it waited on was locked 2026-11-13).
 5. **Donor context** from Senate LDA lobbying filings (what each PAC's organization lobbies on),
    matched to the member's votes by topic. The plain-English "who they are" lines are AI-written and
    wait for M4's label-and-cite pipeline.
