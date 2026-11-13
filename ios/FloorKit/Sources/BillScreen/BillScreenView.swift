@@ -23,7 +23,6 @@ public struct BillScreenView: View {
             content
         }
         .task { await model.load() }
-        .preferredColorScheme(.dark)
     }
 
     @ViewBuilder

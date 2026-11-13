@@ -68,7 +68,6 @@ public struct OnboardingView: View {
         }
         .background(Palette.ground)
         .tint(Palette.accent)
-        .preferredColorScheme(.dark)
     }
 
     private var field: some View {

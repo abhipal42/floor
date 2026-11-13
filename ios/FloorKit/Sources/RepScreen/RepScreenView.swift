@@ -35,7 +35,6 @@ public struct YourThreeView: View {
             }
         }
         .task { await model.loadAll() }
-        .preferredColorScheme(.dark)
     }
 
     private var switcher: some View {
@@ -86,7 +85,6 @@ public struct RepScreenView: View {
             }
         }
         .task { if case .loading = model.phase { await model.load() } }
-        .preferredColorScheme(.dark)
     }
 }
 
@@ -146,7 +144,7 @@ struct RepRecordContent: View {
             MemberPortrait(member, cornerRadius: 0).frame(width: 130, height: 170)
             VStack(alignment: .leading, spacing: 6) {
                 SkewChip("\(Tier(crossovers: loyalty.againstParty).rawValue) · \(member.badge)",
-                         background: Palette.silver[2], size: 11)
+                         foreground: Palette.silverInk, background: Palette.silver[2], size: 11)
                 Text(member.fullName.uppercased())
                     .font(Typography.label(26))
                     .foregroundStyle(Palette.text)

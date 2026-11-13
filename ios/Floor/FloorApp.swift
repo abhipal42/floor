@@ -48,7 +48,6 @@ struct FloorApp: App {
                     }
                 }
             }
-            .preferredColorScheme(.dark)
         }
     }
 
