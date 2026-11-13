@@ -30,9 +30,17 @@ function repositories(): Pick<AppDeps, "votes" | "members" | "bills" | "nominati
   return pgRepositories(pool as unknown as Db);
 }
 
+// Locally, the web page served by `npm run serve -w @floor/web` may read responses; set
+// ALLOWED_ORIGINS (comma-separated) to allow others.
+const allowedOrigins = (process.env.ALLOWED_ORIGINS ?? "http://localhost:8790")
+  .split(",")
+  .map((o) => o.trim())
+  .filter(Boolean);
+
 const app = createApp({
   ...repositories(),
   locate: (place) => locateDistrict(place, CONGRESS),
+  allowedOrigins,
 });
 const port = Number(process.env.PORT ?? 8787);
 

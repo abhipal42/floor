@@ -162,6 +162,9 @@ describe("money", () => {
     expect(formatMoney(1000000)).toBe("$1.00M");
     expect(formatPac(10000)).toBe("$10K");
     expect(formatPac(7000)).toBe("$7K");
+    expect(formatPac(2500)).toBe("$2.5K");
+    expect(formatPac(15250)).toBe("$15.3K");
+    expect(formatPac(750)).toBe("$750");
   });
 
   it("maxed means the $10,000 cycle max", () => {

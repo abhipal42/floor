@@ -1,0 +1,12 @@
+{
+    "member": {
+        "bioguideId": "A000383",
+        "firstName": "Alan",
+        "lastName": "Armstrong",
+        "party": "R",
+        "state": "OK",
+        "district": null,
+        "chamber": "senate"
+    },
+    "funding": null
+}
