@@ -1,10 +1,94 @@
 name: CI
+#
+# Runs on the trunk only, by the owner's decision on 2026-11-13: no
+# `pull_request` trigger, so nothing here compiles or tests a PR before it
+# merges. The guards still run on every PR (guards.yml, template-owned), but
+# they read git and metadata — they never build the code.
+#
+# What that moves onto you: `npm run check` and, for anything under `ios/`,
+# `swift test --package-path ios/FloorKit` before you open the PR. They are the
+# gate now; see CLAUDE.md › Before every PR. A failure that used to turn a PR
+# red lands on `main` instead and is found here, after the fact.
+#
+# `node` runs on every push. `ios` runs only when the push touched `ios/` or
+# `.github/` — see the `scope` job.
 on:
   push:
     branches: [main]
-  pull_request:
 
 jobs:
+  # Which parts of the tree this push touched, so `ios` can sit out the pushes
+  # that cannot affect it. The rules live in ONE place — SCOPE_RULES in
+  # .github/scripts/guards.conf, where `ios:^ios/` already defines it for the
+  # guards — rather than a second copy as a `paths:` filter here that would
+  # drift from it. guards.yml computes the same outputs for PRs, but GitHub has
+  # no cross-workflow `needs:`, so this workflow runs `guards.sh scope` itself.
+  #
+  # It costs one ubuntu runner start (~15s) on every push to spare a macOS job
+  # that takes 1-3 minutes and queues for longer.
+  scope:
+    runs-on: ubuntu-latest
+    outputs:
+      ios: ${{ steps.scope.outputs.ios }}
+      ci_config: ${{ steps.scope.outputs.ci_config }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          # guards.sh scope diffs against the merge base, which does not exist
+          # in a shallow clone — without this every file reads as changed.
+          fetch-depth: 0
+          persist-credentials: false
+      - name: scope
+        id: scope
+        env:
+          BASE_SHA: ${{ github.event.before }}
+          HEAD_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          # Three ways there is no base to diff against: unset, the all-zeroes
+          # first push, and a SHA that is real but GONE after a force-push.
+          # Any of them means "assume everything changed" — skipping the build
+          # because we could not tell is the one failure mode worth avoiding.
+          if [ -z "${BASE_SHA:-}" ] \
+             || [ "$BASE_SHA" = "0000000000000000000000000000000000000000" ] \
+             || ! git cat-file -e "${BASE_SHA}^{commit}" 2>/dev/null; then
+            echo "no usable base — treating everything as changed"
+            for k in ios ci_config; do echo "$k=true" >> "$GITHUB_OUTPUT"; done
+            exit 0
+          fi
+          # Let the shared rules decide first, into a scratch file so their
+          # answer can be refined before it becomes this job's output. The
+          # human-readable half still prints to the log.
+          out=$(mktemp)
+          GITHUB_OUTPUT="$out" bash .github/scripts/guards.sh scope
+          ios=$(grep '^ios=' "$out" | tail -1 | cut -d= -f2)
+          ci_config=$(grep '^ci_config=' "$out" | tail -1 | cut -d= -f2)
+
+          # `ios:^ios/` is true on EVERY release, because version-sync requires
+          # MARKETING_VERSION in ios/project.yml to mirror VERSION — so a
+          # docs-only PR touches ios/ too, and an unrefined gate would never
+          # skip anything. Discount the mirror: ios/ counts as changed when
+          # some file other than project.yml changed, or when project.yml
+          # changed by more than its MARKETING_VERSION line.
+          if [ "$ios" = "true" ]; then
+            changed=$(git diff --name-only "$BASE_SHA" "$HEAD_SHA")
+            others=$(grep -E '^ios/' <<< "$changed" | grep -vE '^ios/project\.yml$' || true)
+            if [ -n "$others" ]; then
+              echo "ios/ changed beyond project.yml:"; printf '%s\n' "$others" | sed -n '1,5p'
+            elif git diff -U0 "$BASE_SHA" "$HEAD_SHA" -- ios/project.yml \
+                 | grep -E '^[+-]' | grep -vE '^(\+\+\+|---)' \
+                 | grep -qvE '^[+-][[:space:]]*MARKETING_VERSION:'; then
+              echo "ios/project.yml changed beyond MARKETING_VERSION."
+            else
+              echo "only the MARKETING_VERSION mirror under ios/ — skipping the macOS job."
+              ios=false
+            fi
+          fi
+
+          echo "ios=$ios"             >> "$GITHUB_OUTPUT"
+          echo "ci_config=$ci_config" >> "$GITHUB_OUTPUT"
+          echo "→ ios=$ios ci_config=$ci_config"
+
   node:
     runs-on: ubuntu-latest
     steps:
@@ -23,6 +107,12 @@ jobs:
           git diff --exit-code -- apps/api/openapi.json
 
   ios:
+    # Only when the push touched ios/ — or .github/, so a change to this
+    # workflow still proves the job it is changing. Everything else (API,
+    # worker, web, docs, migrations) cannot affect a Swift build, and this is
+    # the slowest and scarcest runner we use.
+    needs: scope
+    if: needs.scope.outputs.ios == 'true' || needs.scope.outputs.ci_config == 'true'
     # macos-latest (macOS 26) rather than a pinned macos-15: two runs in a row were cancelled after
     # waiting 15 minutes without ever being assigned a macos-15 runner, and macOS 26 also matches the
     # Xcode 27 / Swift 6.4 toolchain this code is written against locally.

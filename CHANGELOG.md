@@ -8,7 +8,7 @@ is a milestone and ships a retro under `docs/retros/`.
 Older series live in [`docs/changelog/`](docs/changelog) (0.1.x: [`0.1.md`](docs/changelog/0.1.md)).
 Before 0.1.0 the history is the commit log on `main`.
 
-## 0.2.6 — 2026-11-13
+## 0.2.9 — 2026-11-13
 
 The iOS app works offline: it opens on the last data it saw, then refreshes (M2 item 2).
 
@@ -39,6 +39,42 @@ The iOS app works offline: it opens on the last data it saw, then refreshes (M2 
 - `FloorAPI`'s session has no `URLCache`, which would have written the address lookup to
   `Caches/Cache.db`.
 - Changing district clears the saved responses, which name the old members.
+
+## 0.2.8 — 2026-11-13
+
+### Changed
+
+- **The macOS CI job runs only when `ios/` or `.github/` changed.** A new `scope` job in `ci.yml`
+  reuses `SCOPE_RULES` from `guards.conf`, so what counts as an iOS change is defined in one place.
+  It costs one ubuntu runner start (~15s) and spares a job that takes 1–3 minutes and queues for
+  longer; `.github/` is included so a change to the workflow still proves the job it changes.
+- That gate needed a refinement to do anything at all: `version-sync` requires `MARKETING_VERSION`
+  in `ios/project.yml` to mirror `VERSION`, so **every** release touches `ios/`, and a plain
+  `^ios/` test is true on a docs-only PR. The scope job discounts a `project.yml` change that is
+  only the version mirror. Checked against the last five merges: 0.2.1 (docs), 0.2.4 (FEC data) and
+  0.2.6 (the CI change itself, which still runs via `.github/`) versus 0.2.3 and 0.2.7, which build.
+
+## 0.2.7 — 2026-11-13
+
+An in-app switch for light and dark.
+
+### Added
+- **Appearance menu** on Finals, beside the district chip: System, Light or Dark. The choice is
+  kept in `UserDefaults` (`appearance`: `system`, `light` or `dark`) and applied to the window, so it
+  covers every tab, pushed screen and navigation bar. System is the default.
+- `Appearance` and `AppearanceMenu` in DesignSystem, with `AppearanceTests` (stored values are
+  stable, an unknown value falls back to System, each choice maps to its colour scheme).
+
+## 0.2.6 — 2026-11-13
+
+### Changed
+
+- **CI runs on `main` only.** `ci.yml` loses its `pull_request` trigger, so a PR no longer compiles
+  or tests the code; the node and macOS jobs run once, on the push that merges. `guards.yml` is
+  unchanged and still runs on every PR, but it reads git and PR metadata and builds nothing.
+- `CLAUDE.md` and `docs/HANDOFF.md` say so where they used to promise CI on a PR: the commands under
+  **Before every PR** (`npm run check`, and `swift test` for anything under `ios/`) are the gate now,
+  and a failure that used to turn a PR red lands on the trunk, where it is reverted rather than left.
 
 ## 0.2.5 — 2026-11-12
 

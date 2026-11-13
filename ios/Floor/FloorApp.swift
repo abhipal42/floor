@@ -1,8 +1,10 @@
 import APIClient
+import DesignSystem
 import Home
 import Models
 import Onboarding
 import SwiftUI
+import UIKit
 
 @main
 struct FloorApp: App {
@@ -11,6 +13,7 @@ struct FloorApp: App {
     /// slow, then refreshes. If the store cannot open, the app runs without one.
     private let api = FloorAPI(baseURL: FloorApp.apiBaseURL, cache: SwiftDataResponseCache.onDisk())
     @State private var delegation: Delegation?
+    @AppStorage(Appearance.storageKey) private var appearance: Appearance = .system
 
     init() {
         // Read once at launch, before any screen exists, so the first frame is the right one.
@@ -48,6 +51,22 @@ struct FloorApp: App {
                     }
                 }
             }
+            .onChange(of: appearance, initial: true) { _, choice in Self.apply(choice) }
+        }
+    }
+
+    /// Sets the window's own style rather than `preferredColorScheme`, which does not reliably go
+    /// back to following the system once it has been set to nil. `.unspecified` follows it.
+    @MainActor
+    private static func apply(_ choice: Appearance) {
+        let style: UIUserInterfaceStyle = switch choice {
+        case .system: .unspecified
+        case .light: .light
+        case .dark: .dark
+        }
+        for scene in UIApplication.shared.connectedScenes {
+            guard let windowScene = scene as? UIWindowScene else { continue }
+            for window in windowScene.windows { window.overrideUserInterfaceStyle = style }
         }
     }
 
