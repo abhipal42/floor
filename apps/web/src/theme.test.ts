@@ -76,7 +76,7 @@ describe("the light theme", () => {
     const start = css.indexOf(selector + " {");
     return css.slice(start, css.indexOf("}", start));
   };
-  const tokens = (text: string) => new Set([...text.matchAll(/(--[a-z0-9-]+):/g)].map((m) => m[1]));
+  const tokens = (text: string) => new Set([...text.matchAll(/(--[a-z0-9-]+):/g)].map((m) => m[1] ?? ""));
   const lightBlock = block(':root[data-theme="light"]');
   const light = tokens(lightBlock);
 
@@ -94,16 +94,15 @@ describe("the light theme", () => {
   });
 
   const hex = (name: string) => {
-    const m = lightBlock.match(new RegExp(name + ": (#[0-9a-f]{6});"));
-    return parseInt(m![1].slice(1), 16);
+    const value = lightBlock.match(new RegExp(name + ": #([0-9a-f]{6});"))?.[1];
+    if (!value) throw new Error(name + " has no hex value in the light theme");
+    return parseInt(value, 16);
   };
-  const lum = (h: number) => {
-    const c = [h >> 16, (h >> 8) & 255, h & 255].map((v) => {
-      const s = v / 255;
-      return s <= 0.03928 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4;
-    });
-    return 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2];
+  const channel = (v: number) => {
+    const s = v / 255;
+    return s <= 0.03928 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4;
   };
+  const lum = (h: number) => 0.2126 * channel(h >> 16) + 0.7152 * channel((h >> 8) & 255) + 0.0722 * channel(h & 255);
   const contrast = (a: number, b: number) => (Math.max(lum(a), lum(b)) + 0.05) / (Math.min(lum(a), lum(b)) + 0.05);
 
   it.each(["--ink", "--body", "--muted", "--para-dim", "--dim", "--yea", "--nay", "--accent", "--ai", "--live-text", "--error", "--teal"])(
