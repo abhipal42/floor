@@ -24,6 +24,7 @@ import {
   type Tone,
 } from "./data.js";
 import { API_BASE } from "./config.js";
+import { THEME_COLOR, THEME_KEY, nextChoice, parseChoice, resolveTheme, themeLabel, type ThemeChoice } from "./theme.js";
 import {
   INITIAL,
   PRIVACY,
@@ -404,6 +405,42 @@ function memberTabs(list: HTMLElement): void {
     (id) =>
       '<button type="button" role="tab" class="ptab"><img src="' + portrait(id) + '" alt="" width="36" height="36">' + esc(label(id)) + "</button>",
   ).join("");
+}
+
+// ------------------------------------------------------------------ theme
+
+/** The System / Light / Dark button. index.html has already set data-theme before the first paint;
+ *  this keeps it current as the reader clicks or the system appearance changes. */
+function themeSwitch(): void {
+  const btn = el<HTMLButtonElement>("#theme-btn");
+  const meta = document.querySelector<HTMLMetaElement>('meta[name="theme-color"]');
+  const media = window.matchMedia("(prefers-color-scheme: light)");
+  let choice: ThemeChoice = "system";
+  try {
+    choice = parseChoice(localStorage.getItem(THEME_KEY));
+  } catch {
+    // Storage blocked: the choice lasts for this page only.
+  }
+  const apply = () => {
+    const theme = resolveTheme(choice, media.matches);
+    document.documentElement.dataset.theme = theme;
+    if (meta) meta.content = THEME_COLOR[theme];
+    btn.dataset.choice = choice;
+    const label = themeLabel(choice, theme);
+    btn.setAttribute("aria-label", label);
+    btn.title = label;
+  };
+  btn.addEventListener("click", () => {
+    choice = nextChoice(choice);
+    try {
+      localStorage.setItem(THEME_KEY, choice);
+    } catch {
+      // As above: applied, not remembered.
+    }
+    apply();
+  });
+  media.addEventListener("change", apply);
+  apply();
 }
 
 // ------------------------------------------------------------------ header
@@ -1733,6 +1770,7 @@ function signUp(): void {
 
 // ------------------------------------------------------------------ boot
 
+themeSwitch();
 header();
 heroStats();
 flapBoard();

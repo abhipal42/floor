@@ -790,6 +790,22 @@ build differs from the mocks, and why:
 - **"Winning side" is the outcome, not the larger side** (`sidedWithOutcome`). They differ when a
   majority loses to a threshold — H.J.Res. 1 lost 212–206.
 
+### Light mode on the landing page (v0.2.16)
+
+The landing page has the same light direction as the app, with its own switch.
+
+- **Where.** `:root[data-theme="light"]` in `apps/web/public/styles.css` redefines every page colour
+  token. The dark rule's selector also matches `.flap`, `.ticker`, `.field` and `.phone` under the
+  light theme, so those lit displays keep the dark values. A new colour token needs a light value
+  too, or `theme.test.ts` fails.
+- **Switch.** `#theme-btn` in the header steps System → Light → Dark. `theme.ts` holds the rule;
+  `localStorage` key `floor-theme`. The inline script at the top of `index.html` repeats the rule so
+  the first paint is right, and `theme.test.ts` runs it against the module's answer.
+- **Light text is darker than the app's.** Yea is `#0a7353` here, not the app's `#0b7a57`, because
+  the page's chip surface (`--surface-2`, `#e2e7e5`) is darker than anything in the app.
+- **Checked** at all six standard viewports, header at rest and floating, in light mode; the other
+  sections were walked at 1440 × 900 in light and spot-checked in dark.
+
 ### Light mode (v0.2.5)
 
 The app follows the system appearance. Dark is the canvas palette, unchanged; light is direction D,
