@@ -74,8 +74,8 @@ components:
 # Design System: Floor
 
 <!-- Records the shipped landing page (apps/web/public/styles.css, locked mock of 2026-11-12).
-     A light mode and a Congress-inspired patina are being designed in a separate environment;
-     when they land, re-run /impeccable document so this file matches the code. -->
+     The light theme ("Marble & Patina") landed in v0.2.17; the colour tables below are the dark
+     theme, and the light values live beside them in styles.css. -->
 
 ## Overview
 
@@ -90,12 +90,12 @@ The page is dense but legible: big numbers lead, the detail sits one step away i
 callouts. Components are punchy and tactile, with collectible-card gradients, hover lift, skewed
 chips and a split-flap board.
 
-**Direction in progress:** the owner is adding a light mode and a patina inspired by Congress
-(the materials of the Capitol) to this broadcast world. Until that work lands, the dark tokens
-below are the only implemented theme. Don't invent the light values here.
+**Light theme (v0.2.17):** "Marble & Patina", the materials of the Capitol: a cool marble ground,
+white panels, and darker partners of every outcome colour. The header button picks System, Light
+or Dark. Lit displays (the finals board, ticker, Road to law field and phone) stay dark in both.
 
 **Key Characteristics:**
-- Near-black ground with layered dark surfaces, no light theme yet
+- Near-black ground with layered dark surfaces; a marble light theme beside it
 - Condensed italic uppercase display type against a plain Inter body
 - Colour means outcome: green yea, orange nay, yellow for thresholds and boss levels, violet for AI
 - Scoreboard devices: split-flap board, ticker, box scores, player cards, a drive-chart field
@@ -206,4 +206,4 @@ A 20-column departure-board grid of flap cells cycling through recent finals in 
 ### Don't:
 - **Don't** use outcome colours as decoration.
 - **Don't** add betting, picks or prediction visuals (odds tickers, "who wins?" prompts).
-- **Don't** add light-mode values here before the light mode work lands.
+- **Don't** add a colour token without its light value under `:root[data-theme="light"]`.

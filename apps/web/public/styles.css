@@ -1,6 +1,9 @@
 /* Floor landing page. Values follow the locked design mock (2026-11-12); every colour is a token. */
 
-:root {
+/* Dark, the default. The selector also matches the lit displays in light mode (see below), which
+   keep these values. */
+:root,
+:root[data-theme="light"] :is(.flap, .ticker, .field, .phone) {
   --ground: #07080a;
   --black: #000000;
   --panel: #0b0c0f;
@@ -67,11 +70,92 @@
   --green-1: #6ee7b7;
   --green-2: #047857;
 
+  --head-line: rgba(255, 255, 255, 0.1);
+  --head-capsule: rgba(16, 18, 22, 0.62);
+  --head-shadow-1: rgba(0, 0, 0, 0.16);
+  --head-shadow-2: rgba(0, 0, 0, 0.12);
+  --head-shadow-3: rgba(0, 0, 0, 0.35);
+  --head-div: rgba(255, 255, 255, 0.14);
+  --nav-hover: rgba(255, 255, 255, 0.06);
+  color-scheme: dark;
+}
+
+:root {
   --cond: "Barlow Condensed", sans-serif;
   --sans: Inter, system-ui, sans-serif;
   --serif: Georgia, "Times New Roman", serif;
   --head-h: 65px;
-  color-scheme: dark;
+}
+
+/* Light: "Marble & Patina", the same direction as the iOS app's light mode (v0.2.5). main.ts and the
+   inline script in index.html set data-theme on <html> from the reader's choice (System, Light or
+   Dark); with no script the page stays dark. Text colours are darker partners of the dark ones, each
+   at 4.5:1 or better on every surface below (theme.test.ts). */
+:root[data-theme="light"] {
+  --ground: #ecefee;
+  --panel: #f6f8f7;
+  --panel-2: #f3f5f4;
+  --surface: #ffffff;
+  --surface-alt: #f8faf9;
+  --surface-2: #e2e7e5;
+  --row-hover: #e9eeec;
+  --line: #cdd4d1;
+  --line-soft: #dce2df;
+  --line-faint: #e3e8e6;
+  --dim-2: #c3cac7;
+  --dim: #5a6661;
+  --para-dim: #56625d;
+  --muted: #56625d;
+  --body: #38433f;
+  --ink: #111816;
+
+  --yea: #0a7353;
+  --yea-hover: #07573f;
+  --yea-soft: rgba(10, 115, 83, 0.12);
+  --yea-tint: rgba(10, 115, 83, 0.1);
+  --nay: #a8481a;
+  --nay-soft: rgba(168, 72, 26, 0.12);
+  --nay-tint: rgba(168, 72, 26, 0.1);
+  --accent: #7d5c00;
+  --accent-line: rgba(125, 92, 0, 0.5);
+  /* The drive's tokens (0.2.17), each re-based on this theme's version of its source the way the
+     tokens around them are: the glow on --accent, the floodlight on --yea at the lower alpha the
+     light theme gives green tints, the chalk on --ink at the two-thirds alpha --glass uses. */
+  --accent-glow: rgba(125, 92, 0, 0.35);
+  --floodlight: rgba(10, 115, 83, 0.05);
+  --chalk: rgba(17, 24, 22, 0.21);
+  --ai: #5b3fb0;
+  --ai-soft: rgba(91, 63, 176, 0.1);
+  --live: #c8281c;
+  --live-text: #b42318;
+  --teal: #0d6b63;
+  --error: #b42318;
+  --found-a: #d3e3dd;
+  --found-b: #f6f8f7;
+  --found-line: #9cc5b5;
+  --warn-line: #e2b48c;
+
+  --head-bg: rgba(236, 239, 238, 0.86);
+  --head-line: rgba(17, 24, 22, 0.1);
+  --head-capsule: rgba(255, 255, 255, 0.72);
+  --head-shadow-1: rgba(17, 24, 22, 0.05);
+  --head-shadow-2: rgba(17, 24, 22, 0.04);
+  --head-shadow-3: rgba(17, 24, 22, 0.1);
+  --head-div: rgba(17, 24, 22, 0.14);
+  --nav-hover: rgba(17, 24, 22, 0.06);
+  --glass: rgba(17, 24, 22, 0.08);
+  --badge-bg: rgba(255, 255, 255, 0.86);
+  --inset: rgba(255, 255, 255, 0.6);
+  --shadow: rgba(17, 24, 22, 0.12);
+  --shadow-deep: rgba(17, 24, 22, 0.16);
+  color-scheme: light;
+}
+
+/* Lit displays stay dark in light mode, as the app's split-flap board and turf do: the finals board,
+   the ticker, the Road to law field and the phone. They match the first rule above, so they keep the
+   dark tokens, and their text starts from the dark ink. */
+:where(:root[data-theme="light"]) :where(.flap, .ticker, .field, .phone) {
+  color: var(--ink);
 }
 
 *,
@@ -479,18 +563,18 @@ button {
     box-shadow 0.4s var(--head-ease);
 }
 .site-head.is-floating .site-head__in {
-  max-width: 664px;
+  max-width: 716px;
   padding: 0 7px 0 18px;
   border-radius: 999px;
-  border-color: rgba(255, 255, 255, 0.1);
-  background: rgba(16, 18, 22, 0.62);
+  border-color: var(--head-line);
+  background: var(--head-capsule);
   -webkit-backdrop-filter: blur(24px) saturate(1.3);
   backdrop-filter: blur(24px) saturate(1.3);
   /* A ramp of faint shadows rather than one drop shadow, as Flighty does. */
   box-shadow:
-    0 1px 1px 0.5px rgba(0, 0, 0, 0.16),
-    0 3px 3px 1.5px rgba(0, 0, 0, 0.12),
-    0 10px 14px -6px rgba(0, 0, 0, 0.35);
+    0 1px 1px 0.5px var(--head-shadow-1),
+    0 3px 3px 1.5px var(--head-shadow-2),
+    0 10px 14px -6px var(--head-shadow-3);
 }
 .logo {
   color: var(--ink);
@@ -514,7 +598,7 @@ button {
   width: 0;
   height: 20px;
   margin-inline: -8px;
-  background: rgba(255, 255, 255, 0.14);
+  background: var(--head-div);
   opacity: 0;
   transition: width 0.55s var(--head-ease), margin 0.55s var(--head-ease), opacity 0.35s var(--head-ease);
 }
@@ -543,7 +627,38 @@ button {
 .site-nav a:hover,
 .site-nav a:focus-visible {
   color: var(--ink);
-  background: rgba(255, 255, 255, 0.06);
+  background: var(--nav-hover);
+}
+/* System, Light or Dark: one round button that steps through the three. The icon is the current
+   choice; its label says what a click switches to. */
+.theme-btn {
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  transition: color 0.2s var(--head-ease), background-color 0.2s var(--head-ease);
+}
+.theme-btn:hover,
+.theme-btn:focus-visible {
+  color: var(--ink);
+  background: var(--nav-hover);
+}
+.theme-btn svg {
+  width: 18px;
+  height: 18px;
+  display: none;
+}
+.theme-btn[data-choice="system"] .theme-btn__system,
+.theme-btn[data-choice="light"] .theme-btn__light,
+.theme-btn[data-choice="dark"] .theme-btn__dark {
+  display: block;
 }
 .site-head__cta {
   flex: 0 0 auto;
@@ -3678,9 +3793,14 @@ td.c-x {
   .site-head__in {
     justify-content: space-between;
   }
-  /* With only the mark and the button left, the capsule hugs them rather than spanning the screen. */
+  /* The theme button sits with "Get the app" on the right, not centred between it and the mark. */
+  .theme-btn {
+    margin-left: auto;
+    margin-right: -6px;
+  }
+  /* With only the mark and the buttons left, the capsule hugs them rather than spanning the screen. */
   .site-head.is-floating .site-head__in {
-    max-width: 250px;
+    max-width: 296px;
     padding: 0 6px 0 16px;
   }
 }
@@ -3927,6 +4047,7 @@ td.c-x {
   .site-head__div,
   .logo,
   .site-nav a,
+  .theme-btn,
   .site-head__cta {
     transition: none;
   }

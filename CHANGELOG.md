@@ -8,6 +8,30 @@ is a milestone and ships a retro under `docs/retros/`.
 Older series live in [`docs/changelog/`](docs/changelog) (0.1.x: [`0.1.md`](docs/changelog/0.1.md)).
 Before 0.1.0 the history is the commit log on `main`.
 
+## 0.2.18 — 2026-11-13
+
+The landing page has a light theme and a switch for it.
+
+### Added
+- **Light theme** for the landing page: "Marble & Patina", the same direction as the iOS app's light
+  mode. Every page colour token has a light value under `:root[data-theme="light"]`; text colours
+  read at 4.5:1 or better on every light surface. The finals board, ticker, Road to law field and
+  phone stay dark, as lit displays.
+- **Theme button** in the header, between the section links and "Get the app": System, Light, Dark
+  in turn. The choice is kept in `localStorage` (`floor-theme`); System follows the device and
+  changes with it. An inline script in `index.html` sets the theme before the first paint.
+- `theme.ts` and `theme.test.ts`: the choice logic, a check that the inline script agrees with it,
+  that the light theme covers every page token, and the contrast of every light text colour.
+
+### Changed
+- The header's capsule, divider and link hover colours are tokens now (`--head-capsule`,
+  `--head-line`, `--head-shadow-*`, `--head-div`, `--nav-hover`). The floating capsule is 52px wider
+  (716px, 296px on narrow screens) to fit the button.
+- The drive's three colours from 0.2.17 (`--accent-glow`, `--floodlight`, `--chalk`) get light
+  values, each re-based on this theme's version of its source colour. The two releases were built
+  side by side; this theme's own test, that every dark colour has a light counterpart, caught the
+  three on the merged tree.
+
 ## 0.2.17 — 2026-11-13
 
 Road to law and the drive chart become one drive, built to the locked mock
