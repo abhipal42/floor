@@ -498,16 +498,84 @@ the product rules they settled are in `CLAUDE.md` › Product rules). What to kn
   Vercel's own when the plain project name is taken; and the `floor-web-abtanix-labs.vercel.app` and
   `-git-main-` aliases sit behind the team's Vercel Authentication, so they answer `302` to anyone not
   signed in. A custom domain, when there is one, is public by the same setting.
-- **Live data needs CORS — but not yet.** The page makes no requests at all today: it is pure static
-  HTML, CSS and compiled TypeScript, with every figure baked in at build time. If it ever reads the
-  API in the browser, add its origin to `ALLOWED_ORIGINS` on the `floor-api` Vercel project and
-  redeploy, since unset means no browser origin may read a response.
+- **What's live and what's the sample (v0.3.0 steps 2–3).** The strip under the header ("your
+  members") and the scouting report read the API in the browser; everything else is still the
+  `data.ts` snapshot. Built to the locked mock `LocWeb` (canvas round "Your members"):
+  - **Strip** (`#yours`, `src/locate.ts` state machine + `yours()` in `main.ts`): idle shows the NY-8
+    sample labelled SAMPLE → *Use my location* (button reads "Waiting for your browser…" while the
+    permission prompt is up) → skeleton chips → your district, members as chips, "Not your district?
+    Type an address", "Back to the sample". Blocked location and no fix (timeout/unavailable) open the
+    address field. A 404 from `/v1/reps` means two things: for a **point** it is "Not in a U.S.
+    district"; for an **address** it is the geocoder not matching it, "We couldn't find that address"
+    (the API's own words). A 400 on an address is an address problem, 429 is "Too many lookups, try
+    again in a minute", a 200 with no members is the vacant-seat wording, and a network or CORS
+    failure is "Couldn't reach Floor's vote server"; in all of them the page stays on the sample. Every
+    step with the address field has a *Cancel* back to where you came from (the sample, or the
+    district you had). Addresses shorter than six characters or a bare 5-digit ZIP are refused before
+    any request, as in the mock. Coordinates are rounded to 4 decimals in the page before they are
+    sent.
+  - **Scouting report** (`#scout`) switches to the found members: per-member tabs, portrait
+    (`unitedstates.github.io/images/congress/225x275/<id>.jpg`; the `theunitedstates.io` host fails
+    TLS), with-party % and "X of Y" from `/v1/members/{id}`, showed-up / winning-side / crossovers and
+    the last-40 grid from `/v1/members/{id}/votes?limit=40`, and the latest call. Each member loads on
+    its own: if one member's calls fail (or a vote comes back with a position outside the five the
+    API documents), that tab says "Couldn't load <name>'s records" with *Try again* and the others
+    show; if all fail the members stay and the panel says "Couldn't load their records". An
+    independent has `partyLoyalty.votes === 0` (Sanders, checked 2026-11-12), so with-party,
+    "X of Y" and crossovers read "—" and the note says there's no party bloc to measure against. A
+    Speaker-ballot vote for a candidate counts as showing up but has no winning side. A delegate
+    (D.C., and the territories) gets the one-member note in the strip and a DELEGATE box whose count
+    and date are computed from her votes (Norton, 2026-11-12: all 40 of her last 40 are amendment
+    votes, the latest Jul 22).
+  - **Labelled SAMPLE once someone else's members show:** the five finals (each card's blurb and twist
+    are hand-written and it carries its own party splits, so it can't honestly be rebuilt from a
+    member's vote list; its "Your three" chips read "NY-8 SAMPLE"), money and donor context, the
+    portfolio, and the live replay. None of them ever shows New York's money under another member's
+    name. The player cards and leaderboard are national and don't change.
+  - **Winning side reads the recorded result the way the app does** (`logic.ts` `outcome`, mirroring
+    FloorKit `Vote.recordedOutcome`): rejection words first ("Not Agreed to", "Not Guilty", "Veto
+    Sustained" are failures), then "Passed", "Agreed", "Confirmed", "Overridden", "Guilty"… carry. A
+    truncated or unfamiliar result ("Motion to Discharge Re") has no outcome and is left out of the
+    count instead of counted as a loss. That changed two sample figures from the locked mock:
+    Schumer's winning side 14/40 → 14/38 and Gillibrand's 12/39 → 12/37 (two Senate results in their
+    last 40 are truncated by the clerk).
+  - **Remembered:** the found district, its Congress and its members go in `localStorage`
+    (`floor.yours.v1`) so a return visit opens on them; never the point or the address. Storage
+    follows the screen: leaving a found district (*Not your district?*, *Back to the sample*) clears
+    it, and a new district or *Cancel* back to it writes it again, so an address lookup that fails
+    after *Not your district?* can't bring the old district back on reload. A district saved for an
+    earlier Congress is dropped (the 120th starts 2027-01-03; lesson 4).
+  - **Privacy line diverges from the locked mock on purpose.** The mock said Floor "keeps neither the
+    point nor the address". The page now says only what it does itself: "Floor rounds the point to
+    about 11 m and uses it once to find your district; this page stores only the district." See the
+    open item below.
+  - **Open (for the API team): `/v1/reps` puts the address and coordinates in the URL.** It is a GET,
+    so the address or rounded point is a query string that Vercel's request logs may record. That
+    contradicts "keeps neither the point nor the address" unless log retention is short or the query
+    is redacted, or the route moves to POST with the place in the body. Until one of those is done,
+    the page must not make that claim.
+  - **API base** is `src/config.ts` (production); `FLOOR_API_BASE=<url> npm run build -w @floor/web`
+    points a build elsewhere (https or localhost only).
+  - Dates on vote rows are Eastern time: a Senate vote at 7:37 p.m. on Nov 10 is `2026-11-11T00:37Z`
+    in the API, and reads Nov 10 on the page (the mock, which used the UTC date, said Nov 11).
+- **CORS.** `ALLOWED_ORIGINS=https://floor-web-seven.vercel.app` is set on the `floor-api` Vercel
+  project (production, 2026-11-12), so the deployed site reads the API. Any other origin is refused
+  and the page shows the "Couldn't reach" state: that includes `localhost` and Vercel **preview**
+  deploys (`floor-web-git-<branch>-abtanix-labs.vercel.app`, which also sit behind Vercel
+  Authentication). To try a preview against live data, add its exact origin to `ALLOWED_ORIGINS` and
+  redeploy `floor-api`; it takes exact origins, not wildcards. Locally: only the Vercel entry
+  (`apps/api/api/index.ts`) reads `ALLOWED_ORIGINS`; `npm run dev -w @floor/api` (`src/server.ts`)
+  passes no origins, so a local API refuses every browser origin too. Verifying the page locally
+  therefore means routing the requests in Playwright to the recorded responses in
+  `apps/web/fixtures/` (captured from production with curl, 2026-11-12), which is how v0.3.0's states
+  were checked.
 - **New data sources, not yet ingested:** FEC (the same api.data.gov key as Congress.gov works; the
   shared `DEMO_KEY` allows 40 calls an hour) and House financial disclosures
   (`disclosures-clerk.house.gov/public_disc/financial-pdfs/<year>FD.zip` is a tab-separated index of
   every filing; `ptr-pdfs/<year>/<DocID>.pdf` are the trade reports). Senate disclosures (eFD) have no
   bulk index. Disclosures report value **ranges** and omit homes, which is why the page shows ranges.
-- **Forms are inert.** Beta sign-up and address entry show "opens soon" until there is a backend.
+- **The bottom form is inert.** Beta sign-up at the foot of the page shows "opens soon" until there
+  is a backend. (Address entry that works is in the strip at the top.)
 
 ### The app redesign (v0.2.3)
 
@@ -561,19 +629,21 @@ The app follows the system appearance. Dark is the canvas palette, unchanged; li
 fixed New York demo (Jeffries, Schumer, Gillibrand). Approved by Sourav on 2026-11-12. Intermediate
 steps ship as 0.2.x PATCH releases; 0.3.0 closes the milestone with its retro.
 
-1. **Location → your members (API).** Landed in 0.2.2: `/v1/reps?lat=&lng=`. Still needed before the
-   site can call it: `https://floor-web-seven.vercel.app` in `ALLOWED_ORIGINS` on the `floor-api`
-   Vercel project, then a redeploy (someone on the Abtanix Labs team).
-2. **Mock for Ishan.** The location prompt, the "your members" switcher, and the loading, denied,
-   not-found and no-data states, as a claude.ai artifact. The web UI work waits for his lock
-   (`CLAUDE.md` › Large UI changes).
-3. **Sections the API already serves:** five finals (how *your* members voted), scouting report
-   (last 40 roll calls), player cards (party loyalty).
-4. **Campaign finance for every member.** Data landed in 0.2.3: `campaign_finance` (OpenFEC
+1. **Location → your members (API).** Landed in 0.2.2: `/v1/reps?lat=&lng=`. CORS for the site is
+   on: `https://floor-web-seven.vercel.app` is in `ALLOWED_ORIGINS` on the `floor-api` Vercel project
+   (2026-11-12).
+2. **Mock for Ishan.** Locked 2026-11-12 (canvas round "Your members", `LocWeb`). **Built:** the
+   strip under the site header with every state in the mock, plus "no fix" and "couldn't reach the
+   server"; see "The landing page" above for what each state does.
+3. **Sections the API already serves.** **Built:** the scouting report switches to your members
+   (loyalty, last 40, latest call, the delegate case). The five finals stay on the sample, labelled:
+   a card's blurb and twist are hand-written, so the deck can't honestly be rebuilt from vote lists.
+   The player cards are a national leaderboard and don't depend on your district.
+4. **Campaign finance for every member.** Data landed in 0.2.4: `campaign_finance` (OpenFEC
    totals for each member's current campaign: small-dollar, itemized, PAC, party, other, cash on
    hand) and `pac_contributions` (every committee's direct and earmarked totals per member from the
    2026 bulk file, with FEC's organization type for the "kind"). Still to do: the API route and the
-   section, which waits on the mock lock.
+   section (the location mock it waited on was locked 2026-11-12).
 5. **Donor context** from Senate LDA lobbying filings (what each PAC's organization lobbies on),
    matched to the member's votes by topic. The plain-English "who they are" lines are AI-written and
    wait for M4's label-and-cite pipeline.
