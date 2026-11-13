@@ -7,6 +7,7 @@ import {
   HEAD_DOCK_AT,
   HEAD_FLOAT_AT,
   activeLevel,
+  activeStep,
   headFloats,
   scrollStep,
   stepLength,
@@ -18,7 +19,6 @@ import {
   deckPose,
   deckJump,
   deckStep,
-  driveBall,
   easeOutCubic,
   easeOutQuart,
   esc,
@@ -81,6 +81,16 @@ describe("pinned sections", () => {
 });
 
 describe("road to law", () => {
+  it("the last box (the drive chart) counts once it is fully in view at the page's end", () => {
+    // Reader mid-road: the last box is still below the fold, so the reading line decides.
+    expect(activeStep([-400, 100, 500, 1100], 400, 1500, 900)).toBe(1);
+    // End of the page: the last box sits wholly on screen but below the reading line.
+    expect(activeStep([-900, -500, 100, 520], 400, 880, 900)).toBe(3);
+    // Fully in view but only just peeking in at the bottom fifth: not yet.
+    expect(activeStep([-200, 100, 300, 760], 400, 890, 900)).toBe(2);
+    expect(activeStep([], 400, 0, 900)).toBe(0);
+  });
+
   it("is on the last card whose top has passed the reading line", () => {
     expect(activeLevel([500, 900, 1300], 400)).toBe(0);
     expect(activeLevel([300, 700, 1100], 400)).toBe(0);
@@ -207,14 +217,6 @@ describe("deck", () => {
 
   it("writes party splits", () => {
     expect(splitText([{ party: "R", yea: 53, nay: 0 }, { party: "D", yea: 0, nay: 45 }])).toBe("R 53–0 · D 0–45");
-  });
-});
-
-describe("drive chart", () => {
-  it("places the ball between the 6% and 94% lines", () => {
-    expect(driveBall(0)).toEqual({ ball: "6.0%", fill: "0.0%" });
-    expect(driveBall(50)).toEqual({ ball: "50.0%", fill: "44.0%" });
-    expect(driveBall(100)).toEqual({ ball: "94.0%", fill: "88.0%" });
   });
 });
 

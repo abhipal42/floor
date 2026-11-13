@@ -8,7 +8,7 @@ is a milestone and ships a retro under `docs/retros/`.
 Older series live in [`docs/changelog/`](docs/changelog) (0.1.x: [`0.1.md`](docs/changelog/0.1.md)).
 Before 0.1.0 the history is the commit log on `main`.
 
-## 0.2.17 — 2026-11-13
+## 0.2.18 — 2026-11-13
 
 The landing page has a light theme and a switch for it.
 
@@ -27,6 +27,37 @@ The landing page has a light theme and a switch for it.
 - The header's capsule, divider and link hover colours are tokens now (`--head-capsule`,
   `--head-line`, `--head-shadow-*`, `--head-div`, `--nav-hover`). The floating capsule is 52px wider
   (716px, 296px on narrow screens) to fit the button.
+- The drive's three colours from 0.2.17 (`--accent-glow`, `--floodlight`, `--chalk`) get light
+  values, each re-based on this theme's version of its source colour. The two releases were built
+  side by side; this theme's own test, that every dark colour has a light counterpart, caught the
+  three on the merged tree.
+
+## 0.2.17 — 2026-11-13
+
+Road to law and the drive chart become one drive, built to the locked mock
+<https://claude.ai/artifact/JZSvMDroyo5tVNVoKBA657>.
+
+### Changed
+
+- **A football rides the road.** In 02 · Road to law a ball (drawn in CSS) sits on the current box's
+  title line and slides along the dashed rail as you scroll, and the rail fills yellow behind it. The
+  stop on the left, the ball, the yellow line and the lit box all follow one step index.
+- **The drive chart is the road's last box.** After level 6 the path ends at a condensed drive chart
+  (bill tabs, status, a progress bar that is green for law, orange for a stall and yellow otherwise,
+  and the plays), the seventh pinned step and the seventh stop on the map. The separate drive chart
+  below the levels is gone.
+- **Alignment:** pinned, both columns share one top and one bottom edge, the lit box is centred on
+  the box itself (not its leg's top gap), and every pin sits on its box's title line at each width.
+- **"BOSS" labels removed** from the level map and the cards.
+- **Background:** the section keeps the site's dark panel, with chalk hash marks along the rail and a
+  soft light behind the box in play.
+- **Copy (by the owner):** "Six drives to law. Every bill shares the same field.", section 1 renamed
+  "The scoreboard." (nav "Scoreboard"), a shorter 03 lede, and plainer level descriptions.
+
+### Added
+
+- `activeStep()` in `logic.ts`: on an unpinned road the last box counts once it is fully in view at
+  the page's end. Tested. `driveBall()` is removed with the old field.
 
 ## 0.2.16 — 2026-11-13
 

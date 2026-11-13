@@ -728,7 +728,7 @@ shows the step with a **Skip** button.
 | Section | Steps | Not pinned |
 |---|---|---|
 | 01 Finals | the five finals (a step forward keeps the deal animation); since v0.2.16 there is no Back or Next, and the dots under the card jump to a final (the only way through the deck on phones) | — |
-| 02 Road to law | six levels: the connected road moves so the focused card sits centred, the rest fade | the drive chart |
+| 02 Road to law | seven: six levels, then the condensed drive chart as the road's last box (since v0.2.17). A CSS football rides the dashed rail and the rail fills yellow behind it; the stop, ball, yellow line and lit box share one index (`setStep` in `levelCards()`), and the lane moves so the lit box sits centred | — |
 | 03 Explained | the first bill's points, each lighting its source paragraph; only the current point opens | bill tabs stay manual |
 | 04 Your reps | your three members; the "Make it your three" bar sits under the report | — |
 | 05 Players | one: the card fan holds, then the leaderboard scrolls up below it | the leaderboard |
