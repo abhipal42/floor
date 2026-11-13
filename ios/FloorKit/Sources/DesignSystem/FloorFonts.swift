@@ -36,7 +36,8 @@ public enum FloorFonts {
     public static func register() -> Bool { registered }
 
     private static let registered: Bool = {
-        Face.allCases.allSatisfy { face in
+        // `map` before checking, so one missing file does not stop the rest registering.
+        Face.allCases.map { face in
             guard let url = Bundle.module.url(forResource: face.rawValue, withExtension: "ttf", subdirectory: "Fonts")
             else { return false }
             var error: Unmanaged<CFError>?
@@ -45,6 +46,6 @@ public enum FloorFonts {
             // preview reload) is success, not failure.
             let code = error.map { CFErrorGetCode($0.takeRetainedValue()) } ?? 0
             return code == CTFontManagerError.alreadyRegistered.rawValue
-        }
+        }.allSatisfy { $0 }
     }()
 }

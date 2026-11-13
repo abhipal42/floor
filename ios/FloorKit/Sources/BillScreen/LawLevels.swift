@@ -62,10 +62,10 @@ public struct LawLevels: Sendable, Hashable {
             case .done: return .done
             case .failed: return .failed
             case .pending:
-                // Votes arrive newest first; the latest losing vote in this chamber is what stopped it.
-                if let lost = bill.votes.first(where: {
-                    $0.chamber == chamber && $0.outcome == .failed && $0.failureStopsTheBill
-                }) {
+                // Votes arrive newest first. Only the latest vote that could stop the bill counts:
+                // a cloture that failed on the 1st and was invoked on the 3rd is not stuck.
+                if let lost = bill.votes.first(where: { $0.chamber == chamber && $0.failureStopsTheBill }),
+                   lost.outcome == .failed {
                     stoppedBy = stoppedBy ?? lost
                     return .stuck
                 }
@@ -200,7 +200,8 @@ public extension Vote {
     /// to proceed or suspension does; a failed amendment, motion to recommit or to table does not —
     /// those failing is usually how a bill gets through.
     var failureStopsTheBill: Bool {
-        ["Passage", "Cloture", "Motion to proceed", "Suspension", "Resolution", "Concur", "Veto override"]
+        ["Passage", "Cloture", "Motion to proceed", "Suspension", "Resolution", "Concur", "Veto override",
+         "Conference report"]
             .contains(questionKind)
     }
 }

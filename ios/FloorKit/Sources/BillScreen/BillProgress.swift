@@ -97,8 +97,8 @@ public extension Vote {
     /// on the way there. Congress.gov's own result wording is the signal; the question narrows it
     /// so a failed recommittal or a rule vote is not mistaken for passage.
     var isFinalPassage: Bool {
-        guard let result, result.localizedCaseInsensitiveContains("passed")
-            || result.localizedCaseInsensitiveContains("agreed") else { return false }
+        // `outcome`, not the wording again: "Not Agreed to" contains "agreed".
+        guard outcome == .carried else { return false }
         let q = question.lowercased()
         return q.contains("passage") || q.contains("concur") || q.contains("agreeing to the resolution")
     }

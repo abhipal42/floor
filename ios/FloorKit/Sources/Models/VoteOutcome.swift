@@ -13,6 +13,8 @@ public struct ThresholdLine: Sendable, Hashable {
     /// Yea votes the question needed.
     public var needed: Int
     public var threshold: VoteThreshold
+    /// What the chamber recorded, when its result wording says; nil while open or unfamiliar.
+    public var recorded: Vote.Outcome?
 
     public init(vote: Vote) {
         cast = vote.totals.voting
@@ -20,16 +22,25 @@ public struct ThresholdLine: Sendable, Hashable {
         nay = vote.totals.nay
         needed = vote.votesNeeded
         threshold = vote.threshold
+        recorded = vote.state == .final ? vote.recordedOutcome : nil
     }
 
     /// How far yea finished from the line: positive is over it, negative short of it.
     public var margin: Int { yea - needed }
 
-    /// Yea votes past the line, or nil when it fell short.
-    public var over: Int? { margin >= 0 ? margin : nil }
+    /// True when the count and the chamber's record disagree: a Vice President's tie-break, a
+    /// unanimous-consent 60-vote bar on a vote reported as majority, "present" votes the
+    /// arithmetic counts and the House does not. The record wins, so the line has nothing to say.
+    public var contradicted: Bool {
+        guard let recorded else { return false }
+        return (recorded == .carried) != (margin >= 0)
+    }
 
-    /// Yea votes it still needed, or nil once the line was met.
-    public var short: Int? { margin < 0 ? -margin : nil }
+    /// Yea votes past the line, or nil when it fell short or the record says otherwise.
+    public var over: Int? { !contradicted && margin >= 0 ? margin : nil }
+
+    /// Yea votes it still needed, or nil once the line was met or the record says otherwise.
+    public var short: Int? { !contradicted && margin < 0 ? -margin : nil }
 
     /// Share of the bar the yea fill takes, 0…1.
     public var yeaShare: Double { cast > 0 ? Double(yea) / Double(cast) : 0 }
@@ -64,18 +75,25 @@ public extension Vote {
     /// Only when the result is missing or unfamiliar does the threshold decide.
     var outcome: Outcome? {
         guard kind == .question, state == .final else { return nil }
-        if let result = result?.lowercased() {
-            if ["rejected", "failed", "not agreed", "not sustained", "not invoked", "defeated"]
-                .contains(where: result.contains) {
-                return .failed
-            }
-            if ["passed", "agreed", "confirmed", "sustained", "adopted", "invoked", "concurred"]
-                .contains(where: result.contains) {
-                return .carried
-            }
-        }
+        if let recordedOutcome { return recordedOutcome }
         guard let line else { return nil }
         return line.margin >= 0 ? .carried : .failed
+    }
+
+    /// The outcome the result wording states, or nil when it is missing or unfamiliar.
+    /// "Veto Sustained" is a failed override — the veto stands — so it is checked with the
+    /// failures, ahead of the plain "sustained" of "Decision of Chair Sustained".
+    var recordedOutcome: Outcome? {
+        guard let result = result?.lowercased() else { return nil }
+        if ["rejected", "failed", "not agreed", "not sustained", "not invoked", "defeated", "veto sustained"]
+            .contains(where: result.contains) {
+            return .failed
+        }
+        if ["passed", "agreed", "confirmed", "sustained", "adopted", "invoked", "concurred", "overridden"]
+            .contains(where: result.contains) {
+            return .carried
+        }
+        return nil
     }
 
     /// One word for the result chip: PASSED, AGREED, CONFIRMED, FAILED, REJECTED.
@@ -84,6 +102,7 @@ public extension Vote {
         let result = (result ?? "").lowercased()
         switch outcome {
         case .carried:
+            if result.contains("overridden") { return "OVERRIDDEN" }
             if result.contains("confirmed") { return "CONFIRMED" }
             if result.contains("passed") { return "PASSED" }
             return result.contains("agreed") ? "AGREED" : "PASSED"
@@ -100,6 +119,10 @@ public extension Vote {
         if kind == .election { return "Speaker election" }
         let q = question.lowercased()
         let table: [(String, String)] = [
+            // The Senate's override question names passage, so it goes before "passage".
+            ("objections of the president", "Veto override"),
+            ("veto", "Veto override"),
+            ("conference report", "Conference report"),
             ("suspend the rules", "Suspension"),
             ("cloture", "Cloture"),
             ("previous question", "Previous question"),
@@ -108,7 +131,6 @@ public extension Vote {
             ("discharge", "Motion to discharge"),
             ("motion to refer", "Motion to refer"),
             ("motion to proceed", "Motion to proceed"),
-            ("veto", "Veto override"),
             ("concur", "Concur"),
             ("nomination", "Nomination"),
             ("amendment", "Amendment"),

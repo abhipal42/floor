@@ -33,7 +33,16 @@ navigation are new.
 ### Changed
 - "Winning side" reads the actual outcome (`sidedWithOutcome`), not which side had more votes —
   they differ when a majority loses to a threshold (H.J.Res. 1 lost 212–206).
-- The Speaker ballot now has its own feed card ("MAJORITY OF NAMES"), closing M2 item 1.
+- The Speaker ballot now has its own feed card ("MAJORITY OF NAMES"), closing M2 item 1. It says
+  VOTING or SOON until the ballot is final, never ELECTED or NO WINNER mid-count.
+- When the count and the chamber's record disagree (a Vice President's tie-break, a 60-vote
+  unanimous-consent bar on a vote reported as majority, "present" votes), `ThresholdLine` reports
+  neither "over" nor "short", and the catch-up twist names the record instead of a line.
+- "Veto Sustained" reads as a failed override (it read as carried); "Veto Overridden" shows
+  OVERRIDDEN, and the Senate's override question is classed as a veto override, not passage.
+- A chamber is "stuck" only if its latest blocking vote failed, so a later cloture win clears it.
+- `isFinalPassage` follows `outcome`, so "Not Agreed to" no longer counts as the House passing it.
+- One missing font file no longer stops the other faces registering.
 
 ### Not in this release
 - Money and Portfolio on Your three, and the AI bill explainer (M4).

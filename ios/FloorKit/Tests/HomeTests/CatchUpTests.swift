@@ -169,4 +169,12 @@ struct CatchUpTests {
         #expect(bills.contains("H.R. 9340"))
         #expect(model.bills.allSatisfy { $0.measure?.kind == .bill })
     }
+
+    /// A Vice President's tie-break: the twist names the record, not a line it "missed by one".
+    @Test func twistWhenTheRecordOverrulesTheCount() {
+        #expect(CatchUp.twist(item(yea: 50, nay: 50, threshold: .majority, result: "Motion Agreed to", chamber: .senate))
+            == "50–50, recorded as agreed: the chamber's record decides, not the count.")
+        #expect(CatchUp.twist(item(yea: 55, nay: 45, threshold: .majority, result: "Amendment Rejected", chamber: .senate))
+            == "55–45, recorded as rejected: the chamber's record decides, not the count.")
+    }
 }

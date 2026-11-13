@@ -124,7 +124,9 @@ public struct ScoreboardCard: View {
 
     private var accessibilityText: String {
         var parts = ["\(vote.chamber.name)", citation, dayText, title].compactMap(\.self)
-        if vote.kind == .election {
+        if vote.kind == .election, vote.state != .final {
+            parts.append(vote.state == .open ? "Voting" : "Scheduled")
+        } else if vote.kind == .election {
             if let elected = vote.electedSpeaker {
                 parts.append("\(elected.name) elected Speaker with \(elected.total)")
             } else if let leader = vote.leadingCandidate {
@@ -167,7 +169,14 @@ struct ElectionBody: View {
                             .minimumScaleFactor(0.5)
                     }
                     .frame(maxWidth: .infinity, alignment: index == 0 ? .leading : .trailing)
-                    if index == 0 {
+                    if index == 0, vote.state != .final {
+                        // Counting is not over: ELECTED or NO WINNER would call it early.
+                        SkewChip(
+                            vote.state == .open ? "VOTING" : "SOON",
+                            background: vote.state == .open ? Palette.liveText : Palette.scheduled,
+                            size: 13
+                        )
+                    } else if index == 0 {
                         SkewChip(
                             vote.electedSpeaker == nil ? "NO WINNER" : "ELECTED",
                             foreground: vote.electedSpeaker == nil ? Palette.text : Palette.ground,

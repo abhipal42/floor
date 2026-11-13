@@ -124,4 +124,40 @@ struct VoteOutcomeTests {
         #expect(StateName.ordinal(13) == "13th")
         #expect(StateName.ordinal(112) == "112th")
     }
+
+    /// A failed veto override is recorded "Veto Sustained": the veto stands, the override lost.
+    /// A successful one is "Veto Overridden".
+    @Test func aSustainedVetoIsAFailedOverride() {
+        let q = "On Passage of the Bill, the Objections of the President Notwithstanding"
+        let sustained = question(yea: 60, nay: 40, threshold: .twoThirds, result: "Veto Sustained", question: q)
+        #expect(sustained.outcome == .failed)
+        #expect(sustained.outcomeWord == "FAILED")
+        #expect(sustained.questionKind == "Veto override")
+        let overridden = question(yea: 70, nay: 30, threshold: .twoThirds, result: "Veto Overridden", question: q)
+        #expect(overridden.outcome == .carried)
+        #expect(overridden.outcomeWord == "OVERRIDDEN")
+        // The plain "sustained" of a ruling still carries.
+        #expect(question(yea: 220, nay: 200, threshold: .majority, result: "Decision of Chair Sustained").outcome == .carried)
+    }
+
+    /// When the count and the record disagree, the line reports neither "over" nor "short", so no
+    /// screen can print "1 short" under an AGREED chip.
+    @Test func theLineGoesQuietWhenTheRecordDisagrees() throws {
+        let tieBreak = try #require(question(yea: 50, nay: 50, threshold: .majority, result: "Motion Agreed to").line)
+        #expect(tieBreak.contradicted)
+        #expect(tieBreak.over == nil && tieBreak.short == nil)
+        let uc60 = try #require(question(yea: 55, nay: 45, threshold: .majority, result: "Amendment Rejected").line)
+        #expect(uc60.contradicted)
+        #expect(uc60.over == nil && uc60.short == nil)
+        // Present votes the arithmetic counts: 205–200 with 20 present needs 213 by the count.
+        let present = try #require(question(yea: 205, nay: 200, present: 20, threshold: .majority, result: "Passed").line)
+        #expect(present.contradicted)
+        // Agreeing cases are untouched.
+        let agree = try #require(question(yea: 220, nay: 200, threshold: .majority, result: "Passed").line)
+        #expect(!agree.contradicted && agree.over == 9)
+    }
+
+    @Test func namesAConferenceReport() {
+        #expect(question(yea: 1, nay: 0, threshold: .majority, result: nil, question: "On Agreeing to the Conference Report").questionKind == "Conference report")
+    }
 }

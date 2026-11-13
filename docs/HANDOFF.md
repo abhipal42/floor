@@ -184,6 +184,12 @@ Real data broke our first assumptions several times. Each case below is now hand
 20. **A `.safeAreaInset` on a `NavigationStack` does not reach the screens pushed onto it.** The
     floating tab bar covered the bottom of every pushed Vote and Bill screen until the inset moved
     onto each screen itself.
+21. **The count and the record can disagree, and the record wins.** A Vice President breaks a 50–50
+    tie ("Motion Agreed to"), a unanimous-consent agreement sets 60 on a vote the API reports as
+    majority, and the arithmetic counts "present" where the House doesn't. `ThresholdLine` then
+    reports `contradicted` and no over/short, so nothing prints "1 short" under AGREED. And
+    **"Veto Sustained" is a failure**: the veto stands and the override lost. Found by review of
+    v0.3.0, not by data, so watch real results for wordings the lists in `recordedOutcome` miss.
 
 ---
 

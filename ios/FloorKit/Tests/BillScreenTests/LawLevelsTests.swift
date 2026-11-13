@@ -89,4 +89,20 @@ struct LawLevelsTests {
     @Test func writesTheSponsorLine() throws {
         #expect(try bill("bill-stuck-senate").sponsor?.sponsorLine == "Rep. Gabe Evans (R-CO-8)")
     }
+
+    /// Cloture failed, then a later cloture vote carried: the Senate is no longer stuck. Built on
+    /// the real H.R. 9340 bill, with the later vote added at the front (votes arrive newest first).
+    @Test func aLaterWinUnsticksTheChamber() throws {
+        var b = try bill("bill-stuck-senate")
+        var later = try #require(b.votes.first { $0.id == "senate-119-2-254" })
+        later.id = "senate-119-2-260"
+        later.rollNumber = 260
+        later.totals = VoteTotals(yea: 61, nay: 39, present: 0, notVoting: 0)
+        later.result = "Cloture Motion Agreed to"
+        b.votes.insert(later, at: 0)
+        let levels = LawLevels(bill: b)
+        #expect(levels.levels[3].state == .pending)
+        #expect(levels.stoppedBy == nil)
+        #expect(levels.status != "STOPPED AT THE 60")
+    }
 }

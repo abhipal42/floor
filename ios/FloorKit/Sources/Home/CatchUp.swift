@@ -49,6 +49,9 @@ public enum CatchUp {
         guard let line = vote.line, let outcome = vote.outcome else { return vote.question }
         let chamber = vote.chamber.name
 
+        if line.contradicted, let word = vote.outcomeWord {
+            return "\(line.yea)–\(line.nay), recorded as \(word.lowercased()): the chamber's record decides, not the count."
+        }
         if failedDespiteMajority(vote), let short = line.short {
             switch line.threshold {
             case .twoThirds:
