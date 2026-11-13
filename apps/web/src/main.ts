@@ -59,6 +59,7 @@ import {
   FLAP_ROWS,
   FLAP_TICKS,
   FLAP_WIDTH,
+  activeLevel,
   cellLook,
   countText,
   deckPose,
@@ -408,23 +409,89 @@ function deck(): void {
 
 // ------------------------------------------------------------------ 02 · levels + drive chart
 
+// The section title and a six-stop map hold still beside one connected road of level cards; the
+// stop and card for the level the reader has scrolled to light up, and earlier ones read as cleared.
 function levelCards(): void {
-  const n = levels.items.length;
-  el("#levels").innerHTML = levels.items
+  const track = el("#law-track");
+  const road = el("#levels");
+  const now = el("#law-now");
+  track.innerHTML =
+    '<span class="track__fill" aria-hidden="true"></span>' +
+    levels.items
+      .map(
+        (l, i) =>
+          '<li><button type="button" class="stop' + (l.boss ? " stop--boss" : "") + '" aria-label="Level ' + (i + 1) + ": " + esc(l.name) +
+          (l.boss ? ", boss level" : "") + '"><span class="stop__dot">' + (i + 1) + '</span><span class="stop__name">' + esc(l.name) +
+          (l.boss ? '<span class="stop__boss">BOSS</span>' : "") + "</span></button></li>",
+      )
+      .join("");
+  road.innerHTML = levels.items
     .map(
       (l, i) =>
-        '<div class="level" style="--i:' + i + ";margin-bottom:" + (i === n - 1 ? "0" : "150px") + '">' +
-        '<article class="level__card' + (i % 2 ? " level__card--alt" : "") + '">' +
-        '<span class="level__n' + (l.boss ? " level__n--boss" : "") + '" aria-hidden="true">' + (i + 1) + "</span>" +
-        '<div class="level__body"><span class="level__name-row"><h3 class="level__name"><span class="sr">Level ' + (i + 1) + ": </span>" + esc(l.name) + "</h3>" +
-        (l.boss ? '<span class="skew skew--accent">BOSS · ' + esc(l.need) + "</span>" : '<span class="level__need">' + esc(l.need) + "</span>") +
-        '</span><span class="level__text">' + esc(l.body) + "</span></div>" +
-        '<div class="level__ex"><span class="eyebrow">REAL PLAY · ' + esc(l.example.when) + '</span><span class="level__ex-t">' + esc(l.example.title) +
-        '</span><span class="level__ex-s num"><span class="yea">' + esc(l.example.yea) + '</span><span class="level__dash">–</span><span class="nay">' + esc(l.example.nay) +
-        '</span><span class="level__res" style="color:' + tone(l.example.tone) + '">' + esc(l.example.result) + "</span></span></div>" +
-        "</article></div>",
+        '<article class="leg' + (l.boss ? " leg--boss" : "") + '"><span class="leg__pin" aria-hidden="true"></span><div class="leg__card">' +
+        '<div class="leg__top"><span class="leg__id"><span class="leg__n" aria-hidden="true">L' + (i + 1) + '</span><h3 class="leg__name"><span class="sr">Level ' +
+        (i + 1) + ": </span>" + esc(l.name) + "</h3>" + (l.boss ? '<span class="skew skew--accent">BOSS</span>' : "") + "</span>" +
+        '<span class="leg__need">' + esc(l.need) + '<span class="leg__cleared"> · CLEARED</span></span></div>' +
+        '<p class="leg__text">' + esc(l.body) + "</p>" +
+        '<div class="play"><span class="eyebrow play__k">REAL PLAY · ' + esc(l.example.when).toUpperCase() + '</span><span class="play__t">' + esc(l.example.title) +
+        '</span><span class="play__s num"><span class="yea">' + esc(l.example.yea) + '</span><span class="play__dash">–</span><span class="nay">' + esc(l.example.nay) +
+        '</span><span class="play__r" style="color:' + tone(l.example.tone) + '">' + esc(l.example.result) + "</span></span></div>" +
+        "</div></article>",
     )
     .join("");
+
+  const stops = all<HTMLButtonElement>(".stop", track);
+  const legs = all(".leg", road);
+  const fill = el(".track__fill", track);
+  let on = -1;
+
+  const update = () => {
+    const next = activeLevel(
+      legs.map((leg) => leg.getBoundingClientRect().top),
+      window.innerHeight * 0.45,
+    );
+    if (next === on) return;
+    on = next;
+    legs.forEach((leg, i) => {
+      leg.classList.toggle("is-on", i === on);
+      leg.classList.toggle("is-cleared", i < on);
+    });
+    stops.forEach((stop, i) => {
+      stop.classList.toggle("is-on", i === on);
+      stop.classList.toggle("is-cleared", i < on);
+      if (i === on) stop.setAttribute("aria-current", "step");
+      else stop.removeAttribute("aria-current");
+    });
+    const first = el(".stop__dot", stops[0]).getBoundingClientRect();
+    const cur = el(".stop__dot", stops[on]).getBoundingClientRect();
+    fill.style.setProperty("--fill-y", Math.max(0, cur.top - first.top) + "px");
+    fill.style.setProperty("--fill-x", Math.max(0, cur.left - first.left) + "px");
+    now.textContent = "Level " + (on + 1) + " · " + levels.items[on]!.name;
+  };
+
+  stops.forEach((stop, i) =>
+    stop.addEventListener("click", () => {
+      const head = parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--head-h")) || 0;
+      const y = legs[i]!.getBoundingClientRect().top + window.scrollY - head - window.innerHeight * 0.2;
+      window.scrollTo({ top: y, behavior: reduced() ? "auto" : "smooth" });
+    }),
+  );
+
+  let queued = false;
+  const schedule = () => {
+    if (queued) return;
+    queued = true;
+    requestAnimationFrame(() => {
+      queued = false;
+      update();
+    });
+  };
+  window.addEventListener("scroll", schedule, { passive: true });
+  window.addEventListener("resize", () => {
+    on = -1;
+    schedule();
+  });
+  update();
 }
 
 function driveChart(): void {
