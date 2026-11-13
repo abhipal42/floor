@@ -8,6 +8,44 @@ is a milestone and ships a retro under `docs/retros/`.
 Older series live in [`docs/changelog/`](docs/changelog) (0.1.x: [`0.1.md`](docs/changelog/0.1.md)).
 Before 0.1.0 the history is the commit log on `main`.
 
+## 0.2.21 — 2026-11-13
+
+The member screen in the app gets its Money segment.
+
+### Added
+- **Record / Money / Portfolio switch** on Your three and on a pushed member screen, built to the
+  locked AppRepMoney mock (canvas round 6). The segment you pick stays when you switch member.
+- **Money** loads `/v1/members/{id}/funding`: the campaign's total and cash on hand, the four-part
+  bar (small-dollar, larger gifts, PACs, transfers and other) with its legend, the "context, not
+  cause" line, and the ten biggest PAC checks, with FEC's committee names title-cased by the
+  landing page's own rule. It has loading, error (Try again) and "No campaign filings yet" states,
+  opens offline on the last saved copy like the record, and follows light and dark through new
+  `teal`, `dim` and `ai` palette tokens.
+- **Portfolio** is a visible "not loaded yet" placeholder: disclosures have no data or API yet.
+- Swift models `PacCheck`, `Funding`, `MemberFunding`, `FloorAPI.funding(id:committees:)`,
+  `MoneyModel`; the five real `/funding` captures copied into `ModelsTests/Fixtures`.
+- **"Candidate committee"** as a PAC kind (API `pacKind`): another candidate's own campaign
+  committee (FEC committee type H, S or P, "SMITH FOR CONGRESS") is labelled as one rather than
+  left bare. It is computed from the stored `committee_type`, so it needs no re-ingest.
+
+### Changed
+- The bar's larger-gifts teal and transfers grey are darker than the mock's: the mock's teal read
+  1.2:1 against the small-dollar green beside it. `PaletteTests` now holds every pair of
+  neighbouring bar parts at 1.5:1 and each part at 3:1 against the empty track, light and dark.
+- VoiceOver speaks money as words ("17.9 million dollars"), like the PAC rows.
+- The record's picked grid square survives a trip to Money and back.
+- Committee names capitalise after a leading O' or D' (O'Brien) and treat Y as a vowel in words of
+  three letters or more (Lynn), on the landing page and in the app alike.
+
+### Fixed
+- `ContractTests.everySchemaIsModelled` had failed on `main` since 0.2.13, because the funding
+  schemas had no Swift models. It passes again.
+- **A negative "Transfers & other"** (the worker computes it as receipts minus the other parts, so
+  refunds can push it below zero) is drawn as 0 in both the bar and the legend, with shares of the
+  parts drawn, and a note says it includes refunds/adjustments. The landing page does the same.
+- **Money formatting** rounds before it picks the unit ($999,500 is "$1.00M", not "$1000K") and
+  puts the sign before the dollar ("−$12K"), on the landing page and in the app.
+
 ## 0.2.20 — 2026-11-13
 
 Ingest was not stuck on a bad vote; it had never been scheduled. It now runs hourly, and the status

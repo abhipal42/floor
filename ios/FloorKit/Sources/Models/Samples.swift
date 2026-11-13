@@ -87,6 +87,33 @@ public extension MemberDetail {
     static let sample = MemberDetail(member: .sample, partyLoyalty: .sample)
 }
 
+public extension PacCheck {
+    /// The American Dental Association's PAC to Hakeem Jeffries, 2025–26.
+    static let sample = PacCheck(
+        committeeId: "C00000729", name: "AMERICAN DENTAL ASSOCIATION POLITICAL ACTION COMMITTEE",
+        kind: "Membership group", orgType: "M", connectedOrg: "INDIANA DENTAL PAC", direct: 10000, earmarked: 0
+    )
+}
+
+public extension Funding {
+    /// Hakeem Jeffries' 2026 campaign through Oct 14, 2026.
+    static let sample = Funding(
+        cycle: 2026, coverageStart: "2025-01-01", coverageEnd: "2026-10-14", receipts: 17_893_352.11,
+        smallDollar: 8_147_893.38, itemized: 4_542_828.45, pac: 2_765_400, party: 0, other: 2_437_230.28,
+        cashOnHand: 4_234_848.33, committeesCycle: 2026, committees: [.sample]
+    )
+}
+
+public extension MemberFunding {
+    static let sample = MemberFunding(
+        member: Member(
+            bioguideId: "J000294", firstName: "Hakeem", lastName: "Jeffries", party: "D", state: "NY",
+            district: 8, chamber: .house
+        ),
+        funding: .sample
+    )
+}
+
 public extension MeasureSummary {
     static let sample = MeasureSummary(
         id: "119-hconres-14", kind: .bill, citation: "H.Con.Res. 14",

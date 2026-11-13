@@ -45,7 +45,10 @@ final class FixtureProtocol: URLProtocol {
                 this.client?.urlProtocol(this, didFailWithError: URLError(.notConnectedToInternet))
             }
         case .online:
-            let name = url.path.hasSuffix("/votes") ? "member-votes" : "member-detail"
+            let name = url.path.hasSuffix("/votes") ? "member-votes"
+                // Every member's money is Jeffries' capture, except the appointed senator with none.
+                : url.path.hasSuffix("A000383/funding") ? "funding-A000383"
+                : url.path.hasSuffix("/funding") ? "funding-J000294" : "member-detail"
             var dir = URL(fileURLWithPath: #filePath)
             dir.deleteLastPathComponent() // RepScreenTests
             dir.deleteLastPathComponent() // Tests
@@ -167,5 +170,94 @@ struct RepScreenOfflineTests {
         await model.load()
         #expect(model.phase == .failed("Couldn't reach Floor. Check your connection and try again."))
         #expect(model.saved == nil)
+    }
+
+    // MARK: - Money (`/v1/members/{id}/funding`)
+
+    @Test func loadsTheMembersMoney() async throws {
+        let model = MoneyModel(bioguideId: "J000294", api: api)
+        #expect(model.phase == .loading)
+        await model.load()
+        guard case let .loaded(body) = model.phase else {
+            Issue.record("Expected the funding, got \(model.phase)")
+            return
+        }
+        #expect(body.member.lastName == "Jeffries")
+        #expect(body.funding.map { MoneyFormat.total($0.receipts) } == "$17.9M")
+        #expect(model.saved == nil)
+        #expect(!model.needsRefresh)
+    }
+
+    /// Opened offline, the Money segment shows what it last saw, and says it is saved.
+    @Test func opensOnTheSavedMoneyWhenOffline() async throws {
+        FixtureProtocol.mode = .online
+        await MoneyModel(bioguideId: "J000294", api: api).load()
+        FixtureProtocol.mode = .offline
+        let model = MoneyModel(bioguideId: "J000294", api: api)
+        await model.load()
+        guard case .loaded = model.phase else {
+            Issue.record("Expected the saved funding, got \(model.phase)")
+            return
+        }
+        #expect(model.saved == SavedCopy(savedAt: fetchedAt, status: .offline))
+        #expect(model.needsRefresh)
+    }
+
+    @Test func moneyFailsVisiblyWhenNothingIsSaved() async throws {
+        FixtureProtocol.mode = .offline
+        let model = MoneyModel(bioguideId: "J000294", api: api)
+        await model.load()
+        #expect(model.phase == .failed("Couldn't reach Floor. Check your connection and try again."))
+        #expect(model.needsRefresh)
+    }
+
+    /// No current campaign is an answer, not an error: the segment says so.
+    @Test func aMemberWithNoFilingsLoadsAsNoFunding() async throws {
+        let model = MoneyModel(bioguideId: "A000383", api: api)
+        await model.load()
+        guard case let .loaded(body) = model.phase else {
+            Issue.record("Expected an answer, got \(model.phase)")
+            return
+        }
+        #expect(body.funding == nil)
+        #expect(body.noFilings.title == "No campaign filings yet")
+    }
+
+    /// The pushed member screen names its header from the money when the record never loaded.
+    @Test func theScreenKnowsWhoItIsFromEitherHalf() async throws {
+        FixtureProtocol.mode = .offline
+        let model = RepScreenModel(bioguideId: "J000294", api: api)
+        await model.load()
+        #expect(model.member == nil)
+        FixtureProtocol.mode = .online
+        await model.money.load()
+        #expect(model.member?.lastName == "Jeffries")
+        await model.load()
+        #expect(model.member?.lastName == "Adams") // the record's own member wins once it loads
+    }
+
+    /// The picked grid square lives on the model, so a trip to Money and back (which rebuilds the
+    /// record view) keeps it, and a reload keeps it too.
+    @Test func thePickedCallSurvivesASectionSwitch() async throws {
+        let three = YourThreeModel(members: [.sample], api: api)
+        let record = try #require(three.selected)
+        await record.load()
+        record.selectedCall = 1
+        three.section = .money
+        three.section = .record
+        #expect(three.selected?.selectedCall == 1)
+        await record.load()
+        #expect(record.selectedCall == 1)
+    }
+
+    /// Switching member keeps the segment, so you can compare your members' money.
+    @Test func yourThreeKeepsTheSectionAcrossMembers() {
+        let three = YourThreeModel(members: [.sample, .sampleSenator], api: api)
+        #expect(three.section == .record)
+        three.section = .money
+        three.selectedId = Member.sampleSenator.bioguideId
+        #expect(three.section == .money)
+        #expect(three.selected?.money.phase == .loading) // not fetched until the segment is shown
+        #expect(MemberSection.allCases.map(\.rawValue) == ["Record", "Money", "Portfolio"])
     }
 }

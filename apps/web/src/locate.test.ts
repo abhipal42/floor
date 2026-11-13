@@ -513,6 +513,19 @@ describe("campaign money (real /funding responses, captured 2026-11-13)", () => 
     });
   });
 
+  it("draws a negative remainder as 0 in the bar and the legend, and says why", () => {
+    const f = { ...money("J000294").funding!, receipts: 1_000_000, smallDollar: 500_000, itemized: 400_000, pac: 112_000, party: 0, other: -12_000 };
+    const v = fundingFrom(f);
+    expect(v.other).toBe(0);
+    expect(v.shareBase).toBe(1_012_000);
+    expect(v.adjustNote).toContain("−$12K");
+    expect(v.adjustNote).toContain("includes refunds/adjustments");
+    // A real campaign with a positive remainder: no note, and the shares are of what it raised.
+    const j = fundingFrom(money("J000294").funding!);
+    expect(j.adjustNote).toBeNull();
+    expect(j.shareBase).toBeCloseTo(j.total, 2);
+  });
+
   it("lists nobody but committees", () => {
     for (const id of ["J000294", "D000399", "C001056", "C001098"]) {
       for (const p of fundingFrom(money(id).funding!).pacs) expect(Object.keys(p).sort()).toEqual(["amount", "kind", "name"]);
@@ -531,6 +544,10 @@ describe("committee names", () => {
     ["L3HARRIS TECHNOLOGIES, INC. PAC", "L3HARRIS Technologies, Inc. PAC"],
     ["THE AMERICAN OCCUPATIONAL THERAPY ASSOCIATION, INC. POLITICAL ACTION COMMITTEE (AOTPAC)", "The American Occupational Therapy Association, Inc. PAC"],
     ["PERATON CORP. POLITICAL ACTION COMMITTEE (A.K.A. 'PERATON PAC')", "Peraton Corp. PAC"],
+    // A capital after a leading O' or D', and Y as a vowel in a word of three letters or more.
+    ["FRIENDS OF JOHN O'BRIEN", "Friends of John O'Brien"],
+    ["D'AMATO FOR SENATE", "D'Amato for Senate"],
+    ["LYNN FOR CONGRESS", "Lynn for Congress"],
   ])("%s", (raw, want) => {
     expect(committeeName(raw)).toBe(want);
   });

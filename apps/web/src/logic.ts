@@ -104,10 +104,19 @@ export function countText(to: number, p: number, suffix = ""): string {
   return Math.round(to * p).toLocaleString("en-US") + suffix;
 }
 
-/** Campaign money: $17.9M, $4.23M, $885K. Two decimals under $10M, one above. */
+/**
+ * Campaign money: $17.9M, $4.23M, $885K, −$12K. Two decimals under $10M, one above. Rounds before
+ * it picks the unit, so $999,500 is "$1.00M" (not "$1000K") and $9,996,000 is "$10.0M"; the sign
+ * goes before the dollar sign. The app's `MoneyFormat.total` is the same rule.
+ */
 export function formatMoney(x: number): string {
-  if (x >= 1e6) return "$" + (x / 1e6).toFixed(x >= 1e7 ? 1 : 2) + "M";
-  return "$" + Math.round(x / 1000) + "K";
+  const sign = x < 0 ? "−" : "";
+  const a = Math.abs(x);
+  const k = Math.round(a / 1000);
+  if (k < 1000) return sign + "$" + k + "K";
+  const hundredths = Math.round(a / 1e4) / 100;
+  if (hundredths < 10) return sign + "$" + hundredths.toFixed(2) + "M";
+  return sign + "$" + (Math.round(a / 1e5) / 10).toFixed(1) + "M";
 }
 
 /** A PAC check: $10K, $5K, $2.5K, $750. */

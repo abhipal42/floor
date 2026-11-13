@@ -138,6 +138,40 @@ struct FloorAPITests {
         #expect(url.query == "limit=5")
     }
 
+    @Test func asksForTheFundingRouteWithTenCommitteesByDefault() async throws {
+        let body = try fixtureData("funding-J000294")
+        var session = StubURLProtocol.session(always: .response(status: 200, body: body))
+        let money = try await FloorAPI(baseURL: base, session: session).funding(id: "J000294")
+        var url = try #require(StubURLProtocol.lastURL)
+        #expect(url.path == "/v1/members/J000294/funding")
+        #expect(url.query == "committees=10")
+        #expect(money.funding?.committees.count == 10)
+
+        // The API refuses anything outside 0-50, so the client never asks for it.
+        session = StubURLProtocol.session(always: .response(status: 200, body: body))
+        _ = try await FloorAPI(baseURL: base, session: session).funding(id: "J000294", committees: 500)
+        url = try #require(StubURLProtocol.lastURL)
+        #expect(url.query == "committees=50")
+    }
+
+    @Test func decodesAMemberWithNoCampaignFilings() async throws {
+        let session = StubURLProtocol.session(always: .response(status: 200, body: try fixtureData("funding-A000383")))
+        let money = try await FloorAPI(baseURL: base, session: session).funding(id: "A000383")
+        #expect(money.member.lastName == "Armstrong")
+        #expect(money.funding == nil)
+    }
+
+    /// Saved like the member's record, so the Money tab opens offline on what it last showed.
+    @Test func savesTheFundingResponseForOffline() async throws {
+        let cache = try SwiftDataResponseCache.inMemory()
+        let session = StubURLProtocol.session(always: .response(status: 200, body: try fixtureData("funding-C001098")))
+        _ = try await FloorAPI(baseURL: base, session: session, cache: cache).funding(id: "C001098")
+        let keys = await cache.entries().map(\.key)
+        #expect(keys == ["api.example.test/v1/members/C001098/funding?committees=10"])
+        let saved = try #require(FloorAPI(baseURL: base, session: session, cache: cache).savedOnly())
+        #expect(try await saved.api.funding(id: "C001098").funding?.cycle == 2030)
+    }
+
     // MARK: - Decoding real responses
 
     @Test func decodesEveryRouteFromARealResponse() async throws {

@@ -49,7 +49,7 @@ npm run ingest -w @floor/worker -- fec-totals                     # campaign tot
 npm run ingest -w @floor/worker -- fec-pacs 2026                  # committee-to-candidate totals from the FEC bulk files (~30 s)
 npm run openapi -w @floor/api                                    # regenerate apps/api/openapi.json after changing routes
 npm run build -w @floor/web && npm run serve -w @floor/web       # build and serve the landing page from apps/web/dist
-swift test --package-path ios/FloorKit                           # all FloorKit tests (222): models, contract, client, screen models
+swift test --package-path ios/FloorKit                           # all FloorKit tests (248): models, contract, client, screen models
 ```
 
 `apps/api/openapi.json` is the committed contract. Re-run `npm run openapi` after any change to
@@ -352,6 +352,12 @@ Real data broke our first assumptions several times. Each case below is now hand
     `20261113000100_ingest_failed.sql`) and `error` is only for a run that failed as a whole. The
     worker still closes runs on a database without that column, so applying it can follow the
     deploy, but apply it.
+39. **An API change can break the Swift tests without touching `ios/`, and nothing runs them.**
+    v0.2.13 added the `PacCheck`, `Funding` and `MemberFunding` schemas to `openapi.json`;
+    `ContractTests.everySchemaIsModelled` failed from then until v0.2.21. CI's macOS job runs only
+    when a push touches `ios/` or `.github/`, and PRs build nothing, so eight releases went by red
+    and unseen. After any change to `apps/api/src/app.ts`, run `swift test --package-path ios/FloorKit`
+    too, even if no Swift changed.
 
 ---
 
@@ -847,12 +853,59 @@ build differs from the mocks, and why:
 - **Catch-up cards show the recorded result** where the mock had a one-line bill summary, because
   that line would have to be AI-written (M4).
 - **The Bill screen shows the CRS summary**, labelled as CRS, where the AI explainer will go (M4).
-- **Your three has no Record / Money / Portfolio switch** until Money and Portfolio have data
-  (FEC and disclosure ingest; see the landing page section).
+- **Your three's Record / Money / Portfolio switch** landed in v0.2.21; see "The Money segment"
+  below. Portfolio is still a placeholder.
 - **BOSS levels** are marked on House or Senate only when one of the bill's own votes there needed
   60 or two-thirds; Signed is always marked (veto override).
 - **"Winning side" is the outcome, not the larger side** (`sidedWithOutcome`). They differ when a
   majority loses to a threshold — H.J.Res. 1 lost 212–206.
+
+### The Money segment (v0.2.21)
+
+The member screen (Your three, and a member pushed from a vote) has the mock's Record / Money /
+Portfolio switch, built to `AppRepMoney` (round 6, <https://claude.ai/artifact/FKWYDhCej75UPy94csYLsU>).
+Code: `RepScreen/MoneyView.swift` (views), `MoneyModel` in `RepScreenModel.swift`, `Models/Funding.swift`
+(models plus `MoneyFormat`, `FundingDates`, `CommitteeName`), `FloorAPI.funding(id:committees:)`.
+
+- **Data.** `/v1/members/{id}/funding`, loaded the first time Money is shown for a member and saved for
+  offline through `revalidate` like the record (`MoneyModel.needsRefresh`, `SavedDataNote`). A nil
+  `funding` is an answer, not an error: "No campaign filings yet".
+- **Same words as the landing page.** `CommitteeName.display`, `MoneyFormat` and `FundingDates` port
+  `committeeName`, `formatMoney`/`formatPac` and `coverageRange` rule for rule, and `FundingTests` uses
+  the web tests' own expectations on the same five captures (`ModelsTests/Fixtures/funding-*.json`,
+  copied from `apps/web/fixtures`). Change one side, change both.
+- **Where it differs from the mock:** the donor explainer ("✦ FLOOR EXPLAINS · AI") is a labelled
+  "not loaded yet" card and PAC rows are not tappable, because donor context needs LDA filings and the
+  M4 label-and-cite pipeline; the PAC list has a heading and names its FEC cycle (lesson 33) and a
+  footnote says totals and the list won't add up (lesson 24); the period reads "2026 campaign" as the
+  landing page does, not "2026 cycle"; no "NEW DATA" banner on Money (the data exists now); no back
+  chevron (the switch is the way back). The header is the compact one from the Money mock in place of
+  the player card; on Record the switch sits under the card, as in `AppRep`.
+- **Portfolio** shows the mock's dashed "not loaded yet" box and a line on what it will show
+  (ranges, never net worth). No disclosure ingest exists; that is v0.3.0 item 6.
+- **Colours.** New tokens `teal` and `dim` (bar fills) and `ai` (text, so in `Tones.textTokens` and
+  contrast-tested). The fills are `Tones.moneyBar`, and `PaletteTests` holds each pair of
+  neighbours at 1.5:1 and each fill at 3:1 against the empty track, light and dark. That is why they
+  are darker than the mock's: its teal `#2DD4BF` read 1.2:1 beside the small-dollar green, and its
+  grey `#6B7280` 2.8:1 on the track. The landing page still uses the mock's colours.
+- **A negative remainder.** "Transfers & other" is party money plus `other`, and the worker computes
+  `other` as receipts minus every other part (`toFinanceRow` in `apps/worker/src/fec.ts`), so refunds
+  and adjustments can make it negative. The app (`Funding.shown`, `shareBase`, `adjustmentNote`) and
+  the landing page (`fundingFrom`'s `shareBase`, `adjustNote`) both draw it as 0 in the bar and the
+  legend, take the shares of the parts drawn so they still add to 100%, and say under the legend that
+  it includes refunds/adjustments. None of the five captured members is negative.
+- **Money in words.** `MoneyFormat.total` and the web's `formatMoney` round before they pick the
+  unit ($999,500 is "$1.00M") and put the sign first ("−$12K"). `MoneyFormat.spoken` is what
+  VoiceOver hears: "17.9 million dollars".
+- **Candidate committees.** A committee whose FEC type is H, S or P is another candidate's own
+  campaign ("SMITH FOR CONGRESS"). It names a politician, not an individual donor, so it is listed,
+  with the kind "Candidate committee" (API `pacKind`, from the stored `committee_type`; no re-ingest).
+- **Dynamic Type.** Body text uses text styles; at accessibility sizes the totals stack, the legend
+  goes to one column and each PAC row puts the name on its own line. VoiceOver reads the totals as one
+  sentence, each legend item with its share and amount, and each PAC as name, kind, whole dollars.
+- **State that outlives a view.** The section lives on `YourThreeModel` (it survives switching member)
+  and the picked grid square on `RepScreenModel.selectedCall` (it survives a trip to Money, which
+  rebuilds the record view).
 
 ### Light mode on the landing page (v0.2.17)
 

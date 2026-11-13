@@ -26,11 +26,24 @@ public final class RepScreenModel {
     private let bioguideId: String
     private let api: FloorAPI
     private let limit: Int
+    /// The Money segment, loaded only when it is first shown.
+    public let money: MoneyModel
+    /// The grid square picked on the record, oldest-first index; nil for the latest. Kept here
+    /// rather than in the view, so going to Money and back does not lose your place.
+    public var selectedCall: Int?
 
     public init(bioguideId: String, api: FloorAPI, limit: Int = 40) {
         self.bioguideId = bioguideId
         self.api = api
         self.limit = limit
+        money = MoneyModel(bioguideId: bioguideId, api: api)
+    }
+
+    /// Who this is, from whichever of the record or the money has loaded.
+    public var member: Member? {
+        if case let .loaded(record) = phase { return record.detail.member }
+        if case let .loaded(funding) = money.phase { return funding.member }
+        return nil
     }
 
     /// True until a load has finished with everything fresh — including one that was cancelled
@@ -64,6 +77,70 @@ public final class RepScreenModel {
             guard mine == generation else { return }
             saved = nil
             phase = .failed((error as? FloorAPIError)?.errorDescription ?? "Couldn't load this member.")
+        }
+    }
+}
+
+/// The member screen's switch, as the AppRep and AppRepMoney mocks draw it.
+public enum MemberSection: String, CaseIterable, Sendable, Identifiable {
+    case record = "Record"
+    case money = "Money"
+    /// Financial disclosures. No data and no API yet (the v0.3.0 milestone), so the segment shows
+    /// a visible placeholder rather than anything that looks like figures.
+    case portfolio = "Portfolio"
+
+    public var id: String { rawValue }
+}
+
+/// A member's campaign money: `/v1/members/{id}/funding`, saved for offline like their record.
+@MainActor
+@Observable
+public final class MoneyModel {
+    public enum Phase: Equatable {
+        case loading
+        /// `funding` inside may be nil: the FEC has no current-campaign totals for them.
+        case loaded(MemberFunding)
+        case failed(String)
+    }
+
+    public private(set) var phase: Phase = .loading
+    /// Set while what is on screen is saved rather than fresh; see `revalidate`.
+    public private(set) var saved: SavedCopy?
+    private var generation = 0
+
+    private let bioguideId: String
+    private let api: FloorAPI
+
+    public init(bioguideId: String, api: FloorAPI) {
+        self.bioguideId = bioguideId
+        self.api = api
+    }
+
+    /// True until a load has finished with everything fresh, as on the record.
+    public var needsRefresh: Bool {
+        if case .loaded = phase { return saved != nil }
+        return true
+    }
+
+    public func load() async {
+        generation += 1
+        let mine = generation
+        if case .loaded = phase {} else {
+            phase = .loading
+            saved = nil
+        }
+        do {
+            try await revalidate(api, report: { if mine == generation { saved = $0 } }) { [bioguideId] pass in
+                let funding = try await pass.api.funding(id: bioguideId)
+                guard mine == generation else { throw CancellationError() }
+                phase = .loaded(funding)
+            }
+        } catch is CancellationError {
+            // Overtaken or cancelled: `needsRefresh` still holds.
+        } catch {
+            guard mine == generation else { return }
+            saved = nil
+            phase = .failed((error as? FloorAPIError)?.errorDescription ?? "Couldn't load the FEC figures.")
         }
     }
 }
@@ -113,6 +190,8 @@ public extension MemberVote {
 public final class YourThreeModel {
     public let members: [Member]
     public var selectedId: String
+    /// Record, Money or Portfolio. Kept when switching member, so you can compare their money.
+    public var section: MemberSection = .record
     /// One per member, built once so switching back does not reload.
     public let records: [String: RepScreenModel]
 

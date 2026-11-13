@@ -50,6 +50,9 @@ struct ContractTests {
             "MemberPosition": fields(MemberPosition.sample),
             "PartyLoyalty": fields(PartyLoyalty.sample),
             "MemberDetail": fields(MemberDetail.sample),
+            "PacCheck": fields(PacCheck.sample),
+            "Funding": fields(Funding.sample),
+            "MemberFunding": fields(MemberFunding.sample),
             "MemberVote": fields(MemberVote.sample),
             "MeasureSummary": fields(MeasureSummary.sample),
             "District": fields(District.sample),
@@ -72,7 +75,7 @@ struct ContractTests {
 
     @Test(arguments: [
         "Member", "VoteTotals", "Candidate", "Vote", "VoteDetail", "PartyTotals", "CandidateTotal",
-        "MemberPosition", "PartyLoyalty", "MemberDetail", "MemberVote", "MeasureSummary", "District",
+        "MemberPosition", "PartyLoyalty", "MemberDetail", "PacCheck", "Funding", "MemberFunding", "MemberVote", "MeasureSummary", "District",
         "Reps", "LatestAction", "CboEstimate", "BillAction", "Bill", "Nomination", "SourceStatus", "Error",
     ])
     func modelFieldsMatchItsSchema(name: String) throws {

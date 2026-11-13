@@ -1,0 +1,116 @@
+{
+    "member": {
+        "bioguideId": "D000399",
+        "firstName": "Lloyd",
+        "lastName": "Doggett",
+        "party": "D",
+        "state": "TX",
+        "district": 37,
+        "chamber": "house"
+    },
+    "funding": {
+        "cycle": 2026,
+        "coverageStart": "2025-01-01",
+        "coverageEnd": "2026-09-30",
+        "receipts": 471289.18,
+        "smallDollar": 13128.34,
+        "itemized": 63345,
+        "pac": 150228.75,
+        "party": 0,
+        "other": 244587.09,
+        "cashOnHand": 6305298.44,
+        "committeesCycle": 2026,
+        "committees": [
+            {
+                "committeeId": "C00002469",
+                "name": "MACHINISTS NON PARTISAN POLITICAL LEAGUE OF THE INTERNATIONAL ASSOCIATION OF MACHINISTS & AEROSPACE WORKERS",
+                "kind": "Union",
+                "orgType": "L",
+                "connectedOrg": "INTERNATIONAL ASSOCIATION OF MACHINISTS AND AEROSPACE WORKERS",
+                "direct": 5000,
+                "earmarked": 0
+            },
+            {
+                "committeeId": "C00007542",
+                "name": "INTERNATIONAL ASSOCIATION OF SHEET METAL, AIR, RAIL AND TRANSPORTATION WORKERS POLITICAL ACTION LEAGUE",
+                "kind": "Union",
+                "orgType": "L",
+                "connectedOrg": "INTERNATIONAL ASSOCIATION OF SHEET METAL, AIR, RAIL AND TRANSPORTATION WORKERS",
+                "direct": 5000,
+                "earmarked": 0
+            },
+            {
+                "committeeId": "C00007880",
+                "name": "AMERICA'S CREDIT UNIONS PAC",
+                "kind": "Trade group",
+                "orgType": "T",
+                "connectedOrg": "AMERICA'S CREDIT UNIONS",
+                "direct": 5000,
+                "earmarked": 0
+            },
+            {
+                "committeeId": "C00011114",
+                "name": "AMERICAN FEDERATION OF STATE COUNTY & MUNICIPAL EMPLOYEES  P E O P L E",
+                "kind": "Union",
+                "orgType": "L",
+                "connectedOrg": "AMERICAN FEDERATION OF STATE, COUNTY AND MUNICIPAL EMPLOYEES, AFL-CIO",
+                "direct": 5000,
+                "earmarked": 0
+            },
+            {
+                "committeeId": "C00027342",
+                "name": "INTERNATIONAL BROTHERHOOD OF ELECTRICAL WORKERS POLITICAL ACTION COMMITTEE",
+                "kind": "Union",
+                "orgType": "L",
+                "connectedOrg": "INTERNATIONAL BROTHERHOOD OF ELECTRICAL WORKERS",
+                "direct": 5000,
+                "earmarked": 0
+            },
+            {
+                "committeeId": "C00028860",
+                "name": "AMERICAN FEDERATION OF TEACHERS, AFL-CIO COMMITTEE ON POLITICAL EDUCATION",
+                "kind": "Union",
+                "orgType": "L",
+                "connectedOrg": null,
+                "direct": 5000,
+                "earmarked": 0
+            },
+            {
+                "committeeId": "C00089086",
+                "name": "THE AMERICAN OCCUPATIONAL THERAPY ASSOCIATION, INC. POLITICAL ACTION COMMITTEE (AOTPAC)",
+                "kind": "Membership group",
+                "orgType": "M",
+                "connectedOrg": null,
+                "direct": 5000,
+                "earmarked": 0
+            },
+            {
+                "committeeId": "C00144766",
+                "name": "NATIONAL BEER WHOLESALERS ASSOCIATION POLITICAL ACTION COMMITTEE",
+                "kind": "Trade group",
+                "orgType": "T",
+                "connectedOrg": "NATIONAL BEER WHOLESALERS ASSOCIATION",
+                "direct": 5000,
+                "earmarked": 0
+            },
+            {
+                "committeeId": "C00303339",
+                "name": "NATIONAL ASSOCIATION OF REAL ESTATE INVESTMENT TRUSTS, INC. POLITICAL ACTION COMMITTEE",
+                "kind": "Trade group",
+                "orgType": "T",
+                "connectedOrg": "NATIONAL ASSOCIATION OF REAL ESTATE INVESTMENT TRUSTS, INC.",
+                "direct": 5000,
+                "earmarked": 0
+            },
+            {
+                "committeeId": "C00342907",
+                "name": "MIDWEST REGION LABORERS' POLITICAL LEAGUE",
+                "kind": "Union",
+                "orgType": "L",
+                "connectedOrg": "LABORERS' INTERNATIONAL UNION, MIDWEST REGION",
+                "direct": 5000,
+                "earmarked": 0
+            }
+        ]
+    }
+}

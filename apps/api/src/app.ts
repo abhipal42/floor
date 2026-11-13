@@ -165,7 +165,7 @@ export const PacCheckSchema = z
     kind: z
       .string()
       .nullable()
-      .openapi({ example: "Trade group", description: "From FEC's organization type; null when FEC classifies the committee as nothing" }),
+      .openapi({ example: "Trade group", description: "From FEC's committee type for another candidate's own committee ('Candidate committee'), else its organization type or leadership-PAC designation; null when FEC classifies the committee as nothing" }),
     orgType: z.string().nullable().openapi({ example: "T", description: "Raw FEC ORG_TP, so a client can classify differently" }),
     connectedOrg: z.string().nullable().openapi({ example: "American Trucking Associations" }),
     direct: z.number().openapi({ description: "The committee's own contributions" }),

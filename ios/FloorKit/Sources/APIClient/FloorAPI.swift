@@ -129,6 +129,18 @@ public struct FloorAPI: Sendable {
         )
     }
 
+    /// What a member's current campaign reported receiving, and the committees that reported giving
+    /// to it, biggest direct giver first. `funding` is nil for a member FEC has no current totals for.
+    /// Saved for offline like the member's record.
+    ///
+    /// - Parameter committees: how many giving committees to return, 0–50; the API's default is 10.
+    public func funding(id: String, committees: Int = 10) async throws -> MemberFunding {
+        try await get(
+            "/v1/members/\(escaped(id))/funding",
+            query: [URLQueryItem(name: "committees", value: String(min(max(committees, 0), 50)))]
+        )
+    }
+
     public func bill(id: String) async throws -> Bill {
         try await get("/v1/bills/\(escaped(id))")
     }

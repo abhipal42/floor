@@ -84,6 +84,21 @@ public enum Tones {
     public static let warningBorder = Swatch(light: 0xE2B48E, dark: 0x5A3A1E)
     public static let textFaint = Swatch(light: 0x636E69, dark: 0x858B95)
 
+    // From the AppRepMoney mock (the member's Money segment). `teal` and `dim` are bar fills, not
+    // text. They are darker than the mock's #2DD4BF and #6B7280: the mock's teal sat at 1.2:1
+    // against the small-dollar green beside it, and its grey under 3:1 on the empty track, so
+    // neighbouring parts blurred into one. `PaletteTests` holds every pair in ``moneyBar``.
+    // `ai` is the label colour of anything Floor writes with a model, and is text, so it is
+    // contrast-tested.
+    public static let teal = Swatch(light: 0x0B4A45, dark: 0x0F9488)
+    public static let dim = Swatch(light: 0x3F4945, dark: 0x858B95)
+    public static let ai = Swatch(light: 0x5B3FB5, dark: 0xC4B5FD)
+
+    /// The Money bar's four fills, left to right: small-dollar, larger gifts, PACs, transfers and
+    /// other. Each must read at 1.5:1 against its neighbour and 3:1 against the empty track
+    /// (`panelBorder`), in both appearances.
+    public static let moneyBar: [Swatch] = [yea, teal, threshold, dim]
+
     // Party
     public static func party(_ party: String) -> Swatch {
         switch party {
@@ -105,7 +120,7 @@ public enum Tones {
     public static let textTokens: [(name: String, swatch: Swatch)] = [
         ("text", text), ("textSecondary", textSecondary), ("textMuted", textMuted), ("textFaint", textFaint),
         ("yea", yea), ("nay", nay), ("liveText", liveText), ("scheduled", scheduled),
-        ("accent", accent), ("threshold", threshold),
+        ("accent", accent), ("threshold", threshold), ("ai", ai),
         ("party D", party("D")), ("party R", party("R")), ("party I", party("I")),
     ]
 }
@@ -176,6 +191,14 @@ public enum Palette {
     public static let warningBorder = Color(Tones.warningBorder)
     /// The faintest text: the privacy line under onboarding's button.
     public static let textFaint = Color(Tones.textFaint)
+
+    // The Money segment's bar: small-dollar is ``yea``, PACs ``threshold``, and these two the rest.
+    /// Larger, itemized individual gifts.
+    public static let teal = Color(Tones.teal)
+    /// Transfers, party money and other receipts.
+    public static let dim = Color(Tones.dim)
+    /// The "✦ FLOOR EXPLAINS · AI" label and the border of a card a model wrote.
+    public static let ai = Color(Tones.ai)
 
     // Lit displays: the same in both appearances.
     /// The split-flap board: its frame, and the top and bottom halves of each cell.

@@ -1355,7 +1355,12 @@ function money(): (mode: MoneyMode) => void {
   const grow = () => all("[data-grow]", panel).forEach((s) => (s.style.flexGrow = s.dataset.grow ?? "1"));
 
   const figures = (f: FundView) => {
-    const segs = SEGS.map((s) => ({ ...s, v: f[s.key], note: s.note(f.otherNote), pct: f.total > 0 ? pct(f[s.key], f.total) : "—" }));
+    // Bar and legend both draw a part as at least 0, with shares of the parts drawn (`shareBase`).
+    const base = f.shareBase ?? f.total;
+    const segs = SEGS.map((s) => {
+      const v = Math.max(0, f[s.key]);
+      return { ...s, v, note: s.note(f.otherNote), pct: base > 0 ? pct(v, base) : "—" };
+    });
     return (
       '<div class="fund card">' +
       '<div class="fund__top"><span class="fund__total"><span class="fine">' + esc(f.period) + '</span><span class="fund__big num">' + formatMoney(f.total) +
@@ -1371,7 +1376,9 @@ function money(): (mode: MoneyMode) => void {
             '</small></span><span class="fund__amt num">' + formatMoney(s.v) + '</span><span class="fund__pct num">' + s.pct + "</span></div>",
         )
         .join("") +
-      "</div></div>" +
+      "</div>" +
+      (f.adjustNote ? '<p class="fine">' + esc(f.adjustNote) + "</p>" : "") +
+      "</div>" +
       '<div class="pacs card"><div class="pacs__head"><h3 class="h4">Biggest PAC checks</h3><span class="fine">' + esc(f.pacsNote) + "</span></div>" +
       (f.pacs.length
         ? '<div class="pacs__list">' +

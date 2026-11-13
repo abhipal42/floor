@@ -114,6 +114,8 @@ beforeAll(async () => {
       -- the other is nothing at all and must come back without a label.
       ('H000011', 2026, 'C00000007', 'A Leadership PAC',   'D', 'Q', null, null,                     5000, 0),
       ('H000011', 2026, 'C00000008', 'Unclassified PAC',   'U', 'Q', null, null,                     1000, 0),
+      -- Another candidate's own campaign committee (CMTE_TP H): labelled as such, not as a PAC.
+      ('H000011', 2026, 'C00000010', 'SMITH FOR CONGRESS', 'P', 'H', null, null,                     2000, 0),
       ('S000001', 2026, 'C00000009', 'Senate Giver PAC',   'U', 'Q', 'T',  'Some Trade Group',      9000, 0);
     -- Five Democrats vote each time, so the bloc is big enough for a majority to mean something.
     -- Hand-checkable majorities for H000037 (D):
@@ -437,7 +439,12 @@ describe("Postgres repositories", () => {
       const kinds = Object.fromEntries(f!.committees.map((c) => [c.name, c.kind]));
       expect(kinds).toEqual({ "Big Trade PAC": "Trade group", "Midsize Union PAC": "Union", "Small Company PAC": "Company" });
       // An unclassified committee is shown without a label rather than guessed into a category.
-      expect((await repos.members.funding("H000011", 10))!.committees.map((c) => c.kind)).toEqual(["Leadership PAC", null]);
+      // A candidate's committee is labelled from its committee type, which FEC fills where ORG_TP is empty.
+      expect((await repos.members.funding("H000011", 10))!.committees.map((c) => c.kind)).toEqual([
+        "Leadership PAC",
+        "Candidate committee",
+        null,
+      ]);
     });
 
     it("caps the list at the limit it was given", async () => {

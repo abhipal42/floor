@@ -2,7 +2,7 @@
 // the pure mapping from the API's responses (apps/api/openapi.json: Reps, MemberDetail, MemberVote)
 // to what the strip and the scouting report show. No DOM, no fetch, so all of it runs in Node.
 
-import { winningSide, type CellPos } from "./logic.js";
+import { formatMoney, winningSide, type CellPos } from "./logic.js";
 
 // ---------------------------------------------------------------- API shapes (subset of openapi.json)
 
@@ -718,11 +718,15 @@ const SMALL = new Set(["of", "and", "the", "for", "on", "in", "to", "a", "an", "
 function casePart(part: string, first: boolean, keep: Set<string>): string {
   const bare = part.replace(/[^A-Za-z0-9&]/g, "");
   const upper = bare.toUpperCase();
-  if (ACRONYMS.has(upper) || keep.has(upper) || /\d/.test(bare) || (bare.length > 3 && upper.endsWith("PAC")) || (bare.length > 1 && !/[AEIOU]/i.test(bare)))
+  // Y is a vowel in a word of three letters or more (BYRD, LYNN).
+  const vowel = bare.length >= 3 ? /[AEIOUY]/i : /[AEIOU]/i;
+  if (ACRONYMS.has(upper) || keep.has(upper) || /\d/.test(bare) || (bare.length > 3 && upper.endsWith("PAC")) || (bare.length > 1 && !vowel.test(bare)))
     return part.toUpperCase();
   const lower = part.toLowerCase();
   if (!first && SMALL.has(lower)) return lower;
-  return lower.replace(/[a-z]/, (c) => c.toUpperCase());
+  // O'BRIEN, D'AMATO: the letter after a leading O' or D' is a capital too. The app's
+  // `CommitteeName.casePart` is the same rule.
+  return lower.replace(/[a-z]/, (c) => c.toUpperCase()).replace(/^([OD]['’])([a-z])/, (_m, p: string, c: string) => p + c.toUpperCase());
 }
 
 /**
@@ -774,6 +778,10 @@ export interface FundView {
   pac: number;
   other: number;
   otherNote: string;
+  /** What the shares are of: the parts as drawn. Absent (the sample) means `total`. */
+  shareBase?: number;
+  /** Shown under the figures when "Transfers & other" came to less than nothing. */
+  adjustNote?: string | null;
   pacs: { name: string; kind: string | null; amount: number }[];
   /** Above the PAC list: what period it covers and what a check can be. */
   pacsNote: string;
@@ -786,6 +794,12 @@ export const PAC_LIMIT_NOTE = "A PAC can give $5,000 per election — primary an
 export function fundingFrom(f: ApiFunding): FundView {
   const range = coverageRange(f.coverageStart, f.coverageEnd);
   const years = f.committeesCycle ? cycleYears(f.committeesCycle) : null;
+  // The worker computes `other` as receipts minus the rest (apps/worker/src/fec.ts), so refunds and
+  // adjustments can push it below zero. The bar and the legend both draw it as 0, the shares are of
+  // the parts drawn, and a note says why. The app does the same (`Funding.shown`).
+  const rawOther = f.party + f.other;
+  const other = Math.max(0, rawOther);
+  const pos = (n: number) => Math.max(0, n);
   return {
     period: f.cycle + " campaign" + (range ? " · " + range : ""),
     total: f.receipts,
@@ -795,7 +809,12 @@ export function fundingFrom(f: ApiFunding): FundView {
     itemized: f.itemized,
     pac: f.pac,
     // The bar has four parts; party money is rarely more than a sliver, so it rides with transfers.
-    other: f.party + f.other,
+    other,
+    shareBase: pos(f.smallDollar) + pos(f.itemized) + pos(f.pac) + other,
+    adjustNote:
+      rawOther < 0
+        ? "Transfers & other came to " + formatMoney(rawOther) + ": it includes refunds/adjustments, so it shows as 0 and the shares are of the other three."
+        : null,
     otherNote: f.party > 0 ? "transfers, party money, refunds and the candidate's own money" : "transfers, refunds and the candidate's own money",
     pacs: f.committees
       .filter((c) => c.direct > 0)
