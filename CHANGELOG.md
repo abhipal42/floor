@@ -8,6 +8,16 @@ is a milestone and ships a retro under `docs/retros/`.
 Older series live in [`docs/changelog/`](docs/changelog) (0.1.x: [`0.1.md`](docs/changelog/0.1.md)).
 Before 0.1.0 the history is the commit log on `main`.
 
+## 0.2.1 — 2026-11-12
+
+### Changed
+
+- **The landing page is deployed:** <https://floor-web-seven.vercel.app> (Vercel project `floor-web`,
+  team Abtanix Labs, linked to `abhipal42/floor`, so merges into `main` redeploy it). `docs/HANDOFF.md`
+  said it was unhosted and guessed at the settings; it now records the ones that work. The root
+  directory is the repo root rather than `apps/web`, because the build script resolves `tsc` from the
+  root `node_modules`, and the note about CORS now says the page makes no requests today.
+
 ## 0.2.0 — 2026-11-12
 
 The web landing page. Retro: [`docs/retros/0.2.0-landing-page.md`](docs/retros/0.2.0-landing-page.md).
