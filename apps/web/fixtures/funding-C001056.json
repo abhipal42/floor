@@ -1,0 +1,116 @@
+{
+    "member": {
+        "bioguideId": "C001056",
+        "firstName": "John",
+        "lastName": "Cornyn",
+        "party": "R",
+        "state": "TX",
+        "district": null,
+        "chamber": "senate"
+    },
+    "funding": {
+        "cycle": 2026,
+        "coverageStart": "2021-01-01",
+        "coverageEnd": "2026-10-14",
+        "receipts": 14265889.69,
+        "smallDollar": 593964.52,
+        "itemized": 5826411.45,
+        "pac": 2474304.41,
+        "party": 62000,
+        "other": 5309209.31,
+        "cashOnHand": 496092.37,
+        "committeesCycle": 2026,
+        "committees": [
+            {
+                "committeeId": "C00214981",
+                "name": "TEXAS FARM BUREAU AGFUND",
+                "kind": "Membership group",
+                "orgType": "M",
+                "connectedOrg": "TEXAS FARM BUREAU",
+                "direct": 19238,
+                "earmarked": 0
+            },
+            {
+                "committeeId": "C00004275",
+                "name": "AMERICAN BANKERS ASSOCIATION PAC (BANKPAC)",
+                "kind": "Trade group",
+                "orgType": "T",
+                "connectedOrg": "AMERICAN BANKERS ASSOCIATION (ABA)",
+                "direct": 15000,
+                "earmarked": 0
+            },
+            {
+                "committeeId": "C00107235",
+                "name": "PRICEWATERHOUSECOOPERS POLITICAL ACTION COMMITTEE I",
+                "kind": "Company",
+                "orgType": "C",
+                "connectedOrg": "NONE",
+                "direct": 15000,
+                "earmarked": 0
+            },
+            {
+                "committeeId": "C00112896",
+                "name": "CONOCOPHILLIPS SPIRIT PAC",
+                "kind": "Company",
+                "orgType": "C",
+                "connectedOrg": "CONOCOPHILLIPS",
+                "direct": 15000,
+                "earmarked": 0
+            },
+            {
+                "committeeId": "C00326595",
+                "name": "CAPITAL ONE FINANCIAL CORP. ASSOC. POLITICAL FUND",
+                "kind": "Company",
+                "orgType": "C",
+                "connectedOrg": "CAPITAL ONE FINANCIAL CORP.",
+                "direct": 15000,
+                "earmarked": 0
+            },
+            {
+                "committeeId": "C00379479",
+                "name": "THE HAWKEYE PAC",
+                "kind": "Leadership PAC",
+                "orgType": null,
+                "connectedOrg": "GOLDFINCH PAC",
+                "direct": 15000,
+                "earmarked": 0
+            },
+            {
+                "committeeId": "C00438291",
+                "name": "DENALI LEADERSHIP PAC",
+                "kind": "Leadership PAC",
+                "orgType": null,
+                "connectedOrg": "MURKOWSKI",
+                "direct": 15000,
+                "earmarked": 0
+            },
+            {
+                "committeeId": "C00495887",
+                "name": "TOMORROW IS MEANINGFUL PAC",
+                "kind": "Leadership PAC",
+                "orgType": null,
+                "connectedOrg": "SCOTT",
+                "direct": 15000,
+                "earmarked": 0
+            },
+            {
+                "committeeId": "C00303024",
+                "name": "LOCKHEED MARTIN CORPORATION EMPLOYEES' POLITICAL ACTION COMMITTEE",
+                "kind": "Company",
+                "orgType": "C",
+                "connectedOrg": "LOCKHEED MARTIN CORPORATION",
+                "direct": 14000,
+                "earmarked": 0
+            },
+            {
+                "committeeId": "C00007880",
+                "name": "AMERICA'S CREDIT UNIONS PAC",
+                "kind": "Trade group",
+                "orgType": "T",
+                "connectedOrg": "AMERICA'S CREDIT UNIONS",
+                "direct": 12500,
+                "earmarked": 0
+            }
+        ]
+    }
+}

@@ -8,6 +8,29 @@ is a milestone and ships a retro under `docs/retros/`.
 Older series live in [`docs/changelog/`](docs/changelog) (0.1.x: [`0.1.md`](docs/changelog/0.1.md)).
 Before 0.1.0 the history is the commit log on `main`.
 
+## 0.2.19 — 2026-11-13
+
+"Who funds them" shows your members' campaign money, not New York's.
+
+### Added
+- **Live funding for your members.** Once the page finds your district, the money section loads
+  `/v1/members/{id}/funding` for each of your members: totals, cash on hand, the four-part bar and
+  the ten biggest PAC checks. Each member loads on its own; one that fails gets **Try again**.
+- **No filings yet.** A member FEC has no current-campaign totals for (an appointed senator, or one
+  who hasn't filed) gets a card saying so instead of a blank.
+- `fundingFrom`, `committeeName`, `coverageRange` in `locate.ts`, tested against real `/funding`
+  responses for Jeffries, Doggett, Cornyn, Cruz and Armstrong (`apps/web/fixtures/funding-*.json`).
+  FEC's all-capitals committee names are title-cased, with nicknames in parentheses dropped and
+  initialisms kept.
+- The local API (`npm run dev -w @floor/api`) reads `ALLOWED_ORIGINS`, defaulting to the local web
+  server, so a page built with `FLOOR_API_BASE=http://localhost:8787` can call it.
+
+### Changed
+- The New York flag in the money section now sits on the donor explainer only, the one part still
+  written for the sample.
+- PAC amounts round to a tenth of a thousand (`$2.5K`), and under $1,000 read in dollars (`$750`).
+  Party money rides in "Transfers & other", whose note says so.
+
 ## 0.2.18 — 2026-11-13
 
 The landing page has a light theme and a switch for it.

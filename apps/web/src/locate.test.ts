@@ -8,6 +8,12 @@ import {
   STORE_KEY,
   addressOk,
   canCancel,
+  committeeName,
+  coverageRange,
+  cycleYears,
+  fundingFrom,
+  fundingUrl,
+  noFundingCopy,
   congressOn,
   districtLabel,
   foundFrom,
@@ -37,6 +43,7 @@ import {
   shortDate,
   shortQuestion,
   stripView,
+  type ApiMemberFunding,
   type ApiMemberVote,
   type ApiReps,
   type LocEvent,
@@ -459,5 +466,80 @@ describe("remembering a district", () => {
     expect(parseFound('{"label":"x","congress":119,"members":[]}', 119)).toBeNull();
     expect(parseFound('{"label":"x","congress":119,"members":[{"bioguideId":"<img>","firstName":"a","lastName":"b","party":"D","state":"TX","district":1,"chamber":"house"}]}', 119)).toBeNull();
     expect(parseFound(serializeFound(foundFrom(dc)), 119)?.members[0]?.bioguideId).toBe("N000147");
+  });
+});
+
+describe("campaign money (real /funding responses, captured 2026-11-13)", () => {
+  const money = (id: string): ApiMemberFunding => fixture("funding-" + id + ".json");
+
+  it("asks for the ten biggest PAC checks", () => {
+    expect(fundingUrl("https://x.test", "C001098")).toBe("https://x.test/v1/members/C001098/funding?committees=10");
+  });
+
+  it("matches the landing page's Jeffries figures to the dollar", () => {
+    const v = fundingFrom(money("J000294").funding!);
+    expect(v).toMatchObject({
+      period: "2026 campaign · Jan 2025 – Oct 14, 2026",
+      cashAsOf: "as of Oct 14, 2026",
+      pac: 2765400,
+    });
+    expect(Math.round(v.total)).toBe(17893352);
+    expect(Math.round(v.small)).toBe(8147893);
+    expect(v.small + v.itemized + v.pac + v.other).toBeCloseTo(v.total, 2);
+  });
+
+  it("covers a senator's whole campaign, and dates the PAC list by its own FEC cycle", () => {
+    const v = fundingFrom(money("C001098").funding!);
+    expect(v.period).toBe("2030 campaign · Jan 2025 – Sep 30, 2026");
+    expect(v.pacsNote.startsWith("Each PAC's own checks, from its 2025–26 filings.")).toBe(true);
+    expect(v.pacs).toHaveLength(10);
+    expect(v.pacs[0]).toEqual({ name: "Motorola Solutions, Inc. PAC", kind: "Company", amount: 10000 });
+  });
+
+  it("every member's parts add up to what they raised", () => {
+    for (const id of ["J000294", "D000399", "C001056", "C001098"]) {
+      const v = fundingFrom(money(id).funding!);
+      expect(v.small + v.itemized + v.pac + v.other, id).toBeCloseTo(v.total, 2);
+      expect(v.pacs.every((p) => p.amount > 0), id).toBe(true);
+    }
+  });
+
+  it("says why there is nothing for an appointed senator with no campaign", () => {
+    const body = money("A000383");
+    expect(body.funding).toBeNull();
+    expect(noFundingCopy(body.member)).toEqual({
+      title: "No campaign filings yet",
+      body: expect.stringContaining("Alan Armstrong has no totals at the FEC for a current campaign"),
+    });
+  });
+
+  it("lists nobody but committees", () => {
+    for (const id of ["J000294", "D000399", "C001056", "C001098"]) {
+      for (const p of fundingFrom(money(id).funding!).pacs) expect(Object.keys(p).sort()).toEqual(["amount", "kind", "name"]);
+    }
+  });
+});
+
+describe("committee names", () => {
+  it.each([
+    ["MOTOROLA SOLUTIONS, INC. POLITICAL ACTION COMMITTEE", "Motorola Solutions, Inc. PAC"],
+    ["EXXON MOBIL CORPORATION POLITICAL ACTION COMMITTEE (EXXONMOBIL PAC)", "Exxon Mobil Corporation PAC"],
+    ["AMERICAN FEDERATION OF STATE COUNTY & MUNICIPAL EMPLOYEES  P E O P L E", "American Federation of State County & Municipal Employees PEOPLE"],
+    ["AMERICAN FEDERATION OF TEACHERS, AFL-CIO COMMITTEE ON POLITICAL EDUCATION", "American Federation of Teachers, AFL-CIO Committee on Political Education"],
+    ["SOUTHERN GLAZER'S WINE AND SPIRITS PAC", "Southern Glazer's Wine and Spirits PAC"],
+    ["TRANSPORTATION INTERMEDIARIES ASSOCIATION'S TIAPAC", "Transportation Intermediaries Association's TIAPAC"],
+    ["L3HARRIS TECHNOLOGIES, INC. PAC", "L3HARRIS Technologies, Inc. PAC"],
+    ["THE AMERICAN OCCUPATIONAL THERAPY ASSOCIATION, INC. POLITICAL ACTION COMMITTEE (AOTPAC)", "The American Occupational Therapy Association, Inc. PAC"],
+    ["PERATON CORP. POLITICAL ACTION COMMITTEE (A.K.A. 'PERATON PAC')", "Peraton Corp. PAC"],
+  ])("%s", (raw, want) => {
+    expect(committeeName(raw)).toBe(want);
+  });
+});
+
+describe("dates", () => {
+  it("reads FEC dates without sliding a day west of UTC", () => {
+    expect(coverageRange("2021-01-01", "2026-10-14")).toBe("Jan 2021 – Oct 14, 2026");
+    expect(coverageRange(null, "2026-09-30")).toBe("Sep 30, 2026");
+    expect(cycleYears(2026)).toBe("2025–26");
   });
 });

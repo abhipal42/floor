@@ -732,7 +732,7 @@ shows the step with a **Skip** button.
 | 03 Explained | the first bill's points, each lighting its source paragraph; only the current point opens | bill tabs stay manual |
 | 04 Your reps | your three members; the "Make it your three" bar sits under the report | — |
 | 05 Players | one: the card fan holds, then the leaderboard scrolls up below it | the leaderboard |
-| 06 Money | your three members' funding | the donor explainer |
+| 06 Money | your three members' funding (live from `/funding` once you're located, since v0.2.19) | the donor explainer |
 
 07 Portfolio and 08 Live are deliberately not pinned (another three-member bounce straight after
 Money, and a phone that already animates). A section pins only when the window is at least 900px
@@ -851,8 +851,13 @@ steps ship as 0.2.x PATCH releases; 0.3.0 closes the milestone with its retro.
    hand) and `pac_contributions` (every committee's direct and earmarked totals per member from the
    2026 bulk file, with FEC's organization type for the "kind"). **The API route landed in 0.2.13:**
    `/v1/members/{id}/funding`, which keeps the two FEC sources apart (lesson 24) and excludes party
-   and joint fundraising committees (lesson 23). Still to do: **the page section**, which reads the
-   live route for your members instead of the `funding` snapshot in `apps/web/src/data.ts`.
+   and joint fundraising committees (lesson 23). **The page section landed in 0.2.19:** "Who
+   funds them" loads the route for each member found by location (`fundingFrom` and `committeeName`
+   in `apps/web/src/locate.ts`), with a "no campaign filings yet" card for the 25 members FEC has no
+   current totals for, and a per-member Try again. The NY sample still uses the `funding` snapshot.
+   Gaps: about 22% of PAC dollars come from committees FEC gives no organization type, so they show
+   with no kind; names are title-cased from FEC's capitals by rule, so an odd one (L3HARRIS) slips
+   through; the donor explainer below stays Jeffries' until donor context (item 5) lands.
 5. **Donor context** from Senate LDA lobbying filings (what each PAC's organization lobbies on),
    matched to the member's votes by topic. The plain-English "who they are" lines are AI-written and
    wait for M4's label-and-cite pipeline.

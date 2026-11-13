@@ -110,9 +110,11 @@ export function formatMoney(x: number): string {
   return "$" + Math.round(x / 1000) + "K";
 }
 
-/** A PAC check in whole thousands: $10K, $5K. */
+/** A PAC check: $10K, $5K, $2.5K, $750. */
 export function formatPac(amount: number): string {
-  return "$" + amount / 1000 + "K";
+  if (Math.abs(amount) < 1000) return "$" + Math.round(amount);
+  const k = Math.round(amount / 100) / 10;
+  return "$" + k + "K";
 }
 
 /** A PAC may give $5,000 per election (primary and general), so $10,000 is the cycle max. */

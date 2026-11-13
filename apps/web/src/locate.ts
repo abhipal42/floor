@@ -670,3 +670,150 @@ export function parseFound(raw: string | null, congress: number): Found | null {
 export function foundFrom(r: ApiReps): Found {
   return { label: districtLabel(r.district), congress: r.district.congress, members: Array.isArray(r.members) ? r.members : [] };
 }
+
+// ---------------------------------------------------------------- campaign money (MemberFunding)
+
+export interface ApiPacCheck {
+  committeeId: string;
+  name: string;
+  kind: string | null;
+  orgType: string | null;
+  connectedOrg: string | null;
+  direct: number;
+  earmarked: number;
+}
+
+export interface ApiFunding {
+  cycle: number;
+  coverageStart: string | null;
+  coverageEnd: string | null;
+  receipts: number;
+  smallDollar: number;
+  itemized: number;
+  pac: number;
+  party: number;
+  other: number;
+  cashOnHand: number | null;
+  committeesCycle: number | null;
+  committees: ApiPacCheck[];
+}
+
+export interface ApiMemberFunding {
+  member: ApiMember;
+  /** Null: the FEC has no totals for the member's current campaign. */
+  funding: ApiFunding | null;
+}
+
+/** How many PAC checks the money section lists. */
+export const PAC_LIST = 10;
+
+export function fundingUrl(base: string, id: string, committees = PAC_LIST): string {
+  return base + "/v1/members/" + encodeURIComponent(id) + "/funding?committees=" + committees;
+}
+
+/** Kept in capitals: initialisms the FEC spells out in full elsewhere, or that read wrong title-cased. */
+const ACRONYMS = new Set(["PAC", "AFL", "CIO", "IBEW", "SEIU", "UAW", "NEA", "AFT", "AMA", "ADA", "AARP", "NRA", "UA", "USA", "US", "UPS", "CVS", "IBM", "GE", "BP", "LLC", "LLP", "TIAA", "AT&T", "II", "III"]);
+const SMALL = new Set(["of", "and", "the", "for", "on", "in", "to", "a", "an", "at", "by"]);
+
+function casePart(part: string, first: boolean, keep: Set<string>): string {
+  const bare = part.replace(/[^A-Za-z0-9&]/g, "");
+  const upper = bare.toUpperCase();
+  if (ACRONYMS.has(upper) || keep.has(upper) || /\d/.test(bare) || (bare.length > 3 && upper.endsWith("PAC")) || (bare.length > 1 && !/[AEIOU]/i.test(bare)))
+    return part.toUpperCase();
+  const lower = part.toLowerCase();
+  if (!first && SMALL.has(lower)) return lower;
+  return lower.replace(/[a-z]/, (c) => c.toUpperCase());
+}
+
+/**
+ * FEC committee names are filed in capitals: "EXXON MOBIL CORPORATION POLITICAL ACTION COMMITTEE
+ * (EXXONMOBIL PAC)" reads as "Exxon Mobil Corporation PAC". Drops parenthetical nicknames, closes up
+ * letter-spaced words (P E O P L E), and keeps initialisms in capitals.
+ */
+export function committeeName(raw: string): string {
+  // Letter-spaced words are spelled out on purpose (AFSCME's P E O P L E): close them up, keep the capitals.
+  const keep = new Set<string>();
+  const s = raw
+    .replace(/\s*\([^)]*\)/g, "")
+    .replace(/\b(?:[A-Z] ){2,}[A-Z]\b/g, (m) => {
+      const w = m.replace(/ /g, "");
+      keep.add(w);
+      return w;
+    })
+    .replace(/POLITICAL ACTION COMMITTEE/gi, "PAC")
+    .replace(/\s+/g, " ")
+    .trim();
+  return s
+    .split(" ")
+    .map((w, i) => w.split("-").map((p, k) => casePart(p, i === 0 && k === 0, keep)).join("-"))
+    .join(" ");
+}
+
+const day = (iso: string, opts: Intl.DateTimeFormatOptions) => new Date(iso + "T12:00:00Z").toLocaleDateString("en-US", { ...opts, timeZone: "UTC" });
+
+/** "Jan 2025 – Oct 14, 2026" */
+export function coverageRange(start: string | null, end: string | null): string {
+  const a = start ? day(start, { month: "short", year: "numeric" }) : "";
+  const b = end ? day(end, { month: "short", day: "numeric", year: "numeric" }) : "";
+  return a && b ? a + " – " + b : a || b;
+}
+
+/** "2025–26": the two-year FEC cycle ending in `cycle`. */
+export function cycleYears(cycle: number): string {
+  return cycle - 1 + "–" + String(cycle).slice(2);
+}
+
+/** One member's money, as the money section draws it: the same shape for the sample and the API. */
+export interface FundView {
+  period: string;
+  total: number;
+  cash: number | null;
+  cashAsOf: string;
+  small: number;
+  itemized: number;
+  pac: number;
+  other: number;
+  otherNote: string;
+  pacs: { name: string; kind: string | null; amount: number }[];
+  /** Above the PAC list: what period it covers and what a check can be. */
+  pacsNote: string;
+  /** Shown instead of the list when it is empty. */
+  pacsNone: { title: string; body: string };
+}
+
+export const PAC_LIMIT_NOTE = "A PAC can give $5,000 per election — primary and general — so $10,000 is the usual most for one race.";
+
+export function fundingFrom(f: ApiFunding): FundView {
+  const range = coverageRange(f.coverageStart, f.coverageEnd);
+  const years = f.committeesCycle ? cycleYears(f.committeesCycle) : null;
+  return {
+    period: f.cycle + " campaign" + (range ? " · " + range : ""),
+    total: f.receipts,
+    cash: f.cashOnHand,
+    cashAsOf: f.coverageEnd ? "as of " + day(f.coverageEnd, { month: "short", day: "numeric", year: "numeric" }) : "",
+    small: f.smallDollar,
+    itemized: f.itemized,
+    pac: f.pac,
+    // The bar has four parts; party money is rarely more than a sliver, so it rides with transfers.
+    other: f.party + f.other,
+    otherNote: f.party > 0 ? "transfers, party money, refunds and the candidate's own money" : "transfers, refunds and the candidate's own money",
+    pacs: f.committees
+      .filter((c) => c.direct > 0)
+      .slice(0, PAC_LIST)
+      .map((c) => ({ name: committeeName(c.name), kind: c.kind, amount: c.direct })),
+    pacsNote: (years ? "Each PAC's own checks, from its " + years + " filings. " : "") + PAC_LIMIT_NOTE,
+    pacsNone: {
+      title: "No PAC checks on file" + (years ? " for " + years : "") + ".",
+      body: "No committee has reported giving to this campaign" + (years ? " in the " + years + " FEC files" : "") + ".",
+    },
+  };
+}
+
+/** The FEC has no current-campaign totals: newly appointed, or not filed yet. */
+export function noFundingCopy(m: ApiMember): { title: string; body: string } {
+  return {
+    title: "No campaign filings yet",
+    body:
+      m.firstName + " " + m.lastName + " has no totals at the FEC for a current campaign. A newly appointed member, or one who hasn't filed for the next race, shows up here once the FEC lists their campaign.",
+  };
+}

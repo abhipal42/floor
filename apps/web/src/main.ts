@@ -32,6 +32,9 @@ import {
   canCancel,
   congressOn,
   foundFrom,
+  fundingFrom,
+  fundingUrl,
+  noFundingCopy,
   gridLabel,
   httpOk,
   isSample,
@@ -48,7 +51,9 @@ import {
   stripView,
   votesUrl,
   type ApiMember,
+  type ApiMemberFunding,
   type ApiMemberVote,
+  type FundView,
   type ApiReps,
   type FoundRow,
   type FoundScout,
@@ -402,13 +407,6 @@ const AI_STAR =
 
 const scoutById = new Map(scouting.members.map((m) => [m.id, m]));
 const label = (id: MemberId): string => scoutById.get(id as (typeof YOUR_THREE)[number])?.label ?? id;
-
-function memberTabs(list: HTMLElement): void {
-  list.innerHTML = YOUR_THREE.map(
-    (id) =>
-      '<button type="button" role="tab" class="ptab"><img src="' + portrait(id) + '" alt="" width="36" height="36">' + esc(label(id)) + "</button>",
-  ).join("");
-}
 
 // ------------------------------------------------------------------ theme
 
@@ -1303,11 +1301,50 @@ function players(): void {
 
 // ------------------------------------------------------------------ 06 · money
 
-function money(): void {
+type MoneyMode = { kind: "sample" } | { kind: "skeleton" } | { kind: "found"; members: ApiMember[] };
+
+/** One member's slot in the money section: the figures, or why there are none. */
+type MoneySlot =
+  | { state: "loading" }
+  | { state: "error" }
+  | { state: "none"; copy: { title: string; body: string } }
+  | { state: "ok"; view: FundView };
+
+interface MoneyRow {
+  id: string;
+  label: string;
+  img: string;
+  slot: MoneySlot;
+}
+
+const sampleMoney = (): MoneyRow[] =>
+  funding.members.map((f) => ({
+    id: f.member,
+    label: label(f.member),
+    img: portrait(f.member),
+    slot: {
+      state: "ok",
+      view: {
+        ...f,
+        pacsNote: "A PAC can give $5,000 per election — primary and general — so $10,000 is the cycle max.",
+        pacsNone: {
+          title: "Coming soon for this member.",
+          body: "Floor reads the FEC's itemized receipts to list PAC checks. Jeffries' list is in; the senators' lists are next.",
+        },
+      },
+    },
+  }));
+
+/** Draws the money section; returns how to switch it between the sample and your members. */
+function money(): (mode: MoneyMode) => void {
   const tabs = el("#money-tabs");
-  memberTabs(tabs);
   const panel = el("#money-panel");
+  const kicker = el("#money .kicker");
   let seen = false;
+  let who = 0;
+  let gen = 0;
+  let rows: MoneyRow[] = sampleMoney();
+  let members: ApiMember[] = [];
   const SEGS = [
     { key: "small", label: "Small-dollar donors", note: () => "gifts under $200, unitemized", color: "yea" },
     { key: "itemized", label: "Larger individual gifts", note: () => "$200 and up, itemized", color: "teal" },
@@ -1317,17 +1354,16 @@ function money(): void {
 
   const grow = () => all("[data-grow]", panel).forEach((s) => (s.style.flexGrow = s.dataset.grow ?? "1"));
 
-  const show = (i: number) => {
-    const f = funding.members[i]!;
-    const segs = SEGS.map((s) => ({ ...s, v: f[s.key], note: s.note(f.otherNote), pct: pct(f[s.key], f.total) }));
-    panel.innerHTML =
+  const figures = (f: FundView) => {
+    const segs = SEGS.map((s) => ({ ...s, v: f[s.key], note: s.note(f.otherNote), pct: f.total > 0 ? pct(f[s.key], f.total) : "—" }));
+    return (
       '<div class="fund card">' +
       '<div class="fund__top"><span class="fund__total"><span class="fine">' + esc(f.period) + '</span><span class="fund__big num">' + formatMoney(f.total) +
       '</span><span class="fine">raised by the campaign committee</span></span><span class="fund__cash"><span class="fine">Cash on hand</span><span class="fund__cash-v num">' +
-      formatMoney(f.cash) + '</span><span class="fine">' + esc(f.cashAsOf) + "</span></span></div>" +
+      (f.cash === null ? "—" : formatMoney(f.cash)) + '</span><span class="fine">' + esc(f.cashAsOf) + "</span></span></div>" +
       '<div class="fund__bar" role="img" aria-label="' + esc(segs.map((s) => s.label + " " + s.pct).join(", ")) + '">' +
-      segs.map((s) => '<div class="fund__seg ease" data-grow="' + s.v + '" style="background:var(--' + s.color + ')"></div>').join("") +
-      "</div><div class=\"fund__list\">" +
+      segs.map((s) => '<div class="fund__seg ease" data-grow="' + Math.max(0, s.v) + '" style="background:var(--' + s.color + ')"></div>').join("") +
+      '</div><div class="fund__list">' +
       segs
         .map(
           (s) =>
@@ -1336,22 +1372,88 @@ function money(): void {
         )
         .join("") +
       "</div></div>" +
-      '<div class="pacs card"><div class="pacs__head"><h3 class="h4">Biggest PAC checks</h3><span class="fine">A PAC can give $5,000 per election — primary and general — so $10,000 is the cycle max.</span></div>' +
+      '<div class="pacs card"><div class="pacs__head"><h3 class="h4">Biggest PAC checks</h3><span class="fine">' + esc(f.pacsNote) + "</span></div>" +
       (f.pacs.length
         ? '<div class="pacs__list">' +
           f.pacs
             .map(
               (c) =>
-                '<div class="row pacs__row"><span class="pacs__name">' + esc(c.name) + '</span><span class="pill pill--sm">' + esc(c.kind) + "</span>" +
+                '<div class="row pacs__row"><span class="pacs__name">' + esc(c.name) + "</span>" + (c.kind ? '<span class="pill pill--sm">' + esc(c.kind) + "</span>" : "") +
                 (isMaxed(c.amount) ? '<span class="skew skew--accent skew--sm">MAXED</span>' : "") + '<span class="pacs__amt num">' + formatPac(c.amount) + "</span></div>",
             )
             .join("") +
           "</div>"
-        : '<div class="pacs__none"><span>Coming soon for this member.</span><span class="fine">Floor reads the FEC\'s itemized receipts to list PAC checks. Jeffries\' list is in; the senators\' lists are next.</span></div>') +
-      "</div>";
-    if (seen) afterPaint(grow);
+        : '<div class="pacs__none"><span>' + esc(f.pacsNone.title) + '</span><span class="fine">' + esc(f.pacsNone.body) + "</span></div>") +
+      "</div>"
+    );
   };
+
+  const message = (title: string, body: string, retry: boolean) =>
+    '<div class="sc-err card"><h3 class="h4">' + esc(title) + "</h3><p>" + esc(body) + "</p>" +
+    (retry ? '<button type="button" class="sc-err__retry" data-retry>Try again</button>' : "") + "</div>";
+
+  const skeleton = (msg: string) =>
+    '<div class="fund card" aria-hidden="true"><div class="fund__top"><span class="fund__total"><span class="skel skel--line skel--short"></span><span class="skel skel--line"></span></span></div>' +
+    '<div class="fund__bar"><div class="fund__seg" style="flex-grow:1;background:var(--line)"></div></div></div><p class="fine">' + esc(msg) + "</p>";
+
+  const show = (i: number) => {
+    who = i;
+    const r = rows[i];
+    if (!r) return;
+    const s = r.slot;
+    if (s.state === "loading") panel.innerHTML = skeleton("Loading " + r.label + "'s FEC figures…");
+    else if (s.state === "error") panel.innerHTML = message("Couldn't load " + r.label + "'s FEC figures", "The connection dropped or the server didn't answer.", true);
+    else if (s.state === "none") panel.innerHTML = message(s.copy.title, s.copy.body, false);
+    else {
+      panel.innerHTML = figures(s.view);
+      if (seen) afterPaint(grow);
+    }
+  };
+
+  const tabsFor = () => {
+    tabs.innerHTML = rows
+      .map((m) => '<button type="button" role="tab" class="ptab"><img src="' + esc(m.img) + '" alt="" width="36" height="36">' + esc(m.label) + "</button>")
+      .join("");
+  };
+
+  const fetchOne = async (m: ApiMember): Promise<MoneySlot> => {
+    const res = await getJson(fundingUrl(API_BASE, m.bioguideId));
+    const body = res.body as ApiMemberFunding | null;
+    if (!httpOk(res.status) || !body || typeof body !== "object" || !("funding" in body)) return { state: "error" };
+    const f = body.funding;
+    if (!f) return { state: "none", copy: noFundingCopy(m) };
+    if (![f.receipts, f.smallDollar, f.itemized, f.pac, f.party, f.other].every(Number.isFinite) || !Array.isArray(f.committees)) return { state: "error" };
+    return { state: "ok", view: fundingFrom(f) };
+  };
+
+  /** Loads every member, or one on a retry; a newer district drops what an older one returns. */
+  const load = async (only?: string) => {
+    const my = only ? gen : ++gen;
+    const todo = members.filter((m) => !only || m.bioguideId === only);
+    for (const m of todo) {
+      const r = rows.find((x) => x.id === m.bioguideId);
+      if (r) r.slot = { state: "loading" };
+    }
+    show(who);
+    await Promise.all(
+      todo.map(async (m) => {
+        const slot = await fetchOne(m);
+        if (my !== gen) return;
+        const k = rows.findIndex((x) => x.id === m.bioguideId);
+        if (k < 0) return;
+        rows[k]!.slot = slot;
+        if (k === who) show(k);
+      }),
+    );
+  };
+  panel.addEventListener("click", (e) => {
+    if (!(e.target as Element).closest("[data-retry]")) return;
+    const r = rows[who];
+    if (r) void load(r.id);
+  });
+
   const set = wireTabs(tabs, show);
+  tabsFor();
   set(0);
   show(0);
   onVisible(panel, () => {
@@ -1367,6 +1469,31 @@ function money(): void {
   head.before(stage);
   stage.append(head, panel);
   pin(stage, { noun: "Member", count: funding.members.length, ...tabStep(tabs, panel) });
+
+  return (mode: MoneyMode) => {
+    kicker.textContent = mode.kind === "found" ? "06 · WHO FUNDS YOURS" : "06 · WHO FUNDS THEM";
+    who = 0;
+    if (mode.kind === "found") {
+      members = mode.members;
+      rows = members.map((m) => ({ id: m.bioguideId, label: m.lastName, img: portraitUrl(m.bioguideId), slot: { state: "loading" } }));
+      tabsFor();
+      set(0);
+      void load();
+      return;
+    }
+    gen++;
+    members = [];
+    if (mode.kind === "skeleton") {
+      rows = [];
+      tabs.innerHTML = "";
+      panel.innerHTML = skeleton("Finding your district…");
+      return;
+    }
+    rows = sampleMoney();
+    tabsFor();
+    set(0);
+    show(0);
+  };
 }
 
 function context(): void {
@@ -1615,6 +1742,7 @@ function yours(): void {
   let scoutKey = "";
   let found: (ScoutCard | FailedCard)[] = [];
   const showScout = scout(() => dispatch({ type: "retry" }));
+  let moneyKey = "";
 
   const sampleChips = sampleReps.members.map((m) => chipHtml(m, portrait(m.bioguideId as MemberId))).join("");
 
@@ -1682,6 +1810,13 @@ function yours(): void {
       else if (sample) showScout({ kind: "sample" });
       else if (s.records === "ready" || s.records === "partial") showScout({ kind: "found", cards: found });
       else showScout({ kind: s.records === "error" ? "error" : "loading", members });
+    }
+
+    // The money section loads on its own: it needs the members, not their vote records.
+    const mKey = s.step === "loading" ? "skeleton" : sample || !s.found ? "sample" : "found:" + s.found.members.map((m) => m.bioguideId).join(",");
+    if (mKey !== moneyKey) {
+      moneyKey = mKey;
+      showMoney(mKey === "skeleton" ? { kind: "skeleton" } : mKey === "sample" || !s.found ? { kind: "sample" } : { kind: "found", members: s.found.members });
     }
 
     announce(s, prev);
@@ -1819,7 +1954,7 @@ deck();
 levelCards();
 explain();
 players();
-money();
+const showMoney = money();
 context();
 portfolioView();
 phone();
