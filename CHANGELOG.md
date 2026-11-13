@@ -8,6 +8,28 @@ is a milestone and ships a retro under `docs/retros/`.
 Older series live in [`docs/changelog/`](docs/changelog) (0.1.x: [`0.1.md`](docs/changelog/0.1.md)).
 Before 0.1.0 the history is the commit log on `main`.
 
+## 0.2.13 — 2026-11-13
+
+Sections that hold still while you scroll through them.
+
+### Changed
+
+- **Pinned sections on wide screens.** 01 Finals, 02 Road to law, 03 Explained, 04 Your reps,
+  05 Players and 06 Money stay put while the reader scrolls, and each stretch of scroll moves them one
+  step: the next final, the next level, the next explained point (with its source paragraph lit), the
+  next member, and from the player cards to the leaderboard. Steps swap with a short transition. It
+  is sticky positioning over empty scroll space, so scrolling is never intercepted; a pill shows the
+  step and offers **Skip**. Phones, short windows and reduced motion get the ordinary page.
+- **Road to law, pinned:** the connected road stays, moving so the focused card sits centred while
+  the others fade.
+- **"Make it your three" moved** from the top of the page into 04 · Your reps, next to the report it
+  fills.
+- Left unpinned on purpose: the drive chart, the donor explainer, 07 Portfolio and 08 Live.
+
+### Added
+
+- `stickTop`, `stepLength` and `scrollStep` in `logic.ts`, with tests.
+
 ## 0.2.12 — 2026-11-13
 
 "Use my location" on the iOS app's onboarding, built to the locked canvas round 7 board `LocApp`

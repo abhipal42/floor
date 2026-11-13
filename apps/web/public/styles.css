@@ -1148,8 +1148,6 @@ button {
 /* the road: cards joined by a dashed lane with a pin per level */
 .road {
   min-width: 0;
-  display: flex;
-  flex-direction: column;
 }
 .leg {
   position: relative;
@@ -3271,10 +3269,10 @@ td.c-x {
   color: var(--ink);
 }
 
-/* ------------------------------------------------------------ your members (the strip under the header) */
+/* ------------------------------------------------------------ your members (inside Your reps) */
 
 .yours {
-  padding-top: 28px;
+  min-width: 0;
 }
 .yours__strip {
   background: var(--panel);
@@ -3557,6 +3555,161 @@ td.c-x {
   .site-nav a:not(.site-nav__cta) {
     display: none;
   }
+}
+
+/* ------------------------------------------------------------ pinned sections */
+
+/* A pinned stage sticks while the run of empty space after it scrolls past; main.ts measures it,
+   sets its top, and moves its vertical padding to the host. Unpinned, both are invisible. */
+.pin__run {
+  height: 0;
+}
+.is-pinned {
+  position: sticky;
+  padding-top: 0 !important;
+  padding-bottom: 0 !important;
+}
+.money__stage {
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+}
+
+/* 02: pinned, the road is a window onto the same connected lane. The lane moves so the focused
+   card sits centred, and the cards either side fade out toward the window's edges. */
+.road__in {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+}
+.law.is-pinned {
+  align-items: center;
+}
+.law.is-pinned .law__map {
+  position: static;
+}
+.law.is-pinned .road {
+  height: clamp(480px, 62vh, 620px);
+  overflow: hidden;
+  -webkit-mask-image: linear-gradient(transparent, #000 22%, #000 78%, transparent);
+  mask-image: linear-gradient(transparent, #000 22%, #000 78%, transparent);
+}
+.law.is-pinned .road__in {
+  transition: transform 0.6s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+.law.is-pinned .leg .leg__card,
+.law.is-pinned .leg.is-cleared .leg__card {
+  opacity: 0.32;
+  transform: scale(0.97);
+}
+.law.is-pinned .leg.is-on .leg__card {
+  opacity: 1;
+  transform: none;
+}
+
+/* 05: pinned, the cards and the leaderboard share one spot; the second step crossfades them. */
+.cards__stage {
+  display: flex;
+  flex-direction: column;
+  gap: 40px;
+}
+.cards__stage.is-pinned {
+  display: grid;
+}
+.cards__stage.is-pinned > * {
+  grid-area: 1 / 1;
+  align-self: center;
+  transition: opacity 0.45s ease, transform 0.55s cubic-bezier(0.2, 0.8, 0.2, 1), visibility 0s linear 0.55s;
+}
+.cards__stage.is-pinned > .board {
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(32px);
+}
+.cards__stage.is-pinned[data-step="1"] > .players {
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(-32px);
+}
+.cards__stage.is-pinned[data-step="1"] > .board {
+  opacity: 1;
+  visibility: visible;
+  transform: none;
+  transition: opacity 0.45s ease 0.1s, transform 0.55s cubic-bezier(0.2, 0.8, 0.2, 1) 0.1s, visibility 0s;
+}
+
+/* The swap: a panel whose content was just replaced by a step slides up into place. */
+.swap {
+  animation: pinswap 0.42s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+@keyframes pinswap {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* 03: pinned, only the current point opens, so the whole explainer fits on one screen. */
+#explain.is-pinned .ex-pt:not(.is-on) .ex-pt__b {
+  display: none;
+}
+#explain.is-pinned .ex-pt.is-on .ex-pt__b {
+  animation: pinswap 0.42s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+#explain.is-pinned .ex-pt {
+  transition: background 0.3s ease, border-color 0.3s ease;
+}
+
+/* The pill: where you are in a pinned section, and a way past it. */
+.pin-pill {
+  position: fixed;
+  left: 50%;
+  bottom: calc(18px + env(safe-area-inset-bottom, 0px));
+  z-index: 60;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 6px 6px 6px 16px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--head-bg);
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+  box-shadow: 0 12px 30px var(--shadow);
+  font-size: 13px;
+  white-space: nowrap;
+}
+.pin-pill[hidden] {
+  display: none;
+}
+.pin-pill__t {
+  font-family: var(--cond);
+  font-weight: 800;
+  font-size: 16px;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+}
+.pin-pill__hint {
+  color: var(--muted);
+}
+.pin-pill__skip {
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--body);
+  border-radius: 999px;
+  padding: 6px 12px;
+  font-weight: 600;
+  font-size: 13px;
+  cursor: pointer;
+}
+.pin-pill__skip:hover {
+  color: var(--ink);
+  border-color: var(--dim-2);
 }
 
 /* ------------------------------------------------------------ narrow screens */

@@ -11,6 +11,22 @@ export const FLAP_CHARSET = "ABCDEFGHIJKLMNOPRSTUVWXYZ0123456789-";
 /** The scramble runs for this many 50 ms ticks; every cell has settled by then. */
 export const FLAP_TICKS = 24;
 
+/** Where a pinned section's stage sits: centred in the space under the header, or right under it. */
+export function stickTop(head: number, viewport: number, stage: number): number {
+  return head + Math.max(0, Math.round((viewport - head - stage) / 2));
+}
+
+/** Scroll length of one step in a pinned section: a little over half a screen, never under 280px. */
+export function stepLength(viewport: number): number {
+  return Math.max(280, Math.round(viewport * 0.55));
+}
+
+/** The step a pinned section shows once the reader has scrolled `scrolled` px past the pin. */
+export function scrollStep(scrolled: number, stepLen: number, steps: number): number {
+  if (steps <= 1 || stepLen <= 0) return 0;
+  return Math.min(steps - 1, Math.max(0, Math.floor(scrolled / stepLen)));
+}
+
 /**
  * The level the reader is on: the last card whose top has scrolled above the reading line.
  * Before the first card reaches the line, that is still the first level.

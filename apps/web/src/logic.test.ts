@@ -5,6 +5,9 @@ import {
   FLAP_TICKS,
   FLAP_WIDTH,
   activeLevel,
+  scrollStep,
+  stepLength,
+  stickTop,
   outcome,
   winningSide,
   cellLook,
@@ -34,6 +37,29 @@ import {
   tierFor,
   yeaShare,
 } from "./logic.js";
+
+describe("pinned sections", () => {
+  it("centres the stage under the header, or pins it right under the header", () => {
+    expect(stickTop(65, 900, 625)).toBe(65 + 105);
+    expect(stickTop(65, 900, 835)).toBe(65);
+    expect(stickTop(65, 900, 1000)).toBe(65);
+  });
+
+  it("a step is a little over half a screen, never under 280px", () => {
+    expect(stepLength(900)).toBe(495);
+    expect(stepLength(400)).toBe(280);
+  });
+
+  it("steps advance one per step length and hold the last step to the end", () => {
+    expect(scrollStep(-300, 500, 5)).toBe(0);
+    expect(scrollStep(0, 500, 5)).toBe(0);
+    expect(scrollStep(499, 500, 5)).toBe(0);
+    expect(scrollStep(500, 500, 5)).toBe(1);
+    expect(scrollStep(2400, 500, 5)).toBe(4);
+    expect(scrollStep(9000, 500, 5)).toBe(4);
+    expect(scrollStep(700, 500, 1)).toBe(0);
+  });
+});
 
 describe("road to law", () => {
   it("is on the last card whose top has passed the reading line", () => {

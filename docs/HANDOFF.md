@@ -584,8 +584,8 @@ the product rules they settled are in `CLAUDE.md` › Product rules). What to kn
   Vercel's own when the plain project name is taken; and the `floor-web-abtanix-labs.vercel.app` and
   `-git-main-` aliases sit behind the team's Vercel Authentication, so they answer `302` to anyone not
   signed in. A custom domain, when there is one, is public by the same setting.
-- **What's live and what's the sample (v0.3.0 steps 2–3).** The strip under the header ("your
-  members") and the scouting report read the API in the browser; everything else is still the
+- **What's live and what's the sample (v0.3.0 steps 2–3).** The "your members" strip (since
+  v0.2.13 it sits inside 04 · Your reps, between the heading and the report) and the scouting report read the API in the browser; everything else is still the
   `data.ts` snapshot. Built to the locked mock `LocWeb` (canvas round "Your members"):
   - **Strip** (`#yours`, `src/locate.ts` state machine + `yours()` in `main.ts`): idle shows the NY-8
     sample labelled SAMPLE → *Use my location* (button reads "Waiting for your browser…" while the
@@ -684,6 +684,31 @@ the product rules they settled are in `CLAUDE.md` › Product rules). What to kn
   since `serve` serves `dist/`.
 - The unbuilt part of the mock is a **section rail** (a strip under the header naming the current
   section, for every section). It was offered and skipped; the mock still has the toggle.
+
+### Pinned sections (v0.2.13)
+
+Sections 01–06 hold still while the reader scrolls, and each stretch of scroll moves them one step.
+`pin(stage, steps)` in `main.ts` does it with plain `position: sticky` over an empty run after the
+stage, so scrolling is never intercepted (a fling or a keyboard jump passes through, the scrollbar
+stays honest); `stickTop`, `stepLength` and `scrollStep` in `logic.ts` are the tested maths. A
+reader's own click on a tab, card or Next moves the scroll to that step, and a pill at the bottom
+shows the step with a **Skip** button.
+
+| Section | Steps | Not pinned |
+|---|---|---|
+| 01 Finals | the five finals (a step forward keeps the deal animation) | — |
+| 02 Road to law | six levels: the connected road moves so the focused card sits centred, the rest fade | the drive chart |
+| 03 Explained | the first bill's points, each lighting its source paragraph; only the current point opens | bill tabs stay manual |
+| 04 Your reps | your three members, with the "Make it your three" box now inside the section | — |
+| 05 Players | two views: the card fan, then the leaderboard fading in over it | — |
+| 06 Money | your three members' funding | the donor explainer |
+
+07 Portfolio and 08 Live are deliberately not pinned (another three-member bounce straight after
+Money, and a phone that already animates). A section pins only when the window is at least 900px
+wide, 640px tall and tall enough for its whole stage (Explained and Money drop out on short laptop
+screens), and never with reduced motion; otherwise it is the ordinary page. A stage whose content
+grows while pinned (the location form opening) is re-measured by a `ResizeObserver` and lets go if it
+no longer fits.
 
 ### The app redesign (v0.2.3)
 
