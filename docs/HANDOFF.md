@@ -101,7 +101,7 @@ Command Line Tools rather than Xcode: run it with `DEVELOPER_DIR=/Applications/X
 | `vote_positions` | 995,806 | Verified: every vote's positions add up to its official totals; no vote lacks positions |
 | `bills` / `actions` | 1,049 / 19,714 | Every bill a vote refers to; 976 have a CRS summary. All 2,319 votes on bills are linked (`votes.bill_id`) |
 | `nominations` | 448 | Every nomination a vote refers to; 201 are parts of a split nomination, 10 are military (no named nominee). All 905 nomination votes are linked (`votes.nomination_id`) |
-| `campaign_finance` | see §5 v0.3.0 | One row per current member: OpenFEC totals for their current campaign to date (House 2025–26; senators since their last election), with cash on hand |
+| `campaign_finance` | 512 | One row per current member: OpenFEC totals for their current campaign to date (House 2025–26; senators since their last election), with cash on hand. Of 537 current members, 23 have no totals filed for that campaign and 2 appointed senators (OK, SC) have no FEC ID yet; the page must say so rather than show nothing |
 | `pac_contributions` | 103,564 | Per member and giving committee, 2026 cycle: direct and earmarked totals, committee designation, type and organization type. No memo text, no individual names (lesson 23) |
 | `ingest_runs` | | Every ingest run with item count and error, which feeds `/v1/status` |
 
