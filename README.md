@@ -5,7 +5,7 @@ A live federal vote tracker for iOS: how your members of Congress are voting, ho
 - **Start here:** [`docs/HANDOFF.md`](docs/HANDOFF.md): current state, setup, lessons learned, remaining milestones
 - **Plan:** [`docs/plan.md`](docs/plan.md) (rendered: [`docs/plan.html`](docs/plan.html))
 - **Shipping rules:** [`CLAUDE.md`](CLAUDE.md) · history: [`CHANGELOG.md`](CHANGELOG.md) · retros: [`docs/retros/`](docs/retros)
-- **Status (v0.3.0):** M0 and M1 done · the landing page is built (`apps/web`, not yet hosted) · the app is redesigned to match it (Finals, Bills, Your three) · M2 (iOS core on real data) nearly done: the API is live at <https://floor-api.vercel.app> and the app runs end to end against it; left are the offline cache, snapshot tests and TestFlight
+- **Status (v0.3.0):** M0 and M1 done · the landing page is live at <https://floor-web-seven.vercel.app> (`apps/web`) · the app is redesigned to match it (Finals, Bills, Your three) · M2 (iOS core on real data) nearly done: the API is live at <https://floor-api.vercel.app> and the app runs end to end against it; left are the offline cache, snapshot tests and TestFlight
 
 ## Repo layout
 
