@@ -8,7 +8,7 @@ is a milestone and ships a retro under `docs/retros/`.
 Older series live in [`docs/changelog/`](docs/changelog) (0.1.x: [`0.1.md`](docs/changelog/0.1.md)).
 Before 0.1.0 the history is the commit log on `main`.
 
-## 0.2.12 — 2026-11-13
+## 0.2.13 — 2026-11-13
 
 Step 4 of the v0.3.0 milestone, "Your members on the web": the API side of campaign finance. The
 data landed in 0.2.4; this serves it. The page section is what remains of the step.
@@ -28,10 +28,53 @@ data landed in 0.2.4; this serves it. The page section is what remains of the st
 
 ### Changed
 
-- `docs/HANDOFF.md`: the route table, v0.3.0 step 4, and **lesson 29** — `campaign_finance.cycle`
+- `docs/HANDOFF.md`: the route table, v0.3.0 step 4, and **lesson 33** — `campaign_finance.cycle`
   (the election a campaign is for) and `pac_contributions.cycle` (the two-year FEC filing cycle)
   are different things. Matching them passed every seeded test, because House members are up every
   cycle, and returned zero committees for every senator against real data.
+
+## 0.2.12 — 2026-11-13
+
+"Use my location" on the iOS app's onboarding, built to the locked canvas round 7 board `LocApp`
+(<https://claude.ai/artifact/FKWYDhCej75UPy94csYLsU>).
+
+### Added
+- **"Use my location"** above the address field, with "or type an address" under it. It asks for
+  when-in-use permission (the system alert carries "Floor finds your congressional district from
+  where you are, then forgets the location."), takes one fix and calls `/v1/reps?lat=&lng=` through
+  the new `FloorAPI.reps(latitude:longitude:)`.
+- **Its states, as the mock draws them:** loading ("FINDING YOUR DISTRICT…" over three skeleton
+  cards), found (with "Not your district? Type an address"), location off for Floor (banner and
+  "Open Settings ›"), outside the U.S. (the API's 404), and approximate location (Precise Location
+  off: the result, under a warning that it can land in the next district). Beyond the mock:
+  Location Services off for the whole phone (names the system switch, no app link), restricted
+  (no link), and no fix in time (offers the button again). Coming back from Settings retries once.
+- **One member, and district 0.** D.C. deals one card, Eleanor Norton, with "One, not three: D.C.
+  has a delegate in the House and no senators…"; the territories get the same note in their own
+  words. `Member` gained `isDelegate`, `title`, `seatBadge` and `seatCaption`.
+- Three palette tokens from the mock, each a light/dark `Swatch` checked by `PaletteTests`:
+  `warningPanel` (`#FBF0E6` / `#1E1610`) and `warningBorder` (`#E2B48E` / `#5A3A1E`) for the
+  banner, whose title, body and link read at 5.19, 9.16 and 4.75:1 in light and 7.88, 11.28 and
+  9.28:1 in dark; and `textFaint` (`#636E69` / `#858B95`) for the privacy line, 4.58:1 on the light
+  ground and 5.84:1 on the dark one.
+
+### Changed
+- At-large and delegate seats read correctly everywhere: "R-WY-AL" and "D-DC", not "R-WY-0" and
+  "D-DC-0"; Norton is "Delegate · DC" on Home, the vote screen and her record, and "Del." as a
+  sponsor; Home's district chip reads "DC", not "DC-AL"; and D.C.'s Senate filter says it has no
+  senators instead of "No recent votes in this chamber".
+- The built app reports its real version: `Info.plist` maps `CFBundleShortVersionString` and
+  `CFBundleVersion` to `$(MARKETING_VERSION)` and `$(CURRENT_PROJECT_VERSION)`. XcodeGen had been
+  writing its defaults, `1.0` and `1`.
+- The privacy line under onboarding's button: "Floor keeps the district and drops the street — and
+  the location."
+
+### Privacy
+- The point is rounded to 4 decimals (about 11 m) on the phone before it is sent, and again by the
+  API. It is never stored, logged or cached: `reps(latitude:longitude:)` bypasses the offline
+  cache, as the address lookup does, and the app's `URLSession` has no `URLCache`. Only the
+  district and its members are kept, as before. Tests check the saved record, the whole
+  `UserDefaults` suite, the response cache and the model for the coordinates.
 
 ## 0.2.11 — 2026-11-13
 

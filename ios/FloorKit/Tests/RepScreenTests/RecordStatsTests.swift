@@ -109,5 +109,16 @@ struct RecordStatsTests {
         #expect(doggett.badge == "TX-37")
         #expect(cornyn.seatLine == "Senate · Texas · R")
         #expect(cornyn.badge == "TX")
+        // At large and delegate seats, as /v1/reps sends them (district 0).
+        let hageman = Member(bioguideId: "H001096", firstName: "Harriet", lastName: "Hageman", party: "R",
+                             state: "WY", district: 0, chamber: .house)
+        #expect(hageman.seatLine == "House · Wyoming at-large · R")
+        #expect(hageman.badge == "WY-AL")
+        #expect(hageman.roleLine == "U.S. Representative · R-WY-AL")
+        let norton = Member(bioguideId: "N000147", firstName: "Eleanor", lastName: "Norton", party: "D",
+                            state: "DC", district: 0, chamber: .house)
+        #expect(norton.seatLine == "Delegate · District of Columbia · D")
+        #expect(norton.badge == "DC")
+        #expect(norton.roleLine == "Delegate · D-DC")
     }
 }

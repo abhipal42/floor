@@ -1,0 +1,37 @@
+{
+    "district": {
+        "congress": 119,
+        "state": "WY",
+        "district": 0,
+        "countyFips": "56021"
+    },
+    "members": [
+        {
+            "bioguideId": "H001096",
+            "firstName": "Harriet",
+            "lastName": "Hageman",
+            "party": "R",
+            "state": "WY",
+            "district": 0,
+            "chamber": "house"
+        },
+        {
+            "bioguideId": "B001261",
+            "firstName": "John",
+            "lastName": "Barrasso",
+            "party": "R",
+            "state": "WY",
+            "district": null,
+            "chamber": "senate"
+        },
+        {
+            "bioguideId": "L000571",
+            "firstName": "Cynthia",
+            "lastName": "Lummis",
+            "party": "R",
+            "state": "WY",
+            "district": null,
+            "chamber": "senate"
+        }
+    ]
+}

@@ -516,7 +516,7 @@ export function pgRepositories(db: Db): {
         // the election the campaign is for — 2028 for a senator elected in 2022 — while
         // pac_contributions.cycle is the two-year FEC bulk file the rows came from, currently
         // 2026. Matching them returned no committees at all for every senator, because a senator
-        // up in 2028 is still taking PAC money in the 2026 cycle (lesson 29).
+        // up in 2028 is still taking PAC money in the 2026 cycle (lesson 33).
         //
         // The PAC test is `isPac` in apps/worker/src/fec.ts (lesson 23), written out in SQL rather
         // than imported: apps/api deliberately has no workspace dependencies, because its Vercel

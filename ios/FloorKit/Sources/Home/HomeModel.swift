@@ -142,6 +142,15 @@ public final class HomeModel {
         }
     }
 
+    /// What an empty feed says. D.C. and the territories have no senators, so their Senate filter
+    /// is empty by design, not for want of recent votes.
+    public var emptyFeedMessage: String {
+        if filter == .senate, delegation.senators.isEmpty {
+            return "\(StateName.full(delegation.district.state)) has no senators, so there are no Senate votes to show."
+        }
+        return "No recent votes in this chamber."
+    }
+
     /// True until a load has finished with everything fresh — including one that was cancelled
     /// part-way, as pushing a vote cancels the tab's task — so the tab refreshes when it reappears.
     public var needsRefresh: Bool {

@@ -81,7 +81,7 @@ public extension PartyLoyalty {
 public extension Member {
     /// "U.S. Representative · D-TX-37", as the canvas writes the eyebrow.
     var roleLine: String {
-        let office = chamber == .house ? "U.S. Representative" : "U.S. Senator"
+        let office = isDelegate ? title : "U.S. \(title)"
         return "\(office) · \(partyAndSeat)"
     }
 }
@@ -302,18 +302,16 @@ public enum RecordFacts {
 }
 
 public extension Member {
-    /// "House · New York 8th · D", "Senate · New York · D".
+    /// "House · New York 8th · D", "Senate · New York · D", "Delegate · District of Columbia · D".
     var seatLine: String {
         let state = StateName.full(self.state)
+        if isDelegate { return "\(title) · \(state) · \(party)" }
         if chamber == .house, let district {
             return "House · \(state) \(district == 0 ? "at-large" : StateName.ordinal(district)) · \(party)"
         }
         return "Senate · \(state) · \(party)"
     }
 
-    /// "NY-8" for a representative, "NY" for a senator.
-    var badge: String {
-        if chamber == .house, let district { return "\(state)-\(district == 0 ? "AL" : String(district))" }
-        return state
-    }
+    /// "NY-8" for a representative, "NY" for a senator, "DC" for a delegate.
+    var badge: String { seatBadge }
 }

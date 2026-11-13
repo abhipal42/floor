@@ -84,6 +84,26 @@ public struct FloorAPI: Sendable {
         try await get("/v1/reps", query: [URLQueryItem(name: "address", value: address)], cacheable: false)
     }
 
+    /// The district a point falls in, with its members. Each coordinate is rounded to 4 decimals
+    /// (about 11 m) before it leaves the phone; the server rounds again. Like the address, the
+    /// point goes to this endpoint and nowhere else — never log it. A 404 means the point is not in
+    /// a U.S. congressional district.
+    ///
+    /// Never cached: the key would be the location. The district it resolves to is already kept,
+    /// by onboarding's `DelegationStore`.
+    public func reps(latitude: Double, longitude: Double) async throws -> Reps {
+        try await get("/v1/reps", query: [
+            URLQueryItem(name: "lat", value: Self.coordinate(latitude)),
+            URLQueryItem(name: "lng", value: Self.coordinate(longitude)),
+        ], cacheable: false)
+    }
+
+    /// `30.2747`: rounded to the nearest 4th decimal, so no more precision is sent than
+    /// the API keeps.
+    static func coordinate(_ value: Double) -> String {
+        String(format: "%.4f", (value * 10_000).rounded() / 10_000)
+    }
+
     /// One vote with its party breakdown.
     ///
     /// - Parameter members: Bioguide IDs whose own positions to include, at most ten — your

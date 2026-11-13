@@ -28,10 +28,45 @@ public struct Member: Codable, Sendable, Hashable, Identifiable {
 
     public var fullName: String { "\(firstName) \(lastName)" }
 
-    /// `D-NC-12` for a representative, `R-TX` for a senator.
+    /// `D-NC-12` for a representative, `R-WY-AL` at large, `R-TX` for a senator, `D-DC` for a
+    /// delegate (who has the whole jurisdiction, so a district number would only be noise).
     public var partyAndSeat: String {
-        district.map { "\(party)-\(state)-\($0)" } ?? "\(party)-\(state)"
+        "\(party)-\(seatBadge)"
     }
+
+    /// `NC-12`, `WY-AL` (at large, which the API sends as district 0), `TX` for a senator, `DC` for
+    /// a delegate.
+    public var seatBadge: String {
+        guard chamber == .house, !isDelegate, let district else { return state }
+        return "\(state)-\(district == 0 ? "AL" : String(district))"
+    }
+
+    /// The small caption under a member's name: `House · TX-37`, `House · WY-AL`, `Senate · TX`,
+    /// `Delegate · DC`.
+    public var seatCaption: String {
+        let seat = isDelegate ? title : (chamber == .house ? "House" : "Senate")
+        return "\(seat) · \(seatBadge)"
+    }
+
+    /// A non-voting House member: the delegates of D.C. and four territories, and Puerto Rico's
+    /// resident commissioner. They sit in the House and vote in the Committee of the Whole —
+    /// amendments — but can't vote to pass a bill, and their jurisdiction has no senators.
+    public var isDelegate: Bool {
+        chamber == .house && Self.delegateJurisdictions.contains(state)
+    }
+
+    /// `Representative`, `Delegate`, `Resident Commissioner`, `Senator`.
+    public var title: String {
+        switch chamber {
+        case .senate: "Senator"
+        case .house where state == "PR": "Resident Commissioner"
+        case .house where isDelegate: "Delegate"
+        case .house: "Representative"
+        }
+    }
+
+    /// Where a House member has no vote on passage and no senators beside them.
+    static let delegateJurisdictions: Set<String> = ["DC", "PR", "GU", "VI", "AS", "MP"]
 }
 
 /// How often a member sided with the majority of their own party.
@@ -138,8 +173,11 @@ public struct District: Codable, Sendable, Hashable {
         self.countyFips = countyFips
     }
 
-    /// `TX-37`, or `TX-AL` for an at-large seat.
-    public var name: String { district == 0 ? "\(state)-AL" : "\(state)-\(district)" }
+    /// `TX-37`, `TX-AL` for an at-large seat, or just `DC` where a delegate covers the whole place.
+    public var name: String {
+        if Member.delegateJurisdictions.contains(state) { return state }
+        return district == 0 ? "\(state)-AL" : "\(state)-\(district)"
+    }
 }
 
 /// `GET /v1/reps?address=` — the district an address falls in and who represents it.

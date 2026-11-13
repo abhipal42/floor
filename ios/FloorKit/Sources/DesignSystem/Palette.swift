@@ -77,6 +77,13 @@ public enum Tones {
     public static let groundGlow = Swatch(light: 0xD3E3DD, dark: 0x0F2A20)
     public static let shadow = Swatch(light: 0x111816, dark: 0x000000, lightOpacity: 0.14, darkOpacity: 0.45)
 
+    // From the LocApp mock (onboarding with location). The dark panel and border are the mock's;
+    // light mode gets a warm cream panel under the same amber edge. `textFaint` is lighter than
+    // the mock's #6B7280, which reads at only 4.1:1 on the dark ground.
+    public static let warningPanel = Swatch(light: 0xFBF0E6, dark: 0x1E1610)
+    public static let warningBorder = Swatch(light: 0xE2B48E, dark: 0x5A3A1E)
+    public static let textFaint = Swatch(light: 0x636E69, dark: 0x858B95)
+
     // Party
     public static func party(_ party: String) -> Swatch {
         switch party {
@@ -96,7 +103,7 @@ public enum Tones {
 
     /// Text tokens that must read at 4.5:1 on the ground and on a panel, in both appearances.
     public static let textTokens: [(name: String, swatch: Swatch)] = [
-        ("text", text), ("textSecondary", textSecondary), ("textMuted", textMuted),
+        ("text", text), ("textSecondary", textSecondary), ("textMuted", textMuted), ("textFaint", textFaint),
         ("yea", yea), ("nay", nay), ("liveText", liveText), ("scheduled", scheduled),
         ("accent", accent), ("threshold", threshold),
         ("party D", party("D")), ("party R", party("R")), ("party I", party("I")),
@@ -163,6 +170,12 @@ public enum Palette {
     public static let groundGlow = Color(Tones.groundGlow)
     /// The drop shadow under the catch-up deck's front card.
     public static let shadow = Color(Tones.shadow)
+    /// A warning banner on onboarding — location off, outside the U.S., approximate — and its
+    /// border. The title is set in ``nay``, the body in ``textSecondary``, a link in ``yea``.
+    public static let warningPanel = Color(Tones.warningPanel)
+    public static let warningBorder = Color(Tones.warningBorder)
+    /// The faintest text: the privacy line under onboarding's button.
+    public static let textFaint = Color(Tones.textFaint)
 
     // Lit displays: the same in both appearances.
     /// The split-flap board: its frame, and the top and bottom halves of each cell.

@@ -39,6 +39,25 @@ struct PaletteTests {
         }
     }
 
+    /// Onboarding's warning banner prints its title in nay, its body in textSecondary and "Open
+    /// Settings ›" in yea, on its own panel; the privacy line is textFaint on the ground.
+    @Test func warningBannerTextReadsOnItsPanel() {
+        let inks: [(String, Swatch)] = [
+            ("nay", Tones.nay), ("textSecondary", Tones.textSecondary), ("yea", Tones.yea),
+            ("textFaint", Tones.textFaint),
+        ]
+        for (name, ink) in inks {
+            let light = Swatch.contrast(ink.light, Tones.warningPanel.light)
+            let dark = Swatch.contrast(ink.dark, Tones.warningPanel.dark)
+            #expect(light >= 4.5, "\(name) on warningPanel, light: \(light)")
+            #expect(dark >= 4.5, "\(name) on warningPanel, dark: \(dark)")
+        }
+        // A light surface in light mode, the mock's own values in dark.
+        #expect(Swatch.luminance(Tones.warningPanel.light) > 0.7)
+        #expect(Tones.warningPanel.dark == 0x1E1610)
+        #expect(Tones.warningBorder.dark == 0x5A3A1E)
+    }
+
     /// The losing score is large display type, so it needs the 3:1 large-text minimum.
     @Test func trailingScoreReadsAsLargeText() {
         #expect(Swatch.contrast(Tones.trailing.light, Tones.panel.light) >= 3)

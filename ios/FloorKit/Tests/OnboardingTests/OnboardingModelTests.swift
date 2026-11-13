@@ -7,11 +7,17 @@ import Models
 @MainActor
 @Suite("Onboarding", .serialized)
 struct OnboardingModelTests {
-    private func model(_ outcome: StubAPIProtocol.Outcome, store: any DelegationStore = InMemoryDelegationStore())
-        -> OnboardingModel {
+    /// Location tests live in `OnboardingLocationTests.swift`, as an extension so they share this
+    /// suite's serialization.
+    func model(
+        _ outcome: StubAPIProtocol.Outcome,
+        store: any DelegationStore = InMemoryDelegationStore(),
+        location: StubLocation = StubLocation()
+    ) -> OnboardingModel {
         OnboardingModel(
             api: StubAPIProtocol.api(outcome),
             store: store,
+            location: location,
             now: { Date(timeIntervalSince1970: 1_763_000_000) }
         )
     }

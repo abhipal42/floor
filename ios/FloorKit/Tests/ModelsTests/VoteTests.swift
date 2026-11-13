@@ -207,9 +207,55 @@ struct MemberTests {
         #expect(Member.sampleSenator.partyAndSeat == "R-TX")
     }
 
-    @Test func namesAnAtLargeDistrict() {
+    @Test func namesAnAtLargeDistrict() throws {
         #expect(District(congress: 119, state: "WY", district: 0, countyFips: nil).name == "WY-AL")
         #expect(District.sample.name == "TX-37")
+        // Home's header chip: one delegate for the whole place, so no district number at all.
+        #expect(try fixture("reps-location-dc", as: Reps.self).district.name == "DC")
+    }
+
+    /// Captured from `/v1/reps?lat=41.1400&lng=-104.8202` (Cheyenne) on 2026-11-12. The API sends
+    /// an at-large seat as district 0, which must never reach the screen as "WY-0".
+    @Test func labelsAnAtLargeRepresentativeFromARealResponse() throws {
+        let reps = try fixture("reps-location-cheyenne", as: Reps.self)
+        let hageman = try #require(reps.representative)
+        #expect(hageman.lastName == "Hageman")
+        #expect(hageman.district == 0)
+        #expect(hageman.partyAndSeat == "R-WY-AL")
+        #expect(hageman.seatBadge == "WY-AL")
+        #expect(hageman.title == "Representative")
+        #expect(!hageman.isDelegate)
+        #expect(reps.senators.map(\.lastName) == ["Barrasso", "Lummis"])
+    }
+
+    /// Captured from `/v1/reps?lat=38.8977&lng=-77.0365` (the White House) on 2026-11-12: one
+    /// member, a delegate, and no senators.
+    @Test func recognisesADelegateFromARealResponse() throws {
+        let reps = try fixture("reps-location-dc", as: Reps.self)
+        #expect(reps.members.count == 1)
+        #expect(reps.senators.isEmpty)
+        let norton = try #require(reps.representative)
+        #expect(norton.isDelegate)
+        #expect(norton.title == "Delegate")
+        #expect(norton.seatBadge == "DC")
+        #expect(norton.partyAndSeat == "D-DC")
+        #expect(norton.seatCaption == "Delegate · DC")
+    }
+
+    @Test func captionsEachKindOfSeat() throws {
+        let tx = try fixture("reps-location-austin", as: Reps.self)
+        #expect(tx.members.map(\.seatCaption) == ["House · TX-37", "Senate · TX", "Senate · TX"])
+        let wy = try fixture("reps-location-cheyenne", as: Reps.self)
+        #expect(wy.representative?.seatCaption == "House · WY-AL")
+    }
+
+    @Test func titlesPuertoRicosMemberAsResidentCommissioner() {
+        let member = Member(bioguideId: "X", firstName: "A", lastName: "B", party: "R", state: "PR",
+                            district: 0, chamber: .house)
+        #expect(member.isDelegate)
+        #expect(member.title == "Resident Commissioner")
+        #expect(Member.sampleSenator.title == "Senator")
+        #expect(!Member.sampleSenator.isDelegate)
     }
 
     @Test func splitsADelegationIntoRepresentativeAndSenators() {

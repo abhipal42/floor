@@ -66,7 +66,7 @@ beforeAll(async () => {
       ('H000011', 'H0TX11001', 2026, '2025-01-01', '2026-10-14', 500000, 100000, 200000, 150000, 0, 50000, null),
       ('H000040', 'H0TX40001', 2026, '2025-01-01', '2026-10-14', 100000, 10000, 20000, 60000, 0, 10000, 5000),
       -- A senator elected in 2022: their campaign is for 2028, but the committee filings we hold
-      -- are the 2026 cycle. The two columns are not the same thing (lesson 29).
+      -- are the 2026 cycle. The two columns are not the same thing (lesson 33).
       ('S000001', 'S0TX00001', 2028, '2023-01-01', '2026-10-14', 900000, 100000, 300000, 400000, 0, 100000, 250000);
     -- Direct and earmarked are different money, so the order is by direct alone: Small Company PAC
     -- passed through far more than it gave and still comes last.
@@ -377,7 +377,7 @@ describe("Postgres repositories", () => {
       // Regression: matching pac_contributions.cycle to campaign_finance.cycle returned nothing
       // for every senator, because a senator up in 2028 still takes PAC money in the 2026 cycle.
       // Real data caught it — Schumer, Gillibrand and Murkowski all came back with no committees
-      // while plainly having them (lesson 29).
+      // while plainly having them (lesson 33).
       const f = await repos.members.funding("S000001", 10);
       expect(f!.cycle).toBe(2028);
       expect(f!.committeesCycle).toBe(2026);
