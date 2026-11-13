@@ -76,7 +76,7 @@ Command Line Tools rather than Xcode: run it with `DEVELOPER_DIR=/Applications/X
 | `apps/api` | Hono REST API with OpenAPI at `/openapi.json` | `src/app.ts` (routes + schemas), `pg.ts` (Postgres), `district.ts` (Census) |
 | `apps/web` | Landing page (v0.2.0): static HTML/CSS/TypeScript built with `tsc`, no framework | `src/data.ts` (every figure, with source and date), `src/logic.ts` (pure helpers), `src/main.ts` (rendering), `public/` |
 | `ios/` | SwiftUI app (XcodeGen, `project.yml`), `FloorKit` package: `Models`, `APIClient`, `DesignSystem`, `Onboarding`, `Home`, `VoteScreen`, `BillScreen`, `RepScreen` | `FloorKit/Sources/Models/` (one file per area, `Samples.swift` for previews), `FloorKit/Tests/ModelsTests/ContractTests.swift`, `DesignSystem/ScoreboardCard.swift`, `DesignSystem/Components.swift`, `DesignSystem/Fonts/` (Barlow Condensed, OFL), `Home/FloorShell.swift` (tabs), `Home/CatchUp.swift`, `Models/VoteOutcome.swift`, `BillScreen/LawLevels.swift` |
-| `.github/workflows/ci.yml` | Node job (lint/typecheck/tests + OpenAPI drift) + macOS job (Swift tests + simulator build). **Pushes to `main` only** since 2026-11-13 — a PR never builds the code | |
+| `.github/workflows/ci.yml` | `scope` job (which parts changed) + node job (lint/typecheck/tests + OpenAPI drift) + macOS job (Swift tests + simulator build). **Pushes to `main` only** since 2026-11-13 — a PR never builds the code — and the macOS job runs only when the push touched `ios/` or `.github/` | |
 | `.github/workflows/guards.yml` | Shipping guards on every PR (the only workflow that still runs there): changelog, version, docs, tests, retro, PR title | `.github/scripts/guards.conf` (this repo's settings), `guards.sh` (shared, do not edit) |
 | `docs/` | `plan.md` / `plan.html` (design + plan), this file, `retros/` (one per milestone) | |
 | `VERSION`, `CHANGELOG.md` | Current version (mirrored by `MARKETING_VERSION` in `ios/project.yml`) and what each version shipped | |
@@ -547,7 +547,12 @@ The app follows the system appearance. Dark is the canvas palette, unchanged; li
   panel or a card in either appearance (lesson 25).
 - **Not decided yet:** the yea and nay hues (the proposal's round 2 compares four pairings) and the
   accent. Light mode uses the proposal's patina accent and darker versions of today's green and
-  orange. There is no in-app appearance switch; the system setting decides.
+  orange.
+- **Appearance switch (v0.2.6).** The round button beside the district chip on Finals
+  (`AppearanceMenu`) offers System, Light or Dark, stored under the `appearance` key in
+  `UserDefaults`. `FloorApp` applies it by setting the window's `overrideUserInterfaceStyle`
+  rather than `preferredColorScheme`, because `preferredColorScheme(nil)` does not reliably return
+  to following the system once it has been set. Onboarding has no switch; it follows the last choice.
 - **Not mocked:** the proposal mocked Home only. Vote, Bill, Your three, Onboarding and the deck take
   their light colours from the same tokens without a screen-by-screen mock.
 
