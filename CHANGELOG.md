@@ -8,6 +8,25 @@ is a milestone and ships a retro under `docs/retros/`.
 Older series live in [`docs/changelog/`](docs/changelog) (0.1.x: [`0.1.md`](docs/changelog/0.1.md)).
 Before 0.1.0 the history is the commit log on `main`.
 
+## 0.2.3 — 2026-11-13
+
+Step 4 of the v0.3.0 milestone, "Your members on the web": campaign finance for every member.
+
+### Added
+
+- **`campaign_finance`**: OpenFEC totals for each current member's campaign to date (House: the
+  2025–26 cycle; senators: since their last election): small-dollar, itemized, PAC, party, other
+  receipts and cash on hand. `npm run ingest -w @floor/worker -- fec-totals` (about 10 minutes for
+  everyone at FEC's 60 requests a minute; skips members refreshed in the last 20 hours).
+- **`pac_contributions`**: every committee's direct and earmarked totals per member, from the FEC
+  bulk file of committee-to-candidate contributions, with FEC's committee designation, type and
+  organization type (corporation, labor, trade, membership…). `fec-pacs 2026`, about 30 seconds.
+- Earmarked pass-throughs are separated from a committee's own checks, and the memo text that names
+  individual donors is never stored (product rule: no individual donors' names). `isPac()` leaves
+  party and joint fundraising committees out of PAC lists.
+- Members now keep their FEC candidate IDs (`members.ids.fec`).
+- `docs/HANDOFF.md` lessons 20–21: what the FEC files actually contain, and the rate limit.
+
 ## 0.2.2 — 2026-11-12
 
 First step of the v0.3.0 milestone, "Your members on the web": the API can find someone's members
