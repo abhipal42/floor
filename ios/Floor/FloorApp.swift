@@ -33,7 +33,7 @@ struct FloorApp: App {
         WindowGroup {
             Group {
                 if let delegation {
-                    HomeView(
+                    FloorShell(
                         model: HomeModel(delegation: delegation, api: api),
                         onChangeAddress: startOver
                     )

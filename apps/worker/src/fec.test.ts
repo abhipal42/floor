@@ -93,7 +93,7 @@ describe("committee-to-candidate contributions (real FEC bulk excerpt)", () => {
   });
 
   // Not a legal invariant: the limit is $5,000 per election, and a cycle can hold a primary, a runoff,
-  // the general and old debt (lesson 20). In this excerpt, once earmarks are split out, none exceeds it.
+  // the general and old debt (lesson 23). In this excerpt, once earmarks are split out, none exceeds it.
   it("separates earmarks so no PAC in this excerpt shows more than $10,000 direct", () => {
     for (const byCommittee of totals.values()) {
       for (const [id, t] of byCommittee) {

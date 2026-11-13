@@ -124,3 +124,68 @@ struct VoteScreenModelTests {
         #expect(election.candidatesByStrength.first?.candidate == "Jeffries")
     }
 }
+
+private func loadDetail(_ name: String) throws -> VoteDetail {
+    var dir = URL(fileURLWithPath: #filePath)
+    dir.deleteLastPathComponent()
+    dir.deleteLastPathComponent()
+    return try JSONDecoder().decode(
+        VoteDetail.self, from: Data(contentsOf: dir.appendingPathComponent("ModelsTests/Fixtures/\(name).json"))
+    )
+}
+
+@Suite("Vote screen: box score and your three")
+struct VoteBoxScoreTests {
+    /// H.R. 1013: Republicans 212–0, Democrats 83–128. The mock's own sentence.
+    @Test func saysWhoCrossedOnARealVote() throws {
+        let detail = try loadDetail("vote-passage-hr1013")
+        #expect(detail.crossoverSentence == "83 Democrats crossed to join a unanimous Republican side.")
+        #expect(detail.boxScore.map(\.party) == ["R", "D"])
+        #expect(detail.rollParties.map(\.party) == ["D", "R"])
+        #expect(detail.rollCount == 433)
+        #expect(!detail.anyPresent)
+    }
+
+    @Test func callsAStraightPartyLineVoteOne() throws {
+        // H.R. 7008 cloture: R 53–0, D 0–45, I 0–2. Independents are left out of the reading.
+        #expect(try loadDetail("vote-cloture-failed").crossoverSentence == "A party-line vote: no Democrat or Republican crossed.")
+    }
+
+    @Test func handlesBothPartiesOnOneSide() {
+        let d = detail(yea: 300, nay: 100, parties: [
+            PartyTotals(party: "D", yea: 150, nay: 60, present: 0, notVoting: 0),
+            PartyTotals(party: "R", yea: 150, nay: 40, present: 0, notVoting: 0),
+        ])
+        #expect(d.crossoverSentence == "Most of both parties voted yea: Democrats 150–60, Republicans 150–40.")
+        let both = detail(yea: 10, nay: 5, parties: [
+            PartyTotals(party: "D", yea: 6, nay: 1, present: 0, notVoting: 0),
+            PartyTotals(party: "R", yea: 1, nay: 4, present: 0, notVoting: 0),
+        ])
+        #expect(both.crossoverSentence == "1 Democrat and 1 Republican crossed party lines.")
+        #expect(detail(yea: 0, nay: 0, kind: .election).crossoverSentence == nil)
+    }
+
+    @Test func placesYourMemberInTheirParty() throws {
+        let detail = try loadDetail("vote-passage-hr1013")
+        let jeffries = try #require(detail.positions.first)
+        #expect(detail.withParty(jeffries) == "with 128 of 211 Democrats")
+        let away = MemberPosition(member: jeffries.member, position: .notVoting, choice: nil)
+        #expect(detail.withParty(away) == nil)
+    }
+
+    @Test func notesYourMembersInTheOtherChamber() throws {
+        let detail = try loadDetail("vote-passage-hr1013")
+        let schumer = Member(bioguideId: "S000148", firstName: "Charles", lastName: "Schumer", party: "D", state: "NY", district: nil, chamber: .senate)
+        let gillibrand = Member(bioguideId: "G000555", firstName: "Kirsten", lastName: "Gillibrand", party: "D", state: "NY", district: nil, chamber: .senate)
+        let note = try #require(detail.otherChamberNote(delegation: [detail.positions[0].member, schumer, gillibrand]))
+        #expect(note.text == "Schumer and Gillibrand vote in the Senate — this was a House vote.")
+        #expect(detail.otherChamberNote(delegation: [detail.positions[0].member]) == nil)
+    }
+
+    @Test func drawsOneSquarePerMember() throws {
+        let dems = try #require(try loadDetail("vote-passage-hr1013").partyTotals.first { $0.party == "D" })
+        #expect(dems.squares.count == 214)
+        #expect(dems.squares.prefix(83).allSatisfy { $0 == .yea })
+        #expect(dems.squares.suffix(3).allSatisfy { $0 == .notVoting })
+    }
+}

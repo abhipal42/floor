@@ -43,6 +43,11 @@ public struct FeedItem: Identifiable, Sendable, Hashable {
         return positions.map { "\($0.member.lastName) \(label($0))" }.joined(separator: " · ")
     }
 
+    /// The positions as the shared card takes them.
+    public var memberPositions: [MemberPosition] {
+        positions.map { MemberPosition(member: $0.member, position: $0.position, choice: $0.choice) }
+    }
+
     /// True when your members did not all vote the same way.
     public var isSplit: Bool {
         Set(positions.map(\.position)).count > 1
@@ -80,6 +85,11 @@ public final class HomeModel {
     /// merge itself is a static function and is tested directly.
     public internal(set) var items: [FeedItem] = []
     public var filter: Filter = .all
+    /// Each member's party-loyalty record, for the rings on the delegation strip. Loaded beside the
+    /// feed; a member whose record fails to load simply shows an empty ring.
+    public internal(set) var loyalty: [String: PartyLoyalty] = [:]
+    /// Deck cards opened this session, for the progress dots and "N of 5 caught up".
+    public var seenInDeck: Set<String> = []
 
     public let delegation: Delegation
     private let api: FloorAPI
@@ -99,16 +109,21 @@ public final class HomeModel {
         case vote(id: String)
         case bill(id: String)
         case member(id: String)
+        /// The catch-up deck.
+        case catchUp
     }
 
     /// Screens are built here so the API client stays private to this model.
     public func voteScreen(id: String) -> VoteScreenModel {
-        VoteScreenModel(voteId: id, memberIds: delegation.memberIds, api: api)
+        VoteScreenModel(voteId: id, memberIds: delegation.memberIds, api: api, delegation: delegation.members)
     }
 
     public func billScreen(id: String) -> BillScreenModel {
-        BillScreenModel(billId: id, api: api)
+        BillScreenModel(billId: id, api: api, members: delegation.members)
     }
+
+    /// The Your three tab's model, one for the life of this delegation.
+    @ObservationIgnored public private(set) lazy var yourThree = YourThreeModel(members: delegation.members, api: api)
 
     public func repScreen(id: String) -> RepScreenModel {
         RepScreenModel(bioguideId: id, api: api)
@@ -147,10 +162,41 @@ public final class HomeModel {
             }
             items = Self.merge(records)
             phase = .loaded
+            await loadLoyalty()
         } catch let error as FloorAPIError {
             phase = .failed(error.errorDescription ?? "Couldn't load recent votes.")
         } catch {
             phase = .failed("Couldn't load recent votes.")
+        }
+    }
+
+    private func loadLoyalty() async {
+        let found: [(String, PartyLoyalty)] = await withTaskGroup(of: (String, PartyLoyalty)?.self) { group in
+            for member in delegation.members {
+                group.addTask { [api] in
+                    (try? await api.member(id: member.bioguideId)).map { (member.bioguideId, $0.partyLoyalty) }
+                }
+            }
+            var collected: [(String, PartyLoyalty)] = []
+            for await entry in group { if let entry { collected.append(entry) } }
+            return collected
+        }
+        loyalty = Dictionary(found, uniquingKeysWith: { first, _ in first })
+    }
+
+    /// The most recent final in the feed, for the split-flap board.
+    public var latestFinal: FeedItem? { items.first { $0.vote.state == .final } }
+
+    /// The catch-up deck: five finals from this feed, chosen by ``CatchUp/select(_:count:)``.
+    public var deck: [FeedItem] { CatchUp.select(items) }
+
+    /// Bills your members voted on recently, newest vote first, one row per bill. There is no "all
+    /// bills" endpoint, so the Bills tab is built from the feed already loaded.
+    public var bills: [FeedItem] {
+        var seen = Set<String>()
+        return items.filter { item in
+            guard let measure = item.measure, measure.kind == .bill else { return false }
+            return seen.insert(measure.id).inserted
         }
     }
 

@@ -4,8 +4,9 @@ Last updated 2026-11-12. Read this first, then [`plan.md`](plan.md) for the full
 
 **In one paragraph:** M0 (foundation) is done. M1 (data backbone) is done; the one item still open against it, measured posting latency, has moved to M3, because it can only be taken on a live session day with polling running. Staging Postgres holds every House and Senate roll call since January 2023, and every one matches the official totals; every vote now has a subject attached, bills and nominations alike. The API serves district lookup, member votes, votes, bills, nominations and data freshness from that database, and now also the per-party breakdown of a vote, your own delegation's positions on it, and a member's party-loyalty record. **M2 is nearly done:** the API is deployed at <https://floor-api.vercel.app> and a Release build of
 the app runs the whole flow against it — onboarding to a real district, then Home, Vote, Bill and
-Rep. Four items remain, listed at the top of the M2 section: the Speaker election card on Home, a
-SwiftData offline cache, snapshot tests, and TestFlight distribution.
+Rep. Since v0.2.3 those screens match the landing page (three tabs: Finals, Bills, Your three). Three
+items remain, listed at the top of the M2 section: a SwiftData offline cache, snapshot tests, and
+TestFlight distribution.
 
 ---
 
@@ -72,7 +73,7 @@ Command Line Tools rather than Xcode: run it with `DEVELOPER_DIR=/Applications/X
 | `apps/worker` | Ingest CLI: members, roll calls, bills, nominations | `src/cli.ts`, `rollcalls.ts`, `bills.ts`, `nominations.ts`, `members.ts`, `db.ts` |
 | `apps/api` | Hono REST API with OpenAPI at `/openapi.json` | `src/app.ts` (routes + schemas), `pg.ts` (Postgres), `district.ts` (Census) |
 | `apps/web` | Landing page (v0.2.0): static HTML/CSS/TypeScript built with `tsc`, no framework | `src/data.ts` (every figure, with source and date), `src/logic.ts` (pure helpers), `src/main.ts` (rendering), `public/` |
-| `ios/` | SwiftUI app (XcodeGen, `project.yml`), `FloorKit` package: `Models`, `APIClient`, `DesignSystem`, `Onboarding`, `Home`, `VoteScreen`, `BillScreen`, `RepScreen` | `FloorKit/Sources/Models/` (one file per area, `Samples.swift` for previews), `FloorKit/Tests/ModelsTests/ContractTests.swift`, `DesignSystem/ScoreboardCard.swift`, `BillScreen/BillProgress.swift` |
+| `ios/` | SwiftUI app (XcodeGen, `project.yml`), `FloorKit` package: `Models`, `APIClient`, `DesignSystem`, `Onboarding`, `Home`, `VoteScreen`, `BillScreen`, `RepScreen` | `FloorKit/Sources/Models/` (one file per area, `Samples.swift` for previews), `FloorKit/Tests/ModelsTests/ContractTests.swift`, `DesignSystem/ScoreboardCard.swift`, `DesignSystem/Components.swift`, `DesignSystem/Fonts/` (Barlow Condensed, OFL), `Home/FloorShell.swift` (tabs), `Home/CatchUp.swift`, `Models/VoteOutcome.swift`, `BillScreen/LawLevels.swift` |
 | `.github/workflows/ci.yml` | Node job (lint/typecheck/tests + OpenAPI drift) + macOS job (Swift tests + simulator build) | |
 | `.github/workflows/guards.yml` | Shipping guards on every PR: changelog, version, docs, tests, retro, PR title | `.github/scripts/guards.conf` (this repo's settings), `guards.sh` (shared, do not edit) |
 | `docs/` | `plan.md` / `plan.html` (design + plan), this file, `retros/` (one per milestone) | |
@@ -101,7 +102,7 @@ Command Line Tools rather than Xcode: run it with `DEVELOPER_DIR=/Applications/X
 | `bills` / `actions` | 1,049 / 19,714 | Every bill a vote refers to; 976 have a CRS summary. All 2,319 votes on bills are linked (`votes.bill_id`) |
 | `nominations` | 448 | Every nomination a vote refers to; 201 are parts of a split nomination, 10 are military (no named nominee). All 905 nomination votes are linked (`votes.nomination_id`) |
 | `campaign_finance` | see §5 v0.3.0 | One row per current member: OpenFEC totals for their current campaign to date (House 2025–26; senators since their last election), with cash on hand |
-| `pac_contributions` | 103,564 | Per member and giving committee, 2026 cycle: direct and earmarked totals, committee designation, type and organization type. No memo text, no individual names (lesson 20) |
+| `pac_contributions` | 103,564 | Per member and giving committee, 2026 cycle: direct and earmarked totals, committee designation, type and organization type. No memo text, no individual names (lesson 23) |
 | `ingest_runs` | | Every ingest run with item count and error, which feeds `/v1/status` |
 
 Verification query (should return zeros for the last four columns):
@@ -187,7 +188,18 @@ Real data broke our first assumptions several times. Each case below is now hand
     `result.addressMatches[0].geographies`. A point outside the U.S. (we checked London) is not an
     error: it comes back `200` with an empty `geographies` object. `parseCensusDistrict` reads
     both shapes and returns null for the empty one, which `/v1/reps` turns into a 404.
-20. **FEC committee-to-candidate rows are not all PAC checks, and none fit a $10,000 cap.** The bulk
+20. **Portraits come from `unitedstates.github.io/images/congress/<size>/<bioguide>.jpg`.** The
+    `theunitedstates.io` host for the same project failed its TLS handshake from here (2026-11-12).
+21. **A `.safeAreaInset` on a `NavigationStack` does not reach the screens pushed onto it.** The
+    floating tab bar covered the bottom of every pushed Vote and Bill screen until the inset moved
+    onto each screen itself.
+22. **The count and the record can disagree, and the record wins.** A Vice President breaks a 50–50
+    tie ("Motion Agreed to"), a unanimous-consent agreement sets 60 on a vote the API reports as
+    majority, and the arithmetic counts "present" where the House doesn't. `ThresholdLine` then
+    reports `contradicted` and no over/short, so nothing prints "1 short" under AGREED. And
+    **"Veto Sustained" is a failure**: the veto stands and the override lost. Found by review of
+    v0.2.3, not by data, so watch real results for wordings the lists in `recordedOutcome` miss.
+23. **FEC committee-to-candidate rows are not all PAC checks, and none fit a $10,000 cap.** The bulk
     file (`pas2`) mixes three kinds of money under transaction type `24K`:
     - **Earmarked contributions:** individuals' money a committee passes through (MORPAC, AIPAC PAC).
       Only the memo text says so ("EARMARK FROM …"), and that memo **names the individual**. The
@@ -201,7 +213,7 @@ Real data broke our first assumptions several times. Each case below is now hand
       cycle total as "the maximum" without checking which elections it covers.
     Voided checks are negative rows that net out; amended filings repeat a transaction, so keep the
     latest filing per committee and transaction ID.
-21. **OpenFEC allows 60 requests a minute on our key**, not per hour (`x-ratelimit-remaining`
+24. **OpenFEC allows 60 requests a minute on our key**, not per hour (`x-ratelimit-remaining`
     refills within a minute). One totals call per member loads all 535 in about 10 minutes. Totals
     are what the *campaign* reported receiving; `pas2` is what *committees* reported giving. The two
     disagree (Jeffries: $2.77M vs $2.53M from PACs), so label each by its source.
@@ -250,10 +262,12 @@ The working rhythm: break each milestone into tasks. For each task, write tests 
 ### M2: iOS core on real data
 **Goal:** a TestFlight build that shows how your reps voted, from real data. No live updates yet.
 
-> **M2 is not finished.** The app works end to end against the deployed API — onboarding, Home,
-> Vote, Bill and Rep, all on real data — but four items from the list below are still open:
+> **M2 is not finished.** The app works end to end against the deployed API — onboarding, Finals,
+> Vote, Bill and Your three, all on real data — but three items from the list below are still open
+> (item 1 is kept for the record):
 >
-> 1. **The Speaker election card on Home.** Built on the Vote screen, never on the feed. `HomeView`
+> 1. ~~**The Speaker election card on Home.**~~ **Done in v0.2.3** (`ScoreboardCard`'s Speaker-ballot
+>    variant, "MAJORITY OF NAMES"). What it was: Built on the Vote screen, never on the feed. `HomeView`
 >    hands every vote to `ScoreboardCard`, and a Speaker ballot has `yea: 0, nay: 0`, so it renders
 >    as "0 … Final … 0, Needs 1" — a meaningless card, under a row summary that is correct
 >    ("Doggett voted Jeffries"), which makes it look like bad data rather than a missing variant.
@@ -420,6 +434,28 @@ the product rules they settled are in `CLAUDE.md` › Product rules). What to kn
   every filing; `ptr-pdfs/<year>/<DocID>.pdf` are the trade reports). Senate disclosures (eFD) have no
   bulk index. Disclosures report value **ranges** and omit homes, which is why the page shows ranges.
 - **Forms are inert.** Beta sign-up and address entry show "opens soon" until there is a backend.
+
+### The app redesign (v0.2.3)
+
+The iOS screens were rebuilt to the phone mocks in round 6 of the same canvas
+(<https://claude.ai/artifact/FKWYDhCej75UPy94csYLsU>): `AppOnboarding`, `AppHome`, `AppVote`, `AppBill`,
+`AppRep`. Palette colours are unchanged; Barlow Condensed is bundled for display type. Where the
+build differs from the mocks, and why:
+
+- **No names on the full roll.** `/v1/votes/{id}` returns party totals and your own delegation's
+  positions, not every member's, so the squares are drawn from party counts and can't be tapped.
+  Adding all positions to that route would make "tap a square to see who" possible.
+- **Feed cards show the question type**, not the party split: the feed has no per-party numbers,
+  and fetching them would be one request per card.
+- **Catch-up cards show the recorded result** where the mock had a one-line bill summary, because
+  that line would have to be AI-written (M4).
+- **The Bill screen shows the CRS summary**, labelled as CRS, where the AI explainer will go (M4).
+- **Your three has no Record / Money / Portfolio switch** until Money and Portfolio have data
+  (FEC and disclosure ingest; see the landing page section).
+- **BOSS levels** are marked on House or Senate only when one of the bill's own votes there needed
+  60 or two-thirds; Signed is always marked (veto override).
+- **"Winning side" is the outcome, not the larger side** (`sidedWithOutcome`). They differ when a
+  majority loses to a threshold — H.J.Res. 1 lost 212–206.
 
 ### v0.3.0: Your members on the web (in progress)
 

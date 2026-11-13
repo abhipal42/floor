@@ -1,0 +1,81 @@
+{
+  "id": "senate-119-2-253",
+  "kind": "question",
+  "candidates": [],
+  "chamber": "senate",
+  "congress": 119,
+  "session": 2,
+  "rollNumber": 253,
+  "question": "On Cloture on the Motion to Proceed",
+  "billId": "119-hr-7008",
+  "nominationId": null,
+  "billRef": "H.R. 7008",
+  "occurredAt": "2026-09-30T15:58:00.000Z",
+  "state": "final",
+  "threshold": "three_fifths_sworn",
+  "totals": {
+    "yea": 53,
+    "nay": 47,
+    "present": 0,
+    "notVoting": 0
+  },
+  "result": "Cloture on the Motion to Proceed Rejected",
+  "partyTotals": [
+    {
+      "party": "R",
+      "yea": 53,
+      "nay": 0,
+      "present": 0,
+      "notVoting": 0
+    },
+    {
+      "party": "D",
+      "yea": 0,
+      "nay": 45,
+      "present": 0,
+      "notVoting": 0
+    },
+    {
+      "party": "I",
+      "yea": 0,
+      "nay": 2,
+      "present": 0,
+      "notVoting": 0
+    }
+  ],
+  "candidateTotals": [],
+  "positions": [
+    {
+      "member": {
+        "bioguideId": "C001056",
+        "firstName": "John",
+        "lastName": "Cornyn",
+        "party": "R",
+        "state": "TX",
+        "district": null,
+        "chamber": "senate"
+      },
+      "position": "yea",
+      "choice": null
+    },
+    {
+      "member": {
+        "bioguideId": "C001098",
+        "firstName": "Ted",
+        "lastName": "Cruz",
+        "party": "R",
+        "state": "TX",
+        "district": null,
+        "chamber": "senate"
+      },
+      "position": "yea",
+      "choice": null
+    }
+  ],
+  "measure": {
+    "id": "119-hr-7008",
+    "kind": "bill",
+    "citation": "H.R. 7008",
+    "title": "Stop Insider Trading Act"
+  }
+}

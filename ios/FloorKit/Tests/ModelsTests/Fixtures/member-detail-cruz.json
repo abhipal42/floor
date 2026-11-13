@@ -1,0 +1,16 @@
+{
+  "member": {
+    "bioguideId": "C001098",
+    "firstName": "Ted",
+    "lastName": "Cruz",
+    "party": "R",
+    "state": "TX",
+    "district": null,
+    "chamber": "senate"
+  },
+  "partyLoyalty": {
+    "votes": 1501,
+    "withParty": 1433,
+    "againstParty": 68
+  }
+}
