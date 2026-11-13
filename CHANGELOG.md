@@ -32,6 +32,12 @@ data landed in 0.2.4; this serves it. The page section is what remains of the st
   (the election a campaign is for) and `pac_contributions.cycle` (the two-year FEC filing cycle)
   are different things. Matching them passed every seeded test, because House members are up every
   cycle, and returned zero committees for every senator against real data.
+- **`DATABASE_URL` on the `floor-api` Vercel project is now set for Preview as well as Production**
+  (an environment change, not a code one). Previews were falling back to the stub repositories, so
+  a PR preview answered `/v1/status` with every source null and any member route with a 404, which
+  reads as missing data rather than a missing database. The PR preview for this branch now returns
+  real rows. Recorded in `docs/HANDOFF.md` with the caveat it brings: a preview build now carries
+  the staging credentials, contained only by Vercel Authentication on preview URLs.
 
 ## 0.2.12 — 2026-11-13
 

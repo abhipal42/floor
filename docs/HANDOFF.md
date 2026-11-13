@@ -523,7 +523,7 @@ The working rhythm: break each milestone into tasks. For each task, write tests 
   `@hono/node-server/vercel`, not `hono/vercel` — the latter returns a fetch-style handler while the
   Node runtime calls `(req, res)`, so every request hangs to the function timeout.
   `DATABASE_URL` is set and the deployment serves real data; `/v1/status` reports `ok: true`.
-  Three things about that variable, each of which cost a failed deploy:
+  Four things about that variable, the first three of which each cost a failed deploy:
   - **It must be the pooler string, and the username differs too.** Not
     `postgres@db.<ref>.supabase.co:5432` — that host does not resolve from Vercel at all (Supabase's
     direct connections are IPv6-only), so it fails with `ENOTFOUND` rather than a timeout. Use
@@ -531,7 +531,16 @@ The working rhythm: break each milestone into tasks. For each task, write tests 
   - **It is `aws-1`, not `aws-0`.** Supabase's docs and most examples show `aws-0-us-east-1` for this
     region; that host exists but rejects the tenant with "tenant/user not found".
   - **Changing it needs a redeploy.** Vercel bakes environment variables into a deployment at build
-    time, so an existing deployment keeps the environment it was built with.
+    time, so an existing deployment keeps the environment it was built with. A redeploy of the same
+    commit is deduplicated and hands back the old build with the old value, so force a new one
+    (`vercel --force`, or `forceNew` through the API) when the point of the redeploy is the variable.
+  - **It is set for Production *and* Preview** (2026-11-13). It was production-only until then, so
+    every PR preview silently fell back to the stub repositories in `apps/api/api/index.ts`: a
+    preview answered `/v1/status` with every source null and `/v1/members/{id}` with a 404, which
+    reads as missing data rather than a missing database. Adding Preview is what makes a PR preview
+    queryable against staging. Note what that implies — a preview build now carries the staging
+    credentials, which is contained only because preview URLs sit behind Vercel Authentication, and
+    is the strongest argument for the read-only role below.
 
   Optionally set `ALLOWED_ORIGINS` (comma-separated) for a future web client; unset means no browser
   origin may read a response, which does not affect the iOS app.
