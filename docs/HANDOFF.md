@@ -87,6 +87,7 @@ Command Line Tools rather than Xcode: run it with `DEVELOPER_DIR=/Applications/X
 |---|---|
 | `GET /v1/reps?address=` or `?lat=&lng=` | District (119th Congress map) + House member + senators. Send an address *or* coordinates (e.g. from the browser's location), not both. Coordinates are rounded to 4 decimals (~11 m). Either goes only to the Census geocoder and isn't stored or logged. |
 | `GET /v1/members/{id}` | A member, plus how often they sided with their own party's majority |
+| `GET /v1/members/{id}/funding` | Their current campaign's money: what the campaign reported receiving (small-dollar, itemized, PAC, party, other, cash on hand) and the committees that reported giving to it, biggest direct giver first. `?committees=` (0-50, default 10). No individual donor is named |
 | `GET /v1/members/{bioguideId}/votes?limit=` | A member's recent votes with their position (and candidate, for Speaker elections) |
 | `GET /v1/votes/{id}` | One vote: totals, threshold, kind, bill link, **per-party breakdown**, and for a Speaker election **which candidate each party backed**. `?members=A000370,C001098` (up to ten) also returns those members' own positions, so the vote screen loads your delegation in one round trip. IDs look like `house-119-1-100` |
 | `GET /v1/bills/{id}` | Title, short title, CRS summary, sponsor, policy area, CBO estimates, last 30 actions, every vote on it. IDs look like `119-hr-2207` |
@@ -266,6 +267,16 @@ Real data broke our first assumptions several times. Each case below is now hand
     text token it would fail `PaletteTests`, so `textFaint` is `#858B95` in dark (5.8:1 on the
     ground) and `#636E69` in light (4.6:1). Check a new text colour against the ground, panels and
     cards before taking it from a mock.
+33. **`campaign_finance.cycle` and `pac_contributions.cycle` are different things, and joining on
+    them silently empties the Senate.** The first is the election a campaign is *for* — 2028 for a
+    senator elected in 2022, 2030 for one elected in 2024. The second is the two-year FEC bulk file
+    the committee rows came from, currently 2026. `/v1/members/{id}/funding` first matched one to
+    the other, which looked right and passed every seeded test: House members are up every cycle,
+    so for them the two numbers agree. Against staging, Schumer (2028), Gillibrand (2030) and
+    Murkowski (2028) each came back with totals and **zero committees** — a senator up in 2028 is
+    still taking PAC money in the 2026 cycle. The query now takes the most recent cycle held for
+    that member, and the response carries `committeesCycle` next to `cycle` so a client can say
+    which period the committee list covers instead of implying it matches the campaign's.
 
 ---
 
@@ -512,7 +523,7 @@ The working rhythm: break each milestone into tasks. For each task, write tests 
   `@hono/node-server/vercel`, not `hono/vercel` — the latter returns a fetch-style handler while the
   Node runtime calls `(req, res)`, so every request hangs to the function timeout.
   `DATABASE_URL` is set and the deployment serves real data; `/v1/status` reports `ok: true`.
-  Three things about that variable, each of which cost a failed deploy:
+  Four things about that variable, the first three of which each cost a failed deploy:
   - **It must be the pooler string, and the username differs too.** Not
     `postgres@db.<ref>.supabase.co:5432` — that host does not resolve from Vercel at all (Supabase's
     direct connections are IPv6-only), so it fails with `ENOTFOUND` rather than a timeout. Use
@@ -520,7 +531,16 @@ The working rhythm: break each milestone into tasks. For each task, write tests 
   - **It is `aws-1`, not `aws-0`.** Supabase's docs and most examples show `aws-0-us-east-1` for this
     region; that host exists but rejects the tenant with "tenant/user not found".
   - **Changing it needs a redeploy.** Vercel bakes environment variables into a deployment at build
-    time, so an existing deployment keeps the environment it was built with.
+    time, so an existing deployment keeps the environment it was built with. A redeploy of the same
+    commit is deduplicated and hands back the old build with the old value, so force a new one
+    (`vercel --force`, or `forceNew` through the API) when the point of the redeploy is the variable.
+  - **It is set for Production *and* Preview** (2026-11-13). It was production-only until then, so
+    every PR preview silently fell back to the stub repositories in `apps/api/api/index.ts`: a
+    preview answered `/v1/status` with every source null and `/v1/members/{id}` with a 404, which
+    reads as missing data rather than a missing database. Adding Preview is what makes a PR preview
+    queryable against staging. Note what that implies — a preview build now carries the staging
+    credentials, which is contained only because preview URLs sit behind Vercel Authentication, and
+    is the strongest argument for the read-only role below.
 
   Optionally set `ALLOWED_ORIGINS` (comma-separated) for a future web client; unset means no browser
   origin may read a response, which does not affect the iOS app.
@@ -750,8 +770,10 @@ steps ship as 0.2.x PATCH releases; 0.3.0 closes the milestone with its retro.
 4. **Campaign finance for every member.** Data landed in 0.2.4: `campaign_finance` (OpenFEC
    totals for each member's current campaign: small-dollar, itemized, PAC, party, other, cash on
    hand) and `pac_contributions` (every committee's direct and earmarked totals per member from the
-   2026 bulk file, with FEC's organization type for the "kind"). Still to do: the API route and the
-   section (the location mock it waited on was locked 2026-11-12).
+   2026 bulk file, with FEC's organization type for the "kind"). **The API route landed in 0.2.12:**
+   `/v1/members/{id}/funding`, which keeps the two FEC sources apart (lesson 24) and excludes party
+   and joint fundraising committees (lesson 23). Still to do: **the page section**, which reads the
+   live route for your members instead of the `funding` snapshot in `apps/web/src/data.ts`.
 5. **Donor context** from Senate LDA lobbying filings (what each PAC's organization lobbies on),
    matched to the member's votes by topic. The plain-English "who they are" lines are AI-written and
    wait for M4's label-and-cite pipeline.

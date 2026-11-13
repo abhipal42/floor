@@ -387,6 +387,146 @@
           "partyLoyalty"
         ]
       },
+      "PacCheck": {
+        "type": "object",
+        "properties": {
+          "committeeId": {
+            "type": "string",
+            "example": "C00002550"
+          },
+          "name": {
+            "type": "string",
+            "example": "American Trucking Associations PAC"
+          },
+          "kind": {
+            "type": "string",
+            "nullable": true,
+            "description": "From FEC's organization type; null when FEC classifies the committee as nothing",
+            "example": "Trade group"
+          },
+          "orgType": {
+            "type": "string",
+            "nullable": true,
+            "description": "Raw FEC ORG_TP, so a client can classify differently",
+            "example": "T"
+          },
+          "connectedOrg": {
+            "type": "string",
+            "nullable": true,
+            "example": "American Trucking Associations"
+          },
+          "direct": {
+            "type": "number",
+            "description": "The committee's own contributions"
+          },
+          "earmarked": {
+            "type": "number",
+            "description": "Individuals' money passed through it"
+          }
+        },
+        "required": [
+          "committeeId",
+          "name",
+          "kind",
+          "orgType",
+          "connectedOrg",
+          "direct",
+          "earmarked"
+        ]
+      },
+      "Funding": {
+        "type": "object",
+        "nullable": true,
+        "properties": {
+          "cycle": {
+            "type": "integer",
+            "description": "The election this campaign is for",
+            "example": 2026
+          },
+          "coverageStart": {
+            "type": "string",
+            "nullable": true,
+            "example": "2025-01-01"
+          },
+          "coverageEnd": {
+            "type": "string",
+            "nullable": true,
+            "description": "Through which the figures run",
+            "example": "2026-10-14"
+          },
+          "receipts": {
+            "type": "number",
+            "description": "Total raised this campaign to date, as the campaign reported it"
+          },
+          "smallDollar": {
+            "type": "number",
+            "description": "Individual contributions under $200 per donor (unitemized)"
+          },
+          "itemized": {
+            "type": "number",
+            "description": "Individual contributions itemized by FEC"
+          },
+          "pac": {
+            "type": "number",
+            "description": "From other political committees"
+          },
+          "party": {
+            "type": "number",
+            "description": "From party committees"
+          },
+          "other": {
+            "type": "number",
+            "description": "Transfers, the candidate's own money, refunds and other receipts"
+          },
+          "cashOnHand": {
+            "type": "number",
+            "nullable": true
+          },
+          "committeesCycle": {
+            "type": "integer",
+            "nullable": true,
+            "description": "The two-year FEC cycle `committees` covers, which is NOT `cycle`: a senator's campaign may be for 2028 while the committee filings are the 2026 cycle. Null when we hold no committee rows for them.",
+            "example": 2026
+          },
+          "committees": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PacCheck"
+            },
+            "description": "Biggest PAC givers by direct amount. Party and joint fundraising committees are excluded — neither is a PAC check (lesson 23)"
+          }
+        },
+        "required": [
+          "cycle",
+          "coverageStart",
+          "coverageEnd",
+          "receipts",
+          "smallDollar",
+          "itemized",
+          "pac",
+          "party",
+          "other",
+          "cashOnHand",
+          "committeesCycle",
+          "committees"
+        ]
+      },
+      "MemberFunding": {
+        "type": "object",
+        "properties": {
+          "member": {
+            "$ref": "#/components/schemas/Member"
+          },
+          "funding": {
+            "$ref": "#/components/schemas/Funding"
+          }
+        },
+        "required": [
+          "member",
+          "funding"
+        ],
+        "description": "funding is null for a member FEC has no current-campaign totals for"
+      },
       "District": {
         "type": "object",
         "properties": {
@@ -900,6 +1040,59 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/MemberDetail"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No member with that ID",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/members/{id}/funding": {
+      "get": {
+        "summary": "Who funds a member's current campaign",
+        "description": "Totals the campaign reported receiving, and the committees that reported giving to it. The two come from different FEC sources and will not reconcile. No individual donor is named: FEC publishes them, Floor does not store them.",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^[A-Z]\\d{6}$",
+              "example": "A000370"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "nullable": true,
+              "minimum": 0,
+              "maximum": 50,
+              "default": 10,
+              "description": "How many giving committees to return"
+            },
+            "required": false,
+            "name": "committees",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The member and their campaign's money",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MemberFunding"
                 }
               }
             }

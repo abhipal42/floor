@@ -201,6 +201,55 @@ interface NominationRow {
 const day = (d: Date | string | null): string | null =>
   d == null ? null : typeof d === "string" ? d.slice(0, 10) : d.toISOString().slice(0, 10);
 
+interface FundingRow {
+  cycle: number;
+  coverage_start: Date | string | null;
+  coverage_end: Date | string | null;
+  receipts: string;
+  individual_unitemized: string;
+  individual_itemized: string;
+  pac: string;
+  party: string;
+  other: string;
+  cash_on_hand: string | null;
+}
+
+interface PacRow {
+  committee_id: string;
+  committee_name: string;
+  committee_designation: string | null;
+  committee_type: string | null;
+  org_type: string | null;
+  connected_org: string | null;
+  direct_amount: string;
+  earmarked_amount: string;
+}
+
+/**
+ * A plain-English label for a giving committee, from FEC's own classification.
+ *
+ * Only what FEC actually says: ORG_TP for the organization behind the committee, and designation
+ * D for a leadership PAC, which ORG_TP does not cover. A committee FEC classifies as nothing comes
+ * back null rather than being guessed into a category — the page shows no label instead of an
+ * invented one.
+ */
+export const pacKind = (orgType: string | null, designation: string | null): string | null => {
+  switch (orgType) {
+    case "C":
+    case "W":
+      return "Company";
+    case "L":
+      return "Union";
+    case "T":
+      return "Trade group";
+    case "M":
+      return "Membership group";
+    case "V":
+      return "Cooperative";
+  }
+  return designation === "D" ? "Leadership PAC" : null;
+};
+
 export function pgRepositories(db: Db): {
   votes: VoteRepository;
   members: MemberRepository;
@@ -450,6 +499,64 @@ export function pgRepositories(db: Db): {
           againstParty: r?.against_party ?? 0,
         };
         return loyalty;
+      },
+
+      async funding(bioguideId, limit) {
+        const { rows } = await db.query<FundingRow>(
+          `select cycle, coverage_start, coverage_end, receipts, individual_unitemized, individual_itemized,
+                  pac, party, other, cash_on_hand
+             from campaign_finance where member_id = $1`,
+          [bioguideId],
+        );
+        const f = rows[0];
+        if (!f) return null;
+        // Biggest PAC givers, for the most recent cycle we hold rows for.
+        //
+        // NOT `cycle = f.cycle`: the two columns are different things. campaign_finance.cycle is
+        // the election the campaign is for — 2028 for a senator elected in 2022 — while
+        // pac_contributions.cycle is the two-year FEC bulk file the rows came from, currently
+        // 2026. Matching them returned no committees at all for every senator, because a senator
+        // up in 2028 is still taking PAC money in the 2026 cycle (lesson 33).
+        //
+        // The PAC test is `isPac` in apps/worker/src/fec.ts (lesson 23), written out in SQL rather
+        // than imported: apps/api deliberately has no workspace dependencies, because its Vercel
+        // project builds from apps/api as its root directory. The two copies are pinned together by
+        // a test — pg.test.ts walks every designation/type pair against the same truth table that
+        // fec.test.ts asserts for isPac, so a change to one that is not made to the other fails.
+        const { rows: committees } = await db.query<PacRow & { cycle: number }>(
+          `select cycle, committee_id, committee_name, committee_designation, committee_type, org_type, connected_org,
+                  direct_amount, earmarked_amount
+             from pac_contributions
+            where member_id = $1
+              and cycle = (select max(cycle) from pac_contributions where member_id = $1)
+              and coalesce(committee_designation, '') <> 'J'
+              and coalesce(committee_type, '') not in ('X', 'Y', 'Z')
+            order by direct_amount desc, committee_id
+            limit $2`,
+          [bioguideId, limit],
+        );
+        return {
+          cycle: f.cycle,
+          coverageStart: day(f.coverage_start),
+          coverageEnd: day(f.coverage_end),
+          receipts: Number(f.receipts),
+          smallDollar: Number(f.individual_unitemized),
+          itemized: Number(f.individual_itemized),
+          pac: Number(f.pac),
+          party: Number(f.party),
+          other: Number(f.other),
+          cashOnHand: f.cash_on_hand === null ? null : Number(f.cash_on_hand),
+          committeesCycle: committees[0]?.cycle ?? null,
+          committees: committees.map((c) => ({
+            committeeId: c.committee_id,
+            name: c.committee_name,
+            kind: pacKind(c.org_type, c.committee_designation),
+            orgType: c.org_type,
+            connectedOrg: c.connected_org,
+            direct: Number(c.direct_amount),
+            earmarked: Number(c.earmarked_amount),
+          })),
+        };
       },
     },
   };

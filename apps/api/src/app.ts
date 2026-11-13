@@ -151,6 +151,68 @@ const MemberDetailSchema = z
   .openapi("MemberDetail");
 
 /**
+ * One committee's giving to a member over a cycle.
+ *
+ * `direct` and `earmarked` are kept apart because they are different money: direct is the
+ * committee's own check, earmarked is individuals' money it passed through (lesson 23). Neither
+ * is comparable to a contribution limit — the cap is per election and a cycle can hold several,
+ * so a client must not present either figure as "the maximum".
+ */
+export const PacCheckSchema = z
+  .object({
+    committeeId: z.string().openapi({ example: "C00002550" }),
+    name: z.string().openapi({ example: "American Trucking Associations PAC" }),
+    kind: z
+      .string()
+      .nullable()
+      .openapi({ example: "Trade group", description: "From FEC's organization type; null when FEC classifies the committee as nothing" }),
+    orgType: z.string().nullable().openapi({ example: "T", description: "Raw FEC ORG_TP, so a client can classify differently" }),
+    connectedOrg: z.string().nullable().openapi({ example: "American Trucking Associations" }),
+    direct: z.number().openapi({ description: "The committee's own contributions" }),
+    earmarked: z.number().openapi({ description: "Individuals' money passed through it" }),
+  })
+  .openapi("PacCheck");
+
+export type PacCheck = z.infer<typeof PacCheckSchema>;
+
+/**
+ * What a member's campaign reported receiving, plus which committees reported giving to it.
+ *
+ * The two halves come from different FEC sources and do not agree (lesson 24): `totals` is the
+ * campaign's own report of what it received, `committees` is what committees reported giving.
+ * They are labelled separately here so a client never presents one as a breakdown of the other.
+ */
+export const FundingSchema = z
+  .object({
+    cycle: z.number().int().openapi({ example: 2026, description: "The election this campaign is for" }),
+    coverageStart: z.string().nullable().openapi({ example: "2025-01-01" }),
+    coverageEnd: z.string().nullable().openapi({ example: "2026-10-14", description: "Through which the figures run" }),
+    receipts: z.number().openapi({ description: "Total raised this campaign to date, as the campaign reported it" }),
+    smallDollar: z.number().openapi({ description: "Individual contributions under $200 per donor (unitemized)" }),
+    itemized: z.number().openapi({ description: "Individual contributions itemized by FEC" }),
+    pac: z.number().openapi({ description: "From other political committees" }),
+    party: z.number().openapi({ description: "From party committees" }),
+    other: z.number().openapi({ description: "Transfers, the candidate's own money, refunds and other receipts" }),
+    cashOnHand: z.number().nullable(),
+    committeesCycle: z.number().int().nullable().openapi({
+      example: 2026,
+      description:
+        "The two-year FEC cycle `committees` covers, which is NOT `cycle`: a senator's campaign may be for 2028 " +
+        "while the committee filings are the 2026 cycle. Null when we hold no committee rows for them.",
+    }),
+    committees: z
+      .array(PacCheckSchema)
+      .openapi({ description: "Biggest PAC givers by direct amount. Party and joint fundraising committees are excluded — neither is a PAC check (lesson 23)" }),
+  })
+  .openapi("Funding");
+
+export type Funding = z.infer<typeof FundingSchema>;
+
+const MemberFundingSchema = z
+  .object({ member: MemberSchema, funding: FundingSchema.nullable() })
+  .openapi("MemberFunding", { description: "funding is null for a member FEC has no current-campaign totals for" });
+
+/**
  * Just enough about the bill or nomination a vote was on to label it in a list.
  *
  * Carried on each row so a feed of votes can name what they were about without a request per row:
@@ -240,6 +302,11 @@ export interface MemberRepository {
   getMember(bioguideId: string): Promise<Member | null>;
   /** How often they sided with their own party. `party` comes from the member row. */
   partyLoyalty(bioguideId: string, party: string): Promise<PartyLoyalty>;
+  /**
+   * Their current campaign's money, or null when FEC has no totals for them.
+   * `committees` is capped at `limit` rows, biggest direct giver first.
+   */
+  funding(bioguideId: string, limit: number): Promise<Funding | null>;
 }
 
 export const BillActionSchema = z
@@ -443,6 +510,36 @@ const getMemberRoute = createRoute({
   },
 });
 
+const getMemberFundingRoute = createRoute({
+  method: "get",
+  path: "/v1/members/{id}/funding",
+  summary: "Who funds a member's current campaign",
+  description:
+    "Totals the campaign reported receiving, and the committees that reported giving to it. The two come from " +
+    "different FEC sources and will not reconcile. No individual donor is named: FEC publishes them, Floor does not store them.",
+  request: {
+    params: z.object({
+      id: z
+        .string()
+        .regex(/^[A-Z]\d{6}$/, "Member IDs are Bioguide IDs like A000370")
+        .openapi({ param: { name: "id", in: "path" }, example: "A000370" }),
+    }),
+    query: z.object({
+      committees: z.coerce
+        .number()
+        .int()
+        .min(0)
+        .max(50)
+        .default(10)
+        .openapi({ param: { name: "committees", in: "query" }, description: "How many giving committees to return" }),
+    }),
+  },
+  responses: {
+    200: { content: { "application/json": { schema: MemberFundingSchema } }, description: "The member and their campaign's money" },
+    404: { content: { "application/json": { schema: ErrorSchema } }, description: "No member with that ID" },
+  },
+});
+
 const getMemberVotesRoute = createRoute({
   method: "get",
   path: "/v1/members/{id}/votes",
@@ -559,6 +656,14 @@ export function createApp(deps: AppDeps) {
     const member = await deps.members.getMember(id);
     if (!member) return c.json({ error: `No member with ID ${id}` }, 404);
     return c.json({ member, partyLoyalty: await deps.members.partyLoyalty(id, member.party) }, 200);
+  });
+
+  app.openapi(getMemberFundingRoute, async (c) => {
+    const { id } = c.req.valid("param");
+    const { committees } = c.req.valid("query");
+    const member = await deps.members.getMember(id);
+    if (!member) return c.json({ error: `No member with ID ${id}` }, 404);
+    return c.json({ member, funding: await deps.members.funding(id, committees) }, 200);
   });
 
   app.openapi(getRepsRoute, async (c) => {

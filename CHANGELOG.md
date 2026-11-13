@@ -8,6 +8,37 @@ is a milestone and ships a retro under `docs/retros/`.
 Older series live in [`docs/changelog/`](docs/changelog) (0.1.x: [`0.1.md`](docs/changelog/0.1.md)).
 Before 0.1.0 the history is the commit log on `main`.
 
+## 0.2.13 — 2026-11-13
+
+Step 4 of the v0.3.0 milestone, "Your members on the web": the API side of campaign finance. The
+data landed in 0.2.4; this serves it. The page section is what remains of the step.
+
+### Added
+
+- **`GET /v1/members/{id}/funding`** — a member's current campaign: what they reported receiving
+  (small-dollar, itemized, PAC, party, other, cash on hand) and the committees that reported giving
+  to them, biggest direct giver first. `?committees=` takes 0–50, default 10.
+- The two halves are labelled by source rather than presented as one breakdown, because they come
+  from different FEC filings and do not reconcile (lesson 24). Party and joint fundraising
+  committees are excluded: neither is a PAC check (lesson 23). Direct money is kept apart from
+  earmarked pass-throughs, and no individual donor is named — a committee carries only the seven
+  keys a test pins, so a memo field cannot be added quietly.
+- A committee's `kind` comes from FEC's own organization type, and is **null** when FEC classifies
+  it as nothing, rather than being guessed into a category.
+
+### Changed
+
+- `docs/HANDOFF.md`: the route table, v0.3.0 step 4, and **lesson 33** — `campaign_finance.cycle`
+  (the election a campaign is for) and `pac_contributions.cycle` (the two-year FEC filing cycle)
+  are different things. Matching them passed every seeded test, because House members are up every
+  cycle, and returned zero committees for every senator against real data.
+- **`DATABASE_URL` on the `floor-api` Vercel project is now set for Preview as well as Production**
+  (an environment change, not a code one). Previews were falling back to the stub repositories, so
+  a PR preview answered `/v1/status` with every source null and any member route with a 404, which
+  reads as missing data rather than a missing database. The PR preview for this branch now returns
+  real rows. Recorded in `docs/HANDOFF.md` with the caveat it brings: a preview build now carries
+  the staging credentials, contained only by Vercel Authentication on preview URLs.
+
 ## 0.2.12 — 2026-11-13
 
 "Use my location" on the iOS app's onboarding, built to the locked canvas round 7 board `LocApp`

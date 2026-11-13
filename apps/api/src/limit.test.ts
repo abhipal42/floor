@@ -13,6 +13,7 @@ const empty: Omit<AppDeps, "locate"> = {
     recentVotes: async () => [],
     getMember: async () => null,
     partyLoyalty: async () => ({ votes: 0, withParty: 0, againstParty: 0 }),
+    funding: async () => null,
   },
   bills: { getBill: async () => null },
   nominations: { getNomination: async () => null },
