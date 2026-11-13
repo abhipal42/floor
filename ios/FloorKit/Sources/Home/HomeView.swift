@@ -37,7 +37,7 @@ public struct HomeView: View {
                 case let .failed(message):
                     failure(message)
                 case .loaded:
-                    if let saved = model.saved { SavedDataNote(savedAt: saved.savedAt, offline: saved.offline) }
+                    if let saved = model.saved { SavedDataNote(saved) }
                     if let latest = model.latestFinal {
                         Button { onOpen(.vote(id: latest.vote.id)) } label: { SplitFlapBoard(item: latest) }
                             .buttonStyle(.plain)
@@ -61,7 +61,7 @@ public struct HomeView: View {
                 .ignoresSafeArea()
         }
         .background(Palette.ground)
-        .task { if model.items.isEmpty { await model.load() } }
+        .task { if model.needsRefresh { await model.load() } }
     }
 
     private var header: some View {

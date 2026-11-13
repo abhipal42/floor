@@ -24,8 +24,11 @@ public final class BillScreenModel {
 
     public private(set) var phase: Phase = .loading
     public private(set) var yourMembers: [MemberOnBill] = []
-    /// Set when the bill on screen is the saved one because the refresh after it failed.
+    /// Set while any of the bill on screen (or your members' positions) is saved rather than fresh;
+    /// see `revalidate`.
     public private(set) var saved: SavedCopy?
+    /// Bumped by each load, so a load that has been overtaken drops its results.
+    private var generation = 0
 
     private let billId: String
     private let members: [Member]
@@ -38,44 +41,55 @@ public final class BillScreenModel {
         self.members = members
     }
 
+    /// True until a load has finished with everything fresh — including one that was cancelled
+    /// part-way — so a screen that reappears runs the refresh again.
+    public var needsRefresh: Bool {
+        if case .loaded = phase { return saved != nil }
+        return true
+    }
+
     public func load() async {
-        phase = .loading
+        generation += 1
+        let mine = generation
+        // A bill already on screen stays there while it refreshes, rather than flashing a spinner.
+        if case .loaded = phase {} else {
+            phase = .loading
+            saved = nil
+        }
         do {
             // Saved bill and positions first, then the network; see `revalidate`.
-            saved = try await revalidate(api) { [billId] api in
-                let bill = try await api.bill(id: billId)
+            try await revalidate(api, report: { if mine == generation { saved = $0 } }) { [billId] pass in
+                let bill = try await pass.api.bill(id: billId)
+                guard mine == generation else { throw CancellationError() }
                 phase = .loaded(bill)
-                await loadYourMembers(bill, api: api)
+                try await loadYourMembers(bill, pass: pass, generation: mine)
             }
-        } catch let error as FloorAPIError {
-            phase = .failed(error.errorDescription ?? "Couldn't load this bill.")
+        } catch is CancellationError {
+            // Overtaken or cancelled: nothing to say, and `needsRefresh` still holds.
         } catch {
-            phase = .failed("Couldn't load this bill.")
+            guard mine == generation else { return }
+            saved = nil
+            phase = .failed((error as? FloorAPIError)?.errorDescription ?? "Couldn't load this bill.")
         }
     }
 
     /// At most one request per chamber: the latest vote there, asking for your members' positions.
     ///
-    /// A chamber whose vote fails to load keeps the positions already on screen for that same vote,
-    /// so a failed refresh cannot blank what the saved data showed.
-    private func loadYourMembers(_ bill: Bill, api: FloorAPI) async {
+    /// Best-effort: a chamber whose vote fails to refresh falls back to its saved positions, and the
+    /// screen's note says part of it is saved.
+    private func loadYourMembers(_ bill: Bill, pass: Pass, generation mine: Int) async throws {
         guard !members.isEmpty else { return }
         let latest = Self.latestVotes(bill)
         var positions: [String: MemberPosition] = [:]
         for vote in latest.values {
             let ids = members.filter { $0.chamber == vote.chamber }.map(\.bioguideId)
             guard !ids.isEmpty else { continue }
-            if let detail = try? await api.vote(id: vote.id, members: ids) {
+            let voteId = vote.id
+            if let detail = await pass.bestEffort({ try await $0.vote(id: voteId, members: ids) }) {
                 for position in detail.positions { positions[position.member.bioguideId] = position }
-            } else {
-                for shown in yourMembers where shown.vote?.id == vote.id {
-                    guard let position = shown.position else { continue }
-                    positions[shown.member.bioguideId] = MemberPosition(
-                        member: shown.member, position: position, choice: shown.choice
-                    )
-                }
             }
         }
+        guard mine == generation else { throw CancellationError() }
         yourMembers = members.map { member in
             let found = positions[member.bioguideId]
             return MemberOnBill(

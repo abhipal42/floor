@@ -222,19 +222,25 @@ Real data broke our first assumptions several times. Each case below is now hand
     white and the threshold yellow `#FACC15` at about 1.5:1, so light mode cannot reuse them. Every
     text colour in light mode is a darker partner of its dark value (yea `#0B7A57`, nay `#A8481A`,
     threshold `#8A6500`), and `PaletteTests` checks each one at 4.5:1 on the ground, panels and cards.
-26. **A screen's secondary requests must not overwrite on failure.** The models loaded the bill
+26. **A screen's secondary requests must neither blank nor hide.** The models loaded the bill
     under a vote with `bill = try? await api.bill(...)`, which writes nil when it fails. Harmless
     with one pass; with the offline cache's second (network) pass it blanked the level the saved
-    pass had just drawn. Every best-effort load (the vote's bill, the bill's member positions, the
-    loyalty rings) now assigns only what it got. Any new one must do the same, or offline screens
-    lose pieces a moment after showing them.
-27. **The simulator cannot be taken offline on its own; point a build at a dead port instead.** It
-    shares the Mac's network. Build once with `FLOOR_API_BASE_URL=https://floor-api.vercel.app`,
-    launch, then install a second build with `FLOOR_API_BASE_URL=http://127.0.0.1:9` over it: an
-    upgrade install keeps the data container, and cache keys carry no origin, so the second build
-    opens on the first one's saved responses and fails every refresh as a transport error. The
-    delegation can be seeded without typing an address via `simctl spawn <udid> defaults write
-    app.floor.ios floor.delegation.v1 -data <hex of the JSON>`.
+    pass had just drawn. The first fix (keep what is on screen) then hid the problem instead: the
+    vote refreshed, the bill silently stayed saved, and the screen claimed to be fresh. So every
+    best-effort load (the vote's bill, the bill's member positions, the loyalty rings) goes through
+    `Pass.bestEffort`, which falls back to the saved copy *and records that it did*, keeping the note
+    up. Any new best-effort load must use it.
+27. **The simulator cannot be taken offline on its own; swap what serves the API's port instead.**
+    It shares the Mac's network, and cache keys carry the host and port, so two builds pointed at
+    different URLs do not share a cache. Use one Debug build (it talks to `localhost:8787`) and swap
+    the server behind that port: one that answers (the API, or the captured fixtures in
+    `Tests/ModelsTests/Fixtures`), then one that accepts and never answers (weak signal: the note
+    reads "refreshing…" for the 60 s request timeout, then "Offline"), or nothing at all (refused:
+    "Offline" at once). The delegation can be seeded without typing an address via `simctl spawn
+    <udid> defaults write app.floor.ios floor.delegation.v1 -data <hex of the JSON>`. Two traps:
+    this Mac's Xcode-beta has no Simulator.app GUI, so nothing can tap the app (`simctl` cannot);
+    and the deployed API answered 500 on `/v1/members/…` on 2026-11-13 while the cache was being
+    checked, so do not assume it is up.
 
 ---
 
@@ -294,30 +300,53 @@ The working rhythm: break each milestone into tasks. For each task, write tests 
 >    only one that is visibly wrong.
 > 2. ~~**SwiftData offline cache.**~~ **Done.** How it works:
 >    - **What is stored:** the JSON body of every successful response a screen reads, exactly as
->      sent, keyed by path and query (`/v1/members/D000399/votes?limit=25`), with its fetch date —
->      one SwiftData row per key (`CachedResponse` in `APIClient/ResponseCache.swift`), in
->      `Caches/FloorResponses.store`, so the system may purge it and it is not backed up. Bodies, not
->      an `@Model` per type: the screens already decode them, `ContractTests` already pins their
->      shape, and a second schema for the same types is a second place for the contract to drift. A
->      body the current build cannot decode is a miss.
+>      sent, with its fetch date — one SwiftData row per key (`CachedResponse` in
+>      `APIClient/ResponseCache.swift`), in `Caches/FloorResponses.store`, so the system may purge it
+>      and it is not backed up. The key is host (and port), path and percent-encoded query:
+>      `floor-api.vercel.app/v1/members/D000399/votes?limit=25`. The host keeps a Debug build's
+>      localhost responses apart from the deployment's; the encoded query keeps a value holding `&`
+>      or `=` from reading as another parameter. Bodies, not an `@Model` per type: the screens already
+>      decode them, `ContractTests` already pins their shape, and a second schema for the same types
+>      is a second place for the contract to drift. A body the current build cannot decode is a miss.
 >    - **What is not:** `/v1/reps?address=` (the key would be the street address; the district and
 >      members are already kept by `UserDefaultsDelegationStore`, unchanged) and `/v1/status` (a
->      saved freshness report is wrong by its own age). A test asserts no key or body holds the
->      address.
->    - **Stale-while-revalidate:** `revalidate(api) { api in … }` runs a screen's whole load twice,
->      first against `api.savedOnly()` (cache only, no network), then against the network, which
->      saves as it goes. A screen with several requests therefore shows all its saved data at once.
->      If the network pass fails after a saved pass succeeded, the saved data stays and the model's
->      `saved` is a `SavedCopy` (oldest fetch date on screen, and whether the failure was transport);
->      with nothing saved, the error is rethrown and the screen fails exactly as before.
->    - **UI:** one muted caption, `SavedDataNote` — "Offline · saved 2 h ago", or "Couldn't refresh ·
->      saved …" when the server answered with an error — at the top of a loaded Finals, Bills, Vote,
->      Bill or rep record, only after a failed refresh. Nothing else changed visually.
+>      saved freshness report is wrong by its own age). `FloorAPI`'s default session has **no
+>      `URLCache`** (`FloorAPI.defaultSession`, `.reloadIgnoringLocalCacheData`): the shared session's
+>      would have written the address lookup to `Caches/Cache.db`. Changing district
+>      (`startOver`) clears the cache before onboarding shows, since the old members' entries name
+>      the old district. Tests assert no key or body holds the address and the session has no cache.
+>    - **Stale-while-revalidate:** `revalidate(api, report:) { pass in … }` runs a screen's whole
+>      load twice, first against `api.savedOnly()` (cache only, no network), then against the
+>      network, which saves as it goes. A screen with several requests therefore shows all its saved
+>      data at once. `report` hears the screen's state as it changes, and the model keeps it in
+>      `saved`:
+>      - saved pass drew → `.refreshing`, dated by the oldest response it read;
+>      - network pass succeeded → nil, unless a best-effort request (`pass.bestEffort`: the vote's
+>        bill, the bill's positions, the loyalty rings) failed and fell back to its saved copy — then
+>        `.offline` or `.refreshFailed`, dated by that copy, because the screen is partly saved;
+>      - network pass failed → `.offline` (transport) or `.refreshFailed` (the server answered),
+>        dated by the saved pass; with nothing saved, the error is rethrown and the screen fails
+>        exactly as before.
+>    - **Cancellation is not failure.** A pushed screen or a tab switched away cancels the view's
+>      `.task`; `FloorAPI` turns a cancelled request into `CancellationError` (never `.transport`),
+>      `revalidate` reports nothing for it, and the note stays at "refreshing…". Each model has
+>      `needsRefresh` — true until a load has finished with everything fresh — and the screens'
+>      `.task` (Finals, Vote, rep, and Your three's `loadAll`) load when it is true, so a refresh that
+>      was cancelled, or ended on saved data, runs again when the screen reappears. A screen already
+>      showing data keeps it while it reloads rather than flashing a spinner.
+>    - **Overlapping loads** (pull-to-refresh beside the screen's own task): each model counts its
+>      loads, and a load that has been overtaken drops its results — items, phase and note alike.
+>    - **UI:** one muted caption, `SavedDataNote`, at the top of a loaded Finals, Bills, Vote, Bill
+>      or rep record while any of it is saved: "Saved 2 h ago · refreshing…", then "Offline · saved
+>      2 h ago" or "Couldn't refresh · saved 2 h ago", gone once everything is fresh. Nothing else
+>      changed visually.
 >    - **Bounds:** 30 days and 200 entries (`CachePolicy`). An entry past 30 days is neither served
->      nor kept; beyond 200 the oldest go first. A screen costs one to six entries at tens of KB each.
->    - **Seam:** `FloorAPI(baseURL:session:cache:now:)` takes any `ResponseCache`; tests and previews
->      use `SwiftDataResponseCache.inMemory()`, previews pass none. If the on-disk store cannot open
->      the app runs with no cache.
+>      nor kept; beyond 200 the oldest go first. Eviction fetches only the rows to delete, and only
+>      their keys. A screen costs one to six entries at tens of KB each.
+>    - **Seam:** `FloorAPI(baseURL:session:cache:now:)` takes any `ResponseCache`; tests use
+>      `SwiftDataResponseCache.inMemory()`, previews pass none. A store that will not open (a failed
+>      migration, a corrupt file) is deleted with its `-wal` and `-shm` and opened once more; only if
+>      that fails too does the app run with no cache.
 > 3. **Snapshot tests per card state.** Not started; filed as
 >    [#1](https://github.com/abhipal42/floor/issues/1) with the states to cover and the
 >    Xcode-version tension against running CI on `macos-latest`.

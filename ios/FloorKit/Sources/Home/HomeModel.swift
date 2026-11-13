@@ -88,8 +88,11 @@ public final class HomeModel {
     /// Each member's party-loyalty record, for the rings on the delegation strip. Loaded beside the
     /// feed; a member whose record fails to load simply shows an empty ring.
     public internal(set) var loyalty: [String: PartyLoyalty] = [:]
-    /// Set when the feed on screen is the saved one because the refresh after it failed.
+    /// Set while any of the feed or the rings is saved rather than fresh; see `revalidate`.
     public private(set) var saved: SavedCopy?
+    /// Bumped by each load, so a load that has been overtaken (a pull-to-refresh beside the tab's
+    /// own task) drops its results instead of writing them over newer ones.
+    private var generation = 0
     /// Deck cards opened this session, for the progress dots and "N of 5 caught up".
     public var seenInDeck: Set<String> = []
 
@@ -139,8 +142,21 @@ public final class HomeModel {
         }
     }
 
+    /// True until a load has finished with everything fresh — including one that was cancelled
+    /// part-way, as pushing a vote cancels the tab's task — so the tab refreshes when it reappears.
+    public var needsRefresh: Bool {
+        if case .loaded = phase { return saved != nil }
+        return true
+    }
+
     public func load() async {
-        phase = .loading
+        generation += 1
+        let mine = generation
+        // A feed already on screen stays there while it refreshes, rather than flashing a spinner.
+        if case .loaded = phase {} else {
+            phase = .loading
+            saved = nil
+        }
         let members = delegation.members
         guard !members.isEmpty else {
             phase = .failed("We don't know who represents you yet.")
@@ -149,7 +165,7 @@ public final class HomeModel {
 
         do {
             // Saved feed first, then the network; see `revalidate`.
-            saved = try await revalidate(api) { [perMember] api in
+            try await revalidate(api, report: { if mine == generation { saved = $0 } }) { [perMember] pass in
                 // One request per member, in parallel. Three members, so three requests — not one
                 // per card, which is what the measure on each row avoids.
                 let records: [(Member, [MemberVote])] = try await withThrowingTaskGroup(
@@ -157,37 +173,43 @@ public final class HomeModel {
                 ) { group in
                     for member in members {
                         group.addTask {
-                            (member, try await api.memberVotes(id: member.bioguideId, limit: perMember).votes)
+                            (member, try await pass.api.memberVotes(id: member.bioguideId, limit: perMember).votes)
                         }
                     }
                     var collected: [(Member, [MemberVote])] = []
                     for try await record in group { collected.append(record) }
                     return collected
                 }
+                guard mine == generation else { throw CancellationError() }
                 items = Self.merge(records)
                 phase = .loaded
-                await loadLoyalty(api)
+                let found = await loadLoyalty(pass)
+                guard mine == generation else { throw CancellationError() }
+                loyalty.merge(found, uniquingKeysWith: { _, new in new })
             }
-        } catch let error as FloorAPIError {
-            phase = .failed(error.errorDescription ?? "Couldn't load recent votes.")
+        } catch is CancellationError {
+            // Overtaken or cancelled: nothing to say, and `needsRefresh` still holds.
         } catch {
-            phase = .failed("Couldn't load recent votes.")
+            guard mine == generation else { return }
+            saved = nil
+            phase = .failed((error as? FloorAPIError)?.errorDescription ?? "Couldn't load recent votes.")
         }
     }
 
-    /// Merges rather than replaces, so a record that fails to refresh keeps its saved ring.
-    private func loadLoyalty(_ api: FloorAPI) async {
-        let found: [(String, PartyLoyalty)] = await withTaskGroup(of: (String, PartyLoyalty)?.self) { group in
+    /// Best-effort: a record that fails to refresh falls back to its saved ring, and the note says
+    /// so. Merged rather than assigned, so a ring with nothing to show keeps what it had.
+    private func loadLoyalty(_ pass: Pass) async -> [(String, PartyLoyalty)] {
+        await withTaskGroup(of: (String, PartyLoyalty)?.self) { group in
             for member in delegation.members {
-                group.addTask { [api] in
-                    (try? await api.member(id: member.bioguideId)).map { (member.bioguideId, $0.partyLoyalty) }
+                let id = member.bioguideId
+                group.addTask {
+                    await pass.bestEffort({ try await $0.member(id: id) }).map { (id, $0.partyLoyalty) }
                 }
             }
             var collected: [(String, PartyLoyalty)] = []
             for await entry in group { if let entry { collected.append(entry) } }
             return collected
         }
-        loyalty.merge(found, uniquingKeysWith: { _, new in new })
     }
 
     /// The most recent final in the feed, for the split-flap board.

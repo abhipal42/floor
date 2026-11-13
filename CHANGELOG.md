@@ -8,6 +8,38 @@ is a milestone and ships a retro under `docs/retros/`.
 Older series live in [`docs/changelog/`](docs/changelog) (0.1.x: [`0.1.md`](docs/changelog/0.1.md)).
 Before 0.1.0 the history is the commit log on `main`.
 
+## 0.2.6 — 2026-11-13
+
+The iOS app works offline: it opens on the last data it saw, then refreshes (M2 item 2).
+
+### Added
+- **Offline cache.** Each successful response body is saved in SwiftData (`SwiftDataResponseCache`,
+  in Caches, so the system may purge it and it isn't backed up), keyed by host, path and encoded
+  query. A screen loads twice through `revalidate`, once from the cache and then from the network,
+  so a screen that makes several requests shows all its saved data at once. Entries older than 30
+  days are neither shown nor kept; beyond 200 the oldest go first. A store that won't open is
+  deleted and recreated once rather than abandoned.
+- One muted line while any of a screen is saved data: "Saved 2 h ago · refreshing…" during the
+  refresh, then "Offline · saved 2 h ago", or "Couldn't refresh · saved …" when the server answered
+  with an error. It stays up when the main request refreshed but a best-effort one (a vote's bill, a
+  bill's member positions, a loyalty ring) fell back to its saved copy.
+
+### Changed
+- A cancelled refresh (a pushed screen, a tab switched away) is no longer reported as offline, and
+  Finals, Vote, the rep screen and Your three refresh again on reappearing until a load has finished
+  fresh (`needsRefresh`), instead of only when empty or still loading.
+- Overlapping loads (pull-to-refresh beside a screen's own task) no longer let the older one write
+  over the newer; a screen already showing data keeps it while it reloads.
+- A screen's best-effort loads fall back to their saved copy when they fail, instead of clearing
+  what is on screen.
+
+### Privacy
+- The address lookup is never cached — its key would be the street address — and neither is the
+  data-freshness status, whose saved answer would be wrong by its own age.
+- `FloorAPI`'s session has no `URLCache`, which would have written the address lookup to
+  `Caches/Cache.db`.
+- Changing district clears the saved responses, which name the old members.
+
 ## 0.2.5 — 2026-11-12
 
 The iOS app has a light mode and follows the system appearance. Light is direction D, "Marble &

@@ -51,8 +51,14 @@ struct FloorApp: App {
         }
     }
 
+    /// Forgets the district, and every saved response with it: those name the old members, so they
+    /// would say where you used to live. Onboarding appears only once they are gone, so nothing the
+    /// new district saves can be swept up by the clear.
     private func startOver() {
         store.clear()
-        withAnimation { delegation = nil }
+        Task {
+            await api.clearSavedResponses()
+            withAnimation { delegation = nil }
+        }
     }
 }

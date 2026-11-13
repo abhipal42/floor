@@ -1,4 +1,5 @@
 import Foundation
+import Models
 import SwiftData
 
 /// One saved response body and when it was fetched.
@@ -15,16 +16,18 @@ public struct CachedBody: Sendable, Equatable {
 /// Where ``FloorAPI`` keeps the last good response to each request, so a screen can open on it
 /// while offline or while the network is slow.
 ///
-/// Keyed by the request's path and query (`/v1/members/D000399/votes?limit=25`), and storing the
-/// JSON body exactly as the server sent it. Bodies rather than one `@Model` per type: the screens
-/// already decode these bodies, the contract tests already pin their shape, and a second
-/// hand-written schema for the same seven types would be a second place for the contract to drift.
-/// A body the current app can no longer decode is simply a miss.
+/// Keyed by the API's host and the request's path and query (`floor-api.vercel.app/v1/members/
+/// D000399/votes?limit=25`), and storing the JSON body exactly as the server sent it. Bodies rather
+/// than one `@Model` per type: the screens already decode these bodies, the contract tests already
+/// pin their shape, and a second hand-written schema for the same types would be a second place for
+/// the contract to drift. A body the current app can no longer decode is simply a miss.
 public protocol ResponseCache: Sendable {
     /// The saved body for `key`, or nil when there is none or it is older than the cache keeps.
     func load(_ key: String, now: Date) async -> CachedBody?
     /// Saves `body` for `key` as fetched at `date`, and evicts whatever the policy no longer keeps.
     func save(_ body: Data, for key: String, at date: Date) async
+    /// Forgets everything: the saved responses name the members, and so the district.
+    func removeAll() async
 }
 
 /// How much the cache keeps.
@@ -61,8 +64,7 @@ final class CachedResponse {
 /// A ``ResponseCache`` in SwiftData.
 ///
 /// On disk it lives in Caches, not Application Support: everything in it can be fetched again, so
-/// the system may purge it under storage pressure and it is not backed up. Tests and previews use
-/// ``inMemory(policy:)``.
+/// the system may purge it and it is not backed up. Tests and previews use ``inMemory(policy:)``.
 public actor SwiftDataResponseCache: ResponseCache, ModelActor {
     public nonisolated let modelContainer: ModelContainer
     public nonisolated let modelExecutor: any ModelExecutor
@@ -83,15 +85,28 @@ public actor SwiftDataResponseCache: ResponseCache, ModelActor {
         )
     }
 
-    /// The app's cache, in `Caches/FloorResponses.store`. nil if the store cannot be opened, in
-    /// which case the app runs exactly as it did before there was a cache.
+    /// The app's cache, in `Caches/FloorResponses.store`.
     public static func onDisk(policy: CachePolicy = CachePolicy()) -> SwiftDataResponseCache? {
-        let url = URL.cachesDirectory.appending(path: "FloorResponses.store")
-        let configuration = ModelConfiguration(url: url, cloudKitDatabase: .none)
-        guard let container = try? ModelContainer(for: CachedResponse.self, configurations: configuration) else {
-            return nil
+        onDisk(at: URL.cachesDirectory.appending(path: "FloorResponses.store"), policy: policy)
+    }
+
+    /// Opens the store at `url`. A store that will not open — a failed migration, a corrupt file —
+    /// is deleted with its `-wal` and `-shm` and opened once more: it holds nothing that cannot be
+    /// fetched again, and keeping it would leave the app without a cache for good. nil only if the
+    /// fresh store will not open either, and then the app runs as it did before there was a cache.
+    static func onDisk(at url: URL, policy: CachePolicy) -> SwiftDataResponseCache? {
+        func open() -> SwiftDataResponseCache? {
+            let configuration = ModelConfiguration(url: url, cloudKitDatabase: .none)
+            guard let container = try? ModelContainer(for: CachedResponse.self, configurations: configuration) else {
+                return nil
+            }
+            return SwiftDataResponseCache(container: container, policy: policy)
         }
-        return SwiftDataResponseCache(container: container, policy: policy)
+        if let cache = open() { return cache }
+        for suffix in ["", "-wal", "-shm"] {
+            try? FileManager.default.removeItem(at: URL(fileURLWithPath: url.path + suffix))
+        }
+        return open()
     }
 
     public func load(_ key: String, now: Date) -> CachedBody? {
@@ -111,7 +126,14 @@ public actor SwiftDataResponseCache: ResponseCache, ModelActor {
         } else {
             modelContext.insert(CachedResponse(key: key, body: body, fetchedAt: date))
         }
+        try? modelContext.save()
         evict(now: date)
+    }
+
+    public func removeAll() {
+        var all = FetchDescriptor<CachedResponse>()
+        all.propertiesToFetch = [\.key]
+        for row in (try? modelContext.fetch(all)) ?? [] { modelContext.delete(row) }
         try? modelContext.save()
     }
 
@@ -129,71 +151,118 @@ public actor SwiftDataResponseCache: ResponseCache, ModelActor {
         return try? modelContext.fetch(descriptor).first
     }
 
-    /// Drops anything past `maxAge`, then the oldest beyond `maxEntries`.
+    /// Drops anything past `maxAge`, then the oldest beyond `maxEntries`. Fetches only the rows to
+    /// delete, and only their keys, not every body in the store.
     private func evict(now: Date) {
         let cutoff = now.addingTimeInterval(-policy.maxAge)
-        let rows = (try? modelContext.fetch(
-            FetchDescriptor<CachedResponse>(sortBy: [SortDescriptor(\.fetchedAt, order: .reverse)])
-        )) ?? []
-        for (index, row) in rows.enumerated() where index >= policy.maxEntries || row.fetchedAt < cutoff {
-            modelContext.delete(row)
-        }
+        var expired = FetchDescriptor<CachedResponse>(predicate: #Predicate { $0.fetchedAt < cutoff })
+        expired.propertiesToFetch = [\.key]
+        var excess = FetchDescriptor<CachedResponse>(sortBy: [SortDescriptor(\.fetchedAt, order: .reverse)])
+        excess.fetchOffset = policy.maxEntries
+        excess.propertiesToFetch = [\.key]
+
+        var doomed = (try? modelContext.fetch(expired)) ?? []
+        doomed += (try? modelContext.fetch(excess)) ?? []
+        guard !doomed.isEmpty else { return }
+        for row in doomed where !row.isDeleted { modelContext.delete(row) }
+        try? modelContext.save()
     }
 }
 
 // MARK: - Stale-while-revalidate
 
-/// A screen is showing saved data because the refresh after it failed.
-public struct SavedCopy: Sendable, Equatable {
-    /// When the oldest response on screen was fetched.
-    public var savedAt: Date
-    /// True when the refresh never reached the server, as opposed to the server answering badly.
-    public var offline: Bool
-
-    public init(savedAt: Date, offline: Bool) {
-        self.savedAt = savedAt
-        self.offline = offline
-    }
-}
-
-/// The fetch times of the saved responses a cache-only pass read.
-public actor SavedReads {
+/// What one pass of a load read from the cache, and why it had to.
+public actor PassRecord {
     private var dates: [Date] = []
+    private var reachedServer = false
 
     func note(_ date: Date) { dates.append(date) }
 
-    /// The oldest, which is what "saved … ago" should admit to.
+    /// A best-effort request failed and its saved copy was used instead.
+    func fellBack(after error: any Error) {
+        if case .transport = error as? FloorAPIError { return }
+        reachedServer = true
+    }
+
+    /// The oldest saved response read, which is what "saved … ago" should admit to.
     public var oldest: Date? { dates.min() }
+
+    /// Offline unless every failure that forced a fallback was the server answering badly.
+    var status: SavedCopy.Status { reachedServer ? .refreshFailed : .offline }
+}
+
+/// One pass of a screen's load: the client to use, and how best-effort requests fall back.
+public struct Pass: Sendable {
+    /// The cache-only client on the saved pass; the network client on the network pass.
+    public let api: FloorAPI
+    /// On the network pass, the cache-only client a failed best-effort request falls back to.
+    let fallback: (api: FloorAPI, record: PassRecord)?
+
+    /// For a request the screen can live without (the bill under a vote, a loyalty ring): its value,
+    /// or on the network pass its saved copy when the request fails — recorded, so the screen still
+    /// says that part of it is saved. nil when neither is available, or the load was cancelled.
+    public func bestEffort<T: Sendable>(_ fetch: @Sendable (FloorAPI) async throws -> T) async -> T? {
+        do {
+            return try await fetch(api)
+        } catch {
+            guard let fallback, !(error is CancellationError), !Task.isCancelled,
+                  let saved = try? await fetch(fallback.api)
+            else { return nil }
+            await fallback.record.fellBack(after: error)
+            return saved
+        }
+    }
 }
 
 /// Runs `load` twice: first against the saved responses, then against the network.
 ///
 /// `load` puts what it fetched on screen itself, so a screen with several requests shows all of its
-/// saved data at once rather than waiting on the network for the second. If the network pass
-/// throws after the saved pass succeeded, the saved data stays and this returns a ``SavedCopy``
-/// saying how old it is. If there was nothing saved, the network's error is rethrown and the screen
-/// fails as it did before there was a cache. nil means what is on screen is fresh.
+/// saved data at once rather than waiting on the network for the second. `report` hears the state
+/// of what is on screen as it changes:
+///
+/// - after the saved pass draws: `.refreshing`, dated by the oldest response it read;
+/// - after the network pass: nil when everything is fresh, or `.offline` / `.refreshFailed` dated
+///   by the oldest saved copy still on screen — the saved pass's, if the network pass failed, or a
+///   best-effort request's that fell back while the rest refreshed.
+///
+/// With nothing saved, a network failure is rethrown and the screen fails as it did before there
+/// was a cache. Cancellation reports nothing and throws `CancellationError`: a cancelled refresh
+/// is not a failed one, and the screen must be free to run it again.
 ///
 /// `load` must only replace state once it has something to replace it with, so a failure in the
 /// network pass cannot blank what the saved pass showed.
 @MainActor
-public func revalidate(_ api: FloorAPI, _ load: (FloorAPI) async throws -> Void) async throws -> SavedCopy? {
-    var showedSaved = false
-    let saved = api.savedOnly()
-    if let saved {
+public func revalidate(
+    _ api: FloorAPI,
+    report: (SavedCopy?) -> Void,
+    _ load: (Pass) async throws -> Void
+) async throws {
+    var savedAt: Date?
+    if let saved = api.savedOnly() {
         do {
-            try await load(saved.api)
-            showedSaved = true
+            try await load(Pass(api: saved.api, fallback: nil))
+            savedAt = await saved.record.oldest
         } catch {
             // Nothing saved for this screen, or a body this version cannot read: a miss.
+            if error is CancellationError || Task.isCancelled { throw CancellationError() }
         }
+        if let savedAt { report(SavedCopy(savedAt: savedAt, status: .refreshing)) }
     }
+
+    let fallback = api.savedOnly()
     do {
-        try await load(api)
-        return nil
+        try await load(Pass(api: api, fallback: fallback))
     } catch {
-        guard showedSaved, let savedAt = await saved?.reads.oldest else { throw error }
+        if error is CancellationError || Task.isCancelled { throw CancellationError() }
+        guard let savedAt else { throw error }
         let offline = if case .transport = error as? FloorAPIError { true } else { false }
-        return SavedCopy(savedAt: savedAt, offline: offline)
+        report(SavedCopy(savedAt: savedAt, status: offline ? .offline : .refreshFailed))
+        return
+    }
+    if Task.isCancelled { throw CancellationError() }
+    if let record = fallback?.record, let oldest = await record.oldest {
+        report(SavedCopy(savedAt: oldest, status: await record.status))
+    } else {
+        report(nil)
     }
 }

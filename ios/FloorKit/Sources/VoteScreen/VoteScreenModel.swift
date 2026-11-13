@@ -17,8 +17,10 @@ public final class VoteScreenModel {
     /// The bill this vote was on, loaded after the vote so the screen never waits on it. nil for a
     /// nomination, a procedural vote, or a bill that failed to load — the card then shows no level.
     public private(set) var bill: Bill?
-    /// Set when the vote on screen is the saved one because the refresh after it failed.
+    /// Set while any of the vote on screen (or its bill) is saved rather than fresh; see `revalidate`.
     public private(set) var saved: SavedCopy?
+    /// Bumped by each load, so a load that has been overtaken drops its results.
+    private var generation = 0
     /// Which party's squares the full roll shows.
     public var rollParty: String?
 
@@ -39,24 +41,44 @@ public final class VoteScreenModel {
         self.delegation = delegation
     }
 
+    /// True until a load has finished with everything fresh — including one that was cancelled
+    /// part-way — so a screen that reappears runs the refresh again.
+    public var needsRefresh: Bool {
+        if case .loaded = phase { return saved != nil }
+        return true
+    }
+
     public func load() async {
-        phase = .loading
+        generation += 1
+        let mine = generation
+        // A vote already on screen stays there while it refreshes, rather than flashing a spinner.
+        if case .loaded = phase {} else {
+            phase = .loading
+            saved = nil
+        }
         do {
             // Saved vote and bill first, then the network; see `revalidate`.
-            saved = try await revalidate(api) { [voteId, memberIds] api in
+            try await revalidate(api, report: { if mine == generation { saved = $0 } }) { [voteId, memberIds] pass in
                 // The API caps ?members= at ten; a delegation is three, but a caller could hold more.
-                let detail = try await api.vote(id: voteId, members: Array(memberIds.prefix(10)))
+                let detail = try await pass.api.vote(id: voteId, members: Array(memberIds.prefix(10)))
+                guard mine == generation else { throw CancellationError() }
                 phase = .loaded(detail)
                 if rollParty == nil { rollParty = detail.rollParties.first?.party }
-                // A bill that fails to refresh keeps the saved one rather than losing its level.
-                if let measure = detail.measure, measure.kind == .bill, let found = try? await api.bill(id: measure.id) {
-                    bill = found
+                // A bill that fails to refresh falls back to the saved one, and the note says so.
+                if let measure = detail.measure, measure.kind == .bill {
+                    let billId = measure.id
+                    if let found = await pass.bestEffort({ try await $0.bill(id: billId) }) {
+                        guard mine == generation else { throw CancellationError() }
+                        bill = found
+                    }
                 }
             }
-        } catch let error as FloorAPIError {
-            phase = .failed(error.errorDescription ?? "Couldn't load this vote.")
+        } catch is CancellationError {
+            // Overtaken or cancelled: nothing to say, and `needsRefresh` still holds.
         } catch {
-            phase = .failed("Couldn't load this vote.")
+            guard mine == generation else { return }
+            saved = nil
+            phase = .failed((error as? FloorAPIError)?.errorDescription ?? "Couldn't load this vote.")
         }
     }
 }
