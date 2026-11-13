@@ -215,7 +215,7 @@ struct CatchUpDeckView: View {
         .frame(height: 500)
         .background(Palette.panel, in: .rect(cornerRadius: 20))
         .overlay(RoundedRectangle(cornerRadius: 20).stroke(Palette.panelBorder, lineWidth: 1))
-        .shadow(color: .black.opacity(0.45), radius: 24, y: 24)
+        .shadow(color: Palette.shadow, radius: 24, y: 24)
         .contentShape(.rect)
         .onTapGesture { onOpenVote(vote.id) }
         .accessibilityAction(named: "Open the vote") { onOpenVote(vote.id) }

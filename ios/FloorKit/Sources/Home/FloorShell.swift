@@ -60,7 +60,6 @@ public struct FloorShell: View {
             tabBar
         }
         .tint(Palette.accent)
-        .preferredColorScheme(.dark)
     }
 
     private func stack<Root: View>(
@@ -81,7 +80,7 @@ public struct FloorShell: View {
                 .navigationDestination(for: HomeModel.Route.self) { route in
                     destination(route, path: path)
                         .clearsTabBar()
-                        .darkNavigationBar()
+                        .groundNavigationBar()
                 }
         }
         .opacity(shown ? 1 : 0)
@@ -172,12 +171,12 @@ extension View {
         #endif
     }
 
+    /// The pushed screens' bar sits on the ground colour, light or dark with the system.
     @ViewBuilder
-    func darkNavigationBar() -> some View {
+    func groundNavigationBar() -> some View {
         #if os(iOS)
         self.navigationBarTitleDisplayMode(.inline)
             .toolbarBackground(Palette.ground, for: .navigationBar)
-            .toolbarColorScheme(.dark, for: .navigationBar)
         #else
         self
         #endif
