@@ -8,6 +8,40 @@ is a milestone and ships a retro under `docs/retros/`.
 Older series live in [`docs/changelog/`](docs/changelog) (0.1.x: [`0.1.md`](docs/changelog/0.1.md)).
 Before 0.1.0 the history is the commit log on `main`.
 
+## 0.2.10 — 2026-11-13
+
+Steps 2–3 of the v0.3.0 milestone, "Your members on the web": the landing page finds *your*
+members from your location or address, built to the locked canvas round 7 (`LocWeb`,
+<https://claude.ai/artifact/FKWYDhCej75UPy94csYLsU>).
+
+### Added
+- **The "your members" strip** under the site header. It opens on the New York sample, labelled
+  SAMPLE. "Use my location" sends the point rounded to 4 decimals, or you can type an address
+  (a ZIP alone is refused). It finds your district and members, with states for asking, loading,
+  found, location blocked, outside the U.S., an address the Census can't match, too many lookups,
+  a vacant seat, and the API unreachable. Every state has a way back (Cancel, "Back to the sample").
+- **The scouting report switches to your members:** party loyalty, crossovers, showed up, winning
+  side, the last 40 calls and the latest call, from `/v1/members/{id}` and `/votes?limit=40`. One
+  member failing marks only that member and offers Try again.
+- **One-member and no-bloc cases:** D.C. and the territories get one member and a delegate note
+  computed from their votes. Independents (no party bloc) show "—", not an invented zero.
+- Sections whose data is New York only (the five finals, money and donor context, the portfolio,
+  the live replay) carry a "SAMPLE · NEW YORK" flag while someone else's members are shown.
+- The found district (never the point or the address) is kept in `localStorage` with its Congress
+  number, and dropped when a new Congress starts.
+- `FLOOR_API_BASE` at build time points the page at another API (https or localhost only).
+
+### Changed
+- Winning side follows the recorded result: "Veto Overridden" and "Guilty" carried; "Not Agreed
+  to", "Veto Sustained" and "Not Guilty" did not. A result the clerk's record cuts off mid-word is
+  left out rather than counted as a loss, which moves Schumer's sample from 14/40 to 14/38 and
+  Gillibrand's from 12/39 to 12/37. Speaker-ballot votes count as showing up.
+- On screens 860px and narrower the sticky header keeps only the logo and "Get the app". The seven
+  section links wrapped it to about 130px, a sixth of a phone screen.
+- The strip's privacy line says only what the page does ("uses it once to find your district;
+  this page stores only the district"), because `/v1/reps` takes the address in a GET query string
+  that Vercel's request logs may keep. That's open for the API in `docs/HANDOFF.md`.
+
 ## 0.2.9 — 2026-11-13
 
 The iOS app works offline: it opens on the last data it saw, then refreshes (M2 item 2).
