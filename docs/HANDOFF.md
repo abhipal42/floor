@@ -477,7 +477,12 @@ The app follows the system appearance. Dark is the canvas palette, unchanged; li
   panel or a card in either appearance (lesson 25).
 - **Not decided yet:** the yea and nay hues (the proposal's round 2 compares four pairings) and the
   accent. Light mode uses the proposal's patina accent and darker versions of today's green and
-  orange. There is no in-app appearance switch; the system setting decides.
+  orange.
+- **Appearance switch (v0.2.6).** The round button beside the district chip on Finals
+  (`AppearanceMenu`) offers System, Light or Dark, stored under the `appearance` key in
+  `UserDefaults`. `FloorApp` applies it by setting the window's `overrideUserInterfaceStyle`
+  rather than `preferredColorScheme`, because `preferredColorScheme(nil)` does not reliably return
+  to following the system once it has been set. Onboarding has no switch; it follows the last choice.
 - **Not mocked:** the proposal mocked Home only. Vote, Bill, Your three, Onboarding and the deck take
   their light colours from the same tokens without a screen-by-screen mock.
 

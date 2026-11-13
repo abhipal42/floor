@@ -8,6 +8,17 @@ is a milestone and ships a retro under `docs/retros/`.
 Older series live in [`docs/changelog/`](docs/changelog) (0.1.x: [`0.1.md`](docs/changelog/0.1.md)).
 Before 0.1.0 the history is the commit log on `main`.
 
+## 0.2.6 — 2026-11-12
+
+An in-app switch for light and dark.
+
+### Added
+- **Appearance menu** on Finals, beside the district chip: System, Light or Dark. The choice is
+  kept in `UserDefaults` (`appearance`: `system`, `light` or `dark`) and applied to the window, so it
+  covers every tab, pushed screen and navigation bar. System is the default.
+- `Appearance` and `AppearanceMenu` in DesignSystem, with `AppearanceTests` (stored values are
+  stable, an unknown value falls back to System, each choice maps to its colour scheme).
+
 ## 0.2.5 — 2026-11-12
 
 The iOS app has a light mode and follows the system appearance. Light is direction D, "Marble &
