@@ -10,7 +10,13 @@ import SwiftUI
 /// The mock's full roll says "tap a square to see who". The API reports a vote's party counts and
 /// your own members' positions, not every member's, so the squares here are counts and carry no
 /// names; the caption says what they are instead.
+///
+/// Dynamic Type: every line of text grows with the reader's setting (`scaledFont`). Rows the mock
+/// draws side by side stack when there is no room for them (`ViewThatFits`, or a column layout at
+/// accessibility sizes for your members' rows); the big scores stay fixed and shrink to fit, as
+/// on the cards.
 public struct VoteScreenView: View {
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @State private var model: VoteScreenModel
     private let onOpenMeasure: (MeasureSummary) -> Void
     private let onOpenMember: (Member) -> Void
@@ -51,7 +57,7 @@ public struct VoteScreenView: View {
                     .foregroundStyle(Palette.textSecondary)
                     .multilineTextAlignment(.center)
                 Button("Try again") { Task { await model.load() } }
-                    .font(.system(size: 15, weight: .semibold))
+                    .scaledFont(15, weight: .semibold)
                     .foregroundStyle(Palette.accent)
             }
             .padding(24)
@@ -85,7 +91,7 @@ public struct VoteScreenView: View {
                 ToolbarItem(placement: .principal) { Text(verbatim: " ").accessibilityHidden(true) }
                 ToolbarItem(placement: .primaryAction) {
                     Text(rollLabel(detail.vote))
-                        .font(.system(size: 12))
+                        .font(.system(size: 12)) // Fixed: a navigation bar does not grow, and this is fixedSize.
                         .foregroundStyle(Palette.textMuted)
                         .fixedSize()
                 }
@@ -127,15 +133,28 @@ public struct VoteScreenView: View {
         let vote = detail.vote
         return turf {
             VStack(spacing: 0) {
-                HStack {
-                    Text([vote.questionKind, when(vote)].compactMap(\.self).joined(separator: " · "))
-                        .foregroundStyle(Palette.textSecondary)
-                    Spacer()
-                    Text("NEEDED \(vote.votesNeeded)")
-                        .fontWeight(.semibold)
-                        .foregroundStyle(Palette.threshold)
+                ViewThatFits(in: .horizontal) {
+                    HStack {
+                        Text([vote.questionKind, when(vote)].compactMap(\.self).joined(separator: " · "))
+                            .foregroundStyle(Palette.textSecondary)
+                            .lineLimit(1)
+                        Spacer()
+                        Text("NEEDED \(vote.votesNeeded)")
+                            .fontWeight(.semibold)
+                            .foregroundStyle(Palette.threshold)
+                            .lineLimit(1)
+                    }
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text([vote.questionKind, when(vote)].compactMap(\.self).joined(separator: " · "))
+                            .foregroundStyle(Palette.textSecondary)
+                        Text("NEEDED \(vote.votesNeeded)")
+                            .fontWeight(.semibold)
+                            .foregroundStyle(Palette.threshold)
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .fixedSize(horizontal: false, vertical: true)
                 }
-                .font(.system(size: 11))
+                .scaledFont(11)
                 .padding(.horizontal, 14)
                 .padding(.top, 14)
                 .padding(.bottom, 6)
@@ -150,17 +169,19 @@ public struct VoteScreenView: View {
                 .padding(.top, 6)
                 .padding(.bottom, 14)
 
-                HStack(spacing: 0) {
+                outcomeStrip {
                     Text(vote.outcomeWord ?? "FINAL")
                         .font(Typography.label(15))
                         .foregroundStyle(Palette.ground)
                         .padding(.horizontal, 12)
-                        .frame(maxHeight: .infinity)
+                        .padding(.vertical, dynamicTypeSize.isAccessibilitySize ? 6 : 0)
+                        .frame(maxWidth: dynamicTypeSize.isAccessibilitySize ? .infinity : nil,
+                               maxHeight: .infinity, alignment: .leading)
                         .background(Palette.outcome(vote.outcome))
                     Text(detail.title)
-                        .font(.system(size: 13, weight: .semibold))
+                        .scaledFont(13, weight: .semibold)
                         .foregroundStyle(Palette.text)
-                        .lineLimit(2)
+                        .lineLimit(dynamicTypeSize.isAccessibilitySize ? nil : 2)
                         .padding(.horizontal, 12)
                         .padding(.vertical, 9)
                         .frame(maxWidth: .infinity, alignment: .leading)
@@ -170,15 +191,28 @@ public struct VoteScreenView: View {
             }
         }
         .accessibilityElement(children: .ignore)
+        // Your members are read in their own section below, so not here as well.
         .accessibilityLabel(
-            "\(vote.questionKind). \(detail.title). Yea \(vote.totals.yea), Nay \(vote.totals.nay). "
-                + "\(vote.outcomeWord?.capitalized ?? "Final"). Needed \(vote.votesNeeded)."
+            Spoken.scoreboard(
+                vote: vote, title: detail.measure?.title ?? vote.question,
+                citation: detail.measure?.citation, positions: [], day: when(vote)
+            )
         )
+    }
+
+    /// The result word beside the title, as the mock draws it — or above it at accessibility
+    /// sizes, where a word column beside the title leaves the title a few letters a line.
+    private func outcomeStrip<Content: View>(@ViewBuilder _ content: () -> Content) -> some View {
+        let layout = dynamicTypeSize.isAccessibilitySize
+            ? AnyLayout(VStackLayout(alignment: .leading, spacing: 0))
+            : AnyLayout(HStackLayout(spacing: 0))
+        return layout(content)
     }
 
     private func bigSide(_ label: String, _ value: Int, _ color: Color) -> some View {
         VStack(spacing: 0) {
             Text(label).font(Typography.label(14)).tracking(1.7).foregroundStyle(color)
+                .lineLimit(1).minimumScaleFactor(0.5)
             Text("\(value)")
                 .font(Typography.display(96, weight: .blackItalic, scales: false))
                 .monospacedDigit()
@@ -191,17 +225,30 @@ public struct VoteScreenView: View {
     private func thresholdBar(_ line: ThresholdLine, _ totals: VoteTotals) -> some View {
         VStack(spacing: 8) {
             ThresholdBar(line: line, height: 12)
-            HStack {
-                if let over = line.over {
-                    Text(over == 1 ? "1 vote over the line" : "\(over) votes over the line")
-                } else if let short = line.short {
-                    Text("\(short) short").foregroundStyle(Palette.nay)
+            ViewThatFits(in: .horizontal) {
+                HStack {
+                    lineCaption(line)
+                    Spacer()
+                    if totals.notVoting > 0 { Text("\(totals.notVoting) did not vote") }
                 }
-                Spacer()
-                if totals.notVoting > 0 { Text("\(totals.notVoting) did not vote") }
+                .lineLimit(1)
+                VStack(alignment: .leading, spacing: 2) {
+                    lineCaption(line)
+                    if totals.notVoting > 0 { Text("\(totals.notVoting) did not vote") }
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
             }
-            .font(.system(size: 12))
+            .scaledFont(12)
             .foregroundStyle(Palette.textMuted)
+        }
+    }
+
+    @ViewBuilder
+    private func lineCaption(_ line: ThresholdLine) -> some View {
+        if let over = line.over {
+            Text(over == 1 ? "1 vote over the line" : "\(over) votes over the line")
+        } else if let short = line.short {
+            Text("\(short) short").foregroundStyle(Palette.nay)
         }
     }
 
@@ -218,23 +265,37 @@ public struct VoteScreenView: View {
                     if present { Text("PRES") }
                     Text("DNP")
                 }
-                .font(.system(size: 11, weight: .semibold))
+                .scaledFont(11, weight: .semibold)
                 .foregroundStyle(Palette.textMuted)
                 .padding(.vertical, 6)
                 ForEach(detail.boxScore) { row in
                     Divider().overlay(Palette.panelBorder)
+                    // At accessibility sizes "Republicans" and four numbers cannot share a row, so
+                    // the team's name takes a row of its own above its numbers.
+                    if dynamicTypeSize.isAccessibilitySize {
+                        GridRow {
+                            Text(PartyName.plural(row.party)).fontWeight(.semibold).foregroundStyle(Palette.text)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .gridCellColumns(present ? 5 : 4)
+                        }
+                        .scaledFont(14)
+                        .padding(.top, 9)
+                        .accessibilityHidden(true)
+                    }
                     GridRow {
-                        Text(PartyName.plural(row.party)).fontWeight(.semibold).foregroundStyle(Palette.text)
+                        Text(dynamicTypeSize.isAccessibilitySize ? "" : PartyName.plural(row.party))
+                            .fontWeight(.semibold).foregroundStyle(Palette.text)
                             .frame(maxWidth: .infinity, alignment: .leading)
                         Text("\(row.yea)").fontWeight(.bold).foregroundStyle(Palette.yea)
                         Text("\(row.nay)").fontWeight(.bold).foregroundStyle(Palette.nay)
                         if present { Text("\(row.present)").foregroundStyle(Palette.textMuted) }
                         Text("\(row.notVoting)").foregroundStyle(Palette.textMuted)
                     }
-                    .font(.system(size: 14))
+                    .scaledFont(14)
                     .padding(.vertical, 9)
                     .accessibilityElement(children: .ignore)
-                    .accessibilityLabel("\(PartyName.plural(row.party)): \(row.yea) yea, \(row.nay) nay, \(row.present) present, \(row.notVoting) did not play")
+                    .accessibilityLabel("\(PartyName.plural(row.party)): \(row.yea) yea, \(row.nay) nay, "
+                        + (present ? "\(row.present) present, " : "") + "\(row.notVoting) did not vote")
                 }
                 Divider().overlay(Palette.panelBorder)
                 GridRow {
@@ -247,12 +308,17 @@ public struct VoteScreenView: View {
                 .font(Typography.label(18))
                 .padding(.vertical, 9)
                 .accessibilityElement(children: .ignore)
-                .accessibilityLabel("Total: \(totals.yea) yea, \(totals.nay) nay, \(totals.notVoting) did not vote")
+                .accessibilityLabel("Total: \(totals.yea) yea, \(totals.nay) nay, "
+                    + (present ? "\(totals.present) present, " : "") + "\(totals.notVoting) did not vote")
             }
             .monospacedDigit()
+            // Five columns cannot grow without limit on a phone: past what fits, each cell shrinks
+            // rather than wrapping a number or clipping a party name.
+            .lineLimit(1)
+            .minimumScaleFactor(0.4)
             if let sentence = detail.crossoverSentence {
                 Text(sentence)
-                    .font(.system(size: 12))
+                    .scaledFont(12)
                     .foregroundStyle(Palette.textSecondary)
                     .lineSpacing(3)
                     .padding(.top, 4)
@@ -269,20 +335,31 @@ public struct VoteScreenView: View {
         let elected = detail.vote.electedSpeaker
         return turf {
             VStack(spacing: 0) {
-                HStack {
-                    Text([detail.vote.question, when(detail.vote)].compactMap(\.self).joined(separator: " · "))
-                        .foregroundStyle(Palette.textSecondary)
-                    Spacer()
-                    Text("MAJORITY OF NAMES CAST").fontWeight(.semibold).foregroundStyle(Palette.threshold)
+                ViewThatFits(in: .horizontal) {
+                    HStack {
+                        Text([detail.vote.question, when(detail.vote)].compactMap(\.self).joined(separator: " · "))
+                            .foregroundStyle(Palette.textSecondary)
+                            .lineLimit(1)
+                        Spacer()
+                        Text("MAJORITY OF NAMES CAST").fontWeight(.semibold).foregroundStyle(Palette.threshold)
+                            .lineLimit(1)
+                    }
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text([detail.vote.question, when(detail.vote)].compactMap(\.self).joined(separator: " · "))
+                            .foregroundStyle(Palette.textSecondary)
+                        Text("MAJORITY OF NAMES CAST").fontWeight(.semibold).foregroundStyle(Palette.threshold)
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .fixedSize(horizontal: false, vertical: true)
                 }
-                .font(.system(size: 11))
+                .scaledFont(11)
                 .padding(.horizontal, 14)
                 .padding(.top, 14)
                 HStack(alignment: .bottom, spacing: 18) {
                     ForEach(Array(leaders.enumerated()), id: \.element.candidate) { index, entry in
                         VStack(spacing: 0) {
                             Text(entry.candidate.uppercased()).font(Typography.label(14)).tracking(1.2)
-                                .foregroundStyle(Palette.textSecondary).lineLimit(1)
+                                .foregroundStyle(Palette.textSecondary).lineLimit(1).minimumScaleFactor(0.5)
                             Text("\(entry.total)")
                                 .font(Typography.display(80, weight: .blackItalic, scales: false))
                                 .foregroundStyle(index == 0 ? Palette.text : Palette.trailing)
@@ -292,17 +369,19 @@ public struct VoteScreenView: View {
                     }
                 }
                 .padding(.vertical, 14)
-                HStack(spacing: 0) {
+                outcomeStrip {
                     Text(elected == nil ? "NO WINNER" : "ELECTED")
                         .font(Typography.label(15))
                         .foregroundStyle(elected == nil ? Palette.text : Palette.ground)
                         .padding(.horizontal, 12)
-                        .frame(maxHeight: .infinity)
+                        .padding(.vertical, dynamicTypeSize.isAccessibilitySize ? 6 : 0)
+                        .frame(maxWidth: dynamicTypeSize.isAccessibilitySize ? .infinity : nil,
+                               maxHeight: .infinity, alignment: .leading)
                         .background(elected == nil ? Palette.raised : Palette.yea)
                     // Leading a ballot is not winning it: 17 of the 20 Speaker ballots since 2023
                     // elected nobody (lesson 16).
                     Text(elected.map { "\($0.name) elected Speaker" } ?? "No candidate reached a majority; the House balloted again.")
-                        .font(.system(size: 13, weight: .semibold))
+                        .scaledFont(13, weight: .semibold)
                         .foregroundStyle(Palette.text)
                         .padding(.horizontal, 12)
                         .padding(.vertical, 9)
@@ -312,7 +391,10 @@ public struct VoteScreenView: View {
                 .fixedSize(horizontal: false, vertical: true)
             }
         }
-        .accessibilityElement(children: .combine)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(
+            Spoken.scoreboard(vote: detail.vote, title: detail.vote.question, citation: nil, positions: [], day: when(detail.vote))
+        )
     }
 
     private func candidateTable(_ detail: VoteDetail) -> some View {
@@ -320,13 +402,27 @@ public struct VoteScreenView: View {
             Text("BALLOT").font(Typography.label(20)).foregroundStyle(Palette.text)
             ForEach(detail.candidatesByStrength, id: \.candidate) { entry in
                 Divider().overlay(Palette.panelBorder)
-                HStack(spacing: 12) {
-                    Text(entry.candidate).font(.system(size: 14, weight: .semibold)).foregroundStyle(Palette.text)
-                    Spacer(minLength: 8)
-                    Text(entry.parties.map { "\($0.party) \($0.total)" }.joined(separator: " · "))
-                        .font(.system(size: 12))
-                        .foregroundStyle(Palette.textMuted)
-                    Text("\(entry.total)").font(Typography.label(18)).monospacedDigit().foregroundStyle(Palette.text)
+                ViewThatFits(in: .horizontal) {
+                    HStack(spacing: 12) {
+                        Text(entry.candidate).scaledFont(14, weight: .semibold).foregroundStyle(Palette.text)
+                        Spacer(minLength: 8)
+                        Text(entry.parties.map { "\($0.party) \($0.total)" }.joined(separator: " · "))
+                            .scaledFont(12)
+                            .foregroundStyle(Palette.textMuted)
+                        Text("\(entry.total)").font(Typography.label(18)).monospacedDigit().foregroundStyle(Palette.text)
+                    }
+                    .lineLimit(1)
+                    VStack(alignment: .leading, spacing: 2) {
+                        HStack {
+                            Text(entry.candidate).scaledFont(14, weight: .semibold).foregroundStyle(Palette.text)
+                            Spacer(minLength: 8)
+                            Text("\(entry.total)").font(Typography.label(18)).monospacedDigit().foregroundStyle(Palette.text)
+                        }
+                        Text(entry.parties.map { "\($0.party) \($0.total)" }.joined(separator: " · "))
+                            .scaledFont(12)
+                            .foregroundStyle(Palette.textMuted)
+                    }
+                    .fixedSize(horizontal: false, vertical: true)
                 }
                 .padding(.vertical, 8)
                 .accessibilityElement(children: .combine)
@@ -347,7 +443,7 @@ public struct VoteScreenView: View {
             }
             if detail.positions.isEmpty, note == nil {
                 Text("None of your members were on this roll call.")
-                    .font(.system(size: 13))
+                    .scaledFont(13)
                     .foregroundStyle(Palette.textMuted)
             }
             if let note {
@@ -358,7 +454,7 @@ public struct VoteScreenView: View {
                         }
                     }
                     .frame(width: 40 + CGFloat(min(note.members.count, 2) - 1) * 10, alignment: .leading)
-                    Text(note.text).font(.system(size: 13)).foregroundStyle(Palette.text)
+                    Text(note.text).scaledFont(13).foregroundStyle(Palette.text)
                         .fixedSize(horizontal: false, vertical: true)
                 }
                 .opacity(0.55)
@@ -373,12 +469,18 @@ public struct VoteScreenView: View {
         let sub = [seat, detail.withParty(position)].compactMap(\.self).joined(separator: " · ")
         let label = position.position == .candidate ? (position.choice ?? "BALLOT").uppercased()
             : (position.position == .notVoting ? "DNP" : position.position.shortLabel)
-        return HStack(spacing: 12) {
+        // At accessibility sizes the name, seat and position each get the full width, one under the
+        // other, rather than squeezing beside a portrait.
+        let layout = dynamicTypeSize.isAccessibilitySize
+            ? AnyLayout(VStackLayout(alignment: .leading, spacing: 6))
+            : AnyLayout(HStackLayout(spacing: 12))
+        return layout {
             MemberPortrait(position.member).frame(width: 40, height: 40)
             VStack(alignment: .leading, spacing: 1) {
-                Text(position.member.fullName).font(.system(size: 15, weight: .semibold)).foregroundStyle(Palette.text)
-                Text(sub).font(.system(size: 12)).foregroundStyle(Palette.textMuted)
+                Text(position.member.fullName).scaledFont(15, weight: .semibold).foregroundStyle(Palette.text)
+                Text(sub).scaledFont(12).foregroundStyle(Palette.textMuted)
             }
+            .fixedSize(horizontal: false, vertical: true)
             Spacer(minLength: 8)
             Text(label)
                 .font(Typography.display(24, weight: .blackItalic))
@@ -388,7 +490,7 @@ public struct VoteScreenView: View {
         }
         .contentShape(.rect)
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel("\(position.member.fullName), \(sub), \(label.capitalized)")
+        .accessibilityLabel(Spoken.memberPosition(position, partyNote: detail.withParty(position)))
         .accessibilityHint("Opens their record")
     }
 
@@ -402,8 +504,8 @@ public struct VoteScreenView: View {
         } else {
             // A nomination has no screen of its own yet, so this is information, not a link.
             VStack(alignment: .leading, spacing: 4) {
-                Text("THE NOMINATION · \(measure.citation)").font(.system(size: 11)).foregroundStyle(Palette.textMuted)
-                Text(measure.title).font(.system(size: 15, weight: .semibold)).foregroundStyle(Palette.text)
+                Text("THE NOMINATION · \(measure.citation)").scaledFont(11).foregroundStyle(Palette.textMuted)
+                Text(measure.title).scaledFont(15, weight: .semibold).foregroundStyle(Palette.text)
             }
             .panel()
         }
@@ -414,10 +516,10 @@ public struct VoteScreenView: View {
         return HStack(spacing: 12) {
             VStack(alignment: .leading, spacing: 4) {
                 Text(levels.map { "THE BILL · LEVEL \($0.reached) OF 6" } ?? "THE BILL · \(measure.citation)")
-                    .font(.system(size: 11))
+                    .scaledFont(11)
                     .foregroundStyle(Palette.textMuted)
                 Text(levels?.sentence ?? measure.title)
-                    .font(.system(size: 15, weight: .semibold))
+                    .scaledFont(15, weight: .semibold)
                     .foregroundStyle(Palette.text)
                     .multilineTextAlignment(.leading)
                     .fixedSize(horizontal: false, vertical: true)
@@ -434,7 +536,7 @@ public struct VoteScreenView: View {
                 }
             }
             Spacer(minLength: 0)
-            Text("›").font(.system(size: 20)).foregroundStyle(Palette.textMuted)
+            Text("›").scaledFont(20).foregroundStyle(Palette.textMuted)
         }
         .panel()
         .accessibilityElement(children: .combine)
@@ -447,25 +549,21 @@ public struct VoteScreenView: View {
         let parties = detail.rollParties
         let selected = parties.first { $0.party == model.rollParty } ?? parties[0]
         return VStack(alignment: .leading, spacing: 10) {
-            HStack(alignment: .firstTextBaseline) {
-                Text("FULL ROLL").font(Typography.label(20)).foregroundStyle(Palette.text)
-                Spacer()
-                Text("\(detail.rollCount) members").font(.system(size: 12)).foregroundStyle(Palette.textMuted)
-            }
-            HStack(spacing: 6) {
-                ForEach(parties) { party in
-                    let on = party.party == selected.party
-                    Button { model.rollParty = party.party } label: {
-                        Text(PartyName.plural(party.party))
-                            .font(.system(size: 12, weight: .semibold))
-                            .foregroundStyle(on ? Palette.ground : Palette.textSecondary)
-                            .padding(.horizontal, 10)
-                            .padding(.vertical, 5)
-                            .background(on ? Palette.text : .clear, in: .rect(cornerRadius: 7))
-                    }
-                    .buttonStyle(.plain)
-                    .accessibilityAddTraits(on ? [.isSelected] : [])
+            ViewThatFits(in: .horizontal) {
+                HStack(alignment: .firstTextBaseline) {
+                    Text("FULL ROLL").font(Typography.label(20)).foregroundStyle(Palette.text)
+                    Spacer()
+                    Text("\(detail.rollCount) members").scaledFont(12).foregroundStyle(Palette.textMuted)
                 }
+                .lineLimit(1)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("FULL ROLL").font(Typography.label(20)).foregroundStyle(Palette.text)
+                    Text("\(detail.rollCount) members").scaledFont(12).foregroundStyle(Palette.textMuted)
+                }
+            }
+            ViewThatFits(in: .horizontal) {
+                HStack(spacing: 6) { partyButtons(parties, selected: selected) }
+                VStack(alignment: .leading, spacing: 4) { partyButtons(parties, selected: selected) }
             }
             LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 2), count: 22), spacing: 2) {
                 ForEach(Array(selected.squares.enumerated()), id: \.offset) { _, position in
@@ -480,10 +578,26 @@ public struct VoteScreenView: View {
                     + "\(selected.present) present, \(selected.notVoting) did not vote"
             )
             Text("One square per member, by count: yea · nay · present · did not vote.")
-                .font(.system(size: 12))
+                .scaledFont(12)
                 .foregroundStyle(Palette.textMuted)
         }
         .panel()
+    }
+
+    private func partyButtons(_ parties: [PartyTotals], selected: PartyTotals) -> some View {
+        ForEach(parties) { party in
+            let on = party.party == selected.party
+            Button { model.rollParty = party.party } label: {
+                Text(PartyName.plural(party.party))
+                    .scaledFont(12, weight: .semibold)
+                    .foregroundStyle(on ? Palette.ground : Palette.textSecondary)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 5)
+                    .background(on ? Palette.text : .clear, in: .rect(cornerRadius: 7))
+            }
+            .buttonStyle(.plain)
+            .accessibilityAddTraits(on ? [.isSelected] : [])
+        }
     }
 
     private func squareColor(_ position: Position) -> Color {

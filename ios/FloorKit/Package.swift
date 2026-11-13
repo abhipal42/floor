@@ -15,6 +15,11 @@ let package = Package(
         .library(name: "DesignSystem", targets: ["DesignSystem"]),
         .library(name: "WidgetFeed", targets: ["WidgetFeed"]),
     ],
+    dependencies: [
+        // Image snapshots for SnapshotTests only; no app target links it. Why a dependency rather
+        // than ImageRenderer: docs/HANDOFF.md, "Snapshot tests" under M2.
+        .package(url: "https://github.com/pointfreeco/swift-snapshot-testing", exact: "1.19.7"),
+    ],
     targets: [
         .target(name: "Models"),
         .target(name: "APIClient", dependencies: ["Models"]),
@@ -54,5 +59,17 @@ let package = Package(
         .testTarget(name: "DesignSystemTests", dependencies: ["DesignSystem"]),
         // Reads ModelsTests' captured responses from the source tree, as APIClientTests does.
         .testTarget(name: "WidgetFeedTests", dependencies: ["WidgetFeed"]),
+        // Image references of the cards and screens, recorded on one pinned simulator (iPhone 17
+        // Pro, iOS 26.2) and skipped anywhere else — including `swift test` on macOS. Reads
+        // ModelsTests' captured responses from the source tree, as the other targets do.
+        .testTarget(
+            name: "SnapshotTests",
+            dependencies: [
+                "Models", "APIClient", "DesignSystem", "Onboarding", "VoteScreen", "BillScreen",
+                "RepScreen", "Home",
+                .product(name: "SnapshotTesting", package: "swift-snapshot-testing"),
+            ],
+            exclude: ["__Snapshots__"]
+        ),
     ]
 )

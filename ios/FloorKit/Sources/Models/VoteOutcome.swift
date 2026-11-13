@@ -196,6 +196,13 @@ public enum PartyName {
 public enum StateName {
     public static func full(_ code: String) -> String { names[code] ?? code }
 
+    /// The name as it reads mid-sentence: `the District of Columbia`, `the U.S. Virgin Islands`,
+    /// `the Northern Mariana Islands`, and every other name unchanged ("Delegate for District of
+    /// Columbia" is how a form reads, not a person).
+    public static func inSentence(_ code: String) -> String {
+        ["DC", "VI", "MP"].contains(code) ? "the \(full(code))" : full(code)
+    }
+
     /// `8th`, `21st`, `112th`.
     public static func ordinal(_ n: Int) -> String {
         let tens = n % 100

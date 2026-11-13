@@ -10,7 +10,13 @@ import SwiftUI
 ///
 /// A Speaker election has no yea or nay, so it gets its own body: the leading candidates, and
 /// whether this ballot elected anyone (HANDOFF lesson 16 — leading a ballot is not winning it).
+///
+/// Dynamic Type: the text grows with the reader's setting. Where the mock's row has no room for
+/// that — the header, the footer — the card falls back to stacking the row's pieces (via
+/// `ViewThatFits`), and the YEA and NAY column labels stay at the mock's size, as the scores do.
+/// VoiceOver reads the whole card as one sentence from `Spoken.scoreboard`.
 public struct ScoreboardCard: View {
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     let vote: Vote
     let title: String
     let citation: String?
@@ -27,10 +33,13 @@ public struct ScoreboardCard: View {
         VStack(alignment: .leading, spacing: 10) {
             header
             Text(title)
-                .font(.system(size: 15, weight: .semibold))
+                .scaledFont(15, weight: .semibold)
                 .foregroundStyle(Palette.text)
                 .lineSpacing(2)
-                .lineLimit(3)
+                // Three lines is the mock; at an accessibility size three lines hold a few words,
+                // so it is eight there — not unlimited, or a 1,309-character resolution title
+                // fills several screens of a feed. VoiceOver reads the whole title either way.
+                .lineLimit(dynamicTypeSize.isAccessibilitySize ? 8 : 3)
                 .multilineTextAlignment(.leading)
                 .fixedSize(horizontal: false, vertical: true)
             if vote.kind == .election {
@@ -47,18 +56,35 @@ public struct ScoreboardCard: View {
     }
 
     private var header: some View {
-        HStack(spacing: 8) {
-            SkewChip(vote.chamber.name.uppercased())
-            Text([citation, dayText].compactMap(\.self).joined(separator: " · "))
-                .font(.system(size: 11))
-                .foregroundStyle(Palette.textMuted)
-                .lineLimit(1)
-            Spacer(minLength: 4)
-            Text(vote.kind == .election ? "MAJORITY OF NAMES" : (vote.line?.label ?? ""))
-                .font(.system(size: 11, weight: .semibold))
-                .foregroundStyle(Palette.threshold)
-                .lineLimit(1)
+        ViewThatFits(in: .horizontal) {
+            HStack(spacing: 8) {
+                SkewChip(vote.chamber.name.uppercased())
+                dateline.lineLimit(1)
+                Spacer(minLength: 4)
+                thresholdLabel.lineLimit(1)
+            }
+            // Too long for one row (a large text size): chip and threshold, then the dateline.
+            VStack(alignment: .leading, spacing: 4) {
+                HStack(spacing: 8) {
+                    SkewChip(vote.chamber.name.uppercased()).fixedSize()
+                    Spacer(minLength: 4)
+                    thresholdLabel.lineLimit(1).minimumScaleFactor(0.5)
+                }
+                dateline.fixedSize(horizontal: false, vertical: true)
+            }
         }
+    }
+
+    private var dateline: some View {
+        Text([citation, dayText].compactMap(\.self).joined(separator: " · "))
+            .scaledFont(11)
+            .foregroundStyle(Palette.textMuted)
+    }
+
+    private var thresholdLabel: some View {
+        Text(vote.kind == .election ? "MAJORITY OF NAMES" : (vote.line?.label ?? ""))
+            .scaledFont(11, weight: .semibold)
+            .foregroundStyle(Palette.threshold)
     }
 
     private var dayText: String? {
@@ -66,13 +92,17 @@ public struct ScoreboardCard: View {
     }
 
     private var scoreRow: some View {
+        // The side labels stay at the mock's 13pt, like the scores: they name the columns of a
+        // fixed row, and VoiceOver reads the card as a sentence that says yea and nay anyway.
         HStack(spacing: 0) {
-            Text("YEA").font(Typography.label(13)).foregroundStyle(Palette.yea)
+            Text("YEA").font(Typography.display(13, weight: .extraBold, scales: false)).foregroundStyle(Palette.yea)
+                .lineLimit(1)
                 .frame(width: 36, alignment: .leading)
             score(vote.totals.yea, Palette.yea)
             resultChip.frame(width: 84)
             score(vote.totals.nay, Palette.nay)
-            Text("NAY").font(Typography.label(13)).foregroundStyle(Palette.nay)
+            Text("NAY").font(Typography.display(13, weight: .extraBold, scales: false)).foregroundStyle(Palette.nay)
+                .lineLimit(1)
                 .frame(width: 36, alignment: .trailing)
         }
     }
@@ -100,21 +130,34 @@ public struct ScoreboardCard: View {
     }
 
     private var footer: some View {
-        HStack(spacing: 8) {
-            Text(vote.questionKind)
-                .font(.system(size: 12))
-                .foregroundStyle(Palette.textMuted)
-                .lineLimit(1)
-            Spacer(minLength: 4)
-            ForEach(positions) { position in
-                HStack(spacing: 6) {
-                    MemberPortrait(position.member).frame(width: 20, height: 20)
-                    Text(label(position))
-                        .font(.system(size: 12, weight: .bold))
-                        .foregroundStyle(Palette.position(position.position))
-                        .lineLimit(1)
+        ViewThatFits(in: .horizontal) {
+            HStack(spacing: 8) {
+                questionKind.lineLimit(1)
+                Spacer(minLength: 4)
+                ForEach(positions) { position in memberChip(position).lineLimit(1) }
+            }
+            // No room for the kind and every member on one row: one per line instead.
+            VStack(alignment: .leading, spacing: 6) {
+                questionKind.fixedSize(horizontal: false, vertical: true)
+                ForEach(positions) { position in
+                    memberChip(position).fixedSize(horizontal: false, vertical: true)
                 }
             }
+        }
+    }
+
+    private var questionKind: some View {
+        Text(vote.questionKind)
+            .scaledFont(12)
+            .foregroundStyle(Palette.textMuted)
+    }
+
+    private func memberChip(_ position: MemberPosition) -> some View {
+        HStack(spacing: 6) {
+            MemberPortrait(position.member).frame(width: 20, height: 20)
+            Text(label(position))
+                .scaledFont(12, weight: .bold)
+                .foregroundStyle(Palette.position(position.position))
         }
     }
 
@@ -123,24 +166,7 @@ public struct ScoreboardCard: View {
     }
 
     private var accessibilityText: String {
-        var parts = ["\(vote.chamber.name)", citation, dayText, title].compactMap(\.self)
-        if vote.kind == .election, vote.state != .final {
-            parts.append(vote.state == .open ? "Voting" : "Scheduled")
-        } else if vote.kind == .election {
-            if let elected = vote.electedSpeaker {
-                parts.append("\(elected.name) elected Speaker with \(elected.total)")
-            } else if let leader = vote.leadingCandidate {
-                parts.append("\(leader.name) led with \(leader.total); nobody was elected on this ballot")
-            }
-        } else {
-            parts.append("Yea \(vote.totals.yea), Nay \(vote.totals.nay)")
-            if let word = vote.outcomeWord { parts.append(word.capitalized) }
-            if let line = vote.line { parts.append("Needed \(line.needed)") }
-        }
-        for position in positions {
-            parts.append("\(position.member.lastName) \(label(position).capitalized)")
-        }
-        return parts.joined(separator: ". ")
+        Spoken.scoreboard(vote: vote, title: title, citation: citation, positions: positions, day: dayText)
     }
 }
 
@@ -161,6 +187,7 @@ struct ElectionBody: View {
                             .font(Typography.label(13))
                             .foregroundStyle(Palette.textSecondary)
                             .lineLimit(1)
+                            .minimumScaleFactor(0.5)
                         Text("\(candidate.total)")
                             .font(Typography.score(48))
                             .monospacedDigit()

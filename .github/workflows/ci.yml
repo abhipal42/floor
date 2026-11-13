@@ -134,3 +134,42 @@ jobs:
             -destination 'generic/platform=iOS Simulator' \
             CODE_SIGNING_ALLOWED=NO \
             -quiet
+      # The image references in ios/FloorKit/Tests/SnapshotTests are recorded on the iOS 26.2
+      # simulator with Xcode 26.2, and an image depends on the iOS that drew it. So this step selects
+      # /Applications/Xcode_26.2.app explicitly rather than whatever macos-latest defaults to, and
+      # FAILS — never skips — when that Xcode or a 26.2 iPhone simulator is missing: a step that
+      # quietly passes without checking anything is how a broken screen reaches main. When it fails
+      # for that reason, re-record on the runner's runtime in one PR (HANDOFF, M2, "Snapshot tests").
+      # After the app build, so a snapshot failure never hides whether the app compiles.
+      - name: Snapshot tests (iOS 26.2 simulator)
+        env:
+          DEVELOPER_DIR: /Applications/Xcode_26.2.app/Contents/Developer
+          # xcodebuild hands the test runner only variables prefixed TEST_RUNNER_.
+          TEST_RUNNER_SNAPSHOT_ARTIFACTS: ${{ runner.temp }}/snapshot-failures
+        run: |
+          set -euo pipefail
+          howto="Re-record the references on this runner's runtime: docs/HANDOFF.md, M2, \"Snapshot tests\"."
+          if [ ! -d "$DEVELOPER_DIR" ]; then
+            echo "::error title=Snapshot tests::No Xcode 26.2 on this runner (/Applications/Xcode_26.2.app). Installed: $(ls -d /Applications/Xcode*.app | tr '\n' ' '). $howto"
+            exit 1
+          fi
+          # The device the references were drawn on first, then any iPhone on the 26.2 runtime.
+          udid=$(xcrun simctl list devices available -j \
+            | jq -r '(.devices["com.apple.CoreSimulator.SimRuntime.iOS-26-2"] // [])
+                     | map(select(.name | startswith("iPhone")))
+                     | ((map(select(.name == "iPhone 17 Pro")) + .) | .[0].udid) // empty')
+          if [ -z "$udid" ]; then
+            echo "::error title=Snapshot tests::No iOS 26.2 iPhone simulator with $(xcodebuild -version | head -1). $howto"
+            exit 1
+          fi
+          echo "Simulator: $(xcrun simctl list devices available | grep "$udid")"
+          cd ios/FloorKit
+          xcodebuild test -scheme FloorKit-Package -destination "platform=iOS Simulator,id=$udid" \
+            -only-testing:SnapshotTests -quiet
+      - name: Upload snapshot failures
+        if: failure()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: snapshot-failures
+          path: ${{ runner.temp }}/snapshot-failures
+          if-no-files-found: ignore

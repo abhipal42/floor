@@ -5,8 +5,9 @@ Last updated 2026-11-13. Read this first, then [`plan.md`](plan.md) for the full
 **In one paragraph:** M0 (foundation) is done. M1 (data backbone) is done; the one item still open against it, measured posting latency, has moved to M3, because it can only be taken on a live session day with polling running. Staging Postgres holds every House and Senate roll call since January 2023, and every one matches the official totals; every vote now has a subject attached, bills and nominations alike. The API serves district lookup, member votes, votes, bills, nominations and data freshness from that database, and now also the per-party breakdown of a vote, your own delegation's positions on it, and a member's party-loyalty record. **M2 is nearly done:** the API is deployed at <https://floor-api.vercel.app> and a Release build of
 the app runs the whole flow against it — onboarding to a real district, then Home, Vote, Bill and
 Rep. Since v0.2.3 those screens match the landing page (three tabs: Finals, Bills, Your three). Every
-screen now opens on its last-seen data when offline or slow, from a SwiftData cache. Two items remain,
-listed at the top of the M2 section: snapshot tests and TestFlight distribution. **M3's backend is
+screen now opens on its last-seen data when offline or slow, from a SwiftData cache. Snapshot tests
+landed in v0.2.25, with M5's accessibility pass and privacy manifests; one item remains, listed at
+the top of the M2 section: TestFlight distribution. **M3's backend is
 built but not deployed** (v0.2.24): the live worker, vote state, `/v1/live`, realtime, APNs and
 alerting plumbing. Turning it on needs a Fly account and a migration applied; see the M3 section.
 
@@ -419,6 +420,12 @@ Real data broke our first assumptions several times. Each case below is now hand
     this is its first run against a fresh table) is stored quietly, with no `announced_at`. The House
     floor summary follows the same news rule. `lastRollNumber` counts only `final` rows, or an `open` row
     would make the ingest start one past a vote it has never fetched.
+45. **`.font(.system(size: 13))` ignores Dynamic Type completely.** Every screen shipped with fixed
+    sizes, and nothing looked wrong, because nobody had their text size changed. A fixed point size
+    is not "13 at the default and more when asked"; it is 13 always. `scaledFont` keeps the mock's
+    size at the default and scales from there, and the AX5 snapshots are what catch the next row
+    that cannot hold it. Related: SwiftUI's `accessibilityReduceMotion` is read-only, so a test or a
+    preview cannot ask for the settled frame through it — hence `playsArrivalAnimations`.
 
 ---
 
@@ -525,9 +532,8 @@ The working rhythm: break each milestone into tasks. For each task, write tests 
 >      `SwiftDataResponseCache.inMemory()`, previews pass none. A store that will not open (a failed
 >      migration, a corrupt file) is deleted with its `-wal` and `-shm` and opened once more; only if
 >      that fails too does the app run with no cache.
-> 3. **Snapshot tests per card state.** Not started; filed as
->    [#1](https://github.com/abhipal42/floor/issues/1) with the states to cover and the
->    Xcode-version tension against running CI on `macos-latest`.
+> 3. ~~**Snapshot tests per card state.**~~ **Done in v0.2.25** (closes
+>    [#1](https://github.com/abhipal42/floor/issues/1)); see **Snapshot tests** below.
 > 4. **TestFlight distribution.** Needs an Apple Developer account, signing and the upload. The
 >    build itself is proven: see **Exit** below.
 >
@@ -652,11 +658,65 @@ The working rhythm: break each milestone into tasks. For each task, write tests 
   clear majority, not every vote cast — because a bare percentage invites the wrong reading, and
   shows a sentence rather than a figure when `partyLoyalty.votes` is 0 (lesson 15).
 - ~~**SwiftData cache for offline**~~ **Done**; see item 2 above.
-- **Snapshot tests for each card state — not started**, filed as
-  [#1](https://github.com/abhipal42/floor/issues/1). Worth knowing why it matters here: every layout
-  bug in this milestone — the stacked digits, a duplicated title, a date rendering a day early — was
-  caught by eye on a simulator screenshot, not by a test, and the unit tests cannot reach that
-  layer.
+- ~~**Snapshot tests for each card state**~~ **Done in v0.2.25**
+  ([#1](https://github.com/abhipal42/floor/issues/1)). Why it mattered: every layout bug in this
+  milestone — the stacked digits, a duplicated title, a date rendering a day early — was caught by
+  eye on a simulator screenshot, and the unit tests cannot reach that layer.
+
+  **Snapshot tests.** `ios/FloorKit/Tests/SnapshotTests`, references in its `__Snapshots__/`.
+  - **What is covered** (53 images from 24 tests, about 13 MB): `ScoreboardCard` in ten states — passed with three
+    digits a side (295–128), failed short of two-thirds, nay leading one digit against two (1–94),
+    a 424–0 shutout, a 1,309-character title, a procedural vote with no citation, two senators on
+    one card, a Speaker ballot that elected nobody, open, scheduled — each in **light, dark and the
+    largest accessibility text size (AX5)**. Screens: Vote (a question with your rep, bill level and
+    full roll; cloture short of 60; a Speaker election), Bill (the stepper enacted, rejected in the
+    House, still moving), Rep (Cruz, with a unity figure), Onboarding (editing, Austin's three dealt,
+    offline failure), Home (loaded, loading, offline failure). Every one is drawn from the captured
+    responses in `ModelsTests/Fixtures`, through `FixtureServer` (a `URLProtocol` that answers the
+    API's routes from those files and 404s anything else). Open and scheduled take a real final and
+    change only its state, since the API has served neither yet.
+  - **Not covered, and why:** four-digit totals (no chamber has a thousand members, so no real vote
+    has one); a tied vote and the independent Rep case (no captured response has either — capture
+    one with `curl` when it turns up, rather than invent it); Home empty after a chamber filter
+    (needs a delegation whose records are not captured). Portraits always draw as initials: the
+    tests refuse `unitedstates.github.io` (`NoPortraits`) so nothing depends on the network.
+  - **The Xcode-version tension, resolved by pinning the simulator OS, not CI's Xcode.** An image
+    depends on the iOS that drew it, and CI runs on `macos-latest`, whose Xcode moves on its own.
+    Pinning `macos-15` was tried and left jobs unscheduled for 15 minutes, so CI keeps
+    `macos-latest`, and instead the references are pinned to **the iOS 26.2 simulator**:
+    `SnapshotEnvironment` skips every snapshot test, with the reason in the log, on any other OS —
+    including `swift test` on macOS, where the target compiles to nothing (`#if os(iOS)`). CI's
+    `ios` job runs them as its last step, after the app build, with `DEVELOPER_DIR` set to
+    `/Applications/Xcode_26.2.app` explicitly, on the simulator named "iPhone 17 Pro" (else any
+    26.2 iPhone). It **fails** — it does not skip — when that Xcode or a 26.2 iPhone simulator is
+    missing, with an error pointing here: a check that turns green without checking anything is
+    worse than none. Rendering is in points at a fixed 402pt width and 2x scale, so the device model
+    does not matter, only the OS. Two thresholds: 98% perceptual precision per pixel absorbs
+    anti-aliasing between machines, and at most 0.5% of pixels may differ beyond that (`precision:
+    0.995`), so a moved digit or a wrapped line fails. When the step starts failing on `main` for
+    a missing Xcode or runtime (the runner image dropped 26.2), re-record on the new runtime in one
+    PR, bump `pinnedOS` and the step's Xcode path, and review every image.
+  - **Run, record, review:**
+    ```bash
+    export DEVELOPER_DIR=/Applications/Xcode-beta.app/Contents/Developer
+    xcrun simctl create "Floor Snapshots" com.apple.CoreSimulator.SimDeviceType.iPhone-17-Pro \
+      com.apple.CoreSimulator.SimRuntime.iOS-26-2       # once; prints the UDID
+    cd ios/FloorKit
+    xcodebuild test -scheme FloorKit-Package -destination 'platform=iOS Simulator,id=<UDID>' \
+      -only-testing:SnapshotTests                       # compare
+    TEST_RUNNER_SNAPSHOT_TESTING_RECORD=failed xcodebuild test …   # re-record what differs
+    ```
+    `xcodebuild` passes the test runner only variables prefixed `TEST_RUNNER_`. A missing reference
+    is recorded and the test fails once, by design. **Re-recording is where a real regression gets
+    waved through**: open every changed PNG in the PR diff and say in the PR why each one changed.
+    A failure on CI uploads the images it drew as the `snapshot-failures` artifact.
+  - **Why `swift-snapshot-testing`** (pointfreeco, pinned to exactly 1.19.7, test target only — the app links nothing
+    new): SwiftUI's own `ImageRenderer` would need no dependency, but it cannot draw `ScrollView`,
+    `ProgressView`, `TextField` or a navigation bar (they come out as placeholders), and every
+    screen is made of them. The library hosts the view in a real window with the traits applied
+    (appearance, content size category, scale), records missing references, and writes diffs.
+    Resolving it also fetches `swift-syntax` (for its inline-snapshot target, which is not built);
+    `Package.resolved` pins all of it.
 - **Backend for M2:** ~~CORS and rate limiting~~ **Done**, and the API is **deployed**:
   <https://floor-api.vercel.app> (Vercel project `floor-api`, team Abtanix Labs, root directory
   `apps/api`, Node 22, framework detection **off**). Two things that cost a deploy each, so do not
@@ -1260,6 +1320,84 @@ steps ship as 0.2.x PATCH releases; 0.3.0 closes the milestone with its retro.
 
 ### M5: Beta hardening + App Store
 Accessibility (Dynamic Type, VoiceOver on score cards), privacy labels, a vote-night load test, App Review prep, public TestFlight.
+
+**Accessibility — done for the score cards, member cards and the vote screen (v0.2.25).** The rest
+of the app (Bill, Rep, Home's header and deck, onboarding's form) still uses fixed sizes; that is
+the remaining M5 accessibility work. Seen in the AX5 references and not fixed here: onboarding's
+"PULL YOUR THREE." headline truncates to "PULL…", and Home's "YOUR FINALS" wraps beside its
+chamber filter.
+
+- **Dynamic Type.** Every `.font(.system(size: N))` was a fixed size that ignored the reader's
+  setting. `scaledFont(N, weight:)` (`DesignSystem/ScaledFont.swift`) draws the same N points at the
+  default size — so the locked mocks are unchanged — and grows with the text style nearest N
+  (`Typography.textStyle(forPointSize:)`: 11 → caption2, 13 → footnote, 15 → subheadline…).
+  Applied to `ScoreboardCard`, the vote screen, Home's delegation cards and onboarding's member
+  cards. Where the mock has a fixed row: `ViewThatFits` falls back to stacking (the card's header
+  and footer, the broadcast header, the threshold caption, the ballot rows, the full roll's header
+  and party buttons); your members' rows and the three member cards switch to one column at
+  accessibility sizes (`AnyLayout`), as do the vote screen's result strips (PASSED above the title,
+  not a column beside it that left the title a few letters a line); the box score gives each
+  party's name its own row at accessibility sizes, and its cells take a `minimumScaleFactor`
+  rather than clip; a card title's three-line limit becomes eight at accessibility sizes (not unlimited: the
+  1,309-character title would fill several screens). The big scores
+  and the card's YEA/NAY column labels stay at the mock's size, as before — they are a fixed row,
+  and VoiceOver reads the card as a sentence anyway. The navigation
+  bar's roll label stays fixed too: a navigation bar does not grow. Checked by the AX5 snapshots.
+- **VoiceOver.** Each score card is one element reading one sentence, built by `Spoken` (`Models`,
+  tested in `SpokenTests` on real fixtures): "H.R. 1013, On Passage, passed, 295 yea to 128 nay; your rep
+  Jeffries voted nay. Retirement Fairness for Charities and Educational Institutions Act of 2025.
+  House, Nov 11, needed 212." The outcome and your members come first, the title and detail after,
+  because a VoiceOver user swiping the feed hears the first clause of every card. Senators who voted
+  alike are read together ("your senators Cornyn and Cruz voted yea"); a Speaker ballot says who
+  led and that nobody was elected (lesson 16). Member cards spell the seat out ("Representative for
+  Texas' 37th District") instead of reading "House · TX-37" as "House dot T X dash 37".
+- **Reduce Motion.** Audited: the only animations are the split-flap board's scramble and the
+  catch-up deck's count-up and card throw, and both already drew settled under Reduce Motion. Both
+  now also honour `playsArrivalAnimations` (an environment value, default true), because SwiftUI's
+  Reduce Motion value is read-only and the snapshot tests need the settled frame. Onboarding's
+  `.transition(.opacity)` is a crossfade, which Reduce Motion permits.
+
+**Privacy manifest and App Store privacy labels (v0.2.25).** `ios/Floor/PrivacyInfo.xcprivacy`
+for the app and `ios/FloorWidgets/PrivacyInfo.xcprivacy` for the widget extension (an extension is
+its own bundle and needs its own), both checked by `PrivacyManifestTests`. XcodeGen copies each
+into its target's bundle from the target's `sources` folder.
+
+- **Required-reason APIs:** `UserDefaults` only. The app: **CA92.1** for its own defaults (the
+  appearance choice, `@AppStorage`, and the pre-widget copy of the district it migrates from) and
+  **1C8F.1** for the App Group suite it writes the district and members to
+  (`UserDefaultsDelegationStore.shared`). The widget: **1C8F.1** only — it reads and writes that
+  suite. None of
+  the other categories is used — no file timestamps (the SwiftData cache deletes its store files but
+  never reads their dates), disk space, boot time or active keyboards. Re-check this when adding an
+  SDK: each SDK ships its own manifest.
+- **Tracking:** none, no tracking domains, in either bundle.
+- **Collected data:** the app, Precise Location, Physical Address and Coarse Location; the
+  widget, Coarse Location. All **not linked**, **not used for tracking**, purpose **App
+  Functionality** only. Coarse Location because every request after onboarding names your members
+  by Bioguide ID in its path (`/v1/members/{id}/votes`), and three members identify one district.
+
+App Store Connect › App Privacy, the answers to give:
+
+| Question | Answer |
+|---|---|
+| Do you or your third-party partners collect data from this app? | **Yes** |
+| Location › Precise Location | Collected. Used for **App Functionality**. **Not linked** to identity. **Not used for tracking** |
+| Location › Coarse Location | Collected. Used for **App Functionality**. **Not linked**. **Not used for tracking** |
+| Contact Info › Physical Address | Collected. Used for **App Functionality**. **Not linked**. **Not used for tracking** |
+| Every other type (identifiers, usage data, diagnostics, contacts, health, financial, browsing, search, purchases, user content, sensitive info) | **Not collected** |
+| Resulting label | *Data Not Linked to You:* Location, Contact Info. *Data Used to Track You:* none. *Data Linked to You:* none |
+
+Why "collected" when Floor keeps neither: collected under Apple's definition, the address or
+coordinates leave the phone and may be kept beyond the request by the hosting provider's request
+logs and by the U.S. Census geocoder, whose retention Floor does not control. Floor's own code
+stores neither and never joins them to any identifier. (The API rounds coordinates to four
+decimals, ~11 m, which is still "precise" by Apple's three-decimal line.) The stricter answer
+costs a few words on the label; the looser one, if wrong, is a rejected or pulled app.
+**Follow-up, not done:** `/v1/reps?address=` carries the address in the query string, which is
+exactly what request logs keep. Moving that input from the query string to a `POST` body would
+keep it out of Vercel's logs; it is an API and client change, so it is its own PR. No
+crash reporter or analytics SDK is in the app; adding one changes this table (Diagnostics, and
+probably Identifiers).
 
 ---
 

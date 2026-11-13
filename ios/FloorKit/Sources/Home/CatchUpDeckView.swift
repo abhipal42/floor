@@ -12,7 +12,9 @@ struct CatchUpDeckView: View {
     let model: HomeModel
     let onOpenVote: (String) -> Void
 
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.accessibilityReduceMotion) private var systemReduceMotion
+    @Environment(\.playsArrivalAnimations) private var playsArrivalAnimations
+    private var reduceMotion: Bool { systemReduceMotion || !playsArrivalAnimations }
     @State private var front = 0
     @State private var progress: Double = 1
     @State private var leaving: Int?
