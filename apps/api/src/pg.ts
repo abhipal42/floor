@@ -17,7 +17,7 @@ import type {
 } from "./app.js";
 
 /**
- * Which kind of Supabase connection a `DATABASE_URL` is, from its host and port.
+ * Which kind of Supabase connection a `DATABASE_URL` is, from its port and host.
  *
  * The API runs on serverless instances that come and go, so it wants the transaction pooler (port
  * 6543 on `*.pooler.supabase.com`), which shares a few server connections among any number of
@@ -34,10 +34,24 @@ export function poolerMode(url: string): "transaction" | "session" | "direct" | 
     return "unknown";
   }
   const port = parsed.port || "5432";
-  if (parsed.hostname.endsWith(".pooler.supabase.com")) return port === "6543" ? "transaction" : "session";
+  // 6543 is the transaction pooler's port whatever the host is called (another region, a custom
+  // domain), so it is read first; the host only decides what any other port is.
+  if (port === "6543") return "transaction";
+  if (parsed.hostname.endsWith(".pooler.supabase.com")) return "session";
   if (parsed.hostname.endsWith(".supabase.co")) return "direct";
   return "unknown";
 }
+
+/** The boot warning for a `DATABASE_URL` that is not the transaction pooler, or null when it is. */
+export function poolerWarning(url: string): string | null {
+  const mode = poolerMode(url);
+  if (mode === "transaction") return null;
+  const kind = mode === "unknown" ? "an unknown" : `a ${mode}`;
+  return `DATABASE_URL is ${kind} connection; use Supabase's transaction pooler (port 6543)`;
+}
+
+/** How long a run may go without recording an outcome before `/v1/status` counts it as failed. */
+export const ABANDONED_AFTER = "1 hour";
 
 /** The slice of a Postgres client we use. Satisfied by `pg.Pool` and by PGlite in tests. */
 export interface Db {
@@ -365,20 +379,43 @@ export function pgRepositories(db: Db): {
     },
     status: {
       async lastRuns() {
-        // lastError is the error of the most recent *finished* run, so it is null once a later run
-        // succeeds. It used to be the latest error ever recorded, which left two errors from the
+        // lastError is the error of the latest run that has an outcome, so it is null once a later
+        // run succeeds. It used to be the latest error ever recorded, which left two errors from the
         // first backfill on 2026-11-12 — both fixed in code within minutes, and followed by clean
-        // runs — reading as the current state of production a day later (lesson 35). A run still
-        // in progress has no outcome yet and is left out.
-        const { rows } = await db.query<{ source: string; last_success_at: Date | null; last_error: string | null }>(
-          `select source,
+        // runs — reading as the current state of production a day later (lesson 35).
+        //
+        // A run with no finished_at more than ABANDONED_AFTER after it started is counted as failed
+        // ("abandoned run"): the process died or was killed without recording an outcome, and
+        // leaving it out would let the success before it stand as the latest word. A run younger
+        // than that is still in progress and has no outcome yet.
+        //
+        // lastNewDataAt is the latest successful run that stored anything. An hourly schedule keeps
+        // lastSuccessAt fresh even when upstream stops publishing or a parser silently finds
+        // nothing, so a gap here is the signal that `stale` no longer gives on its own (lesson 38).
+        const { rows } = await db.query<{
+          source: string;
+          last_success_at: Date | null;
+          last_new_data_at: Date | null;
+          last_error: string | null;
+        }>(
+          `with runs as (
+             select source, finished_at, items, error,
+                    finished_at is null and started_at < now() - interval '${ABANDONED_AFTER}' as abandoned,
+                    coalesce(finished_at,
+                             case when started_at < now() - interval '${ABANDONED_AFTER}' then started_at end) as ended_at
+               from ingest_runs
+           )
+           select source,
                   max(finished_at) filter (where error is null) as last_success_at,
-                  (array_agg(error order by finished_at desc) filter (where finished_at is not null))[1] as last_error
-             from ingest_runs group by source`,
+                  max(finished_at) filter (where error is null and items > 0) as last_new_data_at,
+                  (array_agg(case when abandoned then 'abandoned run: it never recorded an outcome' else error end
+                             order by ended_at desc) filter (where ended_at is not null))[1] as last_error
+             from runs group by source`,
         );
         return rows.map((r) => ({
           source: r.source,
           lastSuccessAt: r.last_success_at ? new Date(r.last_success_at) : null,
+          lastNewDataAt: r.last_new_data_at ? new Date(r.last_new_data_at) : null,
           lastError: r.last_error,
         }));
       },

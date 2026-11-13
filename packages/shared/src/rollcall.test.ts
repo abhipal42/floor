@@ -160,6 +160,33 @@ describe("parseHouseRollCall (real Speaker election: 2025 roll 2)", () => {
   });
 });
 
+describe("parseHouseRollCall (questions that only look like Speaker elections)", () => {
+  // A real yea/nay file (2025 roll 100) with its question rewritten.
+  const yeaNay = fixture("house-2025-roll100.xml");
+  const titled = (question: string) =>
+    yeaNay.replace(
+      "<vote-question>On Motion to Concur in the Senate Amendment</vote-question>",
+      `<vote-question>${question}</vote-question>`,
+    );
+
+  it("reads a Speaker pro tempore election as the yea/nay question it is", () => {
+    const rc = parseHouseRollCall(titled("Election of the Speaker pro tempore"));
+    expect(rc.kind).toBe("question");
+    expect(rc.totals).toEqual(parseHouseRollCall(yeaNay).totals);
+  });
+
+  it("refuses a file titled a Speaker election whose every answer is yea or nay", () => {
+    expect(() => parseHouseRollCall(titled("Election of the Speaker"))).toThrow(
+      "House roll call 100 is titled a Speaker election but records yea/nay answers",
+    );
+  });
+
+  it("says which roll call has no totals instead of failing on a missing property", () => {
+    const noTotals = yeaNay.replace(/<vote-totals>[\s\S]*?<\/vote-totals>/, "");
+    expect(() => parseHouseRollCall(noTotals)).toThrow("House roll call 100 has no vote totals");
+  });
+});
+
 describe("normalizePosition", () => {
   it("maps chamber vocabularies to one set", () => {
     expect(["Yea", "Aye", "Guilty"].map(normalizePosition)).toEqual(["yea", "yea", "yea"]);

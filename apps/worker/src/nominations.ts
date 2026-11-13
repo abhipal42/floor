@@ -117,34 +117,33 @@ export async function ingestVotedNominations(
   opts: { limit?: number; refresh?: boolean; log?: (msg: string) => void } = {},
 ): Promise<{ nominations: number; linkedVotes: number; failed: number }> {
   const finish = await startRun(db, "nominations");
-
-  // Several votes (motion to proceed, cloture, confirmation) cite the same nomination.
-  const byNomination = new Map<string, { congress: number; number: number; part: number; refs: string[] }>();
-  if (opts.refresh) {
-    const { rows } = await db.query<{ id: string; congress: number; number: number; part: number }>(
-      "select id, congress, number, part from nominations order by congress, number, part",
-    );
-    for (const r of rows) byNomination.set(r.id, { congress: r.congress, number: r.number, part: r.part, refs: [] });
-  } else {
-    const { rows } = await db.query<{ congress: number; bill_ref: string }>(
-      `select distinct congress, bill_ref from votes
-        where nomination_id is null and bill_ref is not null order by congress, bill_ref`,
-    );
-    for (const r of rows) {
-      const ref = parseMeasureRef(r.bill_ref);
-      if (ref?.kind !== "nomination") continue;
-      const id = nominationId(r.congress, ref.number, ref.part);
-      const entry =
-        byNomination.get(id) ?? { congress: r.congress, number: ref.number, part: ref.part ?? 0, refs: [] };
-      entry.refs.push(r.bill_ref);
-      byNomination.set(id, entry);
-    }
-  }
-
   let nominations = 0;
   let linkedVotes = 0;
   let failed = 0;
   try {
+    // Several votes (motion to proceed, cloture, confirmation) cite the same nomination.
+    const byNomination = new Map<string, { congress: number; number: number; part: number; refs: string[] }>();
+    if (opts.refresh) {
+      const { rows } = await db.query<{ id: string; congress: number; number: number; part: number }>(
+        "select id, congress, number, part from nominations order by congress, number, part",
+      );
+      for (const r of rows) byNomination.set(r.id, { congress: r.congress, number: r.number, part: r.part, refs: [] });
+    } else {
+      const { rows } = await db.query<{ congress: number; bill_ref: string }>(
+        `select distinct congress, bill_ref from votes
+          where nomination_id is null and bill_ref is not null order by congress, bill_ref`,
+      );
+      for (const r of rows) {
+        const ref = parseMeasureRef(r.bill_ref);
+        if (ref?.kind !== "nomination") continue;
+        const id = nominationId(r.congress, ref.number, ref.part);
+        const entry =
+          byNomination.get(id) ?? { congress: r.congress, number: ref.number, part: ref.part ?? 0, refs: [] };
+        entry.refs.push(r.bill_ref);
+        byNomination.set(id, entry);
+      }
+    }
+
     for (const [id, n] of byNomination) {
       if (opts.limit !== undefined && nominations >= opts.limit) break;
       try {
@@ -169,9 +168,10 @@ export async function ingestVotedNominations(
         opts.log?.(`${id}: ${err instanceof Error ? err.message : String(err)}`);
       }
     }
-    await finish(nominations, failed ? `${failed} nominations failed` : undefined);
+    // Per-nomination failures are counted, not reported as the run's error (lesson 38).
+    await finish(nominations, undefined, failed);
   } catch (err) {
-    await finish(nominations, err instanceof Error ? err.message : String(err));
+    await finish(nominations, err instanceof Error ? err.message : String(err), failed);
     throw err;
   }
   return { nominations, linkedVotes, failed };

@@ -122,11 +122,12 @@ export function parseHouseRollCall(xml: string): RollCall {
       ? byCandidate
           .map((c) => ({ name: text(c["candidate"]), total: int(c["candidate-total"]) }))
           .filter((c) => !NON_CANDIDATE.has(c.name.toLowerCase()))
-      : candidatesFromPositions(positions);
+      : candidatesFromPositions(positions, int(meta["rollcall-num"]));
     const count = (p: VotePosition) => positions.filter((x) => x.position === p).length;
     totals = { yea: 0, nay: 0, present: count("present"), notVoting: count("not_voting") };
   } else {
-    const t = meta["vote-totals"]["totals-by-vote"];
+    const t = meta["vote-totals"]?.["totals-by-vote"];
+    if (!t) throw new Error(`House roll call ${int(meta["rollcall-num"])} has no vote totals`);
     totals = {
       yea: int(t["yea-total"]),
       nay: int(t["nay-total"]),
@@ -156,11 +157,23 @@ export function parseHouseRollCall(xml: string): RollCall {
 /** Entries in a Speaker election that aren't candidates. */
 const NON_CANDIDATE = new Set(["present", "not voting"]);
 
-/** The House Clerk's question on every Speaker ballot since 2023: "Election of the Speaker". */
-const SPEAKER_ELECTION = /^election of (the )?speaker\b/i;
+/**
+ * The House Clerk's question on every Speaker ballot since 2023: "Election of the Speaker". Not
+ * "Election of the Speaker pro tempore", which the House settles by resolution, as a yea/nay question.
+ */
+const SPEAKER_ELECTION = /^election of (the )?speaker\b(?!\s+pro\s+tempore)/i;
+
+/** Answers that mean the file is a yea/nay question after all, whatever its question says. */
+const QUESTION_ANSWERS = new Set(["yea", "aye", "nay", "no", "guilty", "not guilty"]);
 
 /** Per-candidate totals counted from the recorded votes, most votes first, for a file that omits them. */
-function candidatesFromPositions(positions: MemberPosition[]): RollCall["candidates"] {
+function candidatesFromPositions(positions: MemberPosition[], roll: number): RollCall["candidates"] {
+  const choices = positions.flatMap((p) => (p.position === "candidate" && p.choice ? [p.choice] : []));
+  // Every "candidate" a yea/nay word means the question matched but the ballot is not an election.
+  // Storing Yea and Nay as candidates would be wrong in a way nothing downstream would catch.
+  if (choices.length > 0 && choices.every((c) => QUESTION_ANSWERS.has(c.toLowerCase()))) {
+    throw new Error(`House roll call ${roll} is titled a Speaker election but records yea/nay answers`);
+  }
   const totals = new Map<string, number>();
   for (const p of positions) {
     if (p.position === "candidate" && p.choice) totals.set(p.choice, (totals.get(p.choice) ?? 0) + 1);

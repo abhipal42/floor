@@ -5,15 +5,20 @@ public struct SourceStatus: Codable, Sendable, Hashable, Identifiable {
     public var source: String
     /// ISO 8601, or nil if the source has never loaded successfully.
     public var lastSuccessAt: String?
+    /// ISO 8601: when a successful run last stored anything. A scheduled job keeps `lastSuccessAt`
+    /// fresh even when nothing new arrives, so a long gap here is what reveals a quiet upstream break.
+    public var lastNewDataAt: String?
+    /// The latest run's error if it failed (or never finished); nil once a later run succeeds.
     public var lastError: String?
     /// True when the source has gone longer than its window without a successful run.
     public var stale: Bool
 
     public var id: String { source }
 
-    public init(source: String, lastSuccessAt: String?, lastError: String?, stale: Bool) {
+    public init(source: String, lastSuccessAt: String?, lastNewDataAt: String? = nil, lastError: String?, stale: Bool) {
         self.source = source
         self.lastSuccessAt = lastSuccessAt
+        self.lastNewDataAt = lastNewDataAt
         self.lastError = lastError
         self.stale = stale
     }

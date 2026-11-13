@@ -80,7 +80,38 @@ export function sessionsToPoll(now: Date): { congress: number; session: number }
   const january = now.getUTCMonth() === 0 && now.getUTCDate() <= 14;
   if (!january) return [current];
   const previous = session === 2 ? { congress, session: 1 } : { congress: congress - 1, session: 2 };
-  return [previous, current];
+  // Current first: it is the one people are waiting on, and the old one is only a catch-up.
+  return [current, previous];
+}
+
+/**
+ * Ingests each session in turn. A session that fails does not stop the next one — they are
+ * separate runs with separate records — but the first failure is rethrown once all have run, so the
+ * process still exits non-zero.
+ */
+export async function ingestSessions(
+  db: Db,
+  chamber: Chamber,
+  sessions: { congress: number; session: number }[],
+  opts: { from?: number; fetchText?: FetchText; log?: (msg: string) => void } = {},
+): Promise<{ congress: number; session: number; stored: number }[]> {
+  const done: { congress: number; session: number; stored: number }[] = [];
+  let firstError: unknown = null;
+  for (const s of sessions) {
+    try {
+      const result = await ingestRollCalls(db, chamber, s.congress, s.session, opts);
+      done.push({ ...s, stored: result.stored });
+      opts.log?.(
+        `${chamber} ${s.congress}-${s.session}: stored ${result.stored} roll calls (last: ${result.lastRoll}); ` +
+          `${result.skippedPositions} positions for unknown members`,
+      );
+    } catch (err) {
+      opts.log?.(`${chamber} ${s.congress}-${s.session} failed: ${err instanceof Error ? err.message : String(err)}`);
+      firstError ??= err;
+    }
+  }
+  if (firstError !== null) throw firstError;
+  return done;
 }
 
 /**
@@ -95,10 +126,12 @@ export async function ingestRollCalls(
   opts: { from?: number; limit?: number; fetchText?: FetchText; log?: (msg: string) => void } = {},
 ): Promise<{ stored: number; lastRoll: number; skippedPositions: number }> {
   const finish = await startRun(db, `${chamber}_rollcalls`);
-  let roll = opts.from ?? (await lastRollNumber(db, chamber, congress, session)) + 1;
+  let roll = opts.from ?? 0;
   let stored = 0;
   let skippedPositions = 0;
   try {
+    // Inside the try, like everything after startRun: a run that throws here must still record why.
+    if (opts.from === undefined) roll = (await lastRollNumber(db, chamber, congress, session)) + 1;
     // Repair votes saved without positions (for example, by an interrupted older run).
     for (const missing of await rollsMissingPositions(db, chamber, congress, session)) {
       const rc = await fetchRollCall(chamber, congress, session, missing, opts.fetchText);

@@ -16,10 +16,16 @@ name: Ingest
 #                     (GitHub's runners have no IPv6, so not the direct host)
 #   CONGRESS_API_KEY  the api.data.gov key, for bills and nominations
 # Without DATABASE_URL the job says so and stops, rather than failing every hour.
+#
+# GitHub turns a schedule off after 60 days with no activity in a public repo,
+# and says so only by email. If /v1/status goes stale with no error, check that
+# this workflow is still enabled (Actions -> Ingest).
 on:
   schedule:
-    # Hourly, off the top of the hour when GitHub's scheduler is busiest.
-    - cron: "17 * * * *"
+    # Hourly, off the top of the hour when GitHub's scheduler is busiest. The 06 UTC slot is its own
+    # entry so the Members step can tell it apart (github.event.schedule names the cron that fired).
+    - cron: "17 0-5,7-23 * * *"
+    - cron: "17 6 * * *"
   workflow_dispatch:
 
 concurrency:
@@ -55,24 +61,29 @@ jobs:
         with:
           node-version: 22
           cache: npm
-      - if: steps.secrets.outputs.ready == 'true'
-        run: npm ci
-      # Members first, so a member sworn in today has a row before their first roll call lands.
-      - name: Members
+      - name: Install
+        id: install
         if: steps.secrets.outputs.ready == 'true'
+        run: npm ci
+      # Members once a day, at the 06 UTC run (or on a manual run): the roster changes on swearing-ins,
+      # not by the hour. Note the cost: a member sworn in after that day's run has their positions
+      # skipped (and counted in the log) until the next one, and nothing re-fetches a vote that has
+      # *some* positions. After a swearing-in, run this workflow by hand.
+      - name: Members
+        if: steps.install.outcome == 'success' && (github.event_name == 'workflow_dispatch' || github.event.schedule == '17 6 * * *')
         run: npm run ingest -w @floor/worker -- members
       # The chambers one after the other, never together. Each source still runs when an earlier one
       # failed (`!cancelled()`), since a failure in one says nothing about the others; the job goes red.
       - name: House roll calls
-        if: steps.secrets.outputs.ready == 'true' && !cancelled()
+        if: steps.install.outcome == 'success' && !cancelled()
         run: npm run ingest -w @floor/worker -- rollcalls house current
       - name: Senate roll calls
-        if: steps.secrets.outputs.ready == 'true' && !cancelled()
+        if: steps.install.outcome == 'success' && !cancelled()
         run: npm run ingest -w @floor/worker -- rollcalls senate current
       # Bills and nominations only fetch what new votes refer to, so these are quick when nothing changed.
       - name: Bills
-        if: steps.secrets.outputs.ready == 'true' && env.CONGRESS_API_KEY != '' && !cancelled()
+        if: steps.install.outcome == 'success' && env.CONGRESS_API_KEY != '' && !cancelled()
         run: npm run ingest -w @floor/worker -- bills
       - name: Nominations
-        if: steps.secrets.outputs.ready == 'true' && env.CONGRESS_API_KEY != '' && !cancelled()
+        if: steps.install.outcome == 'success' && env.CONGRESS_API_KEY != '' && !cancelled()
         run: npm run ingest -w @floor/worker -- nominations

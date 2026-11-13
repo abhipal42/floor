@@ -13,7 +13,7 @@ import { attachDatabasePool } from "@vercel/functions";
 import pg from "pg";
 import { createApp } from "../src/app.js";
 import { locateDistrict } from "../src/district.js";
-import { pgRepositories, poolerMode, type Db } from "../src/pg.js";
+import { pgRepositories, poolerWarning, type Db } from "../src/pg.js";
 
 export const config = { runtime: "nodejs" };
 
@@ -41,12 +41,10 @@ if (pool) {
   // timeout and stays open, holding a pooler slot, until the instance is reaped. `attachDatabasePool`
   // keeps the instance awake just long enough for the pool to close idle connections (lesson 37).
   attachDatabasePool(pool);
-  const mode = poolerMode(process.env.DATABASE_URL ?? "");
-  if (mode !== "transaction") {
-    // Session mode gives each open connection one of a fixed set of slots (15 on this project), so
-    // a burst of instances fails with EMAXCONNSESSION; the transaction pooler on port 6543 does not.
-    console.warn(`DATABASE_URL is a ${mode} connection; use Supabase's transaction pooler (port 6543)`);
-  }
+  // Session mode gives each open connection one of a fixed set of slots (15 on this project), so a
+  // burst of instances fails with EMAXCONNSESSION; the transaction pooler on port 6543 does not.
+  const warning = poolerWarning(process.env.DATABASE_URL ?? "");
+  if (warning) console.warn(warning);
 }
 
 /** Browser origins allowed to read a response, comma-separated. Unset means none. */

@@ -17,29 +17,43 @@ page stops reporting errors that were already fixed.
 - **`/v1/status` showed superseded errors as current.** `lastError` was the latest error ever
   recorded, so two failures from the first backfill on 2026-11-12 — `Unknown vote position:
   "Jeffries"` and `deadlock detected`, both fixed in code within minutes and followed by clean runs —
-  still read as live a day later. It is now the error of the latest finished run, null once a later
-  run succeeds (HANDOFF lesson 35).
+  still read as live a day later. It is now the error of the latest run with an outcome, null once a
+  later run succeeds (HANDOFF lesson 35).
+- **A run that never finished hid failures.** A run with no outcome an hour after it started now
+  reads as `abandoned run`, and every ingest (members included) records an outcome on every path,
+  setup failures too (lesson 38).
+- **One bad bill or nomination marked the source failed every run.** Per-item failures go in the new
+  `ingest_runs.failed` column (migration `20261113000100_ingest_failed.sql`); `error` is only for a
+  run that failed as a whole. The worker still closes runs on a database without the column.
 - **A Speaker ballot is recognized by its question as well as its candidate totals**, so a file
   without the `<totals-by-candidate>` block parses as an election instead of failing on the first
   candidate name. Tested on the real 2025 ballot (`house-2025-roll002.xml`) with and without the
-  block; all 20 ballots in production give the same totals either way.
+  block; all 20 ballots in production give the same totals either way. "Election of the Speaker pro
+  tempore" is not matched, a ballot so titled whose every answer is yea/nay is refused, and a file
+  with no totals names its roll call in the error.
 
 ### Added
-- **Hourly ingest** (`.github/workflows/ingest.yml`): members, House roll calls, Senate roll calls,
-  bills, nominations, in sequence, in one `concurrency` group so runs never overlap. It needs the
+- **`lastNewDataAt` on `/v1/status`**: the latest successful run that stored anything. A scheduled
+  job keeps `stale` false even when upstream quietly stops, so this is the freshness signal now
+  (lesson 38). Modelled in FloorKit's `SourceStatus`.
+- **Hourly ingest** (`.github/workflows/ingest.yml`): House roll calls, Senate roll calls, bills,
+  nominations, in sequence, in one `concurrency` group so runs never overlap; members once a day at
+  06 UTC. Every step after install is gated on `npm ci` succeeding. It needs the
   `DATABASE_URL` and `CONGRESS_API_KEY` repository secrets, which a repo admin has to add; until then
   it skips with a warning (lesson 37).
-- `rollcalls <house|senate> current` polls the session in progress (and, in early January, the one
-  just ended) — `sessionsToPoll`.
+- `rollcalls <house|senate> current` polls the session in progress and, in early January, the one
+  just ended after it (`sessionsToPoll`). A session that fails does not stop the other; the first
+  failure is rethrown after both (`ingestSessions`).
 
 ### Changed
-- **Deadlock hardening** (lesson 36): `withRetry` makes five attempts with doubling, jittered waits,
-  and a vote's positions are written in member-ID order (`positionRows`), so concurrent writers to
-  the same vote lock rows in the same sequence.
+- **Deadlock hardening** (lesson 36): `withRetry` makes five attempts with doubling, jittered waits.
+  A vote's positions are now written in member-ID order, one row per member (`positionRows`), which
+  makes the write deterministic; writers of the same vote were already serialized by its row lock.
 - **Fewer database connections.** The API hands its pool to Vercel's `attachDatabasePool`
   (`@vercel/functions` 3.10.4) so a suspended instance doesn't sit on an idle connection, closes idle
   connections after 5 s instead of 10, and warns at boot unless `DATABASE_URL` is the transaction
-  pooler (`poolerMode`). The worker uses one connection instead of two (lesson 37).
+  pooler (`poolerWarning`; port 6543 counts as transaction mode whatever the host). The worker uses
+  one connection instead of two (lesson 37).
 
 ## 0.2.19 — 2026-11-13
 

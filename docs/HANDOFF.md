@@ -27,7 +27,7 @@ listed at the top of the M2 section: snapshot tests and TestFlight distribution.
 git clone https://github.com/abhipal42/floor.git && cd floor
 npm install
 cp .env.example .env    # then fill in the two values (see below)
-npm run check           # lint + typecheck + 370 tests; must pass before every PR
+npm run check           # lint + typecheck + 382 tests; must pass before every PR
 ```
 
 `.env` (never committed):
@@ -72,13 +72,13 @@ Command Line Tools rather than Xcode: run it with `DEVELOPER_DIR=/Applications/X
 |---|---|---|
 | `packages/shared` | Types + roll call parsers (House Clerk XML, Senate LIS XML) | `src/rollcall.ts`, fixtures in `fixtures/` (real government files) |
 | `packages/db` | Migration loader used by tests | `src/migrations.test.ts` |
-| `supabase/migrations` | Postgres schema (applied to staging in filename order) | 7 migrations, all applied to staging |
+| `supabase/migrations` | Postgres schema (applied to staging in filename order) | 9 migrations; `20261113000100_ingest_failed.sql` is **not yet applied** to staging (lesson 38) |
 | `apps/worker` | Ingest CLI: members, roll calls, bills, nominations | `src/cli.ts`, `rollcalls.ts`, `bills.ts`, `nominations.ts`, `members.ts`, `db.ts` |
 | `apps/api` | Hono REST API with OpenAPI at `/openapi.json` | `src/app.ts` (routes + schemas), `pg.ts` (Postgres), `district.ts` (Census) |
 | `apps/web` | Landing page (v0.2.0): static HTML/CSS/TypeScript built with `tsc`, no framework | `src/data.ts` (every figure, with source and date), `src/logic.ts` (pure helpers), `src/main.ts` (rendering), `public/` |
 | `ios/` | SwiftUI app (XcodeGen, `project.yml`), `FloorKit` package: `Models`, `APIClient`, `DesignSystem`, `Onboarding`, `Home`, `VoteScreen`, `BillScreen`, `RepScreen` | `FloorKit/Sources/Models/` (one file per area, `Samples.swift` for previews), `FloorKit/Tests/ModelsTests/ContractTests.swift`, `DesignSystem/ScoreboardCard.swift`, `DesignSystem/Components.swift`, `DesignSystem/Fonts/` (Barlow Condensed, OFL), `Home/FloorShell.swift` (tabs), `Home/CatchUp.swift`, `Models/VoteOutcome.swift`, `BillScreen/LawLevels.swift`, `APIClient/ResponseCache.swift` (offline cache), `DesignSystem/SavedDataNote.swift` |
 | `.github/workflows/ci.yml` | `scope` job (which parts changed) + node job (lint/typecheck/tests + OpenAPI drift) + macOS job (Swift tests + simulator build). **Pushes to `main` only** since 2026-11-13 — a PR never builds the code — and the macOS job runs only when the push touched `ios/` or `.github/` | |
-| `.github/workflows/ingest.yml` | **Hourly ingest** (since v0.2.20): members, then House and Senate roll calls for the session in progress (`rollcalls <chamber> current`), then bills and nominations, one after another in one job, in a `concurrency: ingest` group so a slow run makes the next wait instead of overlapping it. **Inert until the repo has a `DATABASE_URL` secret** (session pooler string) and `CONGRESS_API_KEY`; without the first it logs a warning and skips. Adding them needs repo admin (lesson 37) | |
+| `.github/workflows/ingest.yml` | **Hourly ingest** (since v0.2.20): members, then House and Senate roll calls for the session in progress (`rollcalls <chamber> current`), then bills and nominations, one after another in one job, in a `concurrency: ingest` group so a slow run makes the next wait instead of overlapping it. Members runs once a day (06 UTC) and on manual runs; GitHub disables the schedule after 60 days of repo inactivity (lesson 37). **Inert until the repo has a `DATABASE_URL` secret** (session pooler string) and `CONGRESS_API_KEY`; without the first it logs a warning and skips. Adding them needs repo admin (lesson 37) | |
 | `.github/workflows/guards.yml` | Shipping guards on every PR (the only workflow that still runs there): changelog, version, docs, tests, retro, PR title | `.github/scripts/guards.conf` (this repo's settings), `guards.sh` (shared, do not edit) |
 | `docs/` | `plan.md` / `plan.html` (design + plan), this file, `retros/` (one per milestone) | |
 | `VERSION`, `CHANGELOG.md` | Current version (mirrored by `MARKETING_VERSION` in `ios/project.yml`) and what each version shipped | |
@@ -94,7 +94,7 @@ Command Line Tools rather than Xcode: run it with `DEVELOPER_DIR=/Applications/X
 | `GET /v1/votes/{id}` | One vote: totals, threshold, kind, bill link, **per-party breakdown**, and for a Speaker election **which candidate each party backed**. `?members=A000370,C001098` (up to ten) also returns those members' own positions, so the vote screen loads your delegation in one round trip. IDs look like `house-119-1-100` |
 | `GET /v1/bills/{id}` | Title, short title, CRS summary, sponsor, policy area, CBO estimates, last 30 actions, every vote on it. IDs look like `119-hr-2207` |
 | `GET /v1/nominations/{id}` | Nominee, position, agency, received and latest action, every Senate vote on it. IDs look like `119-pn-1093-3` |
-| `GET /v1/status` | Last successful run per ingest source, the error of its latest finished run if that one failed (null once a later run succeeds, lesson 35), and `stale` flags |
+| `GET /v1/status` | Per ingest source: last successful run, `lastNewDataAt` (last successful run that stored anything — the freshness signal `stale` cannot give once ingest is scheduled, lesson 38), the error of its latest run with an outcome (null once a later run succeeds; `abandoned run` for one that never finished within an hour, lessons 35 and 38), and `stale` |
 | `GET /openapi.json` | The contract. The Swift models are hand-written against it, and `ContractTests` fail CI if they drift (see M2). |
 
 ### Data in staging (as of this commit)
@@ -308,18 +308,23 @@ Real data broke our first assumptions several times. Each case below is now hand
     migration — `alter type vote_position add value`, `alter table votes`, `alter table
     vote_positions` — at 04:23:43, while that run was upserting into those tables. The retry on
     `40P01` did not exist yet (c350de4, 04:25:18). So it was not two cron jobs: there was no cron
-    job (lesson 37). What the worker now does anyway: waits double and are jittered between five
-    attempts (`withRetry`), and each vote's positions are inserted in member-ID order
-    (`positionRows`, and `order by` in the insert), so two writers on the same vote take row locks
-    in the same sequence. Apply a migration that alters `votes` or `vote_positions` when no ingest
-    is running.
+    job (lesson 37). What the worker now does: waits double and are jittered between five attempts
+    (`withRetry`), so a short migration is outlasted rather than fatal. Ordering is *not* the
+    defence against two ingests writing the same vote, and does not need to be: `upsertRollCall`
+    upserts the `votes` row first, and that row lock makes the second writer wait for the first to
+    commit before it touches any position. (Positions are still written in member-ID order and
+    deduplicated by `positionRows`, which makes the write deterministic and stops a member listed
+    twice from failing the vote.) Apply a migration that alters `votes` or `vote_positions` when no
+    ingest is running.
 37. **Nothing ran the ingest on a schedule.** No workflow, cron, `pg_cron` job (the extension is
     not installed) or host timer called the worker: every row in `ingest_runs` was typed by hand, and
     the last roll-call run was 2026-11-12 04:30 UTC, so the House votes of 12 November (rolls 322
     and 323) were never stored and both roll-call sources went `stale` 24 hours later. That — not a
-    parse error — is why ingest looked stuck. `.github/workflows/ingest.yml` now runs hourly, but
-    **it needs `DATABASE_URL` and `CONGRESS_API_KEY` as repository secrets, which only a repo admin
-    can add** (our access is write, not admin). Related: on 2026-11-13 something hit
+    parse error — is why ingest looked stuck. `.github/workflows/ingest.yml` now runs hourly (members
+    once a day, at 06 UTC), but **it needs `DATABASE_URL` and `CONGRESS_API_KEY` as repository
+    secrets, which only a repo admin can add** (our access is write, not admin). **GitHub disables a
+    scheduled workflow after 60 days without activity in a public repo**, and says so only by email:
+    if the data goes quiet with no error, check the workflow is still enabled before anything else. Related: on 2026-11-13 something hit
     `EMAXCONNSESSION max clients reached in session mode - pool_size: 15`. That is Supavisor's
     *session* pooler (port 5432), where every open connection holds one of 15 slots shared by the
     API, the worker and anyone at a SQL prompt. The API now passes its pool to Vercel's
@@ -332,6 +337,21 @@ Real data broke our first assumptions several times. Each case below is now hand
     says it should; the error says something connected in session mode), then force a redeploy. The
     worker should stay on 5432: it is one connection at a time, and session mode is what a script
     holding a connection for many statements expects.
+38. **Once ingest is scheduled, `stale` stops meaning "the data is current".** `stale` asks
+    whether a run *succeeded* recently, and an hourly job succeeds every hour whether or not
+    anything new arrived — including when the Clerk moves its files, a parser starts finding
+    nothing, or Congress is simply out. So `stale` alone no longer catches an upstream break.
+    `/v1/status` now also reports `lastNewDataAt`, the latest successful run that stored anything;
+    a gap there during a session week is the signal. Two more ways the status page could mislead,
+    both fixed in v0.2.20: a run that died without recording an outcome (killed runner, a throw
+    before its `try`) used to vanish from the status, so the success before it stood — it now
+    reads as `abandoned run` an hour after it started, and every ingest records an outcome on every
+    path. And one bill or nomination Congress.gov will not serve used to set the run's `error`
+    ("1 bills failed") on every run, pinning the source as failed for as long as the reference
+    existed; per-item failures now go in `ingest_runs.failed` (migration
+    `20261113000100_ingest_failed.sql`) and `error` is only for a run that failed as a whole. The
+    worker still closes runs on a database without that column, so applying it can follow the
+    deploy, but apply it.
 
 ---
 

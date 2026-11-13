@@ -29,11 +29,11 @@ export const voteId = (rc: Pick<RollCall, "chamber" | "congress" | "session" | "
 /**
  * A roll call's positions as rows for `upsertRollCall`, in member-ID order and one per member.
  *
- * The order is for lock ordering: two writers upserting the same vote (a scheduled run and a manual
- * one, say) take row locks on `vote_positions` in the same sequence, so one waits for the other
- * instead of each holding a row the other needs. The insert also orders by Bioguide ID, since the
- * Senate's LIS IDs sort differently once joined. A member listed twice keeps the last entry, as
- * `on conflict do update` cannot touch one row twice in a statement.
+ * The order makes the write deterministic; it is not what keeps two writers of the same vote from
+ * deadlocking. The statement upserts the `votes` row first, and that row lock already makes a second
+ * writer of the same vote wait for the first to commit before it touches any `vote_positions` row.
+ * One row per member matters more: `on conflict do update` cannot touch the same row twice in one
+ * statement, so a member listed twice would fail the whole vote. The last entry wins.
  */
 export function positionRows(rc: Pick<RollCall, "positions">) {
   const byMember = new Map(
@@ -108,16 +108,38 @@ export async function lastRollNumber(db: Db, chamber: string, congress: number, 
   return rows[0]?.max ?? 0;
 }
 
-/** Records an ingest run for freshness monitoring and returns a function that closes it. */
+/**
+ * Records an ingest run for freshness monitoring and returns a function that closes it.
+ *
+ * `error` is for a run that failed as a whole; it is what `/v1/status` reports. `failed` counts
+ * items that failed one by one (a bill Congress.gov will not serve) while the run carried on: they
+ * are retried next run, and putting them in `error` would mark the source failed every hour for as
+ * long as one bad reference exists (lesson 38).
+ *
+ * Every caller must reach `finish` on every path, failures included: a run left without an outcome
+ * is reported as "abandoned" an hour after it started.
+ */
 export async function startRun(db: Db, source: string) {
   const { rows } = await db.query<{ id: number }>(
     "insert into ingest_runs (source) values ($1) returning id",
     [source],
   );
   const runId = rows[0]?.id;
-  return async (items: number, error?: string) => {
-    await db.query("update ingest_runs set finished_at = now(), items = $2, error = $3 where id = $1", [
-      runId, items, error ?? null,
-    ]);
+  return async (items: number, error?: string, failed = 0) => {
+    try {
+      await db.query("update ingest_runs set finished_at = now(), items = $2, error = $3, failed = $4 where id = $1", [
+        runId, items, error ?? null, failed,
+      ]);
+    } catch (err) {
+      // 42703 undefined_column: a database that has not had migration 20261113000100 yet. Record the
+      // outcome without the count rather than leave the run looking abandoned.
+      if ((err as { code?: string }).code !== "42703") throw err;
+      await db.query("update ingest_runs set finished_at = now(), items = $2, error = $3 where id = $1", [
+        runId, items, error ?? null,
+      ]);
+    }
   };
 }
+
+/** The message `finish` records for a run that threw. */
+export const errorText = (err: unknown) => (err instanceof Error ? err.message : String(err));

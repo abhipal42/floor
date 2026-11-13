@@ -176,7 +176,8 @@ public extension Nomination {
 
 public extension SourceStatus {
     static let sample = SourceStatus(
-        source: "house_rollcalls", lastSuccessAt: "2026-11-11T20:00:00.000Z", lastError: nil, stale: false
+        source: "house_rollcalls", lastSuccessAt: "2026-11-11T20:00:00.000Z",
+        lastNewDataAt: "2026-11-11T20:00:00.000Z", lastError: nil, stale: false
     )
 }
 

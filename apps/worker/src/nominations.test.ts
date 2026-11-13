@@ -176,10 +176,10 @@ describe("ingestVotedNominations", () => {
       { id: "119-pn-28", nominee_name: null, part: 0 },
     ]);
 
-    const { rows: run } = await pg.query<{ items: number; error: string }>(
-      "select items, error from ingest_runs where source = 'nominations'",
+    const { rows: run } = await pg.query<{ items: number; failed: number; error: string | null }>(
+      "select items, failed, error from ingest_runs where source = 'nominations'",
     );
-    expect(run).toEqual([{ items: 2, error: "1 nominations failed" }]);
+    expect(run).toEqual([{ items: 2, failed: 1, error: null }]);
   });
 
   it("refresh re-fetches stored nominations and leaves the vote links alone", async () => {

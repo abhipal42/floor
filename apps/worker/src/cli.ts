@@ -1,8 +1,8 @@
 import pg from "pg";
 import type { Chamber } from "@floor/shared";
-import { startRun, upsertMembers, type Db } from "./db.js";
-import { CURRENT_URL, HISTORICAL_URL, toMemberRows, type LegislatorEntry } from "./members.js";
-import { ingestRollCalls, sessionsToPoll } from "./rollcalls.js";
+import { type Db } from "./db.js";
+import { ingestMembers } from "./members.js";
+import { ingestSessions, sessionsToPoll } from "./rollcalls.js";
 import { congressClient, ingestVotedBills } from "./bills.js";
 import { ingestVotedNominations } from "./nominations.js";
 import { fecClient, ingestFecTotals, ingestPacContributions } from "./fec.js";
@@ -39,13 +39,7 @@ async function main() {
   const db = pool as unknown as Db;
   try {
     if (command === "members") {
-      const finish = await startRun(db, "members");
-      const [current, historical] = await Promise.all([
-        getJson<LegislatorEntry[]>(CURRENT_URL),
-        getJson<LegislatorEntry[]>(HISTORICAL_URL),
-      ]);
-      const count = await upsertMembers(db, toMemberRows([...historical, ...current]));
-      await finish(count);
+      const count = await ingestMembers(db, getJson);
       console.log(`Upserted ${count} members`);
     } else if (command === "rollcalls") {
       const [chamber, congress, session, from] = args;
@@ -53,15 +47,10 @@ async function main() {
       // `current` is what the schedule runs: the session in progress, plus the one just ended early in January.
       const sessions =
         congress === "current" ? sessionsToPoll(new Date()) : [{ congress: Number(congress), session: Number(session) }];
-      for (const s of sessions) {
-        const result = await ingestRollCalls(db, chamber as Chamber, s.congress, s.session, {
-          from: congress !== "current" && from ? Number(from) : undefined,
-          log: (msg) => console.log(msg),
-        });
-        console.log(
-          `${chamber} ${s.congress}-${s.session}: stored ${result.stored} roll calls (last: ${result.lastRoll}); ${result.skippedPositions} positions for unknown members`,
-        );
-      }
+      await ingestSessions(db, chamber as Chamber, sessions, {
+        from: congress !== "current" && from ? Number(from) : undefined,
+        log: (msg) => console.log(msg),
+      });
     } else if (command === "bills") {
       if (!process.env.CONGRESS_API_KEY) throw new Error("Set CONGRESS_API_KEY in .env (free key: https://api.data.gov/signup)");
       const refresh = args.includes("--refresh");
