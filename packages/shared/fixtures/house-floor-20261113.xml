@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<legislative_activity>
+<legislative_header>CURRENT HOUSE FLOOR PROCEEDINGS</legislative_header>
+<legislative_day date="20261113" previous-legislative-day-convened="20261112T09:00:00">LEGISLATIVE DAY OF NOVEMBER 13, 2026 </legislative_day>
+<legislative_congress congress="119" session="2"> 119TH CONGRESS - SECOND SESSION </legislative_congress>
+<language>en-us</language>
+<copyright>Pursuant to Title 17 Section 105 of the United States Code, this file is not subject to copyright protection and is in the public domain.</copyright>
+<pubDate>Fri, 13 Nov 2026 17:30:01 EST</pubDate>
+<floor_actions>
+<legislative_day_finished next-legislative-day-convenes="20261117T12:00">Yes</legislative_day_finished>
+<floor_action act-id="H61000" update-date-time="20261113T10:18" unique-id="46517">
+<action_time for-search="20261113T10:02:58">10:02:58 A.M. -</action_time>
+<action_description>
+The Speaker announced that the House do now adjourn pursuant to a previous special order. The next meeting is scheduled for 12:00 p.m. on November 17, 2026.
+</action_description>
+</floor_action>
+<floor_action act-id="H8D000" update-date-time="20261113T12:26" unique-id="46515">
+<action_time for-search="20261113T10:02:49">10:02:49 A.M. -</action_time>
+<action_description>
+The Chair announced that without objection, when the House adjourns on Friday, November 13, 2026, it shall adjourn to meet at 12:00 p.m. on Tuesday, November 17, 2026 for Morning-Hour debate and 2:00 p.m. for legislative business.
+</action_description>
+</floor_action>
+<floor_action act-id="H2C000" update-date-time="20261113T10:02" unique-id="46514">
+<action_time for-search="20261113T10:02:30">10:02:30 A.M. -</action_time>
+<action_description>
+PLEDGE OF ALLEGIANCE - The Chair led the House in reciting the Pledge of Allegiance to the Flag.
+</action_description>
+</floor_action>
+<floor_action act-id="H23100" update-date-time="20261113T10:02" unique-id="46513">
+<action_time for-search="20261113T10:02:18">10:02:18 A.M. -</action_time>
+<action_description>
+The Speaker announced approval of the Journal.  Pursuant to clause 1, rule I, the Journal stands approved.
+</action_description>
+</floor_action>
+<floor_action act-id="H21000" update-date-time="20261113T10:01" unique-id="46512">
+<action_time for-search="20261113T10:01:12">10:01:12 A.M. -</action_time>
+<action_description>
+Today's prayer was offered by the House Chaplain, Chaplain Margaret Grun Kibben.
+</action_description>
+</floor_action>
+<floor_action act-id="H22000" update-date-time="20261113T10:01" unique-id="46511">
+<action_time for-search="20261113T10:00:54">10:00:54 A.M. -</action_time>
+<action_description>
+The Speaker designated the Honorable Michael K. Simpson to act as Speaker pro tempore for today.
+</action_description>
+</floor_action>
+<floor_action act-id="H20100" update-date-time="20261113T10:00" unique-id="46510">
+<action_time for-search="20261113T10:00:00">10:00:00 A.M. -</action_time>
+<action_description>
+The House convened, starting a new legislative day.
+</action_description>
+</floor_action>
+</floor_actions>
+</legislative_activity>

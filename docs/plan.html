@@ -116,6 +116,10 @@ footer{font-size:13px;color:var(--muted);border-top:1px solid var(--line);paddin
     <h3>Change needed in the designs</h3>
     <p>Replace the live per-member play-by-play with floor events (vote opened, motion, time remaining). Show your rep's vote as "Pending · posts after the vote" until the roll call lands. The OCR tally gets validated in M3 before the app promises a running score for House votes.</p>
   </div>
+  <div class="callout">
+    <h3>What the official sources actually give (checked 2026-11-13, M3 backend)</h3>
+    <p>Neither chamber's published files say a vote has <em>opened</em>. The Clerk's floor summary adds a vote's entry, roll number and result included, about when it closes (roll 319 on 2026-11-10: floor time 6:20:53 p.m., entry stamped 6:32). senate.gov publishes no per-action feed at all: only the next convening (<code>floor_schedule.json</code>), the last meeting's convene/adjourn times, and the vote menu, which lists a vote with its result. So <code>open</code> in the data means "named on the floor, roll call details not posted yet", and "vote open in under 30 s" needs a source we don't use yet: live.house.gov's own feed (HANDOFF §3, lesson 41) or the House OCR.</p>
+  </div>
 </section>
 
 <section id="sources">
@@ -130,8 +134,8 @@ footer{font-size:13px;color:var(--muted);border-top:1px solid var(--line);paddin
       <tr><td>Full bill text (each version)</td><td>GovInfo API + bulk <code>BILLS</code> / <code>BILLSTATUS</code> XML</td><td>REST/bulk, key</td><td><span class="pill p-static">Daily</span></td><td>AI analysis input</td></tr>
       <tr><td>House roll calls, member by member</td><td>Clerk EVS XML <code>clerk.house.gov/evs/{year}/roll{nnn}.xml</code> (fastest). Congress.gov <code>/house-vote</code> (beta) for backfill.</td><td>XML / REST</td><td><span class="pill p-after">Minutes after close</span></td><td>Final score, rep vote, recap</td></tr>
       <tr><td>Senate roll calls, member by member</td><td>senate.gov LIS vote XML (vote menu + per-vote files)</td><td>XML</td><td><span class="pill p-after">After close</span></td><td>Same, Senate</td></tr>
-      <tr><td>House floor events</td><td>Clerk floor summary XML / live.house.gov</td><td>XML polling</td><td><span class="pill p-near">~10–30 s</span></td><td>"Vote open", Live Activity start</td></tr>
-      <tr><td>Senate floor events</td><td>senate.gov floor activity + Senate press gallery pages</td><td>HTML scrape</td><td><span class="pill p-near">~1 min</span></td><td>Senate "vote open"</td></tr>
+      <tr><td>House floor events</td><td>Clerk floor summary XML <code>clerk.house.gov/floor/YYYYMMDD.xml</code> (polled); live.house.gov's feed not yet used</td><td>XML polling</td><td><span class="pill p-near">Around close</span></td><td>Session state, vote <code>open</code> → <code>final</code></td></tr>
+      <tr><td>Senate floor events</td><td>senate.gov <code>floor_schedule.json</code>, floor activity page, LIS vote menu (no per-action feed exists there)</td><td>JSON / HTML scrape / XML</td><td><span class="pill p-after">Once listed</span></td><td>Session state, Senate vote <code>open</code> → <code>final</code></td></tr>
       <tr><td>House running tally (beta)</td><td>Public House floor video. OCR of the vote board graphic.</td><td>Video stream + OCR</td><td><span class="pill p-live">~5 s</span></td><td>Live 212–196 + clock</td></tr>
       <tr><td>Upcoming votes</td><td>House floor schedule XML (docs.house.gov). Senate executive and legislative calendars.</td><td>XML / PDF</td><td><span class="pill p-static">Daily</span></td><td>"Up next" card</td></tr>
       <tr><td>Voting history and ideology</td><td>Voteview (DW-NOMINATE scores, all past roll calls)</td><td>CSV bulk</td><td><span class="pill p-static">Weekly</span></td><td>Projection model, rep stats</td></tr>

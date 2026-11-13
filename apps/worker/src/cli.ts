@@ -8,6 +8,9 @@ import { ingestVotedNominations } from "./nominations.js";
 import { fecClient, ingestFecTotals, ingestPacContributions } from "./fec.js";
 import Anthropic from "@anthropic-ai/sdk";
 import { analyzeOptions, anthropicComplete, runAnalyses } from "./analysis.js";
+import { LiveWorker, parseLatencyDays, postingLatency, revalidatingFetch, runLive, summarize } from "./live.js";
+import { supabaseBroadcaster } from "./realtime.js";
+import { StatusAlerter } from "./alert.js";
 
 const USAGE = `Usage:
   npm run ingest -w @floor/worker -- members
@@ -20,6 +23,8 @@ const USAGE = `Usage:
   npm run ingest -w @floor/worker -- fec-totals [limit]           (campaign totals per current member from OpenFEC; needs CONGRESS_API_KEY)
   npm run ingest -w @floor/worker -- fec-pacs [cycle]             (committee-to-candidate totals from the FEC bulk files; default 2026)
   npm run ingest -w @floor/worker -- analyze [limit]              (AI analysis of bills whose CRS summary has none or changed; default 25; needs ANTHROPIC_API_KEY)
+  npm run ingest -w @floor/worker -- live                         (always-on: floor events, vote state, roll calls; until SIGTERM)
+  npm run ingest -w @floor/worker -- latency [days]               (posting latency the live worker measured; default 30 days)
 
 Reads DATABASE_URL from the environment (use the Supabase service connection string).`;
 
@@ -39,9 +44,31 @@ async function main() {
   // session pooler each connection is one of the 15 slots the API and everyone else share (lesson 37).
   // `pool.end()` below hands it back the moment the command finishes.
   const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL, max: 1 });
+  // An idle connection the pooler drops emits "error" on the pool; with no listener Node turns that
+  // into an uncaught exception and the always-on worker dies. Log it: the pool opens a new connection
+  // on the next query.
+  pool.on("error", (err) => console.error(`${new Date().toISOString()} database connection error: ${describe(err)}`));
   const db = pool as unknown as Db;
   try {
-    if (command === "members") {
+    if (command === "live") {
+      await live(db);
+    } else if (command === "latency") {
+      const rows = await postingLatency(db, parseLatencyDays(args[0]));
+      for (const r of rows) {
+        console.log(
+          `${r.id}  posted ${r.postedAt}  from floor time ${r.fromOpenSeconds ?? "-"} s  from first sighting ${r.fromAnnouncedSeconds ?? "-"} s`,
+        );
+      }
+      for (const chamber of ["house", "senate"] as const) {
+        const mine = rows.filter((r) => r.chamber === chamber);
+        const open = summarize(mine.map((r) => r.fromOpenSeconds));
+        const seen = summarize(mine.map((r) => r.fromAnnouncedSeconds));
+        console.log(
+          `${chamber}: ${mine.length} votes measured; floor time -> XML median ${open.median ?? "-"} s, p90 ${open.p90 ?? "-"} s; ` +
+            `first sighting -> XML median ${seen.median ?? "-"} s, p90 ${seen.p90 ?? "-"} s`,
+        );
+      }
+    } else if (command === "members") {
       const count = await ingestMembers(db, getJson);
       console.log(`Upserted ${count} members`);
     } else if (command === "rollcalls") {
@@ -123,6 +150,51 @@ async function main() {
   } finally {
     await pool.end();
   }
+}
+
+/** The always-on loop. Stops cleanly on SIGTERM (what Fly and Railway send) or SIGINT. */
+async function live(db: Db) {
+  const log = (msg: string) => console.log(`${new Date().toISOString()} ${msg}`);
+  const broadcaster = supabaseBroadcaster(process.env);
+  const alerter = new StatusAlerter({
+    webhookUrl: process.env.ALERT_WEBHOOK_URL || undefined,
+    statusUrl: process.env.FLOOR_STATUS_URL || undefined,
+    log,
+  });
+  const key = process.env.CONGRESS_API_KEY;
+  const worker = new LiveWorker({
+    db,
+    fetchFloor: revalidatingFetch(),
+    broadcaster,
+    alerter,
+    log,
+    // congressClient keeps its URL (which carries the key) out of errors and logs (lesson 7).
+    linkMeasures: key
+      ? async () => {
+          const client = congressClient(key);
+          const bills = await ingestVotedBills(db, client, { log });
+          const noms = await ingestVotedNominations(db, client, { log });
+          log(`linked ${bills.linkedVotes} votes to bills and ${noms.linkedVotes} to nominations`);
+        }
+      : undefined,
+  });
+  // By Node's default a rejected promise nobody awaited kills the process. Every step of a poll is
+  // already caught, so one that slips through is a bug to log, not a reason to stop polling.
+  process.on("unhandledRejection", (reason) => log(`unhandled rejection (still running): ${describe(reason)}`));
+  const stop = new AbortController();
+  for (const signal of ["SIGTERM", "SIGINT"] as const) {
+    process.once(signal, () => {
+      log(`${signal}: finishing the current poll, then stopping`);
+      stop.abort();
+    });
+  }
+  log(
+    `live worker starting: realtime ${broadcaster.enabled ? "on" : "off (SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY unset)"}, ` +
+      `alerts ${alerter.enabled ? "on" : "off (ALERT_WEBHOOK_URL unset)"}, ` +
+      `bill linking ${key ? "on" : "off (CONGRESS_API_KEY unset)"}`,
+  );
+  const ticks = await runLive(worker, stop.signal, { log });
+  log(`stopped after ${ticks} polls`);
 }
 
 function describe(err: unknown): string {

@@ -459,6 +459,59 @@ export const MAX_AGE_HOURS: Record<string, number> = {
   nominations: 48,
 };
 
+/**
+ * One chamber as the live worker last saw it. Written by the worker every poll (10 s in session,
+ * 5 min otherwise), so a `checkedAt` minutes old means the worker is down, not that nothing happened.
+ */
+export const ChamberStatusSchema = z
+  .object({
+    chamber: ChamberSchema,
+    inSession: z.boolean().openapi({ description: "Sitting now, or within 15 minutes of convening" }),
+    convenesAt: z.string().nullable().openapi({ description: "Next (or current) convening, when the chamber has published it" }),
+    legislativeDay: z.string().nullable().openapi({ example: "2026-11-10" }),
+    checkedAt: z.string().openapi({ description: "When the live worker last polled this chamber" }),
+  })
+  .openapi("ChamberStatus");
+
+export type ChamberStatus = z.infer<typeof ChamberStatusSchema>;
+
+/**
+ * A vote with the live layer's timestamps. `state` is `open` from the moment a floor source names the
+ * roll call until its official XML is stored, then `final`. Our sources only name a roll call once it
+ * is called, so "open" means "on the record, details not yet posted", not "members are voting now".
+ */
+export const LiveVoteSchema = z
+  .object({
+    ...VoteSchema.shape,
+    openedAt: z.string().nullable().openapi({ description: "The floor's own time for the vote (House only)" }),
+    announcedAt: z.string().nullable().openapi({ description: "When the worker first saw a floor source name it" }),
+    postedAt: z
+      .string()
+      .nullable()
+      .openapi({ description: "When the worker first saw the roll call XML, polling live; null if it was backfilled" }),
+  })
+  .openapi("LiveVote");
+
+export type LiveVote = z.infer<typeof LiveVoteSchema>;
+
+export const LiveSchema = z
+  .object({
+    chambers: z.array(ChamberStatusSchema).openapi({ description: "Empty until the live worker has run" }),
+    votes: z
+      .array(LiveVoteSchema)
+      .openapi({ description: "Open votes named in the last 24 hours, then votes that went final within `since`; newest first" }),
+  })
+  .openapi("Live");
+
+export interface LiveRepository {
+  chambers(): Promise<ChamberStatus[]>;
+  /** Open votes announced in the last day, plus votes the live worker published as final after `finalAfter`. */
+  liveVotes(finalAfter: Date, now: Date): Promise<LiveVote[]>;
+}
+
+/** Edge cache for /v1/live: every phone polling on vote night costs one function call per 5 s, not one each. */
+export const LIVE_CACHE_CONTROL = "public, max-age=5, s-maxage=5, stale-while-revalidate=5";
+
 export interface StatusRepository {
   /**
    * Per ingest source: the latest successful run, the latest successful run that stored anything, and
@@ -475,6 +528,7 @@ export interface AppDeps {
   bills: BillRepository;
   nominations: NominationRepository;
   status: StatusRepository;
+  live: LiveRepository;
   now?: () => Date;
   /** Resolves an address or coordinates to a district (the Census geocoder in production). */
   locate: (place: Place) => Promise<DistrictMatch | null>;
@@ -704,6 +758,27 @@ const getStatusRoute = createRoute({
   },
 });
 
+const getLiveRoute = createRoute({
+  method: "get",
+  path: "/v1/live",
+  summary: "What is happening on the floor: each chamber's session state and the votes open or just final",
+  request: {
+    query: z.object({
+      since: z.coerce.number().int().min(1).max(1440).default(120).openapi({
+        param: { name: "since", in: "query" },
+        example: 120,
+        description: "Include votes that went final within this many minutes",
+      }),
+    }),
+  },
+  responses: {
+    200: {
+      content: { "application/json": { schema: LiveSchema } },
+      description: `Cached at the edge for 5 seconds (${LIVE_CACHE_CONTROL})`,
+    },
+  },
+});
+
 export function createApp(deps: AppDeps) {
   const app = new OpenAPIHono({
     defaultHook: (result, c) => {
@@ -816,6 +891,17 @@ export function createApp(deps: AppDeps) {
     const nomination = await deps.nominations.getNomination(id);
     if (!nomination) return c.json({ error: `No nomination with ID ${id}` }, 404);
     return c.json(nomination, 200);
+  });
+
+  app.openapi(getLiveRoute, async (c) => {
+    const { since } = c.req.valid("query");
+    const now = (deps.now ?? (() => new Date()))();
+    const [chambers, votes] = await Promise.all([
+      deps.live.chambers(),
+      deps.live.liveVotes(new Date(now.getTime() - since * 60_000), now),
+    ]);
+    c.header("Cache-Control", LIVE_CACHE_CONTROL);
+    return c.json({ chambers, votes }, 200);
   });
 
   app.openapi(getStatusRoute, async (c) => {

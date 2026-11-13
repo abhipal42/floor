@@ -1,4 +1,5 @@
 export * from "./rollcall.js";
+export * from "./floor.js";
 
 export type Chamber = "house" | "senate";
 

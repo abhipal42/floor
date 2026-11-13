@@ -18,6 +18,7 @@ const empty: Omit<AppDeps, "locate"> = {
   bills: { getBill: async () => null, getAnalysis: async () => null },
   nominations: { getNomination: async () => null },
   status: { lastRuns: async () => [] },
+  live: { chambers: async () => [], liveVotes: async () => [] },
 };
 
 let geocodeCalls = 0;

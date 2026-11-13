@@ -72,6 +72,7 @@ const repositories = pool
       bills: { getBill: async () => null, getAnalysis: async () => null },
       nominations: { getNomination: async () => null },
       status: { lastRuns: async () => [] },
+      live: { chambers: async () => [], liveVotes: async () => [] },
     };
 
 if (!pool) console.warn("DATABASE_URL is not set: serving empty data");

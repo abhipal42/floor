@@ -99,10 +99,14 @@ export async function rollsMissingPositions(db: Db, chamber: string, congress: n
   return rows.map((r) => r.roll_number);
 }
 
-/** Highest roll number already stored for a chamber session, or 0. */
+/**
+ * Highest roll number stored as final for a chamber session, or 0. Only final votes count: the live
+ * worker stores a vote as `open` when a floor source names it before its XML is posted, and counting
+ * that row would make the roll call ingest start one past it and never fetch it.
+ */
 export async function lastRollNumber(db: Db, chamber: string, congress: number, session: number): Promise<number> {
   const { rows } = await db.query<{ max: number | null }>(
-    "select max(roll_number)::int as max from votes where chamber = $1 and congress = $2 and session = $3",
+    "select max(roll_number)::int as max from votes where chamber = $1 and congress = $2 and session = $3 and state = 'final'",
     [chamber, congress, session],
   );
   return rows[0]?.max ?? 0;

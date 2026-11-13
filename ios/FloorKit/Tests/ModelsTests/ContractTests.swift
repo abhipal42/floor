@@ -71,6 +71,10 @@ struct ContractTests {
             // Flat on the wire, nested in Swift: the vote's fields plus the three breakdowns.
             "VoteDetail": fields(Vote.sample)
                 .union(["partyTotals", "candidateTotals", "positions", "measure"]),
+            "ChamberStatus": fields(ChamberStatus.sample),
+            "Live": fields(Live.sample),
+            // Flat on the wire, nested in Swift, like VoteDetail: the vote's fields plus three timestamps.
+            "LiveVote": fields(Vote.sample).union(["openedAt", "announcedAt", "postedAt"]),
             // Not components: these wrap a list in the route's own inline schema.
             "/v1/members/{id}/votes": fields(MemberVotes.sample),
             "/v1/status": fields(DataStatus.sample),
@@ -82,6 +86,7 @@ struct ContractTests {
         "MemberPosition", "PartyLoyalty", "MemberDetail", "PacCheck", "Funding", "MemberFunding", "MemberVote", "MeasureSummary", "District",
         "Reps", "LatestAction", "CboEstimate", "BillAction", "Bill", "Nomination", "SourceStatus", "Error",
         "AnalysisCitation", "AnalysisClaim", "AnalysisSource", "BillAnalysis",
+        "ChamberStatus", "Live", "LiveVote",
     ])
     func modelFieldsMatchItsSchema(name: String) throws {
         let model = try #require(Self.modelFields()[name], "no model registered for \(name)")

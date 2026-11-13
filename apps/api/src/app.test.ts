@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { AI_DISCLAIMER, createApp, type Member, type Vote, type VoteRepository } from "./app.js";
+import { AI_DISCLAIMER, createApp, type ChamberStatus, type LiveVote, type Member, type Vote, type VoteRepository } from "./app.js";
 
 const sample: Vote = {
   id: "house-119-1-100",
@@ -63,6 +63,33 @@ const loyaltyCalls: string[] = [];
 const fundingCalls: string[] = [];
 
 const geocoded: string[] = [];
+
+/** House roll 319 of 2026 as the live worker stores it between the floor summary and the XML. */
+const openVote: LiveVote = {
+  ...sample,
+  id: "house-119-2-319",
+  session: 2,
+  rollNumber: 319,
+  question: "On agreeing to the resolution",
+  billId: null,
+  billRef: "H. Res. 1650",
+  occurredAt: "2026-11-10T23:20:53.000Z",
+  state: "open",
+  totals: { yea: 215, nay: 209, present: 0, notVoting: 0 },
+  result: "Agreed to",
+  openedAt: "2026-11-10T23:20:53.000Z",
+  announcedAt: "2026-11-10T23:33:00.000Z",
+  postedAt: null,
+};
+const houseStatus: ChamberStatus = {
+  chamber: "house",
+  inSession: true,
+  convenesAt: null,
+  legislativeDay: "2026-11-10",
+  checkedAt: "2026-11-10T23:33:00.000Z",
+};
+const liveCalls: string[] = [];
+
 const app = createApp({
   votes: repo,
   members: {
@@ -161,6 +188,13 @@ const app = createApp({
       },
       { source: "senate_rollcalls", lastSuccessAt: new Date("2026-11-09T00:00:00Z"), lastError: "HTTP 503" },
     ],
+  },
+  live: {
+    chambers: async () => [houseStatus],
+    liveVotes: async (postedAfter) => {
+      liveCalls.push(postedAfter.toISOString());
+      return [openVote];
+    },
   },
   now: () => new Date("2026-11-12T00:00:00Z"),
   locate: async (place) => {
@@ -444,6 +478,7 @@ describe("API", () => {
           throw new Error("getaddrinfo ENOTFOUND db.example.supabase.co");
         },
       },
+      live: { chambers: async () => [], liveVotes: async () => [] },
       locate: async () => null,
     });
     const res = await broken.request("/v1/status");
@@ -453,6 +488,23 @@ describe("API", () => {
     expect(body.sources).toHaveLength(5);
     expect(body.sources.every((s: { stale: boolean }) => s.stale)).toBe(true);
     expect(body.sources[0].lastError).toMatch(/ENOTFOUND/);
+  });
+
+  it("serves the live view: chamber state and votes, cached at the edge for 5 s", async () => {
+    const res = await app.request("/v1/live?since=30");
+    expect(res.status).toBe(200);
+    expect(res.headers.get("cache-control")).toBe("public, max-age=5, s-maxage=5, stale-while-revalidate=5");
+    expect(await res.json()).toEqual({ chambers: [houseStatus], votes: [openVote] });
+    // `since` minutes back from the injected clock (2026-11-12T00:00Z).
+    expect(liveCalls).toEqual(["2026-11-11T23:30:00.000Z"]);
+  });
+
+  it("defaults the live window to two hours and bounds it to a day", async () => {
+    liveCalls.length = 0;
+    await app.request("/v1/live");
+    expect(liveCalls).toEqual(["2026-11-11T22:00:00.000Z"]);
+    expect((await app.request("/v1/live?since=0")).status).toBe(400);
+    expect((await app.request("/v1/live?since=1441")).status).toBe(400);
   });
 
   it("publishes an OpenAPI document that describes the vote route and schema", async () => {

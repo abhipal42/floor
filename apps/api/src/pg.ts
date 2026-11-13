@@ -2,6 +2,7 @@ import { AI_DISCLAIMER } from "./app.js";
 import type {
   Bill,
   BillRepository,
+  LiveRepository,
   CandidateTotal,
   MeasureSummary,
   Member,
@@ -58,6 +59,25 @@ export const ABANDONED_AFTER = "1 hour";
 export interface Db {
   query<T = Record<string, unknown>>(text: string, params?: unknown[]): Promise<{ rows: T[] }>;
 }
+
+/** Postgres error codes for a table or a column that does not exist. */
+const MISSING_SCHEMA = new Set(["42P01", "42703"]);
+
+/**
+ * Queries for /v1/live, where a database without the M3 migration (`chamber_status`,
+ * `votes.broadcast_at`) answers "nothing live" rather than a 500: the route's documented empty
+ * state. Any other error still throws.
+ */
+const liveQuery =
+  (db: Db) =>
+  async <T>(text: string, params?: unknown[]): Promise<{ rows: T[] }> => {
+    try {
+      return await db.query<T>(text, params);
+    } catch (error) {
+      if (MISSING_SCHEMA.has((error as { code?: string }).code ?? "")) return { rows: [] };
+      throw error;
+    }
+  };
 
 interface VoteRow {
   id: string;
@@ -323,8 +343,50 @@ export function pgRepositories(db: Db): {
   bills: BillRepository;
   nominations: NominationRepository;
   status: StatusRepository;
+  live: LiveRepository;
 } {
   return {
+    live: {
+      async chambers() {
+        const { rows } = await liveQuery(db)<{
+          chamber: "house" | "senate";
+          in_session: boolean;
+          convenes_at: Date | null;
+          legislative_day: Date | string | null;
+          checked_at: Date;
+        }>("select chamber, in_session, convenes_at, legislative_day, checked_at from chamber_status order by chamber");
+        return rows.map((r) => ({
+          chamber: r.chamber,
+          inSession: r.in_session,
+          convenesAt: r.convenes_at ? new Date(r.convenes_at).toISOString() : null,
+          legislativeDay: day(r.legislative_day),
+          checkedAt: new Date(r.checked_at).toISOString(),
+        }));
+      },
+      async liveVotes(finalAfter, now) {
+        // Open: named by a floor source in the last day (an older one is stuck: its XML never parsed).
+        // Final: published by the live worker since `finalAfter` (`broadcast_at`, which every final
+        // vote gets however it was stored), and itself from the last day, so a backfilled old vote
+        // the worker marked without announcing is not "just final".
+        const { rows } = await liveQuery(db)<VoteRow & { opened_at: Date | null; announced_at: Date | null; posted_at: Date | null }>(
+          `select ${VOTE_COLUMNS}, v.opened_at, v.announced_at, v.posted_at
+             from votes v
+            where (v.state = 'open' and v.announced_at > $2::timestamptz - interval '1 day')
+               or (v.state = 'final' and v.broadcast_at > $1
+                   and coalesce(v.occurred_at, v.broadcast_at) > $2::timestamptz - interval '1 day')
+            order by coalesce(v.broadcast_at, v.announced_at) desc, v.id desc
+            limit 100`,
+          [finalAfter.toISOString(), now.toISOString()],
+        );
+        const iso = (d: Date | null) => (d ? new Date(d).toISOString() : null);
+        return rows.map((r) => ({
+          ...toVote(r),
+          openedAt: iso(r.opened_at),
+          announcedAt: iso(r.announced_at),
+          postedAt: iso(r.posted_at),
+        }));
+      },
+    },
     bills: {
       async getBill(id) {
         const { rows } = await db.query<BillRow>(
@@ -345,7 +407,7 @@ export function pgRepositories(db: Db): {
             [id],
           ),
           db.query<VoteRow>(
-            `select ${VOTE_COLUMNS} from votes v where v.bill_id = $1 order by v.occurred_at desc nulls last`,
+            `select ${VOTE_COLUMNS} from votes v where v.bill_id = $1 and v.state = 'final' order by v.occurred_at desc nulls last`,
             [id],
           ),
         ]);
@@ -420,7 +482,7 @@ export function pgRepositories(db: Db): {
         const n = rows[0];
         if (!n) return null;
         const { rows: votes } = await db.query<VoteRow>(
-          `select ${VOTE_COLUMNS} from votes v where v.nomination_id = $1 order by v.occurred_at desc nulls last`,
+          `select ${VOTE_COLUMNS} from votes v where v.nomination_id = $1 and v.state = 'final' order by v.occurred_at desc nulls last`,
           [id],
         );
         const nomination: Nomination = {

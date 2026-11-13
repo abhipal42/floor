@@ -26,6 +26,7 @@ const app = createApp({
   bills: { getBill: async () => null, getAnalysis: async () => null },
   nominations: { getNomination: async () => null },
   status: { lastRuns: async () => [] },
+  live: { chambers: async () => [], liveVotes: async () => [] },
   locate: async () => null,
 });
 
