@@ -3,9 +3,9 @@ import Testing
 
 @Suite("Palette in light and dark")
 struct PaletteTests {
-    /// The surfaces text is set on: the page ground, a panel and a card.
+    /// The surfaces text is set on: the page ground, a panel, a card and a home-screen widget.
     private static let surfaces: [(name: String, swatch: Swatch)] = [
-        ("ground", Tones.ground), ("panel", Tones.panel), ("card", Tones.card),
+        ("ground", Tones.ground), ("panel", Tones.panel), ("card", Tones.card), ("widget", Tones.widget),
     ]
 
     @Test func contrastMatchesTheWCAGReferencePoints() {
@@ -53,10 +53,14 @@ struct PaletteTests {
         let chips: [(String, Swatch)] = [
             ("yea", Tones.yea), ("nay", Tones.nay), ("liveText", Tones.liveText),
             ("scheduled", Tones.scheduled), ("threshold", Tones.threshold),
+            // The widgets' DNV and PRESENT chips, and a Speaker candidate's chip.
+            ("textMuted", Tones.textMuted), ("text", Tones.text),
         ]
         for (name, chip) in chips {
             let light = Swatch.contrast(Tones.ground.light, chip.light)
             #expect(light >= 4.5, "ground on \(name), light: \(light)")
+            let dark = Swatch.contrast(Tones.ground.dark, chip.dark)
+            #expect(dark >= 4.5, "ground on \(name), dark: \(dark)")
         }
     }
 

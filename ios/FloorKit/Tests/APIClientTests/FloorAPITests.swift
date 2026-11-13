@@ -30,6 +30,25 @@ struct FloorAPITests {
         #expect(request.value(forHTTPHeaderField: "Accept") == "application/json")
     }
 
+    /// An id is one path segment: a `/` in it is escaped, not read as a separator, and nothing is
+    /// encoded twice.
+    @Test func anIdCannotAddAPathSegment() async throws {
+        let session = StubURLProtocol.session(always: .response(status: 404, body: Data(#"{"error":"no"}"#.utf8)))
+        _ = try? await FloorAPI(baseURL: base, session: session).vote(id: "../status")
+        #expect(StubURLProtocol.lastURL?.absoluteString == "https://api.example.test/v1/votes/..%2Fstatus")
+
+        _ = try? await FloorAPI(baseURL: base, session: session).memberVotes(id: "a b/votes", limit: 1)
+        #expect(StubURLProtocol.lastURL?.absoluteString
+            == "https://api.example.test/v1/members/a%20b%2Fvotes/votes?limit=1")
+        #expect(FloorAPI.escaped("house-119-2-321") == "house-119-2-321")
+    }
+
+    @Test func aBaseURLWithAPathKeepsIt() async throws {
+        let session = StubURLProtocol.session(always: .response(status: 200, body: try fixtureData("status")))
+        _ = try await FloorAPI(baseURL: URL(string: "https://api.example.test/api/")!, session: session).status()
+        #expect(StubURLProtocol.lastURL?.absoluteString == "https://api.example.test/api/v1/status")
+    }
+
     @Test func passesTheDelegationAsOneCommaSeparatedParameter() async throws {
         let session = StubURLProtocol.session(always: .response(status: 200, body: try fixtureData("vote-question")))
         _ = try await FloorAPI(baseURL: base, session: session)

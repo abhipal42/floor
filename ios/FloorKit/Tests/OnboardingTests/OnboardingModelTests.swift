@@ -178,4 +178,100 @@ struct DelegationStoreTests {
         defaults.set(Data("not a delegation".utf8), forKey: UserDefaultsDelegationStore.key)
         #expect(UserDefaultsDelegationStore(defaults: defaults).load() == nil)
     }
+
+    // MARK: - Moving to the App Group, for the widget
+
+    @Test func copiesALegacyDelegationIntoTheGroupOnce() throws {
+        let (legacy, group) = (try defaults(), try defaults())
+        UserDefaultsDelegationStore(defaults: legacy).save(.sample)
+
+        let store = UserDefaultsDelegationStore.shared(legacy: legacy, group: group)
+        #expect(store.movedFromLegacy)
+        #expect(store.load() == Delegation.sample)
+        #expect(UserDefaultsDelegationStore(defaults: group).load() == Delegation.sample)
+        // Kept, so a group that turns out not to work loses nothing.
+        #expect(legacy.data(forKey: UserDefaultsDelegationStore.key) != nil)
+
+        // A second launch finds the group already filled: nothing moves, nothing to reload.
+        let again = UserDefaultsDelegationStore.shared(legacy: legacy, group: group)
+        #expect(!again.movedFromLegacy)
+        #expect(again.load() == Delegation.sample)
+    }
+
+    @Test func aDelegationAlreadyInTheGroupWins() throws {
+        let (legacy, group) = (try defaults(), try defaults())
+        var older = Delegation.sample
+        older.district = District(congress: 119, state: "WY", district: 0, countyFips: nil)
+        UserDefaultsDelegationStore(defaults: legacy).save(older)
+        UserDefaultsDelegationStore(defaults: group).save(.sample)
+
+        let store = UserDefaultsDelegationStore.shared(legacy: legacy, group: group)
+        #expect(!store.movedFromLegacy)
+        #expect(store.load() == Delegation.sample)
+    }
+
+    /// "Change address" clears the store. The district from before the move must not reappear on
+    /// the next launch — on the phone, or on the widget, which would show where you used to live.
+    @Test func clearingRemovesTheRecordFromBothPlaces() throws {
+        let (legacy, group) = (try defaults(), try defaults())
+        UserDefaultsDelegationStore(defaults: legacy).save(.sample)
+
+        UserDefaultsDelegationStore.shared(legacy: legacy, group: group).clear()
+        #expect(legacy.data(forKey: UserDefaultsDelegationStore.key) == nil)
+        #expect(group.data(forKey: UserDefaultsDelegationStore.key) == nil)
+        #expect(UserDefaultsDelegationStore.shared(legacy: legacy, group: group).load() == nil)
+    }
+
+    /// A new district makes the legacy copy stale; it must not come back if the group is ever empty.
+    @Test func savingANewDelegationDropsTheLegacyCopy() throws {
+        let (legacy, group) = (try defaults(), try defaults())
+        UserDefaultsDelegationStore(defaults: legacy).save(.sample)
+        var moved = Delegation.sample
+        moved.district = District(congress: 119, state: "WY", district: 0, countyFips: nil)
+
+        UserDefaultsDelegationStore.shared(legacy: legacy, group: group).save(moved)
+        #expect(legacy.data(forKey: UserDefaultsDelegationStore.key) == nil)
+        #expect(UserDefaultsDelegationStore(defaults: group).load() == moved)
+    }
+
+    @Test func nothingSavedMeansNothingMoved() throws {
+        let (legacy, group) = (try defaults(), try defaults())
+        let store = UserDefaultsDelegationStore.shared(legacy: legacy, group: group)
+        #expect(!store.movedFromLegacy)
+        #expect(store.load() == nil)
+        #expect(group.data(forKey: UserDefaultsDelegationStore.key) == nil)
+    }
+
+    @Test func withoutTheGroupTheAppKeepsItsOwnCopy() throws {
+        let legacy = try defaults()
+        UserDefaultsDelegationStore(defaults: legacy).save(.sample)
+        let store = UserDefaultsDelegationStore.shared(legacy: legacy, group: nil)
+        #expect(store.load() == Delegation.sample)
+        #expect(!store.movedFromLegacy)
+    }
+
+    @Test func theGroupComesFromTheInfoPlistWithAFallback() {
+        // `swift test` has no FloorAppGroup key, so the fallback is used.
+        #expect(UserDefaultsDelegationStore.appGroup(in: Bundle(for: BundleMarker.self)) == "group.app.floor.ios")
+        #expect(UserDefaultsDelegationStore.defaultAppGroup == "group.app.floor.ios")
+    }
+
+    /// Both targets take the group from one build setting, `group.$(FLOOR_BUNDLE_ID)`, so a
+    /// personal build with its own bundle id can't end up registering ours, and the app and widget
+    /// can't disagree.
+    @Test func bothTargetsTakeTheGroupFromOneSetting() throws {
+        var dir = URL(fileURLWithPath: #filePath)
+        for _ in 0..<4 { dir.deleteLastPathComponent() } // OnboardingTests, Tests, FloorKit, ios
+        let spec = try String(contentsOf: dir.appendingPathComponent("project.yml"), encoding: .utf8)
+        #expect(spec.contains("FLOOR_BUNDLE_ID: app.floor.ios"))
+        #expect(spec.contains("FLOOR_APP_GROUP: group.$(FLOOR_BUNDLE_ID)"))
+        #expect(spec.components(separatedBy: "com.apple.security.application-groups: [$(FLOOR_APP_GROUP)]").count - 1 == 2)
+        #expect(spec.components(separatedBy: "FloorAppGroup: $(FLOOR_APP_GROUP)").count - 1 == 2)
+        #expect(spec.contains("PRODUCT_BUNDLE_IDENTIFIER: $(FLOOR_BUNDLE_ID)\n"))
+        #expect(spec.contains("PRODUCT_BUNDLE_IDENTIFIER: $(FLOOR_BUNDLE_ID).widgets"))
+        // No literal group id left for a personal build to inherit.
+        #expect(!spec.contains("group.app.floor.ios"))
+    }
 }
+
+private final class BundleMarker {}

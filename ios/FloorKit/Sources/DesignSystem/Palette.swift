@@ -99,6 +99,9 @@ public enum Tones {
     /// (`panelBorder`), in both appearances.
     public static let moneyBar: [Swatch] = [yea, teal, threshold, dim]
 
+    // The home-screen widgets' ground: the widget mock's #0B0C0F in dark, a white panel in light.
+    public static let widget = Swatch(light: 0xFFFFFF, dark: 0x0B0C0F)
+
     // Party
     public static func party(_ party: String) -> Swatch {
         switch party {
@@ -191,6 +194,8 @@ public enum Palette {
     public static let warningBorder = Color(Tones.warningBorder)
     /// The faintest text: the privacy line under onboarding's button.
     public static let textFaint = Color(Tones.textFaint)
+    /// The home-screen widgets' background.
+    public static let widget = Color(Tones.widget)
 
     // The Money segment's bar: small-dollar is ``yea``, PACs ``threshold``, and these two the rest.
     /// Larger, itemized individual gifts.

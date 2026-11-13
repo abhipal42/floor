@@ -8,6 +8,38 @@ is a milestone and ships a retro under `docs/retros/`.
 Older series live in [`docs/changelog/`](docs/changelog) (0.1.x: [`0.1.md`](docs/changelog/0.1.md)).
 Before 0.1.0 the history is the commit log on `main`.
 
+## 0.2.23 — 2026-11-13
+
+Floor on the home screen: the last final, and your three.
+
+### Added
+- **Two home-screen widgets** (`FloorWidgets` extension), built to the locked design (section
+  "D · Widgets"). **Small** shows the newest final vote involving your members: chamber, citation,
+  the recorded result (PASSED, REJECTED…), yea and nay, and one member's chip. **Medium** shows
+  each member's most recent vote: chip (YEA, NAY, DNV, PRESENT, or the Speaker candidate they
+  named), name, citation and result, date. A lone D.C. or territory delegate gets a line saying
+  why there is one member. Light and dark from `Palette`; VoiceOver reads each as sentences.
+- **Tap to open the vote.** `floor://vote/<id>` (`FloorLink`) opens the vote screen on Finals.
+- `WidgetFeed` in FloorKit: the snapshot, the wording and the fetch (the app's own
+  `/v1/members/{id}/votes?limit=10`), refreshed about every 30 minutes; a failed refresh shows the
+  last snapshot for the same district. Empty state: "Open Floor to pick your members".
+
+### Changed
+- The saved delegation moved to the App Group `group.$(FLOOR_BUNDLE_ID)` (`group.app.floor.ios`)
+  so the widget can read it. The first launch copies it across, keeps the old copy, and reloads
+  the widgets; clearing removes both, so "Change address" cannot bring an old district back. The
+  group is used only when its container exists. Still only the district and the members.
+- "Change address" also clears the widget's saved snapshot and reloads the widgets, and a widget
+  refresh that was in flight no longer writes the old district's votes back.
+- Bundle ids and the App Group come from one setting, `FLOOR_BUNDLE_ID`: a personal device build
+  passes `FLOOR_BUNDLE_ID=com.yourname.floor` and gets its own app, widget and group ids.
+- `MARKETING_VERSION` / `CURRENT_PROJECT_VERSION` are set once for the whole project, so the app
+  and the extension always match.
+
+### Fixed
+- `FloorAPI` escapes `/` inside a path id and no longer percent-encodes a path twice.
+- `floor://vote/` links accept only roll call ids (`house-119-2-321`); anything else is refused.
+
 ## 0.2.22 — 2026-11-13
 
 M4 Layer 1, server side: an AI analysis of each bill's CRS summary, every line cited and checked.

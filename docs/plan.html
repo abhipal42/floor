@@ -273,7 +273,8 @@ flowchart LR
     <div class="card">
       <h3>Structure</h3>
       <ul>
-        <li>Swift packages (one <code>FloorKit</code> package, one library per area): <code>Models</code> (checked against the OpenAPI contract), <code>APIClient</code>, <code>DesignSystem</code> (scoreboard cards, crests, bars), and one per feature — built: <code>Onboarding</code>, <code>Home</code>, <code>VoteScreen</code>, <code>BillScreen</code>, <code>RepScreen</code>; still to come: <code>Realtime</code>, <code>Alerts</code>.</li>
+        <li>Swift packages (one <code>FloorKit</code> package, one library per area): <code>Models</code> (checked against the OpenAPI contract), <code>APIClient</code>, <code>DesignSystem</code> (scoreboard cards, crests, bars), and one per feature — built: <code>Onboarding</code>, <code>Home</code>, <code>VoteScreen</code>, <code>BillScreen</code>, <code>RepScreen</code>, <code>WidgetFeed</code>; still to come: <code>Realtime</code>, <code>Alerts</code>. Extensions read the saved delegation through the App Group <code>group.app.floor.ios</code>.</li>
+        <li>Widgets (v0.2.23): two home-screen widgets in the <code>FloorWidgets</code> extension — small, the latest final involving your members; medium, each member's most recent vote. They fetch the same <code>/v1/members/{id}/votes</code> route every 30 minutes and open the vote in the app through <code>floor://vote/&lt;id&gt;</code>. Live Activities and push are still M3.</li>
         <li>The widget and Live Activity extensions share <code>Models</code> and <code>DesignSystem</code> through an App Group.</li>
         <li>Notification categories: vote opened, rep voted, bill passed or failed, scheduled vote reminder.</li>
         <li>Navigation (v0.2.3): three tabs (Finals, Bills, Your three), each with its own stack. Display type is Barlow Condensed (OFL, bundled); colours stay in <code>Palette</code>. The screens follow the locked phone mocks in the design canvas.</li>

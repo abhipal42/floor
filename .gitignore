@@ -21,3 +21,7 @@ xcuserdata/
 .claude/
 .mcp.json
 skills-lock.json
+# Written by xcodegen from ios/project.yml, like ios/Floor/Info.plist.
+ios/FloorWidgets/Info.plist
+ios/Floor/Floor.entitlements
+ios/FloorWidgets/FloorWidgets.entitlements
