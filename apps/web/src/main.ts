@@ -566,9 +566,11 @@ function deck(): void {
       )
       .join("") +
     '</div><p class="sr" aria-live="polite" data-status></p>' +
-    '<div class="deck__ctl"><button type="button" class="dk-btn dk-btn--back" data-prev>← Back</button>' +
-    '<span class="deck__dots" role="img" data-dots>' + cards.map(() => '<span class="deck__dot"></span>').join("") + "</span>" +
-    '<button type="button" class="dk-btn dk-btn--next" data-next>Next final →</button></div>';
+    // No Back or Next: scrolling deals the cards where the section pins, and the dots jump to a
+    // final everywhere (on phones they are the way through the deck).
+    '<div class="deck__ctl"><span class="deck__dots" role="group" data-dots>' +
+    cards.map((c, k) => '<button type="button" class="deck__dot" data-dot="' + k + '" aria-label="Final ' + (k + 1) + ": " + esc(c.title) + '"></button>').join("") +
+    "</span></div>";
 
   const arts = all("article", root);
   const dots = all(".deck__dot", root);
@@ -598,6 +600,8 @@ function deck(): void {
     });
     dots.forEach((d, k) => {
       d.classList.toggle("is-on", k === front);
+      if (k === front) d.setAttribute("aria-current", "true");
+      else d.removeAttribute("aria-current");
       d.classList.toggle("is-seen", k !== front && !!seen[k]);
     });
     el("[data-dots]", root).setAttribute("aria-label", seenLabel(seen));
@@ -638,30 +642,33 @@ function deck(): void {
     }
   };
 
-  el("[data-next]", root).addEventListener("click", () => move(1));
-  el("[data-prev]", root).addEventListener("click", () => move(-1));
   paint();
   onVisible(root, count, 0.3);
 
   // Pinned: each stretch of scroll deals the next final; one step forward keeps the deal animation.
-  pin(el("#finals"), {
-    noun: "Final",
-    count: cards.length,
-    go: (k) => {
-      if (k === front && leaving < 0) return;
-      if (k === deckStep(front, 1) && leaving < 0) {
-        move(1);
-        return;
-      }
-      window.clearTimeout(wait);
-      leaving = -1;
-      seen[k] = true;
-      front = k;
-      announce();
-      count();
-    },
-    picked: (t) => (t.closest("[data-next]") ? deckStep(front, 1) : t.closest("[data-prev]") ? deckStep(front, -1) : null),
+  const jump = (k: number) => {
+    if (k === front && leaving < 0) return;
+    if (k === deckStep(front, 1) && leaving < 0) {
+      move(1);
+      return;
+    }
+    window.clearTimeout(wait);
+    leaving = -1;
+    seen[k] = true;
+    front = k;
+    announce();
+    count();
+  };
+  const dotAt = (t: Element): number | null => {
+    const d = t.closest<HTMLElement>("[data-dot]");
+    return d ? Number(d.dataset.dot) : null;
+  };
+  el("[data-dots]", root).addEventListener("click", (e) => {
+    const k = dotAt(e.target as Element);
+    if (k !== null) jump(k);
   });
+
+  pin(el("#finals"), { noun: "Final", count: cards.length, go: jump, picked: dotAt });
 }
 
 // ------------------------------------------------------------------ 02 · levels + drive chart

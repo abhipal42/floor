@@ -938,10 +938,14 @@ button {
   display: flex;
   flex-direction: column;
   gap: 12px;
+  /* The score scales with the scoreboard's own width, so narrow phones never collide it with the
+     result chip. */
+  container-type: inline-size;
 }
 .dk-row {
   display: grid;
-  grid-template-columns: 48px minmax(0, 1fr) 100px minmax(0, 1fr) 48px;
+  grid-template-columns: auto minmax(0, 1fr) auto minmax(0, 1fr) auto;
+  gap: 6px;
   align-items: center;
 }
 .dk-side {
@@ -955,7 +959,7 @@ button {
 .dk-big {
   font-family: var(--cond);
   font-weight: 800;
-  font-size: 72px;
+  font-size: clamp(34px, 15cqi, 72px);
   line-height: 0.9;
   text-align: center;
 }
@@ -968,6 +972,30 @@ button {
 .dk-res__chip {
   font-size: 17px;
   padding: 3px 10px;
+}
+/* On the narrowest phones a three-digit score and the result chip can't share one line, so the
+   chip moves above the two scores. */
+@container (max-width: 270px) {
+  .dk-row {
+    grid-template-columns: auto minmax(0, 1fr) minmax(0, 1fr) auto;
+    grid-template-areas:
+      "res res res res"
+      "ys y n ns";
+    row-gap: 6px;
+  }
+  .dk-row > :nth-child(1) { grid-area: ys; }
+  .dk-row > :nth-child(2) { grid-area: y; }
+  .dk-row > :nth-child(3) {
+    grid-area: res;
+    flex-direction: row;
+    justify-content: center;
+    gap: 8px;
+  }
+  .dk-row > :nth-child(4) { grid-area: n; }
+  .dk-row > :nth-child(5) { grid-area: ns; }
+  .dk-big {
+    font-size: 44px;
+  }
 }
 .dk-final {
   font-size: 11px;
@@ -1065,46 +1093,42 @@ button {
 }
 .deck__ctl {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-}
-.dk-btn {
-  border-radius: 10px;
-  padding: 13px 18px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: transform 0.12s ease, background 0.12s ease;
-}
-.dk-btn:hover {
-  transform: translateY(-2px);
-}
-.dk-btn--back {
-  background: transparent;
-  color: var(--body);
-  border: 1px solid var(--line);
-}
-.dk-btn--next {
-  background: var(--ink);
-  color: var(--ground);
-  border: 0;
-  padding: 13px 20px;
-  font-weight: 700;
+  justify-content: center;
 }
 .deck__dots {
   display: flex;
-  gap: 6px;
+  gap: 2px;
 }
+/* Each dot is a button: the bar is drawn small, the tap target around it is 44px tall. */
 .deck__dot {
-  width: 26px;
+  position: relative;
+  width: 38px;
+  height: 44px;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+}
+.deck__dot::before {
+  content: "";
+  position: absolute;
+  left: 6px;
+  right: 6px;
+  top: 50%;
   height: 5px;
+  margin-top: -2.5px;
   border-radius: 3px;
   background: var(--line);
+  transition: background 0.2s ease, transform 0.2s ease;
 }
-.deck__dot.is-seen {
+.deck__dot:hover::before {
+  background: var(--dim-2);
+  transform: scaleY(1.4);
+}
+.deck__dot.is-seen::before {
   background: var(--yea);
 }
-.deck__dot.is-on {
+.deck__dot.is-on::before {
   background: var(--ink);
 }
 
@@ -3833,14 +3857,6 @@ td.c-x {
     padding: 18px;
     height: 600px;
   }
-  .dk-btn,
-  .dk-btn--next {
-    padding: 12px 14px;
-    white-space: nowrap;
-  }
-  .deck__dot {
-    width: 14px;
-  }
   /* The fan keeps its geometry but is scaled down, so the outer cards stay on screen to tap. */
   .fan {
     height: 300px;
@@ -3848,12 +3864,6 @@ td.c-x {
   .fan__stage {
     transform: scale(0.62);
     transform-origin: 50% 0;
-  }
-  .dk-row {
-    grid-template-columns: 36px minmax(0, 1fr) 76px minmax(0, 1fr) 36px;
-  }
-  .dk-big {
-    font-size: 52px;
   }
   .dk-res__chip {
     font-size: 15px;
@@ -3930,7 +3940,7 @@ td.c-x {
   .pcard,
   .island,
   .dk-card,
-  .dk-btn,
+  .deck__dot::before,
   .pf-bar,
   .row,
   .cx-row,
@@ -3938,7 +3948,7 @@ td.c-x {
   .ex-para {
     transition: none;
   }
-  .dk-btn:hover {
+  .deck__dot:hover::before {
     transform: none;
   }
 }
