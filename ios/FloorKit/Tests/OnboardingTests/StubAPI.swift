@@ -13,11 +13,20 @@ final class StubAPIProtocol: URLProtocol {
 
     private static let lock = NSLock()
     nonisolated(unsafe) private static var outcome: Outcome = .json("{}")
+    nonisolated(unsafe) private static var _lastURL: URL?
+
+    /// The last URL requested, so a test can see what left the phone.
+    static var lastURL: URL? {
+        lock.lock()
+        defer { lock.unlock() }
+        return _lastURL
+    }
 
     /// A `FloorAPI` that answers every request with `outcome`.
     static func api(_ outcome: Outcome) -> FloorAPI {
         lock.lock()
         self.outcome = outcome
+        _lastURL = nil
         lock.unlock()
 
         let configuration = URLSessionConfiguration.ephemeral
@@ -34,6 +43,7 @@ final class StubAPIProtocol: URLProtocol {
     override func startLoading() {
         Self.lock.lock()
         let outcome = Self.outcome
+        Self._lastURL = request.url
         Self.lock.unlock()
 
         guard let url = request.url else { return }

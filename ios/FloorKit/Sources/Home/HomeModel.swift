@@ -137,6 +137,15 @@ public final class HomeModel {
         }
     }
 
+    /// What an empty feed says. D.C. and the territories have no senators, so their Senate filter
+    /// is empty by design, not for want of recent votes.
+    public var emptyFeedMessage: String {
+        if filter == .senate, delegation.senators.isEmpty {
+            return "\(StateName.full(delegation.district.state)) has no senators, so there are no Senate votes to show."
+        }
+        return "No recent votes in this chamber."
+    }
+
     public func load() async {
         phase = .loading
         let members = delegation.members

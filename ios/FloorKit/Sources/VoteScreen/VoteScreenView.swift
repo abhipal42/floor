@@ -367,9 +367,7 @@ public struct VoteScreenView: View {
     }
 
     private func memberRow(_ position: MemberPosition, _ detail: VoteDetail) -> some View {
-        let seat = position.member.chamber == .house
-            ? "House · \(position.member.state)-\(position.member.district.map { $0 == 0 ? "AL" : String($0) } ?? "")"
-            : "Senate · \(position.member.state)"
+        let seat = position.member.seatCaption
         let sub = [seat, detail.withParty(position)].compactMap(\.self).joined(separator: " · ")
         let label = position.position == .candidate ? (position.choice ?? "BALLOT").uppercased()
             : (position.position == .notVoting ? "DNP" : position.position.shortLabel)

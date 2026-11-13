@@ -124,4 +124,23 @@ struct HomeModelTests {
         model.filter = .senate
         #expect(model.visibleItems.map(\.vote.id) == ["senate-119-1-90"])
     }
+
+    /// D.C.'s delegation, as `/v1/reps?lat=38.8977&lng=-77.0365` returned it on 2026-11-12: one
+    /// delegate, no senators. Its Senate filter is empty by design and must say why.
+    @MainActor
+    @Test func explainsAnEmptySenateFeedWhereThereAreNoSenators() {
+        let norton = Member(bioguideId: "N000147", firstName: "Eleanor", lastName: "Norton", party: "D",
+                            state: "DC", district: 0, chamber: .house)
+        let dc = Delegation(district: District(congress: 119, state: "DC", district: 0, countyFips: "11001"),
+                            members: [norton])
+        let model = HomeModel(delegation: dc, api: .init(baseURL: URL(string: "https://x.test")!))
+        #expect(model.emptyFeedMessage == "No recent votes in this chamber.")
+        model.filter = .senate
+        #expect(model.visibleItems.isEmpty)
+        #expect(model.emptyFeedMessage == "District of Columbia has no senators, so there are no Senate votes to show.")
+
+        let texas = HomeModel(delegation: .sample, api: .init(baseURL: URL(string: "https://x.test")!))
+        texas.filter = .senate
+        #expect(texas.emptyFeedMessage == "No recent votes in this chamber.")
+    }
 }

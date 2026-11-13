@@ -71,6 +71,59 @@ struct FloorAPITests {
         #expect(address == "1100 Congress Ave, Austin, TX 78701")
     }
 
+    /// The phone sends no more precision than the API keeps (4 decimals, ~11 m), and sends the point
+    /// as `lat`/`lng` with no address beside it — the API answers 400 to both at once.
+    @Test func roundsCoordinatesToFourDecimalsBeforeSendingThem() async throws {
+        let session = StubURLProtocol.session(always: .response(
+            status: 200, body: try fixtureData("reps-location-austin")
+        ))
+        let reps = try await FloorAPI(baseURL: base, session: session)
+            .reps(latitude: 30.274_712_9, longitude: -97.740_389_6)
+        #expect(reps.district.name == "TX-37")
+
+        let url = try #require(StubURLProtocol.lastURL)
+        #expect(url.path == "/v1/reps")
+        let items = try #require(URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems)
+        #expect(items.map(\.name) == ["lat", "lng"])
+        #expect(items.first { $0.name == "lat" }?.value == "30.2747")
+        #expect(items.first { $0.name == "lng" }?.value == "-97.7404")
+    }
+
+    @Test func roundsToTheNearestAndPadsToFourPlaces() {
+        #expect(FloorAPI.coordinate(41.14) == "41.1400")
+        #expect(FloorAPI.coordinate(-0.127_76) == "-0.1278")
+        #expect(FloorAPI.coordinate(51.507_449) == "51.5074")
+        #expect(FloorAPI.coordinate(0) == "0.0000")
+    }
+
+    /// Captured from `/v1/reps?lat=51.5074&lng=-0.1278` (London) on 2026-11-12.
+    @Test func reportsAPointOutsideTheUSAsNotFoundWithTheAPIsWording() async throws {
+        let session = StubURLProtocol.session(always: .response(
+            status: 404, body: try fixtureData("reps-location-london")
+        ))
+        do {
+            _ = try await FloorAPI(baseURL: base, session: session).reps(latitude: 51.5074, longitude: -0.1278)
+            Issue.record("expected a 404")
+        } catch let error as FloorAPIError {
+            #expect(error.isNotFound)
+            #expect(error.errorDescription
+                == "That location isn't in a U.S. congressional district. Try entering an address instead.")
+        }
+    }
+
+    /// The parameter names are the contract's, not a guess: read them from `openapi.json`.
+    @Test func sendsTheParameterNamesTheContractDeclares() throws {
+        var root = URL(fileURLWithPath: #filePath)
+        for _ in 0..<5 { root.deleteLastPathComponent() } // APIClientTests, Tests, FloorKit, ios, repo
+        let data = try Data(contentsOf: root.appendingPathComponent("apps/api/openapi.json"))
+        let document = try #require(try JSONSerialization.jsonObject(with: data) as? [String: Any])
+        let paths = try #require(document["paths"] as? [String: Any])
+        let route = try #require((paths["/v1/reps"] as? [String: Any])?["get"] as? [String: Any])
+        let parameters = try #require(route["parameters"] as? [[String: Any]])
+        let query = Set(parameters.filter { $0["in"] as? String == "query" }.compactMap { $0["name"] as? String })
+        #expect(query == ["address", "lat", "lng"])
+    }
+
     @Test func sendsTheVoteLimitItWasGivenAndTwentyByDefault() async throws {
         let body = try fixtureData("member-votes")
         var session = StubURLProtocol.session(always: .response(status: 200, body: body))

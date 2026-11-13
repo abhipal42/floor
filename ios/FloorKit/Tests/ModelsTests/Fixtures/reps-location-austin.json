@@ -1,0 +1,37 @@
+{
+    "district": {
+        "congress": 119,
+        "state": "TX",
+        "district": 37,
+        "countyFips": "48453"
+    },
+    "members": [
+        {
+            "bioguideId": "D000399",
+            "firstName": "Lloyd",
+            "lastName": "Doggett",
+            "party": "D",
+            "state": "TX",
+            "district": 37,
+            "chamber": "house"
+        },
+        {
+            "bioguideId": "C001056",
+            "firstName": "John",
+            "lastName": "Cornyn",
+            "party": "R",
+            "state": "TX",
+            "district": null,
+            "chamber": "senate"
+        },
+        {
+            "bioguideId": "C001098",
+            "firstName": "Ted",
+            "lastName": "Cruz",
+            "party": "R",
+            "state": "TX",
+            "district": null,
+            "chamber": "senate"
+        }
+    ]
+}

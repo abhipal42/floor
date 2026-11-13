@@ -69,6 +69,13 @@ public enum Palette {
     public static let turfBorder = Color(hex: 0x1E2A23)
     /// The silver frame around a player card.
     public static let silver = [Color(hex: 0xE5E7EB), Color(hex: 0x6B7280), Color(hex: 0xC4C9D2)]
+    // From the LocApp mock (onboarding with location, 2026-11-12).
+    /// A warning banner — location off, outside the U.S., approximate — and its border. The title
+    /// is set in ``nay``.
+    public static let warningPanel = Color(hex: 0x1E1610)
+    public static let warningBorder = Color(hex: 0x5A3A1E)
+    /// The faintest text: the privacy line under onboarding's button.
+    public static let textFaint = Color(hex: 0x6B7280)
 
     // Party
     public static func party(_ party: String) -> Color {

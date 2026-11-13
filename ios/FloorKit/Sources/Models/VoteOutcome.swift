@@ -203,9 +203,12 @@ public enum StateName {
         return "\(n)\(suffix)"
     }
 
-    /// `New York's 8th District`, `Wyoming's at-large district`.
+    /// `New York's 8th District`, `Wyoming's at-large district`, and just `District of Columbia`
+    /// where one delegate covers the whole place — "D.C.'s at-large district" would suggest a
+    /// representative and senators it does not have.
     public static func districtName(state: String, district: Int) -> String {
         let name = full(state)
+        if Member.delegateJurisdictions.contains(state) { return name }
         let possessive = name.hasSuffix("s") ? "\(name)'" : "\(name)'s"
         return district == 0 ? "\(possessive) at-large district" : "\(possessive) \(ordinal(district)) District"
     }
