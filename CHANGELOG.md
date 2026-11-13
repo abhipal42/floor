@@ -8,6 +8,30 @@ is a milestone and ships a retro under `docs/retros/`.
 Older series live in [`docs/changelog/`](docs/changelog) (0.1.x: [`0.1.md`](docs/changelog/0.1.md)).
 Before 0.1.0 the history is the commit log on `main`.
 
+## 0.2.5 — 2026-11-12
+
+The iOS app has a light mode and follows the system appearance. Light is direction D, "Marble &
+Patina", from the re-theme proposal (<https://claude.ai/artifact/AinA8SbyMWgrsC2rsB5U9h>); dark is
+unchanged.
+
+### Added
+- **Light mode.** Every `Palette` token now has a light and a dark value (`Swatch`, listed in
+  `Tones`). Light is a cool marble ground, white panels, ink text and a patina accent; yea, nay,
+  live, scheduled and the threshold line are darkened so text in them reads at 4.5:1 on the ground
+  and on panels.
+- **`litObject()`**, which keeps the split-flap board on Finals and the turf scoreboard on a vote
+  dark in both appearances, because they are lit displays rather than surfaces.
+- `Palette.shadow` (the catch-up deck's drop shadow, lighter in light mode) and `Palette.silverInk`
+  (dark text on the silver player-card chip).
+- `PaletteTests`: WCAG contrast for every text token on the ground, panels and cards in both
+  appearances, the ground on every chip colour, the large-text minimum for the losing score, yea
+  and nay never matching a party colour, and the dark values pinned to the canvas's.
+
+### Changed
+- No screen forces dark mode any more: `.preferredColorScheme(.dark)` is gone from the app and
+  every screen. The pushed screens' navigation bar sits on the ground colour in either appearance
+  (`groundNavigationBar()`, formerly `darkNavigationBar()`).
+
 ## 0.2.4 — 2026-11-13
 
 Step 4 of the v0.3.0 milestone, "Your members on the web": campaign finance for every member.

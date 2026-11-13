@@ -218,6 +218,11 @@ Real data broke our first assumptions several times. Each case below is now hand
     are what the *campaign* reported receiving; `pas2` is what *committees* reported giving. The two
     disagree (Jeffries: $2.77M vs $2.53M from PACs), so label each by its source.
 
+25. **The dark palette's outcome colours fail on white.** Mint `#34D399` reads at about 1.9:1 on
+    white and the threshold yellow `#FACC15` at about 1.5:1, so light mode cannot reuse them. Every
+    text colour in light mode is a darker partner of its dark value (yea `#0B7A57`, nay `#A8481A`,
+    threshold `#8A6500`), and `PaletteTests` checks each one at 4.5:1 on the ground, panels and cards.
+
 ---
 
 ## 4. Finish M1 (small)
@@ -456,6 +461,25 @@ build differs from the mocks, and why:
   60 or two-thirds; Signed is always marked (veto override).
 - **"Winning side" is the outcome, not the larger side** (`sidedWithOutcome`). They differ when a
   majority loses to a threshold — H.J.Res. 1 lost 212–206.
+
+### Light mode (v0.2.5)
+
+The app follows the system appearance. Dark is the canvas palette, unchanged; light is direction D,
+"Marble & Patina", from the re-theme proposal (<https://claude.ai/artifact/AinA8SbyMWgrsC2rsB5U9h>).
+
+- **Where colours live.** Each token in `DesignSystem/Palette.swift` is a `Swatch` with a light and
+  a dark hex; `Tones` lists them as data and `Palette` turns them into `Color`s that resolve from
+  the current appearance. Add a colour by adding a `Swatch`, never a literal in a view.
+- **Lit displays stay dark.** The split-flap board (Finals) and the turf scoreboard (Vote) call
+  `litObject()`, which pins them to dark, so every token inside resolves to its dark value. Silver
+  (the player card) is the same in both appearances, so text on it uses `Palette.silverInk`.
+- **Contrast is tested.** `PaletteTests` fails if a text token drops below 4.5:1 on the ground, a
+  panel or a card in either appearance (lesson 25).
+- **Not decided yet:** the yea and nay hues (the proposal's round 2 compares four pairings) and the
+  accent. Light mode uses the proposal's patina accent and darker versions of today's green and
+  orange. There is no in-app appearance switch; the system setting decides.
+- **Not mocked:** the proposal mocked Home only. Vote, Bill, Your three, Onboarding and the deck take
+  their light colours from the same tokens without a screen-by-screen mock.
 
 ### v0.3.0: Your members on the web (in progress)
 
