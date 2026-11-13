@@ -160,6 +160,13 @@ describe("money", () => {
     expect(formatMoney(41884545)).toBe("$41.9M");
     expect(formatMoney(884398)).toBe("$884K");
     expect(formatMoney(1000000)).toBe("$1.00M");
+    // Rounded before the unit is chosen, and the sign before the dollar sign.
+    expect(formatMoney(999_500)).toBe("$1.00M");
+    expect(formatMoney(999_499)).toBe("$999K");
+    expect(formatMoney(9_996_000)).toBe("$10.0M");
+    expect(formatMoney(9_960_000)).toBe("$9.96M");
+    expect(formatMoney(-12_000)).toBe("−$12K");
+    expect(formatMoney(-1_234_567)).toBe("−$1.23M");
     expect(formatPac(10000)).toBe("$10K");
     expect(formatPac(7000)).toBe("$7K");
     expect(formatPac(2500)).toBe("$2.5K");

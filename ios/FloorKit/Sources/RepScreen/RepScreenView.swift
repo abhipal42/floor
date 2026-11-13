@@ -4,10 +4,7 @@ import Models
 import SwiftUI
 
 /// Your three, as the locked AppRep mock draws it: a switcher across your members, then the
-/// selected one's record.
-///
-/// The mock's Record / Money / Portfolio switch is not built: Money and Portfolio need data the API
-/// does not serve, and a switch with one live option is dead UI.
+/// selected one's record, money (the AppRepMoney mock) or portfolio placeholder.
 public struct YourThreeView: View {
     @State private var model: YourThreeModel
     private let onOpenVote: (Vote) -> Void
@@ -25,7 +22,8 @@ public struct YourThreeView: View {
                     switcher
                     if let member = model.members.first(where: { $0.bioguideId == model.selectedId }),
                        let record = model.selected {
-                        RepRecordContent(model: record, fact: model.fact(for: member), onOpenVote: onOpenVote)
+                        MemberSections(record: record, member: member, section: $model.section,
+                                       fact: model.fact(for: member), onOpenVote: onOpenVote)
                             .id(member.bioguideId)
                     }
                 }
@@ -67,6 +65,7 @@ public struct YourThreeView: View {
 /// One member's record pushed on its own, e.g. from a vote's "Your three".
 public struct RepScreenView: View {
     @State private var model: RepScreenModel
+    @State private var section: MemberSection = .record
     private let onOpenVote: (Vote) -> Void
 
     public init(model: RepScreenModel, onOpenVote: @escaping (Vote) -> Void = { _ in }) {
@@ -78,7 +77,7 @@ public struct RepScreenView: View {
         ZStack {
             Palette.ground.ignoresSafeArea()
             ScrollView {
-                RepRecordContent(model: model, fact: nil, onOpenVote: onOpenVote)
+                MemberSections(record: model, member: model.member, section: $section, fact: nil, onOpenVote: onOpenVote)
                     .padding(.horizontal, 16)
                     .padding(.top, 8)
                     .padding(.bottom, 32)
@@ -88,33 +87,43 @@ public struct RepScreenView: View {
     }
 }
 
-/// The player card, the three rings, the last-40 grid and the fact.
+/// The player card, the section switch, the three rings, the last-40 grid and the fact.
 struct RepRecordContent: View {
     let model: RepScreenModel
     /// A fact computed with the rest of the delegation in view; nil computes one from this record.
     let fact: String?
     let onOpenVote: (Vote) -> Void
-    @State private var selectedCall: Int?
+    /// Drawn under the player card, or above the spinner or error while there is no card, so
+    /// Money stays reachable when the record will not load.
+    @Binding var section: MemberSection
 
     var body: some View {
         switch model.phase {
         case .loading:
-            ProgressView().tint(Palette.accent).frame(maxWidth: .infinity).padding(.top, 60)
-        case let .failed(message):
-            VStack(spacing: 12) {
-                Text(message).font(Typography.body).foregroundStyle(Palette.textSecondary)
-                Button("Try again") { Task { await model.load() } }
-                    .font(.system(size: 15, weight: .semibold))
-                    .foregroundStyle(Palette.accent)
+            VStack(spacing: 16) {
+                SectionSwitch(selection: $section)
+                ProgressView().tint(Palette.accent).frame(maxWidth: .infinity).padding(.top, 44)
             }
-            .frame(maxWidth: .infinity)
-            .padding(24)
+        case let .failed(message):
+            // One view, not two siblings, so the caller's modifiers apply to it once.
+            VStack(spacing: 16) {
+                SectionSwitch(selection: $section)
+                VStack(spacing: 12) {
+                    Text(message).font(Typography.body).foregroundStyle(Palette.textSecondary)
+                    Button("Try again") { Task { await model.load() } }
+                        .font(.system(size: 15, weight: .semibold))
+                        .foregroundStyle(Palette.accent)
+                }
+                .frame(maxWidth: .infinity)
+                .padding(24)
+            }
         case let .loaded(record):
             let stats = RecordStats(votes: record.votes)
             let member = record.detail.member
             VStack(alignment: .leading, spacing: 16) {
                 if let saved = model.saved { SavedDataNote(saved) }
                 playerCard(record.detail)
+                SectionSwitch(selection: $section)
                 rings(record.detail.partyLoyalty, stats, member: member)
                 grid(stats)
                 if let text = fact ?? RecordFacts.didYouKnow(member: member, votes: record.votes) {
@@ -232,7 +241,7 @@ struct RepRecordContent: View {
 
     private func grid(_ stats: RecordStats) -> some View {
         let calls = stats.calls
-        let selected = calls.isEmpty ? nil : min(selectedCall ?? calls.count - 1, calls.count - 1)
+        let selected = calls.isEmpty ? nil : min(model.selectedCall ?? calls.count - 1, calls.count - 1)
         return VStack(alignment: .leading, spacing: 10) {
             Text("LAST \(calls.count) CALLS").font(Typography.label(20)).foregroundStyle(Palette.text)
             if calls.isEmpty {
@@ -240,7 +249,7 @@ struct RepRecordContent: View {
             }
             LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 5), count: 10), spacing: 5) {
                 ForEach(Array(calls.enumerated()), id: \.element.id) { index, call in
-                    Button { selectedCall = index } label: { square(call, on: index == selected) }
+                    Button { model.selectedCall = index } label: { square(call, on: index == selected) }
                         .buttonStyle(.plain)
                         .accessibilityLabel(call.spokenSummary)
                         .accessibilityAddTraits(index == selected ? [.isSelected] : [])

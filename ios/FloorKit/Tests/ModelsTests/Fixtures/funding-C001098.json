@@ -1,0 +1,116 @@
+{
+    "member": {
+        "bioguideId": "C001098",
+        "firstName": "Ted",
+        "lastName": "Cruz",
+        "party": "R",
+        "state": "TX",
+        "district": null,
+        "chamber": "senate"
+    },
+    "funding": {
+        "cycle": 2030,
+        "coverageStart": "2025-01-01",
+        "coverageEnd": "2026-09-30",
+        "receipts": 12422145.1,
+        "smallDollar": 4821534.03,
+        "itemized": 5464056.18,
+        "pac": 538050,
+        "party": 0,
+        "other": 1598504.89,
+        "cashOnHand": 3239647,
+        "committeesCycle": 2026,
+        "committees": [
+            {
+                "committeeId": "C00075341",
+                "name": "MOTOROLA SOLUTIONS, INC. POLITICAL ACTION COMMITTEE",
+                "kind": "Company",
+                "orgType": "C",
+                "connectedOrg": "MOTOROLA SOLUTIONS, INC.",
+                "direct": 10000,
+                "earmarked": 0
+            },
+            {
+                "committeeId": "C00100321",
+                "name": "L3HARRIS TECHNOLOGIES, INC. PAC",
+                "kind": "Company",
+                "orgType": "C",
+                "connectedOrg": "L3HARRIS TECHNOLOGIES, INC.",
+                "direct": 10000,
+                "earmarked": 0
+            },
+            {
+                "committeeId": "C00103549",
+                "name": "PARSONS CORPORATION POLITICAL ACTION COMMITTEE",
+                "kind": "Company",
+                "orgType": "C",
+                "connectedOrg": "PARSONS CORPORATION",
+                "direct": 10000,
+                "earmarked": 0
+            },
+            {
+                "committeeId": "C00113753",
+                "name": "JOHNSON CONTROLS INC. PAC",
+                "kind": "Company",
+                "orgType": "C",
+                "connectedOrg": "JOHNSON CONTROLS INC.",
+                "direct": 10000,
+                "earmarked": 0
+            },
+            {
+                "committeeId": "C00121368",
+                "name": "EXXON MOBIL CORPORATION POLITICAL ACTION COMMITTEE (EXXONMOBIL PAC)",
+                "kind": "Company",
+                "orgType": "C",
+                "connectedOrg": "EXXON MOBIL CORPORATION",
+                "direct": 10000,
+                "earmarked": 0
+            },
+            {
+                "committeeId": "C00217877",
+                "name": "SOUTHERN GLAZER'S WINE AND SPIRITS PAC",
+                "kind": "Company",
+                "orgType": "C",
+                "connectedOrg": "NONE",
+                "direct": 10000,
+                "earmarked": 0
+            },
+            {
+                "committeeId": "C00238725",
+                "name": "NATIONAL AIR TRAFFIC CONTROLLERS ASSOCIATION PAC",
+                "kind": "Union",
+                "orgType": "L",
+                "connectedOrg": "NATIONAL AIR TRAFFIC CONTROLLERS ASSOCIATION",
+                "direct": 10000,
+                "earmarked": 0
+            },
+            {
+                "committeeId": "C00250753",
+                "name": "AUTO CARE ASSOCIATION POLITICAL ACTION COMMITTEE",
+                "kind": "Trade group",
+                "orgType": "T",
+                "connectedOrg": "AUTO CARE ASSOCIATION",
+                "direct": 10000,
+                "earmarked": 0
+            },
+            {
+                "committeeId": "C00299321",
+                "name": "MGM RESORTS INTERNATIONAL  PAC",
+                "kind": "Company",
+                "orgType": "C",
+                "connectedOrg": null,
+                "direct": 10000,
+                "earmarked": 0
+            },
+            {
+                "committeeId": "C00335091",
+                "name": "TRANSPORTATION INTERMEDIARIES ASSOCIATION'S TIAPAC",
+                "kind": "Trade group",
+                "orgType": "T",
+                "connectedOrg": "TRANSPORTATION INTERMEDIARIES ASSOCIATION",
+                "direct": 10000,
+                "earmarked": 0
+            }
+        ]
+    }
+}

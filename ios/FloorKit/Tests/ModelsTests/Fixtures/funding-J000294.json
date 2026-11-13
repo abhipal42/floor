@@ -1,0 +1,116 @@
+{
+    "member": {
+        "bioguideId": "J000294",
+        "firstName": "Hakeem",
+        "lastName": "Jeffries",
+        "party": "D",
+        "state": "NY",
+        "district": 8,
+        "chamber": "house"
+    },
+    "funding": {
+        "cycle": 2026,
+        "coverageStart": "2025-01-01",
+        "coverageEnd": "2026-10-14",
+        "receipts": 17893352.11,
+        "smallDollar": 8147893.38,
+        "itemized": 4542828.45,
+        "pac": 2765400,
+        "party": 0,
+        "other": 2437230.28,
+        "cashOnHand": 4234848.33,
+        "committeesCycle": 2026,
+        "committees": [
+            {
+                "committeeId": "C00000422",
+                "name": "AMERICAN MEDICAL ASSOCIATION POLITICAL ACTION COMMITTEE",
+                "kind": null,
+                "orgType": null,
+                "connectedOrg": "AMERICAN MEDICAL ASSOCIATION",
+                "direct": 10000,
+                "earmarked": 0
+            },
+            {
+                "committeeId": "C00000729",
+                "name": "AMERICAN DENTAL ASSOCIATION POLITICAL ACTION COMMITTEE",
+                "kind": "Membership group",
+                "orgType": "M",
+                "connectedOrg": "INDIANA DENTAL PAC",
+                "direct": 10000,
+                "earmarked": 0
+            },
+            {
+                "committeeId": "C00001198",
+                "name": "AMERICAN HOTEL AND LODGING ASSOCIATION POLITICAL ACTION COMMITTEE ('HOTELPAC')",
+                "kind": "Trade group",
+                "orgType": "T",
+                "connectedOrg": null,
+                "direct": 10000,
+                "earmarked": 0
+            },
+            {
+                "committeeId": "C00002469",
+                "name": "MACHINISTS NON PARTISAN POLITICAL LEAGUE OF THE INTERNATIONAL ASSOCIATION OF MACHINISTS & AEROSPACE WORKERS",
+                "kind": "Union",
+                "orgType": "L",
+                "connectedOrg": "INTERNATIONAL ASSOCIATION OF MACHINISTS AND AEROSPACE WORKERS",
+                "direct": 10000,
+                "earmarked": 0
+            },
+            {
+                "committeeId": "C00002881",
+                "name": "TRUCKING POLITICAL ACTION COMMITTEE OF THE AMERICAN TRUCKING ASSOCIATIONS INC.",
+                "kind": "Trade group",
+                "orgType": "T",
+                "connectedOrg": "AMERICAN TRUCKING ASSOCIATIONS INC.",
+                "direct": 10000,
+                "earmarked": 0
+            },
+            {
+                "committeeId": "C00002972",
+                "name": "NATIONAL RURAL ELECTRIC COOPERATIVE ASSOCIATION AMERICA'S ELECTRIC COOPERATIVES PAC",
+                "kind": "Trade group",
+                "orgType": "T",
+                "connectedOrg": "NATIONAL RURAL ELECTRIC COOPERATIVE ASSOCIATION (NRECA)",
+                "direct": 10000,
+                "earmarked": 0
+            },
+            {
+                "committeeId": "C00003251",
+                "name": "NEA FUND FOR CHILDREN AND PUBLIC EDUCATION",
+                "kind": "Union",
+                "orgType": "L",
+                "connectedOrg": "NATIONAL EDUCATION ASSOCIATION",
+                "direct": 10000,
+                "earmarked": 0
+            },
+            {
+                "committeeId": "C00004275",
+                "name": "AMERICAN BANKERS ASSOCIATION PAC (BANKPAC)",
+                "kind": "Trade group",
+                "orgType": "T",
+                "connectedOrg": "AMERICAN BANKERS ASSOCIATION (ABA)",
+                "direct": 10000,
+                "earmarked": 0
+            },
+            {
+                "committeeId": "C00004812",
+                "name": "MORTGAGE BANKERS ASSOCIATION POLITICAL ACTION COMMITTEE (MORPAC)",
+                "kind": "Trade group",
+                "orgType": "T",
+                "connectedOrg": "MORTGAGE BANKERS ASSOCIATION",
+                "direct": 10000,
+                "earmarked": 30747
+            },
+            {
+                "committeeId": "C00005249",
+                "name": "NATIONAL ASSOCIATION OF INSURANCE AND FINANCIAL ADVISORS POLITICAL ACTION COMM",
+                "kind": "Trade group",
+                "orgType": "T",
+                "connectedOrg": "NATIONAL ASSOCIATION OF INSURANCE AND FINANCIAL ADVISORS",
+                "direct": 10000,
+                "earmarked": 0
+            }
+        ]
+    }
+}

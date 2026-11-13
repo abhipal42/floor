@@ -26,6 +26,27 @@ struct PaletteTests {
         }
     }
 
+    /// The Money bar's parts are told apart by colour alone: each must stand off its neighbour at
+    /// 1.5:1 and off the empty track at 3:1 (WCAG's non-text minimum), in both appearances.
+    @Test func moneyBarPartsStandApart() {
+        let bar = Tones.moneyBar
+        #expect(bar.count == 4)
+        for (a, b) in zip(bar, bar.dropFirst()) {
+            let light = Swatch.contrast(a.light, b.light)
+            let dark = Swatch.contrast(a.dark, b.dark)
+            #expect(light >= 1.5, "neighbours \(a.light) / \(b.light), light: \(light)")
+            #expect(dark >= 1.5, "neighbours \(a.dark) / \(b.dark), dark: \(dark)")
+        }
+        for fill in bar {
+            let light = Swatch.contrast(fill.light, Tones.panelBorder.light)
+            let dark = Swatch.contrast(fill.dark, Tones.panelBorder.dark)
+            #expect(light >= 3, "\(fill.light) on the track, light: \(light)")
+            #expect(dark >= 3, "\(fill.dark) on the track, dark: \(dark)")
+        }
+        // The pair the review caught: the mock's small-dollar green beside its teal, 1.2:1.
+        #expect(Swatch.contrast(0x34D399, 0x2DD4BF) < 1.5)
+    }
+
     /// Chips print the ground colour on an outcome or state colour, so those must read in light
     /// mode too. (In dark mode the ground is near-black on a bright fill, which always reads.)
     @Test func groundReadsOnAChip() {

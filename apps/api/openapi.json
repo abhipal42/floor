@@ -401,7 +401,7 @@
           "kind": {
             "type": "string",
             "nullable": true,
-            "description": "From FEC's organization type; null when FEC classifies the committee as nothing",
+            "description": "From FEC's committee type for another candidate's own committee ('Candidate committee'), else its organization type or leadership-PAC designation; null when FEC classifies the committee as nothing",
             "example": "Trade group"
           },
           "orgType": {

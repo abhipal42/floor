@@ -265,12 +265,18 @@ interface PacRow {
 /**
  * A plain-English label for a giving committee, from FEC's own classification.
  *
- * Only what FEC actually says: ORG_TP for the organization behind the committee, and designation
- * D for a leadership PAC, which ORG_TP does not cover. A committee FEC classifies as nothing comes
- * back null rather than being guessed into a category — the page shows no label instead of an
- * invented one.
+ * Only what FEC actually says: CMTE_TP H, S or P for another candidate's own campaign committee
+ * ("SMITH FOR CONGRESS"), ORG_TP for the organization behind the committee, and designation D for
+ * a leadership PAC, which ORG_TP does not cover. A committee FEC classifies as nothing comes back
+ * null rather than being guessed into a category — the page shows no label instead of an invented
+ * one.
+ *
+ * A candidate committee names a politician, not an individual donor, so listing it is allowed;
+ * the label is there so it is not read as an interest group's PAC. Computed here from the stored
+ * `committee_type`, so it needs no re-ingest.
  */
-export const pacKind = (orgType: string | null, designation: string | null): string | null => {
+export const pacKind = (orgType: string | null, designation: string | null, committeeType: string | null = null): string | null => {
+  if (committeeType === "H" || committeeType === "S" || committeeType === "P") return "Candidate committee";
   switch (orgType) {
     case "C":
     case "W":
@@ -615,7 +621,7 @@ export function pgRepositories(db: Db): {
           committees: committees.map((c) => ({
             committeeId: c.committee_id,
             name: c.committee_name,
-            kind: pacKind(c.org_type, c.committee_designation),
+            kind: pacKind(c.org_type, c.committee_designation, c.committee_type),
             orgType: c.org_type,
             connectedOrg: c.connected_org,
             direct: Number(c.direct_amount),
