@@ -77,6 +77,7 @@ public struct HomeView: View {
                     .background(Palette.text.opacity(0.08), in: .capsule)
             }
             .accessibilityLabel("District \(model.delegation.district.name). Change your address")
+            AppearanceMenu()
         }
     }
 
