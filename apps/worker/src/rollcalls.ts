@@ -38,16 +38,49 @@ export async function fetchRollCall(
 /** Postgres errors that succeed when the statement is simply run again. */
 const TRANSIENT = new Set(["40P01", "40001"]); // deadlock_detected, serialization_failure
 
-export async function withRetry<T>(fn: () => Promise<T>, attempts = 4, baseDelayMs = 200): Promise<T> {
+/** How long to wait before retry `n` (1-based): doubling from `baseDelayMs`, plus up to half again at random. */
+export const retryDelay = (n: number, baseDelayMs: number, random: () => number = Math.random) =>
+  Math.round(baseDelayMs * 2 ** (n - 1) * (1 + random() / 2));
+
+/**
+ * Runs `fn`, running it again on a deadlock or serialization failure. The waits double and are
+ * jittered, so two writers that deadlocked each other do not retry in lockstep and collide again.
+ * With the defaults, five attempts wait about 0.2-0.3, 0.4-0.6, 0.8-1.2 and 1.6-2.4 s — enough to
+ * outlast a short migration, and the one deadlock production has recorded came one second after a
+ * migration altered the tables it was writing (lesson 36).
+ */
+export async function withRetry<T>(
+  fn: () => Promise<T>,
+  attempts = 5,
+  baseDelayMs = 200,
+  sleep: (ms: number) => Promise<void> = (ms) => new Promise((r) => setTimeout(r, ms)),
+): Promise<T> {
   for (let i = 1; ; i++) {
     try {
       return await fn();
     } catch (err) {
       const code = (err as { code?: string }).code;
       if (!code || !TRANSIENT.has(code) || i >= attempts) throw err;
-      await new Promise((r) => setTimeout(r, baseDelayMs * i));
+      await sleep(retryDelay(i, baseDelayMs));
     }
   }
+}
+
+/**
+ * The congress sessions worth polling on a given day: the current one, and in the first two weeks
+ * of January also the one just ended, so votes cast in its last days are not stranded when the
+ * calendar year (and with it the Clerk's directory) turns over. A session with nothing new simply
+ * stores nothing.
+ */
+export function sessionsToPoll(now: Date): { congress: number; session: number }[] {
+  const year = now.getUTCFullYear();
+  const congress = Math.floor((year - 1789) / 2) + 1;
+  const session = ((year - 1789) % 2) + 1;
+  const current = { congress, session };
+  const january = now.getUTCMonth() === 0 && now.getUTCDate() <= 14;
+  if (!january) return [current];
+  const previous = session === 2 ? { congress, session: 1 } : { congress: congress - 1, session: 2 };
+  return [previous, current];
 }
 
 /**

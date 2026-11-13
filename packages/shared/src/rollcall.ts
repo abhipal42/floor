@@ -85,8 +85,12 @@ export function parseHouseRollCall(xml: string): RollCall {
   if (!doc) throw new Error("Not a House roll call document");
   const meta = doc["vote-metadata"];
   const voteType = text(meta["vote-type"]);
-  const byCandidate = meta["vote-totals"]["totals-by-candidate"] as Record<string, unknown>[] | undefined;
-  const isElection = Array.isArray(byCandidate) && byCandidate.length > 0;
+  const byCandidate = meta["vote-totals"]?.["totals-by-candidate"] as Record<string, unknown>[] | undefined;
+  const hasCandidateTotals = Array.isArray(byCandidate) && byCandidate.length > 0;
+  // The question is a second signal, so a ballot whose file lacks the per-candidate block is still
+  // read as an election instead of failing on its first candidate name — `Unknown vote position:
+  // "Jeffries"` is exactly what an election read as a yea/nay question looks like.
+  const isElection = hasCandidateTotals || SPEAKER_ELECTION.test(text(meta["vote-question"]));
 
   const date = text(meta["action-date"]); // 10-Apr-2025
   const time = meta["action-time"]?.["@_time-etz"] as string | undefined; // 11:08
@@ -114,9 +118,11 @@ export function parseHouseRollCall(xml: string): RollCall {
   let totals: RollCall["totals"];
   let candidates: RollCall["candidates"] = [];
   if (isElection) {
-    candidates = byCandidate
-      .map((c) => ({ name: text(c["candidate"]), total: int(c["candidate-total"]) }))
-      .filter((c) => !NON_CANDIDATE.has(c.name.toLowerCase()));
+    candidates = hasCandidateTotals
+      ? byCandidate
+          .map((c) => ({ name: text(c["candidate"]), total: int(c["candidate-total"]) }))
+          .filter((c) => !NON_CANDIDATE.has(c.name.toLowerCase()))
+      : candidatesFromPositions(positions);
     const count = (p: VotePosition) => positions.filter((x) => x.position === p).length;
     totals = { yea: 0, nay: 0, present: count("present"), notVoting: count("not_voting") };
   } else {
@@ -149,6 +155,20 @@ export function parseHouseRollCall(xml: string): RollCall {
 
 /** Entries in a Speaker election that aren't candidates. */
 const NON_CANDIDATE = new Set(["present", "not voting"]);
+
+/** The House Clerk's question on every Speaker ballot since 2023: "Election of the Speaker". */
+const SPEAKER_ELECTION = /^election of (the )?speaker\b/i;
+
+/** Per-candidate totals counted from the recorded votes, most votes first, for a file that omits them. */
+function candidatesFromPositions(positions: MemberPosition[]): RollCall["candidates"] {
+  const totals = new Map<string, number>();
+  for (const p of positions) {
+    if (p.position === "candidate" && p.choice) totals.set(p.choice, (totals.get(p.choice) ?? 0) + 1);
+  }
+  return [...totals]
+    .map(([name, total]) => ({ name, total }))
+    .sort((a, b) => b.total - a.total || a.name.localeCompare(b.name));
+}
 
 /** Parses a senate.gov LIS roll call file (vote_{congress}_{session}_{nnnnn}.xml). */
 export function parseSenateRollCall(xml: string): RollCall {

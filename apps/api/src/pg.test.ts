@@ -1,7 +1,22 @@
 import { PGlite } from "@electric-sql/pglite";
 import { loadMigrations } from "@floor/db";
 import { beforeAll, describe, expect, it } from "vitest";
-import { pgRepositories, type Db } from "./pg.js";
+import { pgRepositories, poolerMode, type Db } from "./pg.js";
+
+describe("poolerMode", () => {
+  // Shapes only: the hosts are Supabase's, the credentials are placeholders.
+  it("tells the transaction pooler from the session pooler by port", () => {
+    expect(poolerMode("postgresql://postgres.ref:pw@aws-1-us-east-1.pooler.supabase.com:6543/postgres")).toBe("transaction");
+    expect(poolerMode("postgresql://postgres.ref:pw@aws-1-us-east-1.pooler.supabase.com:5432/postgres")).toBe("session");
+    expect(poolerMode("postgresql://postgres.ref:pw@aws-1-us-east-1.pooler.supabase.com/postgres")).toBe("session");
+  });
+
+  it("recognizes the direct host and anything else", () => {
+    expect(poolerMode("postgresql://postgres:pw@db.ref.supabase.co:5432/postgres")).toBe("direct");
+    expect(poolerMode("postgresql://localhost:5432/floor")).toBe("unknown");
+    expect(poolerMode("not a url")).toBe("unknown");
+  });
+});
 
 let repos: ReturnType<typeof pgRepositories>;
 let pg: PGlite;
@@ -124,7 +139,9 @@ beforeAll(async () => {
       ('members', '2025-01-01T00:00:00Z', '2025-01-01T00:01:00Z', 700, null),
       ('house_rollcalls', '2025-01-02T00:00:00Z', '2025-01-02T00:05:00Z', 10, null),
       ('house_rollcalls', '2025-01-03T00:00:00Z', '2025-01-03T00:00:05Z', 0, 'HTTP 503'),
-      ('house_rollcalls', '2025-01-03T01:00:00Z', null, 0, null);
+      ('house_rollcalls', '2025-01-03T01:00:00Z', null, 0, null),
+      ('senate_rollcalls', '2025-01-02T00:00:00Z', '2025-01-02T00:01:00Z', 5, 'deadlock detected'),
+      ('senate_rollcalls', '2025-01-02T00:02:00Z', '2025-01-02T00:03:00Z', 9, null);
   `);
   repos = pgRepositories(pg as unknown as Db);
 });
@@ -203,11 +220,14 @@ describe("Postgres repositories", () => {
     expect(await repos.nominations.getNomination("119-pn-9999")).toBeNull();
   });
 
-  it("reports the last successful run and the latest error per source", async () => {
+  it("reports the last successful run and the error of the latest finished run per source", async () => {
     const runs = (await repos.status.lastRuns()).sort((a, b) => a.source.localeCompare(b.source));
     expect(runs).toEqual([
+      // The latest finished run failed (the one still running has no outcome yet), so its error stands.
       { source: "house_rollcalls", lastSuccessAt: new Date("2025-01-02T00:05:00Z"), lastError: "HTTP 503" },
       { source: "members", lastSuccessAt: new Date("2025-01-01T00:01:00Z"), lastError: null },
+      // A run that succeeded after the failure clears it: the error is history, not the current state.
+      { source: "senate_rollcalls", lastSuccessAt: new Date("2025-01-02T00:03:00Z"), lastError: null },
     ]);
   });
 

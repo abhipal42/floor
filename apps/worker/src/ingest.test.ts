@@ -5,13 +5,16 @@ import { PGlite } from "@electric-sql/pglite";
 import { loadMigrations } from "@floor/db";
 import { beforeAll, describe, expect, it } from "vitest";
 import type { Db } from "./db.js";
-import { upsertMembers } from "./db.js";
+import { parseSenateRollCall } from "@floor/shared";
+import { positionRows, upsertMembers } from "./db.js";
 import { toMemberRows, type LegislatorEntry } from "./members.js";
 import {
   fetchRollCall,
   houseRollUrl,
   ingestRollCalls,
+  retryDelay,
   senateRollUrl,
+  sessionsToPoll,
   withRetry,
   yearOf,
   type FetchText,
@@ -131,6 +134,74 @@ describe("withRetry", () => {
     calls = 0;
     await expect(withRetry(async () => { calls++; throw pgError("23505"); }, 3, 1)).rejects.toThrow("23505");
     expect(calls).toBe(1);
+  });
+
+  it("backs off exponentially between attempts", async () => {
+    const waits: number[] = [];
+    const sleep = async (ms: number) => void waits.push(ms);
+    await expect(withRetry(async () => { throw pgError("40P01"); }, 5, 100, sleep)).rejects.toThrow("40P01");
+    // Four waits for five attempts, each at least double the base of the one before.
+    expect(waits).toHaveLength(4);
+    waits.forEach((ms, i) => {
+      expect(ms).toBeGreaterThanOrEqual(100 * 2 ** i);
+      expect(ms).toBeLessThanOrEqual(150 * 2 ** i);
+    });
+  });
+
+  it("jitters each wait by up to half of it", () => {
+    expect(retryDelay(1, 200, () => 0)).toBe(200);
+    expect(retryDelay(3, 200, () => 0)).toBe(800);
+    expect(retryDelay(3, 200, () => 1)).toBe(1200);
+  });
+});
+
+describe("sessionsToPoll", () => {
+  it("polls the session in progress", () => {
+    expect(sessionsToPoll(new Date("2026-11-13T12:00:00Z"))).toEqual([{ congress: 119, session: 2 }]);
+    expect(sessionsToPoll(new Date("2025-06-01T12:00:00Z"))).toEqual([{ congress: 119, session: 1 }]);
+    expect(sessionsToPoll(new Date("2027-03-01T12:00:00Z"))).toEqual([{ congress: 120, session: 1 }]);
+  });
+
+  it("also polls the session just ended in early January", () => {
+    expect(sessionsToPoll(new Date("2027-01-02T12:00:00Z"))).toEqual([
+      { congress: 119, session: 2 },
+      { congress: 120, session: 1 },
+    ]);
+    expect(sessionsToPoll(new Date("2026-01-10T12:00:00Z"))).toEqual([
+      { congress: 119, session: 1 },
+      { congress: 119, session: 2 },
+    ]);
+    expect(sessionsToPoll(new Date("2026-01-15T12:00:00Z"))).toEqual([{ congress: 119, session: 2 }]);
+  });
+
+  it("agrees with yearOf", () => {
+    for (const year of [2023, 2024, 2025, 2026, 2027]) {
+      const [s] = sessionsToPoll(new Date(`${year}-07-01T00:00:00Z`));
+      expect(yearOf(s!.congress, s!.session)).toBe(year);
+    }
+  });
+});
+
+describe("positionRows", () => {
+  const pos = (memberId: string, position: "yea" | "nay") =>
+    ({ memberId, idType: "bioguide", party: "D", state: "NY", position }) as const;
+
+  it("orders rows by member so concurrent writers lock them in the same sequence", () => {
+    const rows = positionRows({ positions: [pos("S000033", "yea"), pos("A000370", "nay"), pos("K000401", "yea")] });
+    expect(rows.map((r) => r.member_id)).toEqual(["A000370", "K000401", "S000033"]);
+    expect(rows[0]).toEqual({ member_id: "A000370", position: "nay", choice: null });
+  });
+
+  it("keeps one row per member, the last listed", () => {
+    const rows = positionRows({ positions: [pos("A000370", "yea"), pos("A000370", "nay")] });
+    expect(rows).toEqual([{ member_id: "A000370", position: "nay", choice: null }]);
+  });
+
+  it("is the same whatever order the file lists members in", () => {
+    const xml = senateXml;
+    const forward = parseSenateRollCall(xml);
+    const reversed = { positions: [...forward.positions].reverse() };
+    expect(positionRows(reversed)).toEqual(positionRows(forward));
   });
 });
 

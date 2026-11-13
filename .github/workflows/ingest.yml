@@ -1,0 +1,78 @@
+name: Ingest
+#
+# Keeps the database current. Until this workflow, nothing ran the worker on a
+# schedule at all: every ingest_runs row in production was typed by hand, the
+# last roll-call run was 2026-11-12 04:30 UTC, and /v1/status had read `stale`
+# ever since (HANDOFF lesson 37).
+#
+# One job, one step after another, and one `concurrency` group with
+# cancel-in-progress off: a run that is still going when the next is due makes
+# the next one wait instead of overlapping it. Two ingests writing at once is
+# what lesson 2 was about.
+#
+# Needs two repository secrets (Settings → Secrets and variables → Actions):
+#   DATABASE_URL      Supabase's session pooler string,
+#                     postgres.<ref>@aws-1-us-east-1.pooler.supabase.com:5432
+#                     (GitHub's runners have no IPv6, so not the direct host)
+#   CONGRESS_API_KEY  the api.data.gov key, for bills and nominations
+# Without DATABASE_URL the job says so and stops, rather than failing every hour.
+on:
+  schedule:
+    # Hourly, off the top of the hour when GitHub's scheduler is busiest.
+    - cron: "17 * * * *"
+  workflow_dispatch:
+
+concurrency:
+  group: ingest
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  ingest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      CONGRESS_API_KEY: ${{ secrets.CONGRESS_API_KEY }}
+    steps:
+      - name: Secrets present
+        id: secrets
+        run: |
+          if [ -z "${DATABASE_URL:-}" ]; then
+            echo "::warning::DATABASE_URL secret is not set; skipping ingest"
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          fi
+      - uses: actions/checkout@v7
+        if: steps.secrets.outputs.ready == 'true'
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v7
+        if: steps.secrets.outputs.ready == 'true'
+        with:
+          node-version: 22
+          cache: npm
+      - if: steps.secrets.outputs.ready == 'true'
+        run: npm ci
+      # Members first, so a member sworn in today has a row before their first roll call lands.
+      - name: Members
+        if: steps.secrets.outputs.ready == 'true'
+        run: npm run ingest -w @floor/worker -- members
+      # The chambers one after the other, never together. Each source still runs when an earlier one
+      # failed (`!cancelled()`), since a failure in one says nothing about the others; the job goes red.
+      - name: House roll calls
+        if: steps.secrets.outputs.ready == 'true' && !cancelled()
+        run: npm run ingest -w @floor/worker -- rollcalls house current
+      - name: Senate roll calls
+        if: steps.secrets.outputs.ready == 'true' && !cancelled()
+        run: npm run ingest -w @floor/worker -- rollcalls senate current
+      # Bills and nominations only fetch what new votes refer to, so these are quick when nothing changed.
+      - name: Bills
+        if: steps.secrets.outputs.ready == 'true' && env.CONGRESS_API_KEY != '' && !cancelled()
+        run: npm run ingest -w @floor/worker -- bills
+      - name: Nominations
+        if: steps.secrets.outputs.ready == 'true' && env.CONGRESS_API_KEY != '' && !cancelled()
+        run: npm run ingest -w @floor/worker -- nominations

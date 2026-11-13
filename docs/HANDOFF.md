@@ -1,6 +1,6 @@
 # Handoff: where Floor stands and what's next
 
-Last updated 2026-11-12. Read this first, then [`plan.md`](plan.md) for the full design and reasoning.
+Last updated 2026-11-13. Read this first, then [`plan.md`](plan.md) for the full design and reasoning.
 
 **In one paragraph:** M0 (foundation) is done. M1 (data backbone) is done; the one item still open against it, measured posting latency, has moved to M3, because it can only be taken on a live session day with polling running. Staging Postgres holds every House and Senate roll call since January 2023, and every one matches the official totals; every vote now has a subject attached, bills and nominations alike. The API serves district lookup, member votes, votes, bills, nominations and data freshness from that database, and now also the per-party breakdown of a vote, your own delegation's positions on it, and a member's party-loyalty record. **M2 is nearly done:** the API is deployed at <https://floor-api.vercel.app> and a Release build of
 the app runs the whole flow against it — onboarding to a real district, then Home, Vote, Bill and
@@ -27,12 +27,12 @@ listed at the top of the M2 section: snapshot tests and TestFlight distribution.
 git clone https://github.com/abhipal42/floor.git && cd floor
 npm install
 cp .env.example .env    # then fill in the two values (see below)
-npm run check           # lint + typecheck + 286 tests; must pass before every PR
+npm run check           # lint + typecheck + 370 tests; must pass before every PR
 ```
 
 `.env` (never committed):
 
-- `DATABASE_URL`: Supabase → floor-staging → **Connect** → the Postgres connection string (`postgresql://…`), not the `https://…supabase.co` API URL. The direct `db.<ref>.supabase.co:5432` host and the Session pooler both work.
+- `DATABASE_URL`: Supabase → floor-staging → **Connect** → the Postgres connection string (`postgresql://…`), not the `https://…supabase.co` API URL. Use the Session pooler (`postgres.<ref>@aws-1-us-east-1.pooler.supabase.com:5432`): the direct `db.<ref>.supabase.co` host is IPv6-only and fails with `EHOSTUNREACH` on a network without IPv6 (it did from here on 2026-11-13). Close the worker when you are done with it — every open session-pooler connection is one of the 15 slots the whole project shares (lesson 37).
 - `CONGRESS_API_KEY`: your api.data.gov key.
 
 ### Run things
@@ -42,6 +42,7 @@ npm run dev -w @floor/api                                         # API on http:
 npm run ingest -w @floor/worker -- members                        # refresh members
 npm run ingest -w @floor/worker -- rollcalls house 119 2          # new House votes this session (resumes automatically)
 npm run ingest -w @floor/worker -- rollcalls senate 119 2         # same for the Senate
+npm run ingest -w @floor/worker -- rollcalls house current        # the session in progress (what the hourly schedule runs)
 npm run ingest -w @floor/worker -- bills                          # load bills that votes refer to (only missing ones)
 npm run ingest -w @floor/worker -- nominations                    # load nominations that Senate votes refer to
 npm run ingest -w @floor/worker -- fec-totals                     # campaign totals for every current member (OpenFEC, ~10 min)
@@ -77,6 +78,7 @@ Command Line Tools rather than Xcode: run it with `DEVELOPER_DIR=/Applications/X
 | `apps/web` | Landing page (v0.2.0): static HTML/CSS/TypeScript built with `tsc`, no framework | `src/data.ts` (every figure, with source and date), `src/logic.ts` (pure helpers), `src/main.ts` (rendering), `public/` |
 | `ios/` | SwiftUI app (XcodeGen, `project.yml`), `FloorKit` package: `Models`, `APIClient`, `DesignSystem`, `Onboarding`, `Home`, `VoteScreen`, `BillScreen`, `RepScreen` | `FloorKit/Sources/Models/` (one file per area, `Samples.swift` for previews), `FloorKit/Tests/ModelsTests/ContractTests.swift`, `DesignSystem/ScoreboardCard.swift`, `DesignSystem/Components.swift`, `DesignSystem/Fonts/` (Barlow Condensed, OFL), `Home/FloorShell.swift` (tabs), `Home/CatchUp.swift`, `Models/VoteOutcome.swift`, `BillScreen/LawLevels.swift`, `APIClient/ResponseCache.swift` (offline cache), `DesignSystem/SavedDataNote.swift` |
 | `.github/workflows/ci.yml` | `scope` job (which parts changed) + node job (lint/typecheck/tests + OpenAPI drift) + macOS job (Swift tests + simulator build). **Pushes to `main` only** since 2026-11-13 — a PR never builds the code — and the macOS job runs only when the push touched `ios/` or `.github/` | |
+| `.github/workflows/ingest.yml` | **Hourly ingest** (since v0.2.20): members, then House and Senate roll calls for the session in progress (`rollcalls <chamber> current`), then bills and nominations, one after another in one job, in a `concurrency: ingest` group so a slow run makes the next wait instead of overlapping it. **Inert until the repo has a `DATABASE_URL` secret** (session pooler string) and `CONGRESS_API_KEY`; without the first it logs a warning and skips. Adding them needs repo admin (lesson 37) | |
 | `.github/workflows/guards.yml` | Shipping guards on every PR (the only workflow that still runs there): changelog, version, docs, tests, retro, PR title | `.github/scripts/guards.conf` (this repo's settings), `guards.sh` (shared, do not edit) |
 | `docs/` | `plan.md` / `plan.html` (design + plan), this file, `retros/` (one per milestone) | |
 | `VERSION`, `CHANGELOG.md` | Current version (mirrored by `MARKETING_VERSION` in `ios/project.yml`) and what each version shipped | |
@@ -92,7 +94,7 @@ Command Line Tools rather than Xcode: run it with `DEVELOPER_DIR=/Applications/X
 | `GET /v1/votes/{id}` | One vote: totals, threshold, kind, bill link, **per-party breakdown**, and for a Speaker election **which candidate each party backed**. `?members=A000370,C001098` (up to ten) also returns those members' own positions, so the vote screen loads your delegation in one round trip. IDs look like `house-119-1-100` |
 | `GET /v1/bills/{id}` | Title, short title, CRS summary, sponsor, policy area, CBO estimates, last 30 actions, every vote on it. IDs look like `119-hr-2207` |
 | `GET /v1/nominations/{id}` | Nominee, position, agency, received and latest action, every Senate vote on it. IDs look like `119-pn-1093-3` |
-| `GET /v1/status` | Last successful run and last error per ingest source, with `stale` flags |
+| `GET /v1/status` | Last successful run per ingest source, the error of its latest finished run if that one failed (null once a later run succeeds, lesson 35), and `stale` flags |
 | `GET /openapi.json` | The contract. The Swift models are hand-written against it, and `ContractTests` fail CI if they drift (see M2). |
 
 ### Data in staging (as of this commit)
@@ -288,6 +290,48 @@ Real data broke our first assumptions several times. Each case below is now hand
     `scroll-behavior: smooth`, so a plain `scrollTo` is still in flight when you read `scrollY` (pass
     `behavior: "instant"`), and an instant jump across six pinned sections takes over a second to
     settle while they re-measure.
+35. **`/v1/status` reported errors that were already fixed.** On 2026-11-13 it showed
+    `house_rollcalls` failing with `Unknown vote position: "Jeffries"` and `senate_rollcalls` with
+    `deadlock detected`, which read as two live ingest bugs. `ingest_runs` said otherwise: both
+    errors came from the first backfill, 2026-11-12 04:19–04:24 UTC, and every later run of both
+    sources succeeded. The "Jeffries" runs (ids 2 and 6, 1 item each) failed on the January 2023
+    Speaker ballot minutes **before** election support was committed (9e9de64, 04:23:45 UTC); run 10
+    then stored all of 118-1, and all 20 Speaker ballots in the database parse today. The status
+    query took the latest error *ever* recorded, so a superseded failure stayed on the page for good.
+    `lastError` is now the error of the most recent finished run, null once a later run succeeds.
+    The parser also gained a second election signal — the question "Election of the Speaker" — so
+    a ballot whose file lacked the `<totals-by-candidate>` block would still parse; checked against
+    all 20 real ballots with that block cut out, the counted totals match on every one (on 5 of
+    them, candidates tied on votes come out alphabetical instead of in the Clerk's order).
+36. **The one recorded deadlock was a migration landing mid-backfill.** Senate run 8 failed with
+    `deadlock detected` at 04:23:44.4 UTC; Supabase's `schema_migrations` stamps the elections
+    migration — `alter type vote_position add value`, `alter table votes`, `alter table
+    vote_positions` — at 04:23:43, while that run was upserting into those tables. The retry on
+    `40P01` did not exist yet (c350de4, 04:25:18). So it was not two cron jobs: there was no cron
+    job (lesson 37). What the worker now does anyway: waits double and are jittered between five
+    attempts (`withRetry`), and each vote's positions are inserted in member-ID order
+    (`positionRows`, and `order by` in the insert), so two writers on the same vote take row locks
+    in the same sequence. Apply a migration that alters `votes` or `vote_positions` when no ingest
+    is running.
+37. **Nothing ran the ingest on a schedule.** No workflow, cron, `pg_cron` job (the extension is
+    not installed) or host timer called the worker: every row in `ingest_runs` was typed by hand, and
+    the last roll-call run was 2026-11-12 04:30 UTC, so the House votes of 12 November (rolls 322
+    and 323) were never stored and both roll-call sources went `stale` 24 hours later. That — not a
+    parse error — is why ingest looked stuck. `.github/workflows/ingest.yml` now runs hourly, but
+    **it needs `DATABASE_URL` and `CONGRESS_API_KEY` as repository secrets, which only a repo admin
+    can add** (our access is write, not admin). Related: on 2026-11-13 something hit
+    `EMAXCONNSESSION max clients reached in session mode - pool_size: 15`. That is Supavisor's
+    *session* pooler (port 5432), where every open connection holds one of 15 slots shared by the
+    API, the worker and anyone at a SQL prompt. The API now passes its pool to Vercel's
+    `attachDatabasePool`, because a suspended function runs no timers and would otherwise keep its
+    idle connection open, drops idle connections after 5 s, and warns at boot if `DATABASE_URL` is
+    not the transaction pooler (`poolerMode` in `pg.ts`); the worker uses one connection, not two.
+    The code is already transaction-mode safe — node-postgres prepares only statements given a
+    `name` and the `Db` interface cannot pass one, and nothing sets session state. **What remains is
+    in the Vercel dashboard:** confirm `DATABASE_URL` for `floor-api` ends in `:6543` (this file
+    says it should; the error says something connected in session mode), then force a redeploy. The
+    worker should stay on 5432: it is one connection at a time, and session mode is what a script
+    holding a connection for many statements expects.
 
 ---
 
@@ -582,7 +626,7 @@ live `#FF453A`, muted text `#9BA1AD`.
 ### M3: Live layer
 **Goal:** "vote open" on the phone within 30 s, and your rep's vote within 60 s of the roll call posting.
 
-- Deploy the worker as an always-on container (Fly.io or Railway) with session-aware polling: every 10 s in session, every 5 min otherwise.
+- Deploy the worker as an always-on container (Fly.io or Railway) with session-aware polling: every 10 s in session, every 5 min otherwise. Until then, `.github/workflows/ingest.yml` polls hourly (lesson 37), which keeps `/v1/status` fresh but is far from the 30 s goal.
 - Floor events: House Clerk floor summary XML; Senate floor activity pages (scraped, with contract tests).
 - Votes get state `open` from floor events, then `final` when the roll call XML posts.
 - Supabase Realtime broadcast to open apps; APNs pushes; Live Activities (push-to-start, iOS 17.2+); widgets.

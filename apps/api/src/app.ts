@@ -394,7 +394,7 @@ export const MAX_AGE_HOURS: Record<string, number> = {
 };
 
 export interface StatusRepository {
-  /** Latest successful run and latest error per ingest source. */
+  /** Latest successful run per ingest source, and the error of its latest finished run if that run failed. */
   lastRuns(): Promise<{ source: string; lastSuccessAt: Date | null; lastError: string | null }[]>;
 }
 

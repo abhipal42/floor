@@ -27,13 +27,29 @@ export const voteId = (rc: Pick<RollCall, "chamber" | "congress" | "session" | "
   `${rc.chamber}-${rc.congress}-${rc.session}-${rc.rollNumber}`;
 
 /**
+ * A roll call's positions as rows for `upsertRollCall`, in member-ID order and one per member.
+ *
+ * The order is for lock ordering: two writers upserting the same vote (a scheduled run and a manual
+ * one, say) take row locks on `vote_positions` in the same sequence, so one waits for the other
+ * instead of each holding a row the other needs. The insert also orders by Bioguide ID, since the
+ * Senate's LIS IDs sort differently once joined. A member listed twice keeps the last entry, as
+ * `on conflict do update` cannot touch one row twice in a statement.
+ */
+export function positionRows(rc: Pick<RollCall, "positions">) {
+  const byMember = new Map(
+    rc.positions.map((p) => [p.memberId, { member_id: p.memberId, position: p.position, choice: p.choice ?? null }]),
+  );
+  return [...byMember.values()].sort((a, b) => (a.member_id < b.member_id ? -1 : a.member_id > b.member_id ? 1 : 0));
+}
+
+/**
  * Stores a finished roll call and its member positions. Positions for members we don't
  * know are skipped and counted, so a missing member never blocks a vote from landing.
  */
 export async function upsertRollCall(db: Db, rc: RollCall): Promise<{ id: string; stored: number; skipped: number }> {
   const id = voteId(rc);
   const joinOn = rc.chamber === "house" ? "m.bioguide_id = p.member_id" : "m.ids->>'lis' = p.member_id";
-  const positions = rc.positions.map((p) => ({ member_id: p.memberId, position: p.position, choice: p.choice ?? null }));
+  const positions = positionRows(rc);
 
   // One statement, so a vote and its positions land together or not at all.
   const { rows } = await db.query<{ stored: number }>(
@@ -56,6 +72,7 @@ export async function upsertRollCall(db: Db, rc: RollCall): Promise<{ id: string
        insert into vote_positions (vote_id, member_id, position, choice)
        select v.id, m.bioguide_id, p.position::vote_position, p.choice
          from v cross join input p join members m on ${joinOn}
+        order by m.bioguide_id
        on conflict (vote_id, member_id) do update set position = excluded.position, choice = excluded.choice
        returning 1
      )

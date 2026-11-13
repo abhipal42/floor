@@ -8,6 +8,39 @@ is a milestone and ships a retro under `docs/retros/`.
 Older series live in [`docs/changelog/`](docs/changelog) (0.1.x: [`0.1.md`](docs/changelog/0.1.md)).
 Before 0.1.0 the history is the commit log on `main`.
 
+## 0.2.20 — 2026-11-13
+
+Ingest was not stuck on a bad vote; it had never been scheduled. It now runs hourly, and the status
+page stops reporting errors that were already fixed.
+
+### Fixed
+- **`/v1/status` showed superseded errors as current.** `lastError` was the latest error ever
+  recorded, so two failures from the first backfill on 2026-11-12 — `Unknown vote position:
+  "Jeffries"` and `deadlock detected`, both fixed in code within minutes and followed by clean runs —
+  still read as live a day later. It is now the error of the latest finished run, null once a later
+  run succeeds (HANDOFF lesson 35).
+- **A Speaker ballot is recognized by its question as well as its candidate totals**, so a file
+  without the `<totals-by-candidate>` block parses as an election instead of failing on the first
+  candidate name. Tested on the real 2025 ballot (`house-2025-roll002.xml`) with and without the
+  block; all 20 ballots in production give the same totals either way.
+
+### Added
+- **Hourly ingest** (`.github/workflows/ingest.yml`): members, House roll calls, Senate roll calls,
+  bills, nominations, in sequence, in one `concurrency` group so runs never overlap. It needs the
+  `DATABASE_URL` and `CONGRESS_API_KEY` repository secrets, which a repo admin has to add; until then
+  it skips with a warning (lesson 37).
+- `rollcalls <house|senate> current` polls the session in progress (and, in early January, the one
+  just ended) — `sessionsToPoll`.
+
+### Changed
+- **Deadlock hardening** (lesson 36): `withRetry` makes five attempts with doubling, jittered waits,
+  and a vote's positions are written in member-ID order (`positionRows`), so concurrent writers to
+  the same vote lock rows in the same sequence.
+- **Fewer database connections.** The API hands its pool to Vercel's `attachDatabasePool`
+  (`@vercel/functions` 3.10.4) so a suspended instance doesn't sit on an idle connection, closes idle
+  connections after 5 s instead of 10, and warns at boot unless `DATABASE_URL` is the transaction
+  pooler (`poolerMode`). The worker uses one connection instead of two (lesson 37).
+
 ## 0.2.19 — 2026-11-13
 
 "Who funds them" shows your members' campaign money, not New York's.

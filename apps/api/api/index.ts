@@ -9,10 +9,11 @@
 // Vercel's Node runtime the function is called as (req, res). Nothing ever writes to `res`, so the
 // request hangs until the function times out — which is exactly what the first deploy did.
 import { handle } from "@hono/node-server/vercel";
+import { attachDatabasePool } from "@vercel/functions";
 import pg from "pg";
 import { createApp } from "../src/app.js";
 import { locateDistrict } from "../src/district.js";
-import { pgRepositories, type Db } from "../src/pg.js";
+import { pgRepositories, poolerMode, type Db } from "../src/pg.js";
 
 export const config = { runtime: "nodejs" };
 
@@ -30,10 +31,23 @@ const pool = process.env.DATABASE_URL
   ? new pg.Pool({
       connectionString: process.env.DATABASE_URL,
       max: 1,
-      idleTimeoutMillis: 10_000,
+      idleTimeoutMillis: 5_000,
       connectionTimeoutMillis: 10_000,
     })
   : null;
+
+if (pool) {
+  // A suspended instance runs no timers, so without this its idle connection outlives the idle
+  // timeout and stays open, holding a pooler slot, until the instance is reaped. `attachDatabasePool`
+  // keeps the instance awake just long enough for the pool to close idle connections (lesson 37).
+  attachDatabasePool(pool);
+  const mode = poolerMode(process.env.DATABASE_URL ?? "");
+  if (mode !== "transaction") {
+    // Session mode gives each open connection one of a fixed set of slots (15 on this project), so
+    // a burst of instances fails with EMAXCONNSESSION; the transaction pooler on port 6543 does not.
+    console.warn(`DATABASE_URL is a ${mode} connection; use Supabase's transaction pooler (port 6543)`);
+  }
+}
 
 /** Browser origins allowed to read a response, comma-separated. Unset means none. */
 const allowedOrigins = (process.env.ALLOWED_ORIGINS ?? "")

@@ -126,6 +126,40 @@ describe("parseHouseRollCall (real Speaker election: 2023 roll 2)", () => {
   });
 });
 
+describe("parseHouseRollCall (real Speaker election: 2025 roll 2)", () => {
+  const xml = fixture("house-2025-roll002.xml");
+  const rc = parseHouseRollCall(xml);
+  // The same real ballot with its <totals-by-candidate> blocks cut out: what a file read as a yea/nay
+  // question looks like, which is how `Unknown vote position: "Jeffries"` used to come about.
+  const stripped = xml.replace(/<totals-by-candidate>[\s\S]*?<\/totals-by-candidate>\s*/g, "");
+
+  it("reads a candidate with a state suffix as one candidate", () => {
+    expect(rc.kind).toBe("election");
+    expect(rc.result).toBe("Johnson (LA)");
+    expect(rc.candidates).toEqual([
+      { name: "Johnson (LA)", total: 218 },
+      { name: "Jeffries", total: 215 },
+      { name: "Emmer", total: 1 },
+    ]);
+    expect(rc.positions.find((p) => p.memberId === "A000370")).toMatchObject({ position: "candidate", choice: "Jeffries" });
+  });
+
+  it("still reads the ballot as an election when the file omits the per-candidate totals", () => {
+    expect(stripped).not.toContain("totals-by-candidate");
+    const fallback = parseHouseRollCall(stripped);
+    expect(fallback.kind).toBe("election");
+    expect(fallback.candidates).toEqual(rc.candidates);
+    expect(fallback.positions).toEqual(rc.positions);
+    expect(fallback.totals).toEqual(rc.totals);
+  });
+
+  it("still refuses a candidate name on a question that is not a Speaker election", () => {
+    const mislabelled = stripped.replace("<vote-question>Election of the Speaker", "<vote-question>On Passage");
+    // Adams (A000370) is the first recorded vote, so this is the exact error production recorded.
+    expect(() => parseHouseRollCall(mislabelled)).toThrow('Unknown vote position: "Jeffries"');
+  });
+});
+
 describe("normalizePosition", () => {
   it("maps chamber vocabularies to one set", () => {
     expect(["Yea", "Aye", "Guilty"].map(normalizePosition)).toEqual(["yea", "yea", "yea"]);

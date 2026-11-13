@@ -16,6 +16,29 @@ import type {
   VoteRepository,
 } from "./app.js";
 
+/**
+ * Which kind of Supabase connection a `DATABASE_URL` is, from its host and port.
+ *
+ * The API runs on serverless instances that come and go, so it wants the transaction pooler (port
+ * 6543 on `*.pooler.supabase.com`), which shares a few server connections among any number of
+ * clients. The session pooler (port 5432 on the same host) pins one of a fixed set of slots to each
+ * open connection, and the direct host is IPv6-only and unreachable from Vercel. This code works
+ * through the transaction pooler because node-postgres only prepares statements that are given a
+ * `name`, and nothing here names one or sets session state.
+ */
+export function poolerMode(url: string): "transaction" | "session" | "direct" | "unknown" {
+  let parsed: URL;
+  try {
+    parsed = new URL(url);
+  } catch {
+    return "unknown";
+  }
+  const port = parsed.port || "5432";
+  if (parsed.hostname.endsWith(".pooler.supabase.com")) return port === "6543" ? "transaction" : "session";
+  if (parsed.hostname.endsWith(".supabase.co")) return "direct";
+  return "unknown";
+}
+
 /** The slice of a Postgres client we use. Satisfied by `pg.Pool` and by PGlite in tests. */
 export interface Db {
   query<T = Record<string, unknown>>(text: string, params?: unknown[]): Promise<{ rows: T[] }>;
@@ -342,10 +365,15 @@ export function pgRepositories(db: Db): {
     },
     status: {
       async lastRuns() {
+        // lastError is the error of the most recent *finished* run, so it is null once a later run
+        // succeeds. It used to be the latest error ever recorded, which left two errors from the
+        // first backfill on 2026-11-12 — both fixed in code within minutes, and followed by clean
+        // runs — reading as the current state of production a day later (lesson 35). A run still
+        // in progress has no outcome yet and is left out.
         const { rows } = await db.query<{ source: string; last_success_at: Date | null; last_error: string | null }>(
           `select source,
                   max(finished_at) filter (where error is null) as last_success_at,
-                  (array_agg(error order by started_at desc) filter (where error is not null))[1] as last_error
+                  (array_agg(error order by finished_at desc) filter (where finished_at is not null))[1] as last_error
              from ingest_runs group by source`,
         );
         return rows.map((r) => ({
