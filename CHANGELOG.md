@@ -8,6 +8,20 @@ is a milestone and ships a retro under `docs/retros/`.
 Older series live in [`docs/changelog/`](docs/changelog) (0.1.x: [`0.1.md`](docs/changelog/0.1.md)).
 Before 0.1.0 the history is the commit log on `main`.
 
+## 0.2.8 — 2026-11-13
+
+### Changed
+
+- **The macOS CI job runs only when `ios/` or `.github/` changed.** A new `scope` job in `ci.yml`
+  reuses `SCOPE_RULES` from `guards.conf`, so what counts as an iOS change is defined in one place.
+  It costs one ubuntu runner start (~15s) and spares a job that takes 1–3 minutes and queues for
+  longer; `.github/` is included so a change to the workflow still proves the job it changes.
+- That gate needed a refinement to do anything at all: `version-sync` requires `MARKETING_VERSION`
+  in `ios/project.yml` to mirror `VERSION`, so **every** release touches `ios/`, and a plain
+  `^ios/` test is true on a docs-only PR. The scope job discounts a `project.yml` change that is
+  only the version mirror. Checked against the last five merges: 0.2.1 (docs), 0.2.4 (FEC data) and
+  0.2.6 (the CI change itself, which still runs via `.github/`) versus 0.2.3 and 0.2.7, which build.
+
 ## 0.2.7 — 2026-11-13
 
 An in-app switch for light and dark.
