@@ -18,6 +18,8 @@ public final class RepScreenModel {
     }
 
     public private(set) var phase: Phase = .loading
+    /// Set when the record on screen is the saved one because the refresh after it failed.
+    public private(set) var saved: SavedCopy?
 
     private let bioguideId: String
     private let api: FloorAPI
@@ -32,10 +34,13 @@ public final class RepScreenModel {
     public func load() async {
         phase = .loading
         do {
-            // Two independent requests, so they go together rather than one after the other.
-            async let detail = api.member(id: bioguideId)
-            async let votes = api.memberVotes(id: bioguideId, limit: limit)
-            phase = .loaded(Record(detail: try await detail, votes: try await votes.votes))
+            // Saved record first, then the network; see `revalidate`.
+            saved = try await revalidate(api) { [bioguideId, limit] api in
+                // Two independent requests, so they go together rather than one after the other.
+                async let detail = api.member(id: bioguideId)
+                async let votes = api.memberVotes(id: bioguideId, limit: limit)
+                phase = .loaded(Record(detail: try await detail, votes: try await votes.votes))
+            }
         } catch let error as FloorAPIError {
             phase = .failed(error.errorDescription ?? "Couldn't load this member.")
         } catch {

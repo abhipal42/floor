@@ -59,6 +59,7 @@ public struct VoteScreenView: View {
         case let .loaded(detail):
             ScrollView {
                 VStack(alignment: .leading, spacing: 18) {
+                    if let saved = model.saved { SavedDataNote(savedAt: saved.savedAt, offline: saved.offline) }
                     if detail.vote.kind == .election {
                         electionBoard(detail)
                         candidateTable(detail)

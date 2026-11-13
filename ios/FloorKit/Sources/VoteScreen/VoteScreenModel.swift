@@ -17,6 +17,8 @@ public final class VoteScreenModel {
     /// The bill this vote was on, loaded after the vote so the screen never waits on it. nil for a
     /// nomination, a procedural vote, or a bill that failed to load — the card then shows no level.
     public private(set) var bill: Bill?
+    /// Set when the vote on screen is the saved one because the refresh after it failed.
+    public private(set) var saved: SavedCopy?
     /// Which party's squares the full roll shows.
     public var rollParty: String?
 
@@ -40,12 +42,16 @@ public final class VoteScreenModel {
     public func load() async {
         phase = .loading
         do {
-            // The API caps ?members= at ten; a delegation is three, but a caller could hold more.
-            let detail = try await api.vote(id: voteId, members: Array(memberIds.prefix(10)))
-            phase = .loaded(detail)
-            if rollParty == nil { rollParty = detail.rollParties.first?.party }
-            if let measure = detail.measure, measure.kind == .bill {
-                bill = try? await api.bill(id: measure.id)
+            // Saved vote and bill first, then the network; see `revalidate`.
+            saved = try await revalidate(api) { [voteId, memberIds] api in
+                // The API caps ?members= at ten; a delegation is three, but a caller could hold more.
+                let detail = try await api.vote(id: voteId, members: Array(memberIds.prefix(10)))
+                phase = .loaded(detail)
+                if rollParty == nil { rollParty = detail.rollParties.first?.party }
+                // A bill that fails to refresh keeps the saved one rather than losing its level.
+                if let measure = detail.measure, measure.kind == .bill, let found = try? await api.bill(id: measure.id) {
+                    bill = found
+                }
             }
         } catch let error as FloorAPIError {
             phase = .failed(error.errorDescription ?? "Couldn't load this vote.")

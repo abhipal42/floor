@@ -115,6 +115,7 @@ struct RepRecordContent: View {
             let stats = RecordStats(votes: record.votes)
             let member = record.detail.member
             VStack(alignment: .leading, spacing: 16) {
+                if let saved = model.saved { SavedDataNote(savedAt: saved.savedAt, offline: saved.offline) }
                 playerCard(record.detail)
                 rings(record.detail.partyLoyalty, stats, member: member)
                 grid(stats)

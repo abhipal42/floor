@@ -24,6 +24,8 @@ public final class BillScreenModel {
 
     public private(set) var phase: Phase = .loading
     public private(set) var yourMembers: [MemberOnBill] = []
+    /// Set when the bill on screen is the saved one because the refresh after it failed.
+    public private(set) var saved: SavedCopy?
 
     private let billId: String
     private let members: [Member]
@@ -39,9 +41,12 @@ public final class BillScreenModel {
     public func load() async {
         phase = .loading
         do {
-            let bill = try await api.bill(id: billId)
-            phase = .loaded(bill)
-            await loadYourMembers(bill)
+            // Saved bill and positions first, then the network; see `revalidate`.
+            saved = try await revalidate(api) { [billId] api in
+                let bill = try await api.bill(id: billId)
+                phase = .loaded(bill)
+                await loadYourMembers(bill, api: api)
+            }
         } catch let error as FloorAPIError {
             phase = .failed(error.errorDescription ?? "Couldn't load this bill.")
         } catch {
@@ -50,14 +55,26 @@ public final class BillScreenModel {
     }
 
     /// At most one request per chamber: the latest vote there, asking for your members' positions.
-    private func loadYourMembers(_ bill: Bill) async {
+    ///
+    /// A chamber whose vote fails to load keeps the positions already on screen for that same vote,
+    /// so a failed refresh cannot blank what the saved data showed.
+    private func loadYourMembers(_ bill: Bill, api: FloorAPI) async {
         guard !members.isEmpty else { return }
         let latest = Self.latestVotes(bill)
         var positions: [String: MemberPosition] = [:]
         for vote in latest.values {
             let ids = members.filter { $0.chamber == vote.chamber }.map(\.bioguideId)
-            guard !ids.isEmpty, let detail = try? await api.vote(id: vote.id, members: ids) else { continue }
-            for position in detail.positions { positions[position.member.bioguideId] = position }
+            guard !ids.isEmpty else { continue }
+            if let detail = try? await api.vote(id: vote.id, members: ids) {
+                for position in detail.positions { positions[position.member.bioguideId] = position }
+            } else {
+                for shown in yourMembers where shown.vote?.id == vote.id {
+                    guard let position = shown.position else { continue }
+                    positions[shown.member.bioguideId] = MemberPosition(
+                        member: shown.member, position: position, choice: shown.choice
+                    )
+                }
+            }
         }
         yourMembers = members.map { member in
             let found = positions[member.bioguideId]

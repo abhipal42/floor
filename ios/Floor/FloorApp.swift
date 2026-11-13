@@ -7,7 +7,9 @@ import SwiftUI
 @main
 struct FloorApp: App {
     private let store = UserDefaultsDelegationStore()
-    private let api = FloorAPI(baseURL: FloorApp.apiBaseURL)
+    /// Every screen's responses are saved, so the app opens on what it last showed when offline or
+    /// slow, then refreshes. If the store cannot open, the app runs without one.
+    private let api = FloorAPI(baseURL: FloorApp.apiBaseURL, cache: SwiftDataResponseCache.onDisk())
     @State private var delegation: Delegation?
 
     init() {

@@ -37,6 +37,7 @@ public struct HomeView: View {
                 case let .failed(message):
                     failure(message)
                 case .loaded:
+                    if let saved = model.saved { SavedDataNote(savedAt: saved.savedAt, offline: saved.offline) }
                     if let latest = model.latestFinal {
                         Button { onOpen(.vote(id: latest.vote.id)) } label: { SplitFlapBoard(item: latest) }
                             .buttonStyle(.plain)
