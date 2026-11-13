@@ -67,6 +67,7 @@ import {
   cellLook,
   countText,
   deckPose,
+  deckJump,
   deckStep,
   driveBall,
   easeOutCubic,
@@ -647,8 +648,9 @@ function deck(): void {
 
   // Pinned: each stretch of scroll deals the next final; one step forward keeps the deal animation.
   const jump = (k: number) => {
-    if (k === front && leaving < 0) return;
-    if (k === deckStep(front, 1) && leaving < 0) {
+    const how = deckJump(front, k, leaving >= 0);
+    if (how === "stay") return;
+    if (how === "deal") {
       move(1);
       return;
     }

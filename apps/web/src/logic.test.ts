@@ -16,6 +16,7 @@ import {
   cellLook,
   countText,
   deckPose,
+  deckJump,
   deckStep,
   driveBall,
   easeOutCubic,
@@ -40,6 +41,21 @@ import {
   tierFor,
   yeaShare,
 } from "./logic.js";
+
+describe("deck jumps", () => {
+  it("deals the next card, cuts to any other, and stays put on the front card", () => {
+    expect(deckJump(2, 2, false)).toBe("stay");
+    expect(deckJump(2, 3, false)).toBe("deal");
+    expect(deckJump(4, 0, false)).toBe("deal");
+    expect(deckJump(2, 1, false)).toBe("cut");
+    expect(deckJump(0, 3, false)).toBe("cut");
+  });
+
+  it("cuts while a deal is still in flight, even to the front card", () => {
+    expect(deckJump(2, 3, true)).toBe("cut");
+    expect(deckJump(2, 2, true)).toBe("cut");
+  });
+});
 
 describe("pinned sections", () => {
   it("centres the stage under the header, or pins it right under the header", () => {

@@ -167,6 +167,16 @@ export function deckStep(front: number, dir: 1 | -1, n = DECK_SIZE): number {
   return (front + dir + n) % n;
 }
 
+/**
+ * How the deck reaches final k from the front card: nothing to do, deal the next card with its
+ * animation, or cut straight to it (backwards, a jump of more than one, or mid-deal).
+ */
+export function deckJump(front: number, k: number, dealing: boolean, n = DECK_SIZE): "stay" | "deal" | "cut" {
+  if (k === front && !dealing) return "stay";
+  if (k === deckStep(front, 1, n) && !dealing) return "deal";
+  return "cut";
+}
+
 /** Yea share of the bar on a final's card, at count-up progress p. */
 export function yeaShare(yea: number, nay: number, p: number): string {
   return (((100 * yea) / (yea + nay)) * p).toFixed(1) + "%";
