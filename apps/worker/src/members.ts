@@ -1,3 +1,5 @@
+import { errorText, startRun, upsertMembers, type Db } from "./db.js";
+
 /** One member as stored in the `members` table. */
 export interface MemberRow {
   bioguide_id: string;
@@ -87,4 +89,25 @@ export function toMemberRows(entries: LegislatorEntry[], servedSince = "2022-11-
     });
   }
   return rows;
+}
+
+/**
+ * Refreshes `members` from congress-legislators and records the run. The fetches sit inside the
+ * recorded run, so a download that fails is reported as this run's error rather than leaving a run
+ * that never finished (which `/v1/status` reads as abandoned an hour later).
+ */
+export async function ingestMembers(db: Db, getJson: <T>(url: string) => Promise<T>): Promise<number> {
+  const finish = await startRun(db, "members");
+  try {
+    const [current, historical] = await Promise.all([
+      getJson<LegislatorEntry[]>(CURRENT_URL),
+      getJson<LegislatorEntry[]>(HISTORICAL_URL),
+    ]);
+    const count = await upsertMembers(db, toMemberRows([...historical, ...current]));
+    await finish(count);
+    return count;
+  } catch (err) {
+    await finish(0, errorText(err));
+    throw err;
+  }
 }

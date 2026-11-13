@@ -1,8 +1,8 @@
 import pg from "pg";
 import type { Chamber } from "@floor/shared";
-import { startRun, upsertMembers, type Db } from "./db.js";
-import { CURRENT_URL, HISTORICAL_URL, toMemberRows, type LegislatorEntry } from "./members.js";
-import { ingestRollCalls } from "./rollcalls.js";
+import { type Db } from "./db.js";
+import { ingestMembers } from "./members.js";
+import { ingestSessions, sessionsToPoll } from "./rollcalls.js";
 import { congressClient, ingestVotedBills } from "./bills.js";
 import { ingestVotedNominations } from "./nominations.js";
 import { fecClient, ingestFecTotals, ingestPacContributions } from "./fec.js";
@@ -10,6 +10,7 @@ import { fecClient, ingestFecTotals, ingestPacContributions } from "./fec.js";
 const USAGE = `Usage:
   npm run ingest -w @floor/worker -- members
   npm run ingest -w @floor/worker -- rollcalls <house|senate> <congress> <session> [fromRoll]
+  npm run ingest -w @floor/worker -- rollcalls <house|senate> current   (the session in progress; what the schedule runs)
   npm run ingest -w @floor/worker -- bills [limit]              (bills that stored votes refer to; needs CONGRESS_API_KEY)
   npm run ingest -w @floor/worker -- bills --refresh [limit]    (re-fetch bills already stored, to pick up changes or mapping fixes)
   npm run ingest -w @floor/worker -- nominations [limit]         (nominations that stored Senate votes refer to; needs CONGRESS_API_KEY)
@@ -31,26 +32,25 @@ async function main() {
     console.error(USAGE);
     process.exit(1);
   }
-  const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL, max: 2 });
+  // One connection: every command issues its queries one after another, and through Supabase's
+  // session pooler each connection is one of the 15 slots the API and everyone else share (lesson 37).
+  // `pool.end()` below hands it back the moment the command finishes.
+  const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL, max: 1 });
   const db = pool as unknown as Db;
   try {
     if (command === "members") {
-      const finish = await startRun(db, "members");
-      const [current, historical] = await Promise.all([
-        getJson<LegislatorEntry[]>(CURRENT_URL),
-        getJson<LegislatorEntry[]>(HISTORICAL_URL),
-      ]);
-      const count = await upsertMembers(db, toMemberRows([...historical, ...current]));
-      await finish(count);
+      const count = await ingestMembers(db, getJson);
       console.log(`Upserted ${count} members`);
     } else if (command === "rollcalls") {
       const [chamber, congress, session, from] = args;
       if (chamber !== "house" && chamber !== "senate") throw new Error(USAGE);
-      const result = await ingestRollCalls(db, chamber as Chamber, Number(congress), Number(session), {
-        from: from ? Number(from) : undefined,
+      // `current` is what the schedule runs: the session in progress, plus the one just ended early in January.
+      const sessions =
+        congress === "current" ? sessionsToPoll(new Date()) : [{ congress: Number(congress), session: Number(session) }];
+      await ingestSessions(db, chamber as Chamber, sessions, {
+        from: congress !== "current" && from ? Number(from) : undefined,
         log: (msg) => console.log(msg),
       });
-      console.log(`Stored ${result.stored} roll calls (last: ${result.lastRoll}); ${result.skippedPositions} positions for unknown members`);
     } else if (command === "bills") {
       if (!process.env.CONGRESS_API_KEY) throw new Error("Set CONGRESS_API_KEY in .env (free key: https://api.data.gov/signup)");
       const refresh = args.includes("--refresh");

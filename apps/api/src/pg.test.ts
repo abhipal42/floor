@@ -1,7 +1,37 @@
 import { PGlite } from "@electric-sql/pglite";
 import { loadMigrations } from "@floor/db";
 import { beforeAll, describe, expect, it } from "vitest";
-import { pgRepositories, type Db } from "./pg.js";
+import { pgRepositories, poolerMode, poolerWarning, type Db } from "./pg.js";
+
+describe("poolerMode", () => {
+  // Shapes only: the hosts are Supabase's, the credentials are placeholders.
+  it("tells the transaction pooler from the session pooler by port", () => {
+    expect(poolerMode("postgresql://postgres.ref:pw@aws-1-us-east-1.pooler.supabase.com:6543/postgres")).toBe("transaction");
+    expect(poolerMode("postgresql://postgres.ref:pw@aws-1-us-east-1.pooler.supabase.com:5432/postgres")).toBe("session");
+    expect(poolerMode("postgresql://postgres.ref:pw@aws-1-us-east-1.pooler.supabase.com/postgres")).toBe("session");
+  });
+
+  it("recognizes the direct host and anything else", () => {
+    expect(poolerMode("postgresql://postgres:pw@db.ref.supabase.co:5432/postgres")).toBe("direct");
+    expect(poolerMode("postgresql://localhost:5432/floor")).toBe("unknown");
+    expect(poolerMode("not a url")).toBe("unknown");
+  });
+
+  it("reads port 6543 as the transaction pooler whatever the host", () => {
+    expect(poolerMode("postgresql://postgres.ref:pw@db.example.com:6543/postgres")).toBe("transaction");
+    expect(poolerMode("postgresql://postgres.ref:pw@aws-0-eu-west-2.pooler.supabase.com:6543/postgres")).toBe("transaction");
+  });
+
+  it("warns, in English, about anything but the transaction pooler", () => {
+    expect(poolerWarning("postgresql://postgres.ref:pw@aws-1-us-east-1.pooler.supabase.com:6543/postgres")).toBeNull();
+    expect(poolerWarning("postgresql://postgres.ref:pw@aws-1-us-east-1.pooler.supabase.com:5432/postgres")).toBe(
+      "DATABASE_URL is a session connection; use Supabase's transaction pooler (port 6543)",
+    );
+    expect(poolerWarning("postgresql://localhost:5432/floor")).toBe(
+      "DATABASE_URL is an unknown connection; use Supabase's transaction pooler (port 6543)",
+    );
+  });
+});
 
 let repos: ReturnType<typeof pgRepositories>;
 let pg: PGlite;
@@ -124,7 +154,13 @@ beforeAll(async () => {
       ('members', '2025-01-01T00:00:00Z', '2025-01-01T00:01:00Z', 700, null),
       ('house_rollcalls', '2025-01-02T00:00:00Z', '2025-01-02T00:05:00Z', 10, null),
       ('house_rollcalls', '2025-01-03T00:00:00Z', '2025-01-03T00:00:05Z', 0, 'HTTP 503'),
-      ('house_rollcalls', '2025-01-03T01:00:00Z', null, 0, null);
+      ('house_rollcalls', '2025-01-03T01:00:00Z', null, 0, null),
+      ('senate_rollcalls', '2025-01-02T00:00:00Z', '2025-01-02T00:01:00Z', 5, 'deadlock detected'),
+      ('senate_rollcalls', '2025-01-02T00:02:00Z', '2025-01-02T00:03:00Z', 9, null),
+      ('bills', '2025-01-01T00:00:00Z', '2025-01-01T00:02:00Z', 4, null),
+      ('bills', '2025-01-02T00:00:00Z', '2025-01-02T00:00:01Z', 0, null),
+      ('nominations', '2025-01-01T00:00:00Z', '2025-01-01T00:10:00Z', 3, null),
+      ('nominations', now(), null, 0, null);
   `);
   repos = pgRepositories(pg as unknown as Db);
 });
@@ -203,12 +239,55 @@ describe("Postgres repositories", () => {
     expect(await repos.nominations.getNomination("119-pn-9999")).toBeNull();
   });
 
-  it("reports the last successful run and the latest error per source", async () => {
+  it("reports the last successful run, the last that stored anything, and the latest outcome's error", async () => {
     const runs = (await repos.status.lastRuns()).sort((a, b) => a.source.localeCompare(b.source));
     expect(runs).toEqual([
-      { source: "house_rollcalls", lastSuccessAt: new Date("2025-01-02T00:05:00Z"), lastError: "HTTP 503" },
-      { source: "members", lastSuccessAt: new Date("2025-01-01T00:01:00Z"), lastError: null },
+      // A run that stored nothing still counts as a success, but not as new data.
+      {
+        source: "bills",
+        lastSuccessAt: new Date("2025-01-02T00:00:01Z"),
+        lastNewDataAt: new Date("2025-01-01T00:02:00Z"),
+        lastError: null,
+      },
+      // The run started 2025-01-03 01:00 never recorded an outcome and is long past the hour, so it
+      // counts as failed. It came after the HTTP 503, so it is the error that stands.
+      {
+        source: "house_rollcalls",
+        lastSuccessAt: new Date("2025-01-02T00:05:00Z"),
+        lastNewDataAt: new Date("2025-01-02T00:05:00Z"),
+        lastError: "abandoned run: it never recorded an outcome",
+      },
+      {
+        source: "members",
+        lastSuccessAt: new Date("2025-01-01T00:01:00Z"),
+        lastNewDataAt: new Date("2025-01-01T00:01:00Z"),
+        lastError: null,
+      },
+      // A run that started just now is in progress, not failed.
+      {
+        source: "nominations",
+        lastSuccessAt: new Date("2025-01-01T00:10:00Z"),
+        lastNewDataAt: new Date("2025-01-01T00:10:00Z"),
+        lastError: null,
+      },
+      // A run that succeeded after the failure clears it: the error is history, not the current state.
+      {
+        source: "senate_rollcalls",
+        lastSuccessAt: new Date("2025-01-02T00:03:00Z"),
+        lastNewDataAt: new Date("2025-01-02T00:03:00Z"),
+        lastError: null,
+      },
     ]);
+  });
+
+  it("lets a finished success after an abandoned run clear it", async () => {
+    await pg.exec(
+      "insert into ingest_runs (source, started_at, finished_at, items, error) " +
+        "values ('house_rollcalls', '2025-01-04T00:00:00Z', '2025-01-04T00:01:00Z', 2, null)",
+    );
+    const house = (await repos.status.lastRuns()).find((r) => r.source === "house_rollcalls");
+    expect(house?.lastError).toBeNull();
+    await pg.exec("delete from ingest_runs where started_at = '2025-01-04T00:00:00Z'");
   });
 
   it("lists a member's votes newest first with their position", async () => {

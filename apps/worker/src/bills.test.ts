@@ -200,8 +200,12 @@ describe("ingestVotedBills", () => {
     expect(stored[0]?.sponsor_id).toBe("A000375");
     expect(stored[0]?.n).toBe(toActionRows(actions).length);
 
-    const { rows: run } = await pg.query<{ items: number; error: string }>("select items, error from ingest_runs where source = 'bills'");
-    expect(run).toEqual([{ items: 1, error: "1 bills failed" }]);
+    // One bill failing is counted, not the run's error: otherwise one bad reference would mark bills
+    // failed on every run until someone fixed it upstream (lesson 38).
+    const { rows: run } = await pg.query<{ items: number; failed: number; error: string | null }>(
+      "select items, failed, error from ingest_runs where source = 'bills'",
+    );
+    expect(run).toEqual([{ items: 1, failed: 1, error: null }]);
   });
 
   it("refresh re-fetches stored bills and leaves the vote links alone", async () => {

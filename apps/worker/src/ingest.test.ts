@@ -5,13 +5,17 @@ import { PGlite } from "@electric-sql/pglite";
 import { loadMigrations } from "@floor/db";
 import { beforeAll, describe, expect, it } from "vitest";
 import type { Db } from "./db.js";
-import { upsertMembers } from "./db.js";
-import { toMemberRows, type LegislatorEntry } from "./members.js";
+import { parseSenateRollCall } from "@floor/shared";
+import { positionRows, startRun, upsertMembers } from "./db.js";
+import { ingestMembers, toMemberRows, type LegislatorEntry } from "./members.js";
 import {
   fetchRollCall,
   houseRollUrl,
   ingestRollCalls,
+  ingestSessions,
+  retryDelay,
   senateRollUrl,
+  sessionsToPoll,
   withRetry,
   yearOf,
   type FetchText,
@@ -132,6 +136,75 @@ describe("withRetry", () => {
     await expect(withRetry(async () => { calls++; throw pgError("23505"); }, 3, 1)).rejects.toThrow("23505");
     expect(calls).toBe(1);
   });
+
+  it("backs off exponentially between attempts", async () => {
+    const waits: number[] = [];
+    const sleep = async (ms: number) => void waits.push(ms);
+    await expect(withRetry(async () => { throw pgError("40P01"); }, 5, 100, sleep)).rejects.toThrow("40P01");
+    // Four waits for five attempts, each at least double the base of the one before.
+    expect(waits).toHaveLength(4);
+    waits.forEach((ms, i) => {
+      expect(ms).toBeGreaterThanOrEqual(100 * 2 ** i);
+      expect(ms).toBeLessThanOrEqual(150 * 2 ** i);
+    });
+  });
+
+  it("jitters each wait by up to half of it", () => {
+    expect(retryDelay(1, 200, () => 0)).toBe(200);
+    expect(retryDelay(3, 200, () => 0)).toBe(800);
+    expect(retryDelay(3, 200, () => 1)).toBe(1200);
+  });
+});
+
+describe("sessionsToPoll", () => {
+  it("polls the session in progress", () => {
+    expect(sessionsToPoll(new Date("2026-11-13T12:00:00Z"))).toEqual([{ congress: 119, session: 2 }]);
+    expect(sessionsToPoll(new Date("2025-06-01T12:00:00Z"))).toEqual([{ congress: 119, session: 1 }]);
+    expect(sessionsToPoll(new Date("2027-03-01T12:00:00Z"))).toEqual([{ congress: 120, session: 1 }]);
+  });
+
+  it("also polls the session just ended in early January", () => {
+    // The session in progress first; the one just ended is the catch-up.
+    expect(sessionsToPoll(new Date("2027-01-02T12:00:00Z"))).toEqual([
+      { congress: 120, session: 1 },
+      { congress: 119, session: 2 },
+    ]);
+    expect(sessionsToPoll(new Date("2026-01-10T12:00:00Z"))).toEqual([
+      { congress: 119, session: 2 },
+      { congress: 119, session: 1 },
+    ]);
+    expect(sessionsToPoll(new Date("2026-01-15T12:00:00Z"))).toEqual([{ congress: 119, session: 2 }]);
+  });
+
+  it("agrees with yearOf", () => {
+    for (const year of [2023, 2024, 2025, 2026, 2027]) {
+      const [s] = sessionsToPoll(new Date(`${year}-07-01T00:00:00Z`));
+      expect(yearOf(s!.congress, s!.session)).toBe(year);
+    }
+  });
+});
+
+describe("positionRows", () => {
+  const pos = (memberId: string, position: "yea" | "nay") =>
+    ({ memberId, idType: "bioguide", party: "D", state: "NY", position }) as const;
+
+  it("orders rows by member, so the write is the same whatever order the file used", () => {
+    const rows = positionRows({ positions: [pos("S000033", "yea"), pos("A000370", "nay"), pos("K000401", "yea")] });
+    expect(rows.map((r) => r.member_id)).toEqual(["A000370", "K000401", "S000033"]);
+    expect(rows[0]).toEqual({ member_id: "A000370", position: "nay", choice: null });
+  });
+
+  it("keeps one row per member, the last listed", () => {
+    const rows = positionRows({ positions: [pos("A000370", "yea"), pos("A000370", "nay")] });
+    expect(rows).toEqual([{ member_id: "A000370", position: "nay", choice: null }]);
+  });
+
+  it("is the same whatever order the file lists members in", () => {
+    const xml = senateXml;
+    const forward = parseSenateRollCall(xml);
+    const reversed = { positions: [...forward.positions].reverse() };
+    expect(positionRows(reversed)).toEqual(positionRows(forward));
+  });
 });
 
 describe("ingestRollCalls", () => {
@@ -209,6 +282,77 @@ describe("ingestRollCalls", () => {
       { source: "house_rollcalls", items: 1, error: null },
       { source: "senate_rollcalls", items: 0, error: null },
       { source: "house_rollcalls", items: 0, error: null },
+    ]);
+  });
+});
+
+// After "resumes after the last stored roll and logs the run", which lists every run so far.
+describe("every started run records an outcome", () => {
+  const lastRun = async () =>
+    (
+      await pg.query<{ source: string; error: string | null; finished: boolean }>(
+        "select source, error, finished_at is not null as finished from ingest_runs order by id desc limit 1",
+      )
+    ).rows[0];
+
+  it("when the lookup before the first fetch fails", async () => {
+    const failing: Db = {
+      query: (text, params) =>
+        text.includes("max(roll_number)") ? Promise.reject(new Error("connection reset")) : db.query(text, params),
+    };
+    await expect(ingestRollCalls(failing, "house", 119, 9, { fetchText: fakeFetch })).rejects.toThrow("connection reset");
+    expect(await lastRun()).toEqual({ source: "house_rollcalls", error: "connection reset", finished: true });
+  });
+
+  it("when the members download fails", async () => {
+    const down = async <T>(): Promise<T> => {
+      throw new Error("legislators-current.json returned HTTP 503");
+    };
+    await expect(ingestMembers(db, down)).rejects.toThrow("HTTP 503");
+    expect(await lastRun()).toEqual({ source: "members", error: "legislators-current.json returned HTTP 503", finished: true });
+  });
+
+  it("when members load, with the count", async () => {
+    const serve = async <T>(url: string): Promise<T> => (url.includes("current") ? legislators : []) as T;
+    expect(await ingestMembers(db, serve)).toBe(toMemberRows(legislators).length);
+    expect(await lastRun()).toEqual({ source: "members", error: null, finished: true });
+  });
+
+  it("still closes a run on a database without the failed column", async () => {
+    // A database that has not had migration 20261113000100 yet answers 42703 to the new update.
+    const queries: string[] = [];
+    const old: Db = {
+      query: async <T>(text: string) => {
+        queries.push(text);
+        if (text.includes("failed = $4")) throw Object.assign(new Error('column "failed" does not exist'), { code: "42703" });
+        return { rows: (text.startsWith("insert") ? [{ id: 1 }] : []) as T[] };
+      },
+    };
+    const finish = await startRun(old, "bills");
+    await finish(3, undefined, 1);
+    expect(queries.at(-1)).toBe("update ingest_runs set finished_at = now(), items = $2, error = $3 where id = $1");
+  });
+});
+
+describe("ingestSessions", () => {
+  it("runs every session even when one fails, then reports the failure", async () => {
+    const logs: string[] = [];
+    // 119-2 roll 1 answers 503; 119-1 has nothing after roll 100.
+    const flaky: FetchText = async (url) =>
+      url === houseRollUrl(119, 2, 1) ? { status: 503, text: "" } : fakeFetch(url);
+    await expect(
+      ingestSessions(db, "house", [{ congress: 119, session: 2 }, { congress: 119, session: 1 }], {
+        fetchText: flaky,
+        log: (m) => logs.push(m),
+      }),
+    ).rejects.toThrow(/HTTP 503/);
+    expect(logs.some((m) => m.startsWith("house 119-2 failed:"))).toBe(true);
+    expect(logs).toContain("house 119-1: stored 0 roll calls (last: 100); 0 positions for unknown members");
+  });
+
+  it("returns what each session stored when all succeed", async () => {
+    expect(await ingestSessions(db, "senate", [{ congress: 119, session: 1 }], { fetchText: fakeFetch })).toEqual([
+      { congress: 119, session: 1, stored: 0 },
     ]);
   });
 });

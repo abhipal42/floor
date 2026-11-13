@@ -139,7 +139,12 @@ const app = createApp({
   status: {
     lastRuns: async () => [
       { source: "members", lastSuccessAt: new Date("2026-11-11T00:00:00Z"), lastError: null },
-      { source: "house_rollcalls", lastSuccessAt: new Date("2026-11-11T20:00:00Z"), lastError: null },
+      {
+        source: "house_rollcalls",
+        lastSuccessAt: new Date("2026-11-11T20:00:00Z"),
+        lastNewDataAt: new Date("2026-11-10T20:00:00Z"),
+        lastError: null,
+      },
       { source: "senate_rollcalls", lastSuccessAt: new Date("2026-11-09T00:00:00Z"), lastError: "HTTP 503" },
     ],
   },
@@ -377,11 +382,17 @@ describe("API", () => {
     expect(await res.json()).toEqual({
       ok: false,
       sources: [
-        { source: "members", lastSuccessAt: "2026-11-11T00:00:00.000Z", lastError: null, stale: false },
-        { source: "house_rollcalls", lastSuccessAt: "2026-11-11T20:00:00.000Z", lastError: null, stale: false },
-        { source: "senate_rollcalls", lastSuccessAt: "2026-11-09T00:00:00.000Z", lastError: "HTTP 503", stale: true },
-        { source: "bills", lastSuccessAt: null, lastError: null, stale: true },
-        { source: "nominations", lastSuccessAt: null, lastError: null, stale: true },
+        { source: "members", lastSuccessAt: "2026-11-11T00:00:00.000Z", lastNewDataAt: null, lastError: null, stale: false },
+        {
+          source: "house_rollcalls",
+          lastSuccessAt: "2026-11-11T20:00:00.000Z",
+          lastNewDataAt: "2026-11-10T20:00:00.000Z",
+          lastError: null,
+          stale: false,
+        },
+        { source: "senate_rollcalls", lastSuccessAt: "2026-11-09T00:00:00.000Z", lastNewDataAt: null, lastError: "HTTP 503", stale: true },
+        { source: "bills", lastSuccessAt: null, lastNewDataAt: null, lastError: null, stale: true },
+        { source: "nominations", lastSuccessAt: null, lastNewDataAt: null, lastError: null, stale: true },
       ],
     });
   });

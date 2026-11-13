@@ -949,9 +949,15 @@
             "type": "string",
             "nullable": true
           },
+          "lastNewDataAt": {
+            "type": "string",
+            "nullable": true,
+            "description": "When a successful run last stored anything. A scheduled job keeps lastSuccessAt fresh even when upstream stops publishing or nothing is found, so a long gap here, not `stale`, is what shows that"
+          },
           "lastError": {
             "type": "string",
-            "nullable": true
+            "nullable": true,
+            "description": "The error of the latest run with an outcome, if it failed; null once a later run succeeds. A run that never recorded an outcome within an hour reads as \"abandoned run\""
           },
           "stale": {
             "type": "boolean"
@@ -960,6 +966,7 @@
         "required": [
           "source",
           "lastSuccessAt",
+          "lastNewDataAt",
           "lastError",
           "stale"
         ]

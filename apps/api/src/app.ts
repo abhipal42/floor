@@ -377,7 +377,16 @@ export const SourceStatusSchema = z
   .object({
     source: z.string().openapi({ example: "house_rollcalls" }),
     lastSuccessAt: z.string().nullable(),
-    lastError: z.string().nullable(),
+    lastNewDataAt: z.string().nullable().openapi({
+      description:
+        "When a successful run last stored anything. A scheduled job keeps lastSuccessAt fresh even when " +
+        "upstream stops publishing or nothing is found, so a long gap here, not `stale`, is what shows that",
+    }),
+    lastError: z.string().nullable().openapi({
+      description:
+        "The error of the latest run with an outcome, if it failed; null once a later run succeeds. A run " +
+        "that never recorded an outcome within an hour reads as \"abandoned run\"",
+    }),
     stale: z.boolean(),
   })
   .openapi("SourceStatus");
@@ -394,8 +403,13 @@ export const MAX_AGE_HOURS: Record<string, number> = {
 };
 
 export interface StatusRepository {
-  /** Latest successful run and latest error per ingest source. */
-  lastRuns(): Promise<{ source: string; lastSuccessAt: Date | null; lastError: string | null }[]>;
+  /**
+   * Per ingest source: the latest successful run, the latest successful run that stored anything, and
+   * the error of the latest run with an outcome if that run failed.
+   */
+  lastRuns(): Promise<
+    { source: string; lastSuccessAt: Date | null; lastNewDataAt?: Date | null; lastError: string | null }[]
+  >;
 }
 
 export interface AppDeps {
@@ -738,6 +752,7 @@ export function createApp(deps: AppDeps) {
       return {
         source,
         lastSuccessAt: last ? last.toISOString() : null,
+        lastNewDataAt: run?.lastNewDataAt ? run.lastNewDataAt.toISOString() : null,
         lastError: unreachable ?? run?.lastError ?? null,
         stale: !last || now - last.getTime() > hours * 3_600_000,
       };

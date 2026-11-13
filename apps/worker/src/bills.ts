@@ -229,32 +229,31 @@ export async function ingestVotedBills(
   opts: { limit?: number; refresh?: boolean; log?: (msg: string) => void } = {},
 ): Promise<{ bills: number; linkedVotes: number; failed: number }> {
   const finish = await startRun(db, "bills");
-
-  // Group the chambers' different spellings of the same bill.
-  const byBill = new Map<string, { congress: number; type: BillType; number: number; refs: string[] }>();
-  if (opts.refresh) {
-    const { rows } = await db.query<{ id: string; congress: number; bill_type: BillType; number: number }>(
-      "select id, congress, bill_type, number from bills order by id",
-    );
-    for (const r of rows) byBill.set(r.id, { congress: r.congress, type: r.bill_type, number: r.number, refs: [] });
-  } else {
-    const { rows } = await db.query<{ congress: number; bill_ref: string }>(
-      "select distinct congress, bill_ref from votes where bill_id is null and bill_ref is not null order by congress, bill_ref",
-    );
-    for (const r of rows) {
-      const ref = parseMeasureRef(r.bill_ref);
-      if (ref?.kind !== "bill") continue;
-      const id = billId(r.congress, ref.type, ref.number);
-      const entry = byBill.get(id) ?? { congress: r.congress, type: ref.type, number: ref.number, refs: [] };
-      entry.refs.push(r.bill_ref);
-      byBill.set(id, entry);
-    }
-  }
-
   let bills = 0;
   let linkedVotes = 0;
   let failed = 0;
   try {
+    // Group the chambers' different spellings of the same bill.
+    const byBill = new Map<string, { congress: number; type: BillType; number: number; refs: string[] }>();
+    if (opts.refresh) {
+      const { rows } = await db.query<{ id: string; congress: number; bill_type: BillType; number: number }>(
+        "select id, congress, bill_type, number from bills order by id",
+      );
+      for (const r of rows) byBill.set(r.id, { congress: r.congress, type: r.bill_type, number: r.number, refs: [] });
+    } else {
+      const { rows } = await db.query<{ congress: number; bill_ref: string }>(
+        "select distinct congress, bill_ref from votes where bill_id is null and bill_ref is not null order by congress, bill_ref",
+      );
+      for (const r of rows) {
+        const ref = parseMeasureRef(r.bill_ref);
+        if (ref?.kind !== "bill") continue;
+        const id = billId(r.congress, ref.type, ref.number);
+        const entry = byBill.get(id) ?? { congress: r.congress, type: ref.type, number: ref.number, refs: [] };
+        entry.refs.push(r.bill_ref);
+        byBill.set(id, entry);
+      }
+    }
+
     for (const [id, b] of byBill) {
       if (opts.limit !== undefined && bills >= opts.limit) break;
       const path = `/bill/${b.congress}/${b.type}/${b.number}`;
@@ -285,9 +284,10 @@ export async function ingestVotedBills(
         opts.log?.(`${id}: ${err instanceof Error ? err.message : String(err)}`);
       }
     }
-    await finish(bills, failed ? `${failed} bills failed` : undefined);
+    // Per-bill failures are counted, not reported as the run's error (lesson 38).
+    await finish(bills, undefined, failed);
   } catch (err) {
-    await finish(bills, err instanceof Error ? err.message : String(err));
+    await finish(bills, err instanceof Error ? err.message : String(err), failed);
     throw err;
   }
   return { bills, linkedVotes, failed };

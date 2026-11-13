@@ -1,5 +1,5 @@
 import { strFromU8, unzipSync } from "fflate";
-import { startRun, type Db } from "./db.js";
+import { errorText, startRun, type Db } from "./db.js";
 import { withRetry } from "./rollcalls.js";
 
 // Campaign finance from the FEC. Two sources, each labelled where it is shown:
@@ -116,49 +116,55 @@ export async function ingestFecTotals(
   opts: { staleHours?: number; limit?: number; log?: (msg: string) => void } = {},
 ): Promise<{ loaded: number; noTotals: number; noCandidateId: number; failed: number }> {
   const finish = await startRun(db, "fec_totals");
-  const { rows: fresh } = await db.query<{ member_id: string }>(
-    "select member_id from campaign_finance where updated_at > now() - make_interval(hours => $1)",
-    [opts.staleHours ?? 20],
-  );
-  const skip = new Set(fresh.map((r) => r.member_id));
   const result = { loaded: 0, noTotals: 0, noCandidateId: 0, failed: 0 };
-  for (const m of await currentMembers(db)) {
-    if (skip.has(m.bioguide_id)) continue;
-    if (opts.limit !== undefined && result.loaded >= opts.limit) break;
-    const candidateId = pickCandidateId(m);
-    if (!candidateId) {
-      result.noCandidateId++;
-      opts.log?.(`${m.bioguide_id}: no FEC candidate ID for a ${m.chamber} seat in ${m.state}`);
-      continue;
-    }
-    const cycle = campaignCycle(m.term_end);
-    try {
-      const row = toFinanceRow(m.bioguide_id, candidateId, cycle, await get(`/candidate/${candidateId}/totals/?cycle=${cycle}&election_full=true`));
-      if (!row) {
-        result.noTotals++;
+  try {
+    const { rows: fresh } = await db.query<{ member_id: string }>(
+      "select member_id from campaign_finance where updated_at > now() - make_interval(hours => $1)",
+      [opts.staleHours ?? 20],
+    );
+    const skip = new Set(fresh.map((r) => r.member_id));
+    for (const m of await currentMembers(db)) {
+      if (skip.has(m.bioguide_id)) continue;
+      if (opts.limit !== undefined && result.loaded >= opts.limit) break;
+      const candidateId = pickCandidateId(m);
+      if (!candidateId) {
+        result.noCandidateId++;
+        opts.log?.(`${m.bioguide_id}: no FEC candidate ID for a ${m.chamber} seat in ${m.state}`);
         continue;
       }
-      await withRetry(() =>
-        db.query(
-          `insert into campaign_finance (member_id, fec_candidate_id, cycle, coverage_start, coverage_end, receipts,
-             individual_unitemized, individual_itemized, pac, party, other, cash_on_hand, updated_at)
-           values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, now())
-           on conflict (member_id) do update set fec_candidate_id = excluded.fec_candidate_id, cycle = excluded.cycle,
-             coverage_start = excluded.coverage_start, coverage_end = excluded.coverage_end, receipts = excluded.receipts,
-             individual_unitemized = excluded.individual_unitemized, individual_itemized = excluded.individual_itemized,
-             pac = excluded.pac, party = excluded.party, other = excluded.other, cash_on_hand = excluded.cash_on_hand,
-             updated_at = now()`,
-          [row.member_id, row.fec_candidate_id, row.cycle, row.coverage_start, row.coverage_end, row.receipts,
-            row.individual_unitemized, row.individual_itemized, row.pac, row.party, row.other, row.cash_on_hand],
-        ),
-      );
-      result.loaded++;
-    } catch (err) {
-      result.failed++;
-      opts.log?.(`${m.bioguide_id}: ${err instanceof Error ? err.message : String(err)}`);
+      const cycle = campaignCycle(m.term_end);
+      try {
+        const row = toFinanceRow(m.bioguide_id, candidateId, cycle, await get(`/candidate/${candidateId}/totals/?cycle=${cycle}&election_full=true`));
+        if (!row) {
+          result.noTotals++;
+          continue;
+        }
+        await withRetry(() =>
+          db.query(
+            `insert into campaign_finance (member_id, fec_candidate_id, cycle, coverage_start, coverage_end, receipts,
+               individual_unitemized, individual_itemized, pac, party, other, cash_on_hand, updated_at)
+             values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, now())
+             on conflict (member_id) do update set fec_candidate_id = excluded.fec_candidate_id, cycle = excluded.cycle,
+               coverage_start = excluded.coverage_start, coverage_end = excluded.coverage_end, receipts = excluded.receipts,
+               individual_unitemized = excluded.individual_unitemized, individual_itemized = excluded.individual_itemized,
+               pac = excluded.pac, party = excluded.party, other = excluded.other, cash_on_hand = excluded.cash_on_hand,
+               updated_at = now()`,
+            [row.member_id, row.fec_candidate_id, row.cycle, row.coverage_start, row.coverage_end, row.receipts,
+              row.individual_unitemized, row.individual_itemized, row.pac, row.party, row.other, row.cash_on_hand],
+          ),
+        );
+        result.loaded++;
+      } catch (err) {
+        result.failed++;
+        opts.log?.(`${m.bioguide_id}: ${err instanceof Error ? err.message : String(err)}`);
+      }
     }
+    // Per-member failures are counted, not reported as the run's error (lesson 38).
+    await finish(result.loaded, undefined, result.failed);
+  } catch (err) {
+    await finish(result.loaded, errorText(err), result.failed);
+    throw err;
   }
-  await finish(result.loaded, result.failed ? `${result.failed} members failed` : undefined);
   return result;
 }
 
