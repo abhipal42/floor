@@ -39,6 +39,30 @@
 </header>
 
 <main>
+<section id="yours" class="wrap yours" aria-label="Your members">
+  <div class="yours__strip" id="yours-strip" data-tone="muted" tabindex="-1">
+    <div class="yours__l">
+      <span class="yours__k" id="yours-kicker">SAMPLE · NEW YORK'S 8TH DISTRICT</span>
+      <div class="yours__chips" id="yours-chips"></div>
+      <p class="yours__note" id="yours-note" hidden></p>
+    </div>
+    <div class="yours__r">
+      <p class="yours__title" id="yours-title">Make it your three.</p>
+      <button type="button" class="yours__locate" id="yours-locate">Use my location</button>
+      <form class="yours__addr" id="yours-addr" novalidate hidden>
+        <div class="yours__row">
+          <input id="yours-input" type="text" autocomplete="street-address" aria-label="Street address" aria-describedby="yours-err" placeholder="1100 Congress Ave, Austin, TX 78701">
+          <button type="submit">Find</button>
+        </div>
+        <span class="yours__err" id="yours-err" role="alert" hidden></span>
+      </form>
+      <span class="yours__links"><button type="button" class="yours__link" id="yours-to-addr">or type an address</button><button type="button" class="yours__link yours__link--dim" id="yours-back" hidden>Back to the sample</button><button type="button" class="yours__link yours__link--dim" id="yours-cancel" hidden>Cancel</button></span>
+      <span class="yours__privacy" id="yours-privacy"></span>
+    </div>
+  </div>
+  <p class="sr" id="yours-status" role="status" aria-live="polite"></p>
+</section>
+
 <section id="top" class="wrap hero" aria-labelledby="hero-title">
   <div class="hero__copy">
     <h1 id="hero-title" class="hero__title">Congress,<br>called like<br><span class="hl" data-reveal>a game.</span></h1>
@@ -61,6 +85,7 @@
     <span class="kicker">01 · CATCH UP</span>
     <h2 id="finals-title" class="h2">Five finals<br>worth knowing.</h2>
     <p class="lede">The votes you'd hear about at the bar, one card at a time: the rule it had to beat, the score, the twist, and where your three landed. In the app, the deck is rebuilt every week from your members' votes.</p>
+    <p class="sample-flag" data-sample-flag hidden><span class="sample-flag__k">SAMPLE · NEW YORK'S 8TH</span>These five, and the calls on them, are the New York sample. Each card's summary and twist are written by hand, so the deck isn't rebuilt from your members' votes yet.</p>
   </div>
   <div class="split__deck" id="deck"></div>
 </section>
@@ -96,11 +121,11 @@
 
 <section id="scout" class="wrap stack" aria-labelledby="scout-title">
   <div class="sec-head">
-    <div class="sec-head__title"><span class="kicker">04 · YOUR REPS</span>
+    <div class="sec-head__title"><span class="kicker" id="scout-kicker">04 · YOUR REPS</span>
     <h2 id="scout-title" class="h2">Scouting report.</h2></div>
     <div role="tablist" aria-label="Your members" class="tabs" id="scout-tabs"></div>
   </div>
-  <div class="scout" id="scout-panel" role="tabpanel" aria-labelledby="scout-title"></div>
+  <div class="scout" id="scout-panel" role="tabpanel" aria-labelledby="scout-title" tabindex="-1"></div>
 </section>
 
 <section id="cards" class="band" aria-labelledby="cards-title">
@@ -138,6 +163,7 @@
     <h2 id="money-title" class="h2">Who's in<br>their corner.</h2></div>
     <div role="tablist" aria-label="Your members" class="tabs" id="money-tabs"></div>
   </div>
+  <p class="sample-flag" data-sample-flag hidden><span class="sample-flag__k">SAMPLE · NEW YORK</span>Funding and donor context are in for New York's three only, so this section still shows Jeffries, Schumer and Gillibrand. Your members' FEC totals are next.</p>
   <div class="money" id="money-panel" role="tabpanel" aria-labelledby="money-title"></div>
   <p class="fine">Source: Federal Election Commission filings for each member's principal campaign committee. Small-dollar means unitemized gifts under $200. Floor shows committees and totals — never individual donors' names.</p>
   <div class="context-wrap">
@@ -153,6 +179,7 @@
       <h2 id="portfolio-title" class="h2">What they own.<br>What they trade.</h2></div>
       <p class="lede">Every member files what they own each year, and every stock trade within 45 days. Floor reads the filings so you can see the money — in the ranges they report, never a number they didn't.</p>
     </div>
+    <p class="sample-flag" data-sample-flag hidden><span class="sample-flag__k">SAMPLE · NEW YORK</span>Disclosures are read for the New York sample only, so this is still Jeffries' filing, not your representative's.</p>
     <div class="pf" id="pf"></div>
   </div>
 </section>
@@ -164,6 +191,7 @@
       <h2 id="live-title" class="h2">The game,<br>on your phone.</h2>
       <p class="lede">A Live Activity the moment a vote opens. Your members' calls the minute the roll posts. The final in your Dynamic Island before the gavel echoes.</p>
       <span class="fine">Preview of a feature in development. Scores below replay H.R. 1013.</span>
+      <p class="sample-flag" data-sample-flag hidden><span class="sample-flag__k">SAMPLE · NY-8</span>The rep in this replay is the sample's, Hakeem Jeffries.</p>
     </div>
     <div class="live__phone">
       <div class="phone">

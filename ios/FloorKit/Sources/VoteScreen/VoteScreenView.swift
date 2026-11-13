@@ -36,7 +36,7 @@ public struct VoteScreenView: View {
             Palette.ground.ignoresSafeArea()
             content
         }
-        .task { if case .loading = model.phase { await model.load() } }
+        .task { if model.needsRefresh { await model.load() } }
     }
 
     @ViewBuilder
@@ -58,6 +58,7 @@ public struct VoteScreenView: View {
         case let .loaded(detail):
             ScrollView {
                 VStack(alignment: .leading, spacing: 18) {
+                    if let saved = model.saved { SavedDataNote(saved) }
                     if detail.vote.kind == .election {
                         electionBoard(detail)
                         candidateTable(detail)

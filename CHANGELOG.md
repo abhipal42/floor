@@ -8,6 +8,129 @@ is a milestone and ships a retro under `docs/retros/`.
 Older series live in [`docs/changelog/`](docs/changelog) (0.1.x: [`0.1.md`](docs/changelog/0.1.md)).
 Before 0.1.0 the history is the commit log on `main`.
 
+## 0.2.11 — 2026-11-13
+
+"Use my location" on the iOS app's onboarding, built to the locked canvas round 7 board `LocApp`
+(<https://claude.ai/artifact/FKWYDhCej75UPy94csYLsU>).
+
+### Added
+- **"Use my location"** above the address field, with "or type an address" under it. It asks for
+  when-in-use permission (the system alert carries "Floor finds your congressional district from
+  where you are, then forgets the location."), takes one fix and calls `/v1/reps?lat=&lng=` through
+  the new `FloorAPI.reps(latitude:longitude:)`.
+- **Its states, as the mock draws them:** loading ("FINDING YOUR DISTRICT…" over three skeleton
+  cards), found (with "Not your district? Type an address"), location off for Floor (banner and
+  "Open Settings ›"), outside the U.S. (the API's 404), and approximate location (Precise Location
+  off: the result, under a warning that it can land in the next district). Beyond the mock:
+  Location Services off for the whole phone (names the system switch, no app link), restricted
+  (no link), and no fix in time (offers the button again). Coming back from Settings retries once.
+- **One member, and district 0.** D.C. deals one card, Eleanor Norton, with "One, not three: D.C.
+  has a delegate in the House and no senators…"; the territories get the same note in their own
+  words. `Member` gained `isDelegate`, `title`, `seatBadge` and `seatCaption`.
+- Three palette tokens from the mock, each a light/dark `Swatch` checked by `PaletteTests`:
+  `warningPanel` (`#FBF0E6` / `#1E1610`) and `warningBorder` (`#E2B48E` / `#5A3A1E`) for the
+  banner, whose title, body and link read at 5.19, 9.16 and 4.75:1 in light and 7.88, 11.28 and
+  9.28:1 in dark; and `textFaint` (`#636E69` / `#858B95`) for the privacy line, 4.58:1 on the light
+  ground and 5.84:1 on the dark one.
+
+### Changed
+- At-large and delegate seats read correctly everywhere: "R-WY-AL" and "D-DC", not "R-WY-0" and
+  "D-DC-0"; Norton is "Delegate · DC" on Home, the vote screen and her record, and "Del." as a
+  sponsor; Home's district chip reads "DC", not "DC-AL"; and D.C.'s Senate filter says it has no
+  senators instead of "No recent votes in this chamber".
+- The built app reports its real version: `Info.plist` maps `CFBundleShortVersionString` and
+  `CFBundleVersion` to `$(MARKETING_VERSION)` and `$(CURRENT_PROJECT_VERSION)`. XcodeGen had been
+  writing its defaults, `1.0` and `1`.
+- The privacy line under onboarding's button: "Floor keeps the district and drops the street — and
+  the location."
+
+### Privacy
+- The point is rounded to 4 decimals (about 11 m) on the phone before it is sent, and again by the
+  API. It is never stored, logged or cached: `reps(latitude:longitude:)` bypasses the offline
+  cache, as the address lookup does, and the app's `URLSession` has no `URLCache`. Only the
+  district and its members are kept, as before. Tests check the saved record, the whole
+  `UserDefaults` suite, the response cache and the model for the coordinates.
+
+## 0.2.10 — 2026-11-13
+
+Steps 2–3 of the v0.3.0 milestone, "Your members on the web": the landing page finds *your*
+members from your location or address, built to the locked canvas round 7 (`LocWeb`,
+<https://claude.ai/artifact/FKWYDhCej75UPy94csYLsU>).
+
+### Added
+- **The "your members" strip** under the site header. It opens on the New York sample, labelled
+  SAMPLE. "Use my location" sends the point rounded to 4 decimals, or you can type an address
+  (a ZIP alone is refused). It finds your district and members, with states for asking, loading,
+  found, location blocked, outside the U.S., an address the Census can't match, too many lookups,
+  a vacant seat, and the API unreachable. Every state has a way back (Cancel, "Back to the sample").
+- **The scouting report switches to your members:** party loyalty, crossovers, showed up, winning
+  side, the last 40 calls and the latest call, from `/v1/members/{id}` and `/votes?limit=40`. One
+  member failing marks only that member and offers Try again.
+- **One-member and no-bloc cases:** D.C. and the territories get one member and a delegate note
+  computed from their votes. Independents (no party bloc) show "—", not an invented zero.
+- Sections whose data is New York only (the five finals, money and donor context, the portfolio,
+  the live replay) carry a "SAMPLE · NEW YORK" flag while someone else's members are shown.
+- The found district (never the point or the address) is kept in `localStorage` with its Congress
+  number, and dropped when a new Congress starts.
+- `FLOOR_API_BASE` at build time points the page at another API (https or localhost only).
+
+### Changed
+- Winning side follows the recorded result: "Veto Overridden" and "Guilty" carried; "Not Agreed
+  to", "Veto Sustained" and "Not Guilty" did not. A result the clerk's record cuts off mid-word is
+  left out rather than counted as a loss, which moves Schumer's sample from 14/40 to 14/38 and
+  Gillibrand's from 12/39 to 12/37. Speaker-ballot votes count as showing up.
+- On screens 860px and narrower the sticky header keeps only the logo and "Get the app". The seven
+  section links wrapped it to about 130px, a sixth of a phone screen.
+- The strip's privacy line says only what the page does ("uses it once to find your district;
+  this page stores only the district"), because `/v1/reps` takes the address in a GET query string
+  that Vercel's request logs may keep. That's open for the API in `docs/HANDOFF.md`.
+
+## 0.2.9 — 2026-11-13
+
+The iOS app works offline: it opens on the last data it saw, then refreshes (M2 item 2).
+
+### Added
+- **Offline cache.** Each successful response body is saved in SwiftData (`SwiftDataResponseCache`,
+  in Caches, so the system may purge it and it isn't backed up), keyed by host, path and encoded
+  query. A screen loads twice through `revalidate`, once from the cache and then from the network,
+  so a screen that makes several requests shows all its saved data at once. Entries older than 30
+  days are neither shown nor kept; beyond 200 the oldest go first. A store that won't open is
+  deleted and recreated once rather than abandoned.
+- One muted line while any of a screen is saved data: "Saved 2 h ago · refreshing…" during the
+  refresh, then "Offline · saved 2 h ago", or "Couldn't refresh · saved …" when the server answered
+  with an error. It stays up when the main request refreshed but a best-effort one (a vote's bill, a
+  bill's member positions, a loyalty ring) fell back to its saved copy.
+
+### Changed
+- A cancelled refresh (a pushed screen, a tab switched away) is no longer reported as offline, and
+  Finals, Vote, the rep screen and Your three refresh again on reappearing until a load has finished
+  fresh (`needsRefresh`), instead of only when empty or still loading.
+- Overlapping loads (pull-to-refresh beside a screen's own task) no longer let the older one write
+  over the newer; a screen already showing data keeps it while it reloads.
+- A screen's best-effort loads fall back to their saved copy when they fail, instead of clearing
+  what is on screen.
+
+### Privacy
+- The address lookup is never cached — its key would be the street address — and neither is the
+  data-freshness status, whose saved answer would be wrong by its own age.
+- `FloorAPI`'s session has no `URLCache`, which would have written the address lookup to
+  `Caches/Cache.db`.
+- Changing district clears the saved responses, which name the old members.
+
+## 0.2.8 — 2026-11-13
+
+### Changed
+
+- **The macOS CI job runs only when `ios/` or `.github/` changed.** A new `scope` job in `ci.yml`
+  reuses `SCOPE_RULES` from `guards.conf`, so what counts as an iOS change is defined in one place.
+  It costs one ubuntu runner start (~15s) and spares a job that takes 1–3 minutes and queues for
+  longer; `.github/` is included so a change to the workflow still proves the job it changes.
+- That gate needed a refinement to do anything at all: `version-sync` requires `MARKETING_VERSION`
+  in `ios/project.yml` to mirror `VERSION`, so **every** release touches `ios/`, and a plain
+  `^ios/` test is true on a docs-only PR. The scope job discounts a `project.yml` change that is
+  only the version mirror. Checked against the last five merges: 0.2.1 (docs), 0.2.4 (FEC data) and
+  0.2.6 (the CI change itself, which still runs via `.github/`) versus 0.2.3 and 0.2.7, which build.
+
 ## 0.2.7 — 2026-11-13
 
 An in-app switch for light and dark.

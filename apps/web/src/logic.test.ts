@@ -2,7 +2,8 @@ import { describe, expect, it } from "vitest";
 import {
   FLAP_CHARSET,
   FLAP_TICKS,
-  carried,
+  outcome,
+  winningSide,
   cellLook,
   countText,
   deckPose,
@@ -156,6 +157,7 @@ describe("scouting grid", () => {
     expect(cellLook("Y")).toEqual({ word: "YEA", chipBg: "yea-soft", chipFg: "yea" });
     expect(cellLook("M")).toEqual({ word: "MISSED", chipBg: "line", chipFg: "muted" });
     expect(cellLook("P").word).toBe("PRESENT");
+    expect(cellLook("C").word).toBe("VOTED");
   });
 
   it("names the question when the measure is a bare amendment", () => {
@@ -165,14 +167,46 @@ describe("scouting grid", () => {
   });
 
   it("reads recorded results", () => {
-    expect(carried("Passed")).toBe(true);
-    expect(carried("Cloture Agreed to")).toBe(true);
-    expect(carried("Motion to Table Agreed")).toBe(true);
-    expect(carried("Nomination Confirmed")).toBe(true);
-    expect(carried("Failed")).toBe(false);
-    expect(carried("Cloture Rejected")).toBe(false);
-    expect(carried("Concurrent Resolution ")).toBe(false);
-    expect(carried("Motion to Discharge Re")).toBe(false);
+    expect(outcome("Passed")).toBe("carried");
+    expect(outcome("Cloture Agreed to")).toBe("carried");
+    expect(outcome("Motion to Table Agreed")).toBe("carried");
+    expect(outcome("Nomination Confirmed")).toBe("carried");
+    expect(outcome("Failed")).toBe("failed");
+    expect(outcome("Cloture Rejected")).toBe("failed");
+  });
+
+  it("reads live Senate wording, rejection first", () => {
+    expect(outcome("Veto Overridden")).toBe("carried");
+    expect(outcome("Veto Sustained")).toBe("failed");
+    expect(outcome("Decision of Chair Sustained")).toBe("carried");
+    expect(outcome("Guilty")).toBe("carried");
+    expect(outcome("Not Guilty")).toBe("failed");
+    expect(outcome("Amendment Not Agreed to")).toBe("failed");
+    expect(outcome("Cloture Motion Agreed to")).toBe("carried");
+    expect(outcome("Cloture on the Motion to Proceed Rejected")).toBe("failed");
+    expect(outcome("Concurred in")).toBe("carried");
+    expect(outcome("Joint Resolution Defeated")).toBe("failed");
+  });
+
+  it("truncated, unknown or missing results have no outcome", () => {
+    expect(outcome("Concurrent Resolution ")).toBeNull();
+    expect(outcome("Motion to Discharge Re")).toBeNull();
+    expect(outcome("Johnson")).toBeNull();
+    expect(outcome("")).toBeNull();
+    expect(outcome(null)).toBeNull();
+  });
+
+  it("winning side leaves undecided results and non-votes out of the denominator", () => {
+    const rows = [
+      [1, "", "", "", "Y", 0, 0, "Passed"],
+      [2, "", "", "", "N", 0, 0, "Passed"],
+      [3, "", "", "", "N", 0, 0, "Amendment Not Agreed to"],
+      [4, "", "", "", "Y", 0, 0, "Motion to Discharge Re"],
+      [5, "", "", "", "P", 0, 0, "Passed"],
+      [6, "", "", "", "M", 0, 0, "Failed"],
+      [7, "", "", "", "C", 0, 0, "Johnson"],
+    ] as const;
+    expect(winningSide(rows)).toEqual({ won: 2, of: 3 });
   });
 });
 

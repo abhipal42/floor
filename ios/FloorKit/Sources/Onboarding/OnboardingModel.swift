@@ -7,7 +7,7 @@ import Models
 ///
 /// The address lives only in ``address`` for as long as the screen is open, and a location only in
 /// a local inside ``useMyLocation()`` for the length of one request. Each is sent to `/v1/reps`
-/// and nowhere else — not stored, not logged, not part of ``Delegation``.
+/// and nowhere else — not stored, not logged, not cached, not part of ``Delegation``.
 @MainActor
 @Observable
 public final class OnboardingModel {
@@ -27,10 +27,12 @@ public final class OnboardingModel {
 
     /// The banner above the address field, as the LocApp mock draws it.
     public enum Notice: Equatable, Sendable {
-        /// Denied, now or earlier: only Settings can turn it back on.
+        /// Denied, now or earlier, or withdrawn mid-fix: Settings › Floor turns it back on.
         case locationOff
-        /// Screen Time, a profile or Location Services off for the whole phone: Settings › Floor
-        /// cannot fix it, so no link.
+        /// Location Services are off for the whole phone. Floor's own Settings page cannot help,
+        /// so the banner names the system switch and has no link.
+        case servicesOff
+        /// Screen Time or a profile: not the person's to change, so no link either.
         case locationRestricted
         /// The API's 404 for a point: not in any U.S. congressional district.
         case outsideUS
@@ -42,6 +44,7 @@ public final class OnboardingModel {
         public var title: String {
             switch self {
             case .locationOff: "Location is off for Floor"
+            case .servicesOff: "Location Services are off on this iPhone"
             case .locationRestricted: "Location is off for Floor"
             case .outsideUS: "That’s not in a U.S. district"
             case .approximate: "Approximate location"
@@ -53,6 +56,8 @@ public final class OnboardingModel {
             switch self {
             case .locationOff:
                 "Turn it on in Settings › Floor › Location, or type an address below."
+            case .servicesOff:
+                "Turn them on in Settings › Privacy & Security › Location Services, or type an address below."
             case .locationRestricted:
                 "Location is restricted on this iPhone, so Floor can’t ask for it. Type an address below."
             case .outsideUS:
@@ -64,8 +69,11 @@ public final class OnboardingModel {
             }
         }
 
-        /// Whether the banner carries "Open Settings ›".
+        /// Whether the banner carries "Open Settings ›", which opens Floor's own page.
         public var opensSettings: Bool { self == .locationOff }
+
+        /// Notices that a trip to Settings can clear, so coming back retries.
+        var clearedInSettings: Bool { self == .locationOff || self == .servicesOff }
     }
 
     public var address: String = ""
@@ -75,13 +83,19 @@ public final class OnboardingModel {
     /// Set once the person has used location on this screen; the mock then stops offering it, so
     /// a denial or a wrong district leads to the address field rather than round again.
     public private(set) var triedLocation = false
-    /// True while the system alert is up, so a second tap does not stack another request.
+    /// True while the system alert is up, so a second tap does not stack another request. The
+    /// provider always answers (see ``LocationProvider``), so this cannot stick.
     public private(set) var askingPermission = false
 
     private let api: FloorAPI
     private let store: any DelegationStore
-    private let location: any LocationProvider
     private let now: @Sendable () -> Date
+    /// Built on first use, not with the model: SwiftUI may construct a model it then discards, and
+    /// each Core Location provider owns a `CLLocationManager`.
+    @ObservationIgnored private var provider: (any LocationProvider)?
+    /// Bumped by every lookup and every edit, so a result that arrives after the person has moved
+    /// on is dropped rather than drawn over what they are doing now.
+    @ObservationIgnored private var generation = 0
 
     /// - Parameter location: Core Location unless a test or preview passes its own.
     public init(
@@ -92,8 +106,15 @@ public final class OnboardingModel {
     ) {
         self.api = api
         self.store = store
-        self.location = location ?? CoreLocationProvider()
+        self.provider = location
         self.now = now
+    }
+
+    private var location: any LocationProvider {
+        if let provider { return provider }
+        let made = CoreLocationProvider()
+        provider = made
+        return made
     }
 
     /// Enough to be worth sending. The API itself requires five characters and explains what it
@@ -124,15 +145,18 @@ public final class OnboardingModel {
     }
 
     public func lookUp() async {
+        guard phase != .looking else { return }
         let query = address.trimmingCharacters(in: .whitespacesAndNewlines)
         guard query.count >= 5 else {
             phase = .failed("Enter a street address, city and state.")
             return
         }
+        generation += 1
+        let mine = generation
         source = .address
         notice = nil
         phase = .looking
-        await resolve { try await self.api.reps(address: query) }
+        await resolve(mine) { try await self.api.reps(address: query) }
     }
 
     /// Ask for permission (the system alert, the first time), take one fix, and look it up.
@@ -146,58 +170,73 @@ public final class OnboardingModel {
         askingPermission = false
         // Only now: the screen behind the system alert stays as it was, button and all.
         triedLocation = true
-
-        let precise: Bool
-        switch authorization {
-        case .denied:
-            notice = .locationOff
-            phase = .editing
+        guard case let .allowed(precise) = authorization else {
+            refused(authorization)
             return
-        case .restricted:
-            notice = .locationRestricted
-            phase = .editing
-            return
-        case let .allowed(isPrecise):
-            precise = isPrecise
         }
+        await locate(precise: precise)
+    }
 
+    /// Coming back to the app with a "location is off" banner up: they went to Settings to turn it
+    /// on, and the mock offers no button to try again, so try once more. If it is still off, nothing
+    /// changes — the banner is not re-posted, so VoiceOver does not announce it again.
+    public func retryAfterSettings() async {
+        guard let notice, notice.clearedInSettings, phase != .looking, !askingPermission else { return }
+        // Already answered, so this reads the setting without showing an alert.
+        guard case let .allowed(precise) = await location.requestAuthorization() else { return }
+        self.notice = nil
+        await locate(precise: precise)
+    }
+
+    private func refused(_ authorization: LocationAuthorization) {
+        switch authorization {
+        case .servicesOff: notice = .servicesOff
+        case .restricted: notice = .locationRestricted
+        case .denied, .allowed: notice = .locationOff
+        }
+        phase = .editing
+    }
+
+    /// One fix, then the lookup.
+    private func locate(precise: Bool) async {
+        generation += 1
+        let mine = generation
         source = .location
         phase = .looking
         let point: Coordinate
         do {
             point = try await location.currentLocation()
         } catch {
+            guard mine == generation else { return }
             source = .address
-            notice = .locationUnavailable
+            // Permission withdrawn mid-fix is "location off", not "no fix in time".
+            notice = (error as? LocationFailure) == .denied ? .locationOff : .locationUnavailable
             phase = .editing
             return
         }
-        await resolve(outsideUS: .outsideUS) {
+        guard mine == generation else { return }
+        await resolve(mine, outsideUS: .outsideUS) {
             try await self.api.reps(latitude: point.latitude, longitude: point.longitude)
         }
-        if case .found = phase, !precise { notice = .approximate }
-    }
-
-    /// Coming back to the app with the "Location is off" banner up: they went to Settings to turn it
-    /// on, and the mock offers no button to try again, so try once more. Still denied just puts the
-    /// same banner back; without the banner this does nothing.
-    public func retryAfterSettings() async {
-        guard notice == .locationOff else { return }
-        await useMyLocation()
+        if mine == generation, case .found = phase, !precise { notice = .approximate }
     }
 
     /// The shared tail of both lookups. `outsideUS`: what a 404 means for a point, which is a banner
-    /// rather than the address field's own error.
-    private func resolve(outsideUS: Notice? = nil, _ request: () async throws -> Reps) async {
-        do {
-            let reps = try await request()
+    /// rather than the address field's own error. Drops the answer if a newer lookup or an edit
+    /// came since `mine`.
+    private func resolve(_ mine: Int, outsideUS: Notice? = nil, _ request: () async throws -> Reps) async {
+        let outcome: Result<Reps, any Error>
+        do { outcome = .success(try await request()) } catch { outcome = .failure(error) }
+        guard mine == generation else { return }
+        switch outcome {
+        case let .success(reps):
             guard !reps.members.isEmpty else {
                 // A district with nobody in it means our member data is behind, not a bad address.
                 fail("We found your district but not your representatives. Please try again shortly.")
                 return
             }
             phase = .found(reps)
-        } catch let error as FloorAPIError {
+        case let .failure(error as FloorAPIError):
             if error.isNotFound, let outsideUS {
                 source = .address
                 notice = outsideUS
@@ -207,7 +246,7 @@ public final class OnboardingModel {
             // The API phrases its 4xx for people — a 404 here explains how to improve the address —
             // so show its wording and fall back to ours only for transport and decoding failures.
             fail(error.errorDescription ?? "Something went wrong. Please try again.")
-        } catch {
+        case .failure:
             fail("Something went wrong. Please try again.")
         }
     }
@@ -228,10 +267,11 @@ public final class OnboardingModel {
         return delegation
     }
 
-    /// Go back to the field to correct the address, keeping what was typed. A banner about a
-    /// failed location stays, as the mock keeps it while you type; the approximate warning was
-    /// about a result, which this discards.
+    /// Go back to the field to correct the address, keeping what was typed. A lookup still in
+    /// flight is dropped when it lands. A banner about a failed location stays, as the mock keeps
+    /// it while you type; the approximate warning was about a result, which this discards.
     public func edit() {
+        generation += 1
         phase = .editing
         if notice == .approximate { notice = nil }
     }
@@ -252,6 +292,7 @@ public final class OnboardingModel {
 
     /// "Not your district? Type an address": drop the location result and offer the field.
     public func typeAddressInstead() {
+        generation += 1
         source = .address
         notice = nil
         phase = .editing

@@ -1,3 +1,4 @@
+import APIClient
 import DesignSystem
 import Models
 import SwiftUI
@@ -24,6 +25,7 @@ struct BillsView: View {
                 case let .failed(message):
                     Text(message).font(Typography.body).foregroundStyle(Palette.textSecondary).panel()
                 case .loaded:
+                    if let saved = model.saved { SavedDataNote(saved) }
                     if model.bills.isEmpty {
                         Text("None of your members' recent votes were on a bill.")
                             .font(Typography.body).foregroundStyle(Palette.textMuted)

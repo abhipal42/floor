@@ -18,6 +18,10 @@ public final class RepScreenModel {
     }
 
     public private(set) var phase: Phase = .loading
+    /// Set while any of the record on screen is saved rather than fresh; see `revalidate`.
+    public private(set) var saved: SavedCopy?
+    /// Bumped by each load, so a load that has been overtaken drops its results.
+    private var generation = 0
 
     private let bioguideId: String
     private let api: FloorAPI
@@ -29,17 +33,37 @@ public final class RepScreenModel {
         self.limit = limit
     }
 
+    /// True until a load has finished with everything fresh — including one that was cancelled
+    /// part-way — so a screen that reappears runs the refresh again.
+    public var needsRefresh: Bool {
+        if case .loaded = phase { return saved != nil }
+        return true
+    }
+
     public func load() async {
-        phase = .loading
+        generation += 1
+        let mine = generation
+        // A record already on screen stays there while it refreshes, rather than flashing a spinner.
+        if case .loaded = phase {} else {
+            phase = .loading
+            saved = nil
+        }
         do {
-            // Two independent requests, so they go together rather than one after the other.
-            async let detail = api.member(id: bioguideId)
-            async let votes = api.memberVotes(id: bioguideId, limit: limit)
-            phase = .loaded(Record(detail: try await detail, votes: try await votes.votes))
-        } catch let error as FloorAPIError {
-            phase = .failed(error.errorDescription ?? "Couldn't load this member.")
+            // Saved record first, then the network; see `revalidate`.
+            try await revalidate(api, report: { if mine == generation { saved = $0 } }) { [bioguideId, limit] pass in
+                // Two independent requests, so they go together rather than one after the other.
+                async let detail = pass.api.member(id: bioguideId)
+                async let votes = pass.api.memberVotes(id: bioguideId, limit: limit)
+                let record = Record(detail: try await detail, votes: try await votes.votes)
+                guard mine == generation else { throw CancellationError() }
+                phase = .loaded(record)
+            }
+        } catch is CancellationError {
+            // Overtaken or cancelled: nothing to say, and `needsRefresh` still holds.
         } catch {
-            phase = .failed("Couldn't load this member.")
+            guard mine == generation else { return }
+            saved = nil
+            phase = .failed((error as? FloorAPIError)?.errorDescription ?? "Couldn't load this member.")
         }
     }
 }
@@ -105,7 +129,9 @@ public final class YourThreeModel {
     public func loadAll() async {
         await withTaskGroup(of: Void.self) { group in
             for model in records.values {
-                if case .loaded = model.phase { continue }
+                // Not "already loaded": a record on saved data, or whose refresh was cancelled when
+                // the tab went away, refreshes again when it comes back.
+                if !model.needsRefresh { continue }
                 group.addTask { await model.load() }
             }
         }

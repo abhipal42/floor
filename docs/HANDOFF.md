@@ -4,9 +4,9 @@ Last updated 2026-11-12. Read this first, then [`plan.md`](plan.md) for the full
 
 **In one paragraph:** M0 (foundation) is done. M1 (data backbone) is done; the one item still open against it, measured posting latency, has moved to M3, because it can only be taken on a live session day with polling running. Staging Postgres holds every House and Senate roll call since January 2023, and every one matches the official totals; every vote now has a subject attached, bills and nominations alike. The API serves district lookup, member votes, votes, bills, nominations and data freshness from that database, and now also the per-party breakdown of a vote, your own delegation's positions on it, and a member's party-loyalty record. **M2 is nearly done:** the API is deployed at <https://floor-api.vercel.app> and a Release build of
 the app runs the whole flow against it — onboarding to a real district, then Home, Vote, Bill and
-Rep. Since v0.2.3 those screens match the landing page (three tabs: Finals, Bills, Your three). Three
-items remain, listed at the top of the M2 section: a SwiftData offline cache, snapshot tests, and
-TestFlight distribution.
+Rep. Since v0.2.3 those screens match the landing page (three tabs: Finals, Bills, Your three). Every
+screen now opens on its last-seen data when offline or slow, from a SwiftData cache. Two items remain,
+listed at the top of the M2 section: snapshot tests and TestFlight distribution.
 
 ---
 
@@ -27,7 +27,7 @@ TestFlight distribution.
 git clone https://github.com/abhipal42/floor.git && cd floor
 npm install
 cp .env.example .env    # then fill in the two values (see below)
-npm run check           # lint + typecheck + 233 tests; must pass before every PR
+npm run check           # lint + typecheck + 286 tests; must pass before every PR
 ```
 
 `.env` (never committed):
@@ -48,7 +48,7 @@ npm run ingest -w @floor/worker -- fec-totals                     # campaign tot
 npm run ingest -w @floor/worker -- fec-pacs 2026                  # committee-to-candidate totals from the FEC bulk files (~30 s)
 npm run openapi -w @floor/api                                    # regenerate apps/api/openapi.json after changing routes
 npm run build -w @floor/web && npm run serve -w @floor/web       # build and serve the landing page from apps/web/dist
-swift test --package-path ios/FloorKit                           # all FloorKit tests (185): models, contract, client, screen models
+swift test --package-path ios/FloorKit                           # all FloorKit tests (222): models, contract, client, screen models
 ```
 
 `apps/api/openapi.json` is the committed contract. Re-run `npm run openapi` after any change to
@@ -75,8 +75,8 @@ Command Line Tools rather than Xcode: run it with `DEVELOPER_DIR=/Applications/X
 | `apps/worker` | Ingest CLI: members, roll calls, bills, nominations | `src/cli.ts`, `rollcalls.ts`, `bills.ts`, `nominations.ts`, `members.ts`, `db.ts` |
 | `apps/api` | Hono REST API with OpenAPI at `/openapi.json` | `src/app.ts` (routes + schemas), `pg.ts` (Postgres), `district.ts` (Census) |
 | `apps/web` | Landing page (v0.2.0): static HTML/CSS/TypeScript built with `tsc`, no framework | `src/data.ts` (every figure, with source and date), `src/logic.ts` (pure helpers), `src/main.ts` (rendering), `public/` |
-| `ios/` | SwiftUI app (XcodeGen, `project.yml`), `FloorKit` package: `Models`, `APIClient`, `DesignSystem`, `Onboarding`, `Home`, `VoteScreen`, `BillScreen`, `RepScreen` | `FloorKit/Sources/Models/` (one file per area, `Samples.swift` for previews), `FloorKit/Tests/ModelsTests/ContractTests.swift`, `DesignSystem/ScoreboardCard.swift`, `DesignSystem/Components.swift`, `DesignSystem/Fonts/` (Barlow Condensed, OFL), `Home/FloorShell.swift` (tabs), `Home/CatchUp.swift`, `Models/VoteOutcome.swift`, `BillScreen/LawLevels.swift` |
-| `.github/workflows/ci.yml` | Node job (lint/typecheck/tests + OpenAPI drift) + macOS job (Swift tests + simulator build). **Pushes to `main` only** since 2026-11-13 — a PR never builds the code | |
+| `ios/` | SwiftUI app (XcodeGen, `project.yml`), `FloorKit` package: `Models`, `APIClient`, `DesignSystem`, `Onboarding`, `Home`, `VoteScreen`, `BillScreen`, `RepScreen` | `FloorKit/Sources/Models/` (one file per area, `Samples.swift` for previews), `FloorKit/Tests/ModelsTests/ContractTests.swift`, `DesignSystem/ScoreboardCard.swift`, `DesignSystem/Components.swift`, `DesignSystem/Fonts/` (Barlow Condensed, OFL), `Home/FloorShell.swift` (tabs), `Home/CatchUp.swift`, `Models/VoteOutcome.swift`, `BillScreen/LawLevels.swift`, `APIClient/ResponseCache.swift` (offline cache), `DesignSystem/SavedDataNote.swift` |
+| `.github/workflows/ci.yml` | `scope` job (which parts changed) + node job (lint/typecheck/tests + OpenAPI drift) + macOS job (Swift tests + simulator build). **Pushes to `main` only** since 2026-11-13 — a PR never builds the code — and the macOS job runs only when the push touched `ios/` or `.github/` | |
 | `.github/workflows/guards.yml` | Shipping guards on every PR (the only workflow that still runs there): changelog, version, docs, tests, retro, PR title | `.github/scripts/guards.conf` (this repo's settings), `guards.sh` (shared, do not edit) |
 | `docs/` | `plan.md` / `plan.html` (design + plan), this file, `retros/` (one per milestone) | |
 | `VERSION`, `CHANGELOG.md` | Current version (mirrored by `MARKETING_VERSION` in `ios/project.yml`) and what each version shipped | |
@@ -224,7 +224,26 @@ Real data broke our first assumptions several times. Each case below is now hand
     white and the threshold yellow `#FACC15` at about 1.5:1, so light mode cannot reuse them. Every
     text colour in light mode is a darker partner of its dark value (yea `#0B7A57`, nay `#A8481A`,
     threshold `#8A6500`), and `PaletteTests` checks each one at 4.5:1 on the ground, panels and cards.
-26. **A delegation is not always three, and district 0 means two things.** `/v1/reps` for D.C.
+26. **A screen's secondary requests must neither blank nor hide.** The models loaded the bill
+    under a vote with `bill = try? await api.bill(...)`, which writes nil when it fails. Harmless
+    with one pass; with the offline cache's second (network) pass it blanked the level the saved
+    pass had just drawn. The first fix (keep what is on screen) then hid the problem instead: the
+    vote refreshed, the bill silently stayed saved, and the screen claimed to be fresh. So every
+    best-effort load (the vote's bill, the bill's member positions, the loyalty rings) goes through
+    `Pass.bestEffort`, which falls back to the saved copy *and records that it did*, keeping the note
+    up. Any new best-effort load must use it.
+27. **The simulator cannot be taken offline on its own; swap what serves the API's port instead.**
+    It shares the Mac's network, and cache keys carry the host and port, so two builds pointed at
+    different URLs do not share a cache. Use one Debug build (it talks to `localhost:8787`) and swap
+    the server behind that port: one that answers (the API, or the captured fixtures in
+    `Tests/ModelsTests/Fixtures`), then one that accepts and never answers (weak signal: the note
+    reads "refreshing…" for the 60 s request timeout, then "Offline"), or nothing at all (refused:
+    "Offline" at once). The delegation can be seeded without typing an address via `simctl spawn
+    <udid> defaults write app.floor.ios floor.delegation.v1 -data <hex of the JSON>`. Two traps:
+    this Mac's Xcode-beta has no Simulator.app GUI, so nothing can tap the app (`simctl` cannot);
+    and the deployed API answered 500 on `/v1/members/…` on 2026-11-13 while the cache was being
+    checked, so do not assume it is up.
+28. **A delegation is not always three, and district 0 means two things.** `/v1/reps` for D.C.
     (38.8977, −77.0365) returns one member — Norton, `chamber: house`, `district: 0` — and no
     senators; Wyoming's at-large seat (Cheyenne) is also `district: 0`, with two senators. Code that
     printed the number straight out wrote "R-WY-0" and "D-DC-0". Use `Member.seatBadge` /
@@ -232,14 +251,14 @@ Real data broke our first assumptions several times. Each case below is now hand
     cases, rather than formatting `district` by hand. Norton's House record is real — 616
     party-counted votes, nearly all "On Agreeing to the Amendment" — because delegates vote in the
     Committee of the Whole but not on passage.
-27. **XcodeGen writes its own version numbers unless told not to.** With `info.properties` set and no
+29. **XcodeGen writes its own version numbers unless told not to.** With `info.properties` set and no
     `CFBundleShortVersionString`, the generated `Info.plist` said `1.0` / `1`, so a build reported
     1.0 whatever `MARKETING_VERSION` was. `project.yml` now maps both keys to `$(MARKETING_VERSION)`
     and `$(CURRENT_PROJECT_VERSION)`; check the built app's plist, not the spec, if it ever looks off.
-28. **`CLLocationManager` calls `locationManagerDidChangeAuthorization` the moment its delegate is
+30. **`CLLocationManager` calls `locationManagerDidChangeAuthorization` the moment its delegate is
     set**, with `.notDetermined`. A permission request that resumes on the first callback returns
     before the person has answered. `CoreLocationProvider` waits for a determined status.
-29. **A mock's faint grey can fail the contrast test it was never measured against.** LocApp's
+31. **A mock's faint grey can fail the contrast test it was never measured against.** LocApp's
     privacy line is `#6B7280`, which reads at 4.1:1 on the dark ground and 3.3:1 on a card. As a
     text token it would fail `PaletteTests`, so `textFaint` is `#858B95` in dark (5.8:1 on the
     ground) and `#636E69` in light (4.6:1). Check a new text colour against the ground, panels and
@@ -290,8 +309,8 @@ The working rhythm: break each milestone into tasks. For each task, write tests 
 **Goal:** a TestFlight build that shows how your reps voted, from real data. No live updates yet.
 
 > **M2 is not finished.** The app works end to end against the deployed API — onboarding, Finals,
-> Vote, Bill and Your three, all on real data — but three items from the list below are still open
-> (item 1 is kept for the record):
+> Vote, Bill and Your three, all on real data — but two items from the list below are still open
+> (items 1 and 2 are kept for the record):
 >
 > 1. ~~**The Speaker election card on Home.**~~ **Done in v0.2.3** (`ScoreboardCard`'s Speaker-ballot
 >    variant, "MAJORITY OF NAMES"). What it was: Built on the Vote screen, never on the feed. `HomeView`
@@ -301,7 +320,55 @@ The working rhythm: break each milestone into tasks. For each task, write tests 
 >    Rare today (one member has a ballot in their last 25 votes) but it is the top of every feed in
 >    January of a new Congress, fifteen times over in a contested one. Smallest of the four and the
 >    only one that is visibly wrong.
-> 2. **SwiftData offline cache.** Not started.
+> 2. ~~**SwiftData offline cache.**~~ **Done.** How it works:
+>    - **What is stored:** the JSON body of every successful response a screen reads, exactly as
+>      sent, with its fetch date — one SwiftData row per key (`CachedResponse` in
+>      `APIClient/ResponseCache.swift`), in `Caches/FloorResponses.store`, so the system may purge it
+>      and it is not backed up. The key is host (and port), path and percent-encoded query:
+>      `floor-api.vercel.app/v1/members/D000399/votes?limit=25`. The host keeps a Debug build's
+>      localhost responses apart from the deployment's; the encoded query keeps a value holding `&`
+>      or `=` from reading as another parameter. Bodies, not an `@Model` per type: the screens already
+>      decode them, `ContractTests` already pins their shape, and a second schema for the same types
+>      is a second place for the contract to drift. A body the current build cannot decode is a miss.
+>    - **What is not:** `/v1/reps?address=` (the key would be the street address; the district and
+>      members are already kept by `UserDefaultsDelegationStore`, unchanged) and `/v1/status` (a
+>      saved freshness report is wrong by its own age). `FloorAPI`'s default session has **no
+>      `URLCache`** (`FloorAPI.defaultSession`, `.reloadIgnoringLocalCacheData`): the shared session's
+>      would have written the address lookup to `Caches/Cache.db`. Changing district
+>      (`startOver`) clears the cache before onboarding shows, since the old members' entries name
+>      the old district. Tests assert no key or body holds the address and the session has no cache.
+>    - **Stale-while-revalidate:** `revalidate(api, report:) { pass in … }` runs a screen's whole
+>      load twice, first against `api.savedOnly()` (cache only, no network), then against the
+>      network, which saves as it goes. A screen with several requests therefore shows all its saved
+>      data at once. `report` hears the screen's state as it changes, and the model keeps it in
+>      `saved`:
+>      - saved pass drew → `.refreshing`, dated by the oldest response it read;
+>      - network pass succeeded → nil, unless a best-effort request (`pass.bestEffort`: the vote's
+>        bill, the bill's positions, the loyalty rings) failed and fell back to its saved copy — then
+>        `.offline` or `.refreshFailed`, dated by that copy, because the screen is partly saved;
+>      - network pass failed → `.offline` (transport) or `.refreshFailed` (the server answered),
+>        dated by the saved pass; with nothing saved, the error is rethrown and the screen fails
+>        exactly as before.
+>    - **Cancellation is not failure.** A pushed screen or a tab switched away cancels the view's
+>      `.task`; `FloorAPI` turns a cancelled request into `CancellationError` (never `.transport`),
+>      `revalidate` reports nothing for it, and the note stays at "refreshing…". Each model has
+>      `needsRefresh` — true until a load has finished with everything fresh — and the screens'
+>      `.task` (Finals, Vote, rep, and Your three's `loadAll`) load when it is true, so a refresh that
+>      was cancelled, or ended on saved data, runs again when the screen reappears. A screen already
+>      showing data keeps it while it reloads rather than flashing a spinner.
+>    - **Overlapping loads** (pull-to-refresh beside the screen's own task): each model counts its
+>      loads, and a load that has been overtaken drops its results — items, phase and note alike.
+>    - **UI:** one muted caption, `SavedDataNote`, at the top of a loaded Finals, Bills, Vote, Bill
+>      or rep record while any of it is saved: "Saved 2 h ago · refreshing…", then "Offline · saved
+>      2 h ago" or "Couldn't refresh · saved 2 h ago", gone once everything is fresh. Nothing else
+>      changed visually.
+>    - **Bounds:** 30 days and 200 entries (`CachePolicy`). An entry past 30 days is neither served
+>      nor kept; beyond 200 the oldest go first. Eviction fetches only the rows to delete, and only
+>      their keys. A screen costs one to six entries at tens of KB each.
+>    - **Seam:** `FloorAPI(baseURL:session:cache:now:)` takes any `ResponseCache`; tests use
+>      `SwiftDataResponseCache.inMemory()`, previews pass none. A store that will not open (a failed
+>      migration, a corrupt file) is deleted with its `-wal` and `-shm` and opened once more; only if
+>      that fails too does the app run with no cache.
 > 3. **Snapshot tests per card state.** Not started; filed as
 >    [#1](https://github.com/abhipal42/floor/issues/1) with the states to cover and the
 >    Xcode-version tension against running CI on `macos-latest`.
@@ -343,9 +410,22 @@ The working rhythm: break each milestone into tasks. For each task, write tests 
   When-in-use permission only (`NSLocationWhenInUseUsageDescription` in `ios/project.yml`), one
   `requestLocation()` fix with a 15 s timeout, then `GET /v1/reps?lat=&lng=` with both rounded to 4
   decimals on the phone as well as on the server (`FloorAPI.reps(latitude:longitude:)`). The point
-  lives in one local for one request: never stored, never logged, and a test checks the saved
-  record, the whole `UserDefaults` suite and the model itself for it. Core Location sits behind
-  `LocationProvider` (`Onboarding/Location.swift`), so `OnboardingModel` is tested with a stub.
+  lives in one local for one request: never stored, never logged and **never cached** — the
+  coordinates lookup passes `cacheable: false`, as the address lookup does, because the offline
+  cache's key would be the location, and the app's session (`FloorAPI.defaultSession`) has no
+  `URLCache`. Tests check the saved record, the whole `UserDefaults` suite, the response cache and
+  the model itself for it. Core Location sits behind `LocationProvider` (`Onboarding/Location.swift`),
+  so `OnboardingModel` is tested with a stub, and `OnboardingModel` builds its `CoreLocationProvider`
+  on first use rather than with the model, which SwiftUI may build and discard.
+
+  The provider always answers, so the disabled button cannot stick. Location Services off for the
+  whole phone is checked first (`CLLocationManager.locationServicesEnabled()`, off the main thread).
+  A permission request ends with the delegate's answer, or `.denied` when the app comes back active
+  with nothing decided, or after a 120 s backstop; a fix ends with a location, a `LocationFailure`,
+  or the 15 s timeout. A second tap while one is pending joins it, and a late callback after a
+  timeout is ignored (`PendingAnswer`, tested on its own). `CLError.denied` mid-fix reads as
+  "Location is off", not "no fix in time". `OnboardingModel` ignores a second lookup while one runs
+  and drops a result that lands after an edit or "Not your district?" (a generation counter).
   How each mock state maps:
 
   | Mock state | Code |
@@ -361,15 +441,20 @@ The working rhythm: break each milestone into tasks. For each task, write tests 
   Where the build differs from the mock, and why:
   - **Restricted** (Screen Time, a profile) has its own banner body and **no** Settings link: Settings
     › Floor can't lift a restriction, so the link would be a dead end. The mock has only "denied".
+  - **Location Services off** for the whole phone is its own banner: "Location Services are off on
+    this iPhone — Settings › Privacy & Security › Location Services", with no app link, since
+    Floor's own Settings page has no switch for it.
   - **No fix in time** is a fifth banner ("Couldn’t find where you are"), and it is the one case that
     offers "Use my location" again; the mock has no location-error state. A network error after a
     fix lands on the address field with the client's usual message.
   - **After an address lookup the field stays visible**, as in the earlier locked AppOnboarding
     build, where typing again is how a wrong match is corrected; the mock hides it in every done
     state. It is hidden only behind a location result, which has its own "Not your district?" link.
-  - **Coming back from Settings retries by itself** while the "Location is off" banner is up
-    (`retryAfterSettings()`, on a return from the background, not on the alert closing): the mock
-    offers no button in that state, so without it turning location on would change nothing.
+  - **Coming back from Settings retries by itself** while the "Location is off" or "Location
+    Services are off" banner is up (`retryAfterSettings()`, on a return from the background, not on
+    the alert closing): the mock offers no button in that state, so without it turning location on
+    would change nothing. If it is still off, nothing changes on screen and the banner is not
+    re-posted, so VoiceOver does not announce it again.
   - **Puerto Rico and the territories** get the D.C. note in their own words ("a resident
     commissioner", "Guam"), since `/v1/reps` treats them the same way.
 
@@ -410,7 +495,7 @@ The working rhythm: break each milestone into tasks. For each task, write tests 
   they sided with the outcome. The screen spells out the denominator — votes where their party had a
   clear majority, not every vote cast — because a bare percentage invites the wrong reading, and
   shows a sentence rather than a figure when `partyLoyalty.votes` is 0 (lesson 15).
-- **SwiftData cache for offline — not started.** Items 2 and 3 above.
+- ~~**SwiftData cache for offline**~~ **Done**; see item 2 above.
 - **Snapshot tests for each card state — not started**, filed as
   [#1](https://github.com/abhipal42/floor/issues/1). Worth knowing why it matters here: every layout
   bug in this milestone — the stacked digits, a duplicated title, a date rendering a day early — was
@@ -496,16 +581,84 @@ the product rules they settled are in `CLAUDE.md` › Product rules). What to kn
   Vercel's own when the plain project name is taken; and the `floor-web-abtanix-labs.vercel.app` and
   `-git-main-` aliases sit behind the team's Vercel Authentication, so they answer `302` to anyone not
   signed in. A custom domain, when there is one, is public by the same setting.
-- **Live data needs CORS — but not yet.** The page makes no requests at all today: it is pure static
-  HTML, CSS and compiled TypeScript, with every figure baked in at build time. If it ever reads the
-  API in the browser, add its origin to `ALLOWED_ORIGINS` on the `floor-api` Vercel project and
-  redeploy, since unset means no browser origin may read a response.
+- **What's live and what's the sample (v0.3.0 steps 2–3).** The strip under the header ("your
+  members") and the scouting report read the API in the browser; everything else is still the
+  `data.ts` snapshot. Built to the locked mock `LocWeb` (canvas round "Your members"):
+  - **Strip** (`#yours`, `src/locate.ts` state machine + `yours()` in `main.ts`): idle shows the NY-8
+    sample labelled SAMPLE → *Use my location* (button reads "Waiting for your browser…" while the
+    permission prompt is up) → skeleton chips → your district, members as chips, "Not your district?
+    Type an address", "Back to the sample". Blocked location and no fix (timeout/unavailable) open the
+    address field. A 404 from `/v1/reps` means two things: for a **point** it is "Not in a U.S.
+    district"; for an **address** it is the geocoder not matching it, "We couldn't find that address"
+    (the API's own words). A 400 on an address is an address problem, 429 is "Too many lookups, try
+    again in a minute", a 200 with no members is the vacant-seat wording, and a network or CORS
+    failure is "Couldn't reach Floor's vote server"; in all of them the page stays on the sample. Every
+    step with the address field has a *Cancel* back to where you came from (the sample, or the
+    district you had). Addresses shorter than six characters or a bare 5-digit ZIP are refused before
+    any request, as in the mock. Coordinates are rounded to 4 decimals in the page before they are
+    sent.
+  - **Scouting report** (`#scout`) switches to the found members: per-member tabs, portrait
+    (`unitedstates.github.io/images/congress/225x275/<id>.jpg`; the `theunitedstates.io` host fails
+    TLS), with-party % and "X of Y" from `/v1/members/{id}`, showed-up / winning-side / crossovers and
+    the last-40 grid from `/v1/members/{id}/votes?limit=40`, and the latest call. Each member loads on
+    its own: if one member's calls fail (or a vote comes back with a position outside the five the
+    API documents), that tab says "Couldn't load <name>'s records" with *Try again* and the others
+    show; if all fail the members stay and the panel says "Couldn't load their records". An
+    independent has `partyLoyalty.votes === 0` (Sanders, checked 2026-11-12), so with-party,
+    "X of Y" and crossovers read "—" and the note says there's no party bloc to measure against. A
+    Speaker-ballot vote for a candidate counts as showing up but has no winning side. A delegate
+    (D.C., and the territories) gets the one-member note in the strip and a DELEGATE box whose count
+    and date are computed from her votes (Norton, 2026-11-12: all 40 of her last 40 are amendment
+    votes, the latest Jul 22).
+  - **Labelled SAMPLE once someone else's members show:** the five finals (each card's blurb and twist
+    are hand-written and it carries its own party splits, so it can't honestly be rebuilt from a
+    member's vote list; its "Your three" chips read "NY-8 SAMPLE"), money and donor context, the
+    portfolio, and the live replay. None of them ever shows New York's money under another member's
+    name. The player cards and leaderboard are national and don't change.
+  - **Winning side reads the recorded result the way the app does** (`logic.ts` `outcome`, mirroring
+    FloorKit `Vote.recordedOutcome`): rejection words first ("Not Agreed to", "Not Guilty", "Veto
+    Sustained" are failures), then "Passed", "Agreed", "Confirmed", "Overridden", "Guilty"… carry. A
+    truncated or unfamiliar result ("Motion to Discharge Re") has no outcome and is left out of the
+    count instead of counted as a loss. That changed two sample figures from the locked mock:
+    Schumer's winning side 14/40 → 14/38 and Gillibrand's 12/39 → 12/37 (two Senate results in their
+    last 40 are truncated by the clerk).
+  - **Remembered:** the found district, its Congress and its members go in `localStorage`
+    (`floor.yours.v1`) so a return visit opens on them; never the point or the address. Storage
+    follows the screen: leaving a found district (*Not your district?*, *Back to the sample*) clears
+    it, and a new district or *Cancel* back to it writes it again, so an address lookup that fails
+    after *Not your district?* can't bring the old district back on reload. A district saved for an
+    earlier Congress is dropped (the 120th starts 2027-01-03; lesson 4).
+  - **Privacy line diverges from the locked mock on purpose.** The mock said Floor "keeps neither the
+    point nor the address". The page now says only what it does itself: "Floor rounds the point to
+    about 11 m and uses it once to find your district; this page stores only the district." See the
+    open item below.
+  - **Open (for the API team): `/v1/reps` puts the address and coordinates in the URL.** It is a GET,
+    so the address or rounded point is a query string that Vercel's request logs may record. That
+    contradicts "keeps neither the point nor the address" unless log retention is short or the query
+    is redacted, or the route moves to POST with the place in the body. Until one of those is done,
+    the page must not make that claim.
+  - **API base** is `src/config.ts` (production); `FLOOR_API_BASE=<url> npm run build -w @floor/web`
+    points a build elsewhere (https or localhost only).
+  - Dates on vote rows are Eastern time: a Senate vote at 7:37 p.m. on Nov 10 is `2026-11-11T00:37Z`
+    in the API, and reads Nov 10 on the page (the mock, which used the UTC date, said Nov 11).
+- **CORS.** `ALLOWED_ORIGINS=https://floor-web-seven.vercel.app` is set on the `floor-api` Vercel
+  project (production, 2026-11-12), so the deployed site reads the API. Any other origin is refused
+  and the page shows the "Couldn't reach" state: that includes `localhost` and Vercel **preview**
+  deploys (`floor-web-git-<branch>-abtanix-labs.vercel.app`, which also sit behind Vercel
+  Authentication). To try a preview against live data, add its exact origin to `ALLOWED_ORIGINS` and
+  redeploy `floor-api`; it takes exact origins, not wildcards. Locally: only the Vercel entry
+  (`apps/api/api/index.ts`) reads `ALLOWED_ORIGINS`; `npm run dev -w @floor/api` (`src/server.ts`)
+  passes no origins, so a local API refuses every browser origin too. Verifying the page locally
+  therefore means routing the requests in Playwright to the recorded responses in
+  `apps/web/fixtures/` (captured from production with curl, 2026-11-12), which is how v0.3.0's states
+  were checked.
 - **New data sources, not yet ingested:** FEC (the same api.data.gov key as Congress.gov works; the
   shared `DEMO_KEY` allows 40 calls an hour) and House financial disclosures
   (`disclosures-clerk.house.gov/public_disc/financial-pdfs/<year>FD.zip` is a tab-separated index of
   every filing; `ptr-pdfs/<year>/<DocID>.pdf` are the trade reports). Senate disclosures (eFD) have no
   bulk index. Disclosures report value **ranges** and omit homes, which is why the page shows ranges.
-- **Forms are inert.** Beta sign-up and address entry show "opens soon" until there is a backend.
+- **The bottom form is inert.** Beta sign-up at the foot of the page shows "opens soon" until there
+  is a backend. (Address entry that works is in the strip at the top.)
 
 ### The app redesign (v0.2.3)
 
@@ -559,19 +712,21 @@ The app follows the system appearance. Dark is the canvas palette, unchanged; li
 fixed New York demo (Jeffries, Schumer, Gillibrand). Approved by Sourav on 2026-11-12. Intermediate
 steps ship as 0.2.x PATCH releases; 0.3.0 closes the milestone with its retro.
 
-1. **Location → your members (API).** Landed in 0.2.2: `/v1/reps?lat=&lng=`. Still needed before the
-   site can call it: `https://floor-web-seven.vercel.app` in `ALLOWED_ORIGINS` on the `floor-api`
-   Vercel project, then a redeploy (someone on the Abtanix Labs team).
-2. **Mock for Ishan.** The location prompt, the "your members" switcher, and the loading, denied,
-   not-found and no-data states, as a claude.ai artifact. The web UI work waits for his lock
-   (`CLAUDE.md` › Large UI changes).
-3. **Sections the API already serves:** five finals (how *your* members voted), scouting report
-   (last 40 roll calls), player cards (party loyalty).
-4. **Campaign finance for every member.** Data landed in 0.2.3: `campaign_finance` (OpenFEC
+1. **Location → your members (API).** Landed in 0.2.2: `/v1/reps?lat=&lng=`. CORS for the site is
+   on: `https://floor-web-seven.vercel.app` is in `ALLOWED_ORIGINS` on the `floor-api` Vercel project
+   (2026-11-12).
+2. **Mock for Ishan.** Locked 2026-11-12 (canvas round "Your members", `LocWeb`). **Built:** the
+   strip under the site header with every state in the mock, plus "no fix" and "couldn't reach the
+   server"; see "The landing page" above for what each state does.
+3. **Sections the API already serves.** **Built:** the scouting report switches to your members
+   (loyalty, last 40, latest call, the delegate case). The five finals stay on the sample, labelled:
+   a card's blurb and twist are hand-written, so the deck can't honestly be rebuilt from vote lists.
+   The player cards are a national leaderboard and don't depend on your district.
+4. **Campaign finance for every member.** Data landed in 0.2.4: `campaign_finance` (OpenFEC
    totals for each member's current campaign: small-dollar, itemized, PAC, party, other, cash on
    hand) and `pac_contributions` (every committee's direct and earmarked totals per member from the
    2026 bulk file, with FEC's organization type for the "kind"). Still to do: the API route and the
-   section, which waits on the mock lock.
+   section (the location mock it waited on was locked 2026-11-12).
 5. **Donor context** from Senate LDA lobbying filings (what each PAC's organization lobbies on),
    matched to the member's votes by topic. The plain-English "who they are" lines are AI-written and
    wait for M4's label-and-cite pipeline.

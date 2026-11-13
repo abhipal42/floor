@@ -4,6 +4,7 @@
 // reading the API, these blocks are what it has to reproduce. `data.test.ts` checks the invariants
 // (splits sum to totals, grids match their stats, segments sum to totals) that catch a mistyped number.
 
+import type { ApiMember } from "./locate.js";
 import type { Split, VotePos } from "./logic.js";
 
 export interface Sourced {
@@ -35,6 +36,21 @@ export function portrait(id: MemberId): string {
 /** The demo user's three members, in the order the page's member tabs show them. */
 export const YOUR_THREE = ["J000294", "S000148", "G000555"] as const;
 export type YourMember = (typeof YOUR_THREE)[number];
+
+/**
+ * The sample district, as `/v1/reps` returns it for Brooklyn (40.6782, -73.9442), in the page's
+ * tab order. The "your members" strip shows it until someone finds their own.
+ */
+export const sampleReps: Sourced & { label: string; members: ApiMember[] } = {
+  source: "Floor API /v1/reps (U.S. Census geocoder; members from Congress.gov)",
+  asOf: "2026-11-12",
+  label: "New York's 8th District",
+  members: [
+    { bioguideId: "J000294", firstName: "Hakeem", lastName: "Jeffries", party: "D", state: "NY", district: 8, chamber: "house" },
+    { bioguideId: "S000148", firstName: "Chuck", lastName: "Schumer", party: "D", state: "NY", district: null, chamber: "senate" },
+    { bioguideId: "G000555", firstName: "Kirsten", lastName: "Gillibrand", party: "D", state: "NY", district: null, chamber: "senate" },
+  ],
+};
 
 const CLERKS = "Clerk of the House and Senate roll call votes";
 
@@ -495,7 +511,11 @@ export interface Scout {
   /** Of the last 40 calls: how many the member cast a vote on (yea, nay or present). */
   played: number;
   playedSub: string;
-  /** Winning-side calls, out of `of` yea/nay votes cast, in the last 40. */
+  /**
+   * Winning-side calls, out of `of` yea/nay votes cast in the last 40 whose recorded result states
+   * an outcome (`logic.ts` `outcome`). Two Senate results are truncated by the clerk, so the senators'
+   * `of` is two short of their yea/nay count (v0.3.0; the mock counted them as losses: 14/40, 12/39).
+   */
   won: number;
   of: number;
   /** Crossovers since 2023: partyVotes − withParty. */
@@ -669,7 +689,7 @@ export const scouting: Sourced & { members: Scout[] } = {
       played: 40,
       playedSub: "40 of 40",
       won: 14,
-      of: 40,
+      of: 38,
       cross: 37,
       note: "Votes against his party’s majority, out of 1,600 where it had a clear side.",
       fact: "Your two senators voted the same way on 35 of the 39 calls they both cast — they split on S. 4668 twice, and on two August votes.",
@@ -687,7 +707,7 @@ export const scouting: Sourced & { members: Scout[] } = {
       played: 39,
       playedSub: "39 of 40 · 1 missed",
       won: 12,
-      of: 39,
+      of: 37,
       cross: 53,
       note: "Votes against her party’s majority, out of 1,580 where it had a clear side.",
       fact: "Your two senators voted the same way on 35 of the 39 calls they both cast. Her one missed vote: the Sonderling confirmation, Oct 1.",

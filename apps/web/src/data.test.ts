@@ -1,6 +1,11 @@
+import { readFileSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
+import { districtLabel } from "./locate.js";
 import {
   YOUR_THREE,
+  sampleReps,
   contextNone,
   donorContext,
   drives,
@@ -17,7 +22,7 @@ import {
   ticker,
   type Sourced,
 } from "./data.js";
-import { carried, isMaxed, pct, tierFor } from "./logic.js";
+import { isMaxed, pct, tierFor, winningSide } from "./logic.js";
 
 const blocks: [string, Sourced][] = [
   ["hero", hero],
@@ -33,6 +38,7 @@ const blocks: [string, Sourced][] = [
   ["donorContext", donorContext],
   ["portfolio", portfolio],
   ["live", live],
+  ["sampleReps", sampleReps],
 ];
 
 describe("every block is sourced and dated", () => {
@@ -142,10 +148,16 @@ describe("scouting grids", () => {
     for (const m of scouting.members) {
       const t = tally(m.id);
       expect(t.Y + t.N + t.P, m.id).toBe(m.played);
-      expect(t.Y + t.N, m.id).toBe(m.of);
-      const won = m.grid.filter((r) => (r[4] === "Y" && carried(r[7])) || (r[4] === "N" && !carried(r[7]))).length;
-      expect(won, m.id).toBe(m.won);
+      // Two Senate results are truncated by the clerk and say nothing about the outcome; they are
+      // left out of the winning-side count rather than counted as losses.
+      const truncated = m.grid.filter((r) => (r[4] === "Y" || r[4] === "N") && /^(Concurrent Resolution |Motion to Discharge Re)$/.test(r[7])).length;
+      expect(t.Y + t.N - truncated, m.id).toBe(m.of);
+      expect(winningSide(m.grid), m.id).toEqual({ won: m.won, of: m.of });
     }
+  });
+
+  it("winning side, as stated: Jeffries 21/39, Schumer 14/38, Gillibrand 12/37", () => {
+    expect(scouting.members.map((m) => m.won + "/" + m.of)).toEqual(["21/39", "14/38", "12/37"]);
   });
 
   it("unity and crossovers follow from the party-vote counts", () => {
@@ -291,5 +303,16 @@ describe("live replay", () => {
     const row = scouting.members[0]!.grid.at(-1)!;
     expect(row[4]).toBe(live.vote.repPos === "NAY" ? "N" : "Y");
     expect(live.steps).toHaveLength(4);
+  });
+});
+
+describe("sample district", () => {
+  it("is the API's answer for Brooklyn, in the page's tab order", () => {
+    const here = dirname(fileURLToPath(import.meta.url));
+    const captured = JSON.parse(readFileSync(join(here, "../fixtures/reps-brooklyn.json"), "utf8"));
+    const byId = (a: { bioguideId: string }, b: { bioguideId: string }) => a.bioguideId.localeCompare(b.bioguideId);
+    expect([...sampleReps.members].sort(byId)).toEqual([...captured.members].sort(byId));
+    expect(sampleReps.members.map((m) => m.bioguideId)).toEqual([...YOUR_THREE]);
+    expect(districtLabel(captured.district)).toBe(sampleReps.label);
   });
 });

@@ -108,6 +108,102 @@ extension OnboardingModelTests {
         #expect(location.authorizationRequests == 2)
     }
 
+    /// Still off on return: nothing is re-posted, no fix is attempted, nothing is sent.
+    @Test func returningFromSettingsStillDeniedChangesNothing() async {
+        let location = StubLocation(.denied)
+        let model = model(.failure(URLError(.badURL)), location: location)
+        await model.useMyLocation()
+        #expect(model.notice == .locationOff)
+
+        await model.retryAfterSettings()
+
+        #expect(model.notice == .locationOff)
+        #expect(model.phase == .editing)
+        #expect(location.authorizationRequests == 2)
+        #expect(location.fixRequests == 0)
+        #expect(StubAPIProtocol.lastURL == nil)
+    }
+
+    /// Location Services off for the whole phone: Floor's own Settings page can't help.
+    @Test func locationServicesOffNamesTheSystemSwitchWithoutAnAppLink() async throws {
+        let location = StubLocation(.servicesOff)
+        let model = model(.json(try repsFixture("reps-location-austin")), location: location)
+
+        await model.useMyLocation()
+
+        #expect(model.phase == .editing)
+        #expect(model.notice == .servicesOff)
+        #expect(model.notice?.title == "Location Services are off on this iPhone")
+        #expect(model.notice?.body
+            == "Turn them on in Settings › Privacy & Security › Location Services, or type an address below.")
+        #expect(model.notice?.opensSettings == false)
+        #expect(model.showsAddressField)
+        #expect(location.fixRequests == 0)
+        #expect(StubAPIProtocol.lastURL == nil)
+
+        // Turned on in Settings and back: it retries.
+        location.authorization = .allowed(precise: true)
+        await model.retryAfterSettings()
+        guard case .found = model.phase else {
+            Issue.record("expected .found, got \(model.phase)")
+            return
+        }
+    }
+
+    @Test func permissionWithdrawnMidFixIsLocationOffNotATimeout() async {
+        let location = StubLocation(fix: .failure(.denied))
+        let model = model(.failure(URLError(.badURL)), location: location)
+
+        await model.useMyLocation()
+
+        #expect(model.notice == .locationOff)
+        #expect(model.notice?.opensSettings == true)
+        #expect(model.phase == .editing)
+        #expect(StubAPIProtocol.lastURL == nil)
+    }
+
+    /// "Not your district?" — or any edit — while a fix is still coming: the late fix is dropped,
+    /// never looked up, and never drawn over the address field.
+    @Test func aFixThatLandsAfterThePersonMovedOnIsDropped() async throws {
+        let location = StubLocation()
+        location.holdFix = true
+        let model = model(.json(try repsFixture("reps-location-austin")), location: location)
+
+        let task = Task { await model.useMyLocation() }
+        while !location.isHoldingFix { await Task.yield() }
+        #expect(model.phase == .looking)
+        model.typeAddressInstead()
+        location.release(.success(Coordinate(latitude: 30.2747, longitude: -97.7404)))
+        await task.value
+
+        #expect(model.phase == .editing)
+        #expect(model.source == .address)
+        #expect(StubAPIProtocol.lastURL == nil)
+    }
+
+    @Test func aSecondLookupWhileOneIsRunningIsIgnored() async throws {
+        let location = StubLocation()
+        location.holdFix = true
+        let model = model(.json(try repsFixture("reps-location-austin")), location: location)
+
+        let task = Task { await model.useMyLocation() }
+        while !location.isHoldingFix { await Task.yield() }
+        model.address = "1100 Congress Ave, Austin, TX 78701"
+        await model.lookUp()
+        await model.useMyLocation()
+        #expect(StubAPIProtocol.lastURL == nil)
+        #expect(location.authorizationRequests == 1)
+
+        location.release(.success(Coordinate(latitude: 30.2747, longitude: -97.7404)))
+        await task.value
+        guard case .found = model.phase else {
+            Issue.record("expected .found, got \(model.phase)")
+            return
+        }
+        #expect(query("lat") == "30.2747")
+        #expect(query("address") == nil)
+    }
+
     @Test func restrictedSaysSoWithoutASettingsLinkThatCannotHelp() async {
         let location = StubLocation(.restricted)
         let model = model(.failure(URLError(.badURL)), location: location)
