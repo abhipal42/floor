@@ -9,6 +9,7 @@
   "dependencies": {
     "@floor/db": "^0.0.0",
     "@floor/shared": "^0.0.0",
+    "fflate": "^0.8.2",
     "pg": "^8.13.1"
   },
   "devDependencies": {

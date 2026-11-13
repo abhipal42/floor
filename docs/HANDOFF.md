@@ -44,6 +44,8 @@ npm run ingest -w @floor/worker -- rollcalls house 119 2          # new House vo
 npm run ingest -w @floor/worker -- rollcalls senate 119 2         # same for the Senate
 npm run ingest -w @floor/worker -- bills                          # load bills that votes refer to (only missing ones)
 npm run ingest -w @floor/worker -- nominations                    # load nominations that Senate votes refer to
+npm run ingest -w @floor/worker -- fec-totals                     # campaign totals for every current member (OpenFEC, ~10 min)
+npm run ingest -w @floor/worker -- fec-pacs 2026                  # committee-to-candidate totals from the FEC bulk files (~30 s)
 npm run openapi -w @floor/api                                    # regenerate apps/api/openapi.json after changing routes
 npm run build -w @floor/web && npm run serve -w @floor/web       # build and serve the landing page from apps/web/dist
 swift test --package-path ios/FloorKit                           # all FloorKit tests (96): models, contract, client, screen models
@@ -99,6 +101,8 @@ Command Line Tools rather than Xcode: run it with `DEVELOPER_DIR=/Applications/X
 | `vote_positions` | 995,806 | Verified: every vote's positions add up to its official totals; no vote lacks positions |
 | `bills` / `actions` | 1,049 / 19,714 | Every bill a vote refers to; 976 have a CRS summary. All 2,319 votes on bills are linked (`votes.bill_id`) |
 | `nominations` | 448 | Every nomination a vote refers to; 201 are parts of a split nomination, 10 are military (no named nominee). All 905 nomination votes are linked (`votes.nomination_id`) |
+| `campaign_finance` | 512 | One row per current member: OpenFEC totals for their current campaign to date (House 2025–26; senators since their last election), with cash on hand. Of 537 current members, 23 have no totals filed for that campaign and 2 appointed senators (OK, SC) have no FEC ID yet; the page must say so rather than show nothing |
+| `pac_contributions` | 103,564 | Per member and giving committee, 2026 cycle: direct and earmarked totals, committee designation, type and organization type. No memo text, no individual names (lesson 23) |
 | `ingest_runs` | | Every ingest run with item count and error, which feeds `/v1/status` |
 
 Verification query (should return zeros for the last four columns):
@@ -195,6 +199,24 @@ Real data broke our first assumptions several times. Each case below is now hand
     reports `contradicted` and no over/short, so nothing prints "1 short" under AGREED. And
     **"Veto Sustained" is a failure**: the veto stands and the override lost. Found by review of
     v0.2.3, not by data, so watch real results for wordings the lists in `recordedOutcome` miss.
+23. **FEC committee-to-candidate rows are not all PAC checks, and none fit a $10,000 cap.** The bulk
+    file (`pas2`) mixes three kinds of money under transaction type `24K`:
+    - **Earmarked contributions:** individuals' money a committee passes through (MORPAC, AIPAC PAC).
+      Only the memo text says so ("EARMARK FROM …"), and that memo **names the individual**. The
+      importer reads the memo for the word EARMARK, then drops it, so no donor name is ever stored
+      (product rule). Jeffries' MORPAC row is $10,000 direct plus $30,747 earmarked.
+    - **Joint fundraising transfers** (committee designation `J`, e.g. "Johnson Leadership Fund", $1M)
+      and **party committees** (type `X`/`Y`/`Z`, e.g. NRSC, $62,000). Neither is a PAC check;
+      `isPac()` leaves both out.
+    - Even then about 280 PAC rows exceed $10,000, legally: the limit is $5,000 *per election*, and
+      one two-year cycle can hold a primary, a runoff, the general and old debt. Never present a
+      cycle total as "the maximum" without checking which elections it covers.
+    Voided checks are negative rows that net out; amended filings repeat a transaction, so keep the
+    latest filing per committee and transaction ID.
+24. **OpenFEC allows 60 requests a minute on our key**, not per hour (`x-ratelimit-remaining`
+    refills within a minute). One totals call per member loads all 535 in about 10 minutes. Totals
+    are what the *campaign* reported receiving; `pas2` is what *committees* reported giving. The two
+    disagree (Jeffries: $2.77M vs $2.53M from PACs), so label each by its source.
 
 ---
 
@@ -449,9 +471,11 @@ steps ship as 0.2.x PATCH releases; 0.3.0 closes the milestone with its retro.
    (`CLAUDE.md` › Large UI changes).
 3. **Sections the API already serves:** five finals (how *your* members voted), scouting report
    (last 40 roll calls), player cards (party loyalty).
-4. **Campaign finance for every member** from OpenFEC: principal committee totals (small-dollar,
-   itemized, PAC, other, cash on hand) and the biggest PAC checks with FEC's organization type as the
-   "kind". Ingest, table, API route, section.
+4. **Campaign finance for every member.** Data landed in 0.2.3: `campaign_finance` (OpenFEC
+   totals for each member's current campaign: small-dollar, itemized, PAC, party, other, cash on
+   hand) and `pac_contributions` (every committee's direct and earmarked totals per member from the
+   2026 bulk file, with FEC's organization type for the "kind"). Still to do: the API route and the
+   section, which waits on the mock lock.
 5. **Donor context** from Senate LDA lobbying filings (what each PAC's organization lobbies on),
    matched to the member's votes by topic. The plain-English "who they are" lines are AI-written and
    wait for M4's label-and-cite pipeline.

@@ -5,6 +5,7 @@ import { CURRENT_URL, HISTORICAL_URL, toMemberRows, type LegislatorEntry } from 
 import { ingestRollCalls } from "./rollcalls.js";
 import { congressClient, ingestVotedBills } from "./bills.js";
 import { ingestVotedNominations } from "./nominations.js";
+import { fecClient, ingestFecTotals, ingestPacContributions } from "./fec.js";
 
 const USAGE = `Usage:
   npm run ingest -w @floor/worker -- members
@@ -13,6 +14,8 @@ const USAGE = `Usage:
   npm run ingest -w @floor/worker -- bills --refresh [limit]    (re-fetch bills already stored, to pick up changes or mapping fixes)
   npm run ingest -w @floor/worker -- nominations [limit]         (nominations that stored Senate votes refer to; needs CONGRESS_API_KEY)
   npm run ingest -w @floor/worker -- nominations --refresh [limit]
+  npm run ingest -w @floor/worker -- fec-totals [limit]           (campaign totals per current member from OpenFEC; needs CONGRESS_API_KEY)
+  npm run ingest -w @floor/worker -- fec-pacs [cycle]             (committee-to-candidate totals from the FEC bulk files; default 2026)
 
 Reads DATABASE_URL from the environment (use the Supabase service connection string).`;
 
@@ -62,6 +65,19 @@ async function main() {
           ? `Refreshed ${result.bills} bills, ${result.failed} failed`
           : `Loaded ${result.bills} bills, linked ${result.linkedVotes} votes, ${result.failed} failed`,
       );
+    } else if (command === "fec-totals") {
+      if (!process.env.CONGRESS_API_KEY) throw new Error("Set CONGRESS_API_KEY in .env (the api.data.gov key works for OpenFEC)");
+      const result = await ingestFecTotals(db, fecClient(process.env.CONGRESS_API_KEY), {
+        limit: args[0] ? Number(args[0]) : undefined,
+        log: (msg) => console.log(msg),
+      });
+      console.log(
+        `Loaded totals for ${result.loaded} members; ${result.noTotals} had none filed, ${result.noCandidateId} had no FEC ID, ${result.failed} failed`,
+      );
+    } else if (command === "fec-pacs") {
+      const cycle = Number(args[0] ?? 2026);
+      const result = await ingestPacContributions(db, cycle, { log: (msg) => console.log(msg) });
+      console.log(`Loaded ${result.rows} committee totals for ${result.members} members (${cycle} cycle)`);
     } else if (command === "nominations") {
       if (!process.env.CONGRESS_API_KEY) throw new Error("Set CONGRESS_API_KEY in .env (free key: https://api.data.gov/signup)");
       const refresh = args.includes("--refresh");
