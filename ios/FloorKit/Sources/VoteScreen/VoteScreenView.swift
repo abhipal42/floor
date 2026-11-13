@@ -37,7 +37,6 @@ public struct VoteScreenView: View {
             content
         }
         .task { if case .loading = model.phase { await model.load() } }
-        .preferredColorScheme(.dark)
     }
 
     @ViewBuilder
@@ -119,6 +118,8 @@ public struct VoteScreenView: View {
             }
             .clipShape(.rect(cornerRadius: 18))
             .overlay(RoundedRectangle(cornerRadius: 18).stroke(Palette.turfBorder, lineWidth: 1))
+            // A broadcast scoreboard is a lit display, so it stays dark in light mode.
+            .litObject()
     }
 
     private func broadcast(_ detail: VoteDetail) -> some View {

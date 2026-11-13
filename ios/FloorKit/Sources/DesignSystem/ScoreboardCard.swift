@@ -204,12 +204,10 @@ struct ElectionBody: View {
     ScoreboardCard(vote: .sample, title: "Establishing the congressional budget", citation: "H.Con.Res. 14", positions: [.sample])
         .padding(16)
         .background(Palette.ground)
-        .preferredColorScheme(.dark)
 }
 
 #Preview("Speaker ballot") {
     ScoreboardCard(vote: .sampleElection, title: "Election of the Speaker")
         .padding(16)
         .background(Palette.ground)
-        .preferredColorScheme(.dark)
 }
