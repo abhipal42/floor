@@ -86,7 +86,6 @@ public struct OnboardingView: View {
         }
         .background(Palette.ground)
         .tint(Palette.accent)
-        .preferredColorScheme(.dark)
         .onChange(of: scenePhase) { _, phase in
             if phase == .background { wasInBackground = true }
             if phase == .active, wasInBackground {

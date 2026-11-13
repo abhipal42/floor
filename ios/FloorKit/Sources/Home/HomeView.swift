@@ -77,6 +77,7 @@ public struct HomeView: View {
                     .background(Palette.text.opacity(0.08), in: .capsule)
             }
             .accessibilityLabel("District \(model.delegation.district.name). Change your address")
+            AppearanceMenu()
         }
     }
 
@@ -254,6 +255,8 @@ struct SplitFlapBoard: View {
         .padding(12)
         .background(Palette.flapBoard, in: .rect(cornerRadius: 16))
         .overlay(RoundedRectangle(cornerRadius: 16).stroke(Palette.panelBorder, lineWidth: 1))
+        // A lit board, so it stays dark in light mode, as the real ones do.
+        .litObject()
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("Latest final: " + rows.map { $0.trimmingCharacters(in: .whitespaces) }.joined(separator: ", "))
         .accessibilityHint("Opens the vote")

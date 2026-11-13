@@ -8,6 +8,71 @@ is a milestone and ships a retro under `docs/retros/`.
 Older series live in [`docs/changelog/`](docs/changelog) (0.1.x: [`0.1.md`](docs/changelog/0.1.md)).
 Before 0.1.0 the history is the commit log on `main`.
 
+## 0.2.7 — 2026-11-13
+
+An in-app switch for light and dark.
+
+### Added
+- **Appearance menu** on Finals, beside the district chip: System, Light or Dark. The choice is
+  kept in `UserDefaults` (`appearance`: `system`, `light` or `dark`) and applied to the window, so it
+  covers every tab, pushed screen and navigation bar. System is the default.
+- `Appearance` and `AppearanceMenu` in DesignSystem, with `AppearanceTests` (stored values are
+  stable, an unknown value falls back to System, each choice maps to its colour scheme).
+
+## 0.2.6 — 2026-11-13
+
+### Changed
+
+- **CI runs on `main` only.** `ci.yml` loses its `pull_request` trigger, so a PR no longer compiles
+  or tests the code; the node and macOS jobs run once, on the push that merges. `guards.yml` is
+  unchanged and still runs on every PR, but it reads git and PR metadata and builds nothing.
+- `CLAUDE.md` and `docs/HANDOFF.md` say so where they used to promise CI on a PR: the commands under
+  **Before every PR** (`npm run check`, and `swift test` for anything under `ios/`) are the gate now,
+  and a failure that used to turn a PR red lands on the trunk, where it is reverted rather than left.
+
+## 0.2.5 — 2026-11-12
+
+The iOS app has a light mode and follows the system appearance. Light is direction D, "Marble &
+Patina", from the re-theme proposal (<https://claude.ai/artifact/AinA8SbyMWgrsC2rsB5U9h>); dark is
+unchanged.
+
+### Added
+- **Light mode.** Every `Palette` token now has a light and a dark value (`Swatch`, listed in
+  `Tones`). Light is a cool marble ground, white panels, ink text and a patina accent; yea, nay,
+  live, scheduled and the threshold line are darkened so text in them reads at 4.5:1 on the ground
+  and on panels.
+- **`litObject()`**, which keeps the split-flap board on Finals and the turf scoreboard on a vote
+  dark in both appearances, because they are lit displays rather than surfaces.
+- `Palette.shadow` (the catch-up deck's drop shadow, lighter in light mode) and `Palette.silverInk`
+  (dark text on the silver player-card chip).
+- `PaletteTests`: WCAG contrast for every text token on the ground, panels and cards in both
+  appearances, the ground on every chip colour, the large-text minimum for the losing score, yea
+  and nay never matching a party colour, and the dark values pinned to the canvas's.
+
+### Changed
+- No screen forces dark mode any more: `.preferredColorScheme(.dark)` is gone from the app and
+  every screen. The pushed screens' navigation bar sits on the ground colour in either appearance
+  (`groundNavigationBar()`, formerly `darkNavigationBar()`).
+
+## 0.2.4 — 2026-11-13
+
+Step 4 of the v0.3.0 milestone, "Your members on the web": campaign finance for every member.
+
+### Added
+
+- **`campaign_finance`**: OpenFEC totals for each current member's campaign to date (House: the
+  2025–26 cycle; senators: since their last election): small-dollar, itemized, PAC, party, other
+  receipts and cash on hand. `npm run ingest -w @floor/worker -- fec-totals` (about 10 minutes for
+  everyone at FEC's 60 requests a minute; skips members refreshed in the last 20 hours).
+- **`pac_contributions`**: every committee's direct and earmarked totals per member, from the FEC
+  bulk file of committee-to-candidate contributions, with FEC's committee designation, type and
+  organization type (corporation, labor, trade, membership…). `fec-pacs 2026`, about 30 seconds.
+- Earmarked pass-throughs are separated from a committee's own checks, and the memo text that names
+  individual donors is never stored (product rule: no individual donors' names). `isPac()` leaves
+  party and joint fundraising committees out of PAC lists.
+- Members now keep their FEC candidate IDs (`members.ids.fec`).
+- `docs/HANDOFF.md` lessons 23–24: what the FEC files actually contain, and the rate limit.
+
 ## 0.2.3 — 2026-11-12
 
 The iOS app is rebuilt to the six phone screens locked in round 6 of the design canvas

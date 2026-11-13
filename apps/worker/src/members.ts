@@ -14,7 +14,7 @@ export interface MemberRow {
 
 /** Shape of an entry in congress-legislators' legislators-*.json files (fields we use). */
 export interface LegislatorEntry {
-  id: { bioguide: string; lis?: string; govtrack?: number; icpsr?: number; thomas?: string };
+  id: { bioguide: string; lis?: string; govtrack?: number; icpsr?: number; thomas?: string; fec?: string[] };
   name: { first: string; last: string; nickname?: string };
   terms: {
     type: "sen" | "rep";
@@ -66,6 +66,8 @@ export function toMemberRows(entries: LegislatorEntry[], servedSince = "2022-11-
     if (e.id.lis) ids.lis = e.id.lis;
     if (e.id.govtrack) ids.govtrack = e.id.govtrack;
     if (e.id.icpsr) ids.icpsr = e.id.icpsr;
+    // Every FEC candidate ID the member has held, e.g. a House ID and a later Senate one.
+    if (e.id.fec?.length) ids.fec = e.id.fec;
     if (term.url) ids.url = term.url;
     if (term.rss_url) ids.rss_url = term.rss_url;
     rows.push({
