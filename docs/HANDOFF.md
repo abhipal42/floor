@@ -80,7 +80,7 @@ Command Line Tools rather than Xcode: run it with `DEVELOPER_DIR=/Applications/X
 
 | Route | Returns |
 |---|---|
-| `GET /v1/reps?address=` | District (119th Congress map) + House member + senators. The address goes only to the Census geocoder and isn't stored or logged. |
+| `GET /v1/reps?address=` or `?lat=&lng=` | District (119th Congress map) + House member + senators. Send an address *or* coordinates (e.g. from the browser's location), not both. Coordinates are rounded to 4 decimals (~11 m). Either goes only to the Census geocoder and isn't stored or logged. |
 | `GET /v1/members/{id}` | A member, plus how often they sided with their own party's majority |
 | `GET /v1/members/{bioguideId}/votes?limit=` | A member's recent votes with their position (and candidate, for Speaker elections) |
 | `GET /v1/votes/{id}` | One vote: totals, threshold, kind, bill link, **per-party breakdown**, and for a Speaker election **which candidate each party backed**. `?members=A000370,C001098` (up to ten) also returns those members' own positions, so the vote screen loads your delegation in one round trip. IDs look like `house-119-1-100` |
@@ -178,6 +178,11 @@ Real data broke our first assumptions several times. Each case below is now hand
    only component carrying component-level nullability. Check how a component is used before widening
    that list.
 18. **Applying migrations to staging:** apply each new file in `supabase/migrations` in order (Supabase SQL editor or `supabase db push`). Tests run all migrations against PGlite, so a migration that breaks shows up in `npm run check` first.
+19. **The Census coordinates lookup answers in a different shape.** `geographies/coordinates` puts
+    the layers straight on `result.geographies`; `geographies/onelineaddress` nests them under
+    `result.addressMatches[0].geographies`. A point outside the U.S. (we checked London) is not an
+    error: it comes back `200` with an empty `geographies` object. `parseCensusDistrict` reads
+    both shapes and returns null for the empty one, which `/v1/reps` turns into a 404.
 
 ---
 
@@ -393,6 +398,31 @@ the product rules they settled are in `CLAUDE.md` › Product rules). What to kn
   every filing; `ptr-pdfs/<year>/<DocID>.pdf` are the trade reports). Senate disclosures (eFD) have no
   bulk index. Disclosures report value **ranges** and omit homes, which is why the page shows ranges.
 - **Forms are inert.** Beta sign-up and address entry show "opens soon" until there is a backend.
+
+### v0.3.0: Your members on the web (in progress)
+
+**Goal:** the landing page shows *your* three members, found from your location, instead of the
+fixed New York demo (Jeffries, Schumer, Gillibrand). Approved by Sourav on 2026-11-12. Intermediate
+steps ship as 0.2.x PATCH releases; 0.3.0 closes the milestone with its retro.
+
+1. **Location → your members (API).** Landed in 0.2.2: `/v1/reps?lat=&lng=`. Still needed before the
+   site can call it: `https://floor-web-seven.vercel.app` in `ALLOWED_ORIGINS` on the `floor-api`
+   Vercel project, then a redeploy (someone on the Abtanix Labs team).
+2. **Mock for Ishan.** The location prompt, the "your members" switcher, and the loading, denied,
+   not-found and no-data states, as a claude.ai artifact. The web UI work waits for his lock
+   (`CLAUDE.md` › Large UI changes).
+3. **Sections the API already serves:** five finals (how *your* members voted), scouting report
+   (last 40 roll calls), player cards (party loyalty).
+4. **Campaign finance for every member** from OpenFEC: principal committee totals (small-dollar,
+   itemized, PAC, other, cash on hand) and the biggest PAC checks with FEC's organization type as the
+   "kind". Ingest, table, API route, section.
+5. **Donor context** from Senate LDA lobbying filings (what each PAC's organization lobbies on),
+   matched to the member's votes by topic. The plain-English "who they are" lines are AI-written and
+   wait for M4's label-and-cite pipeline.
+6. **Financial disclosures: spike first.** House filings are PDFs (some scanned); Senate eFD has no
+   bulk index. 5 U.S.C. §13107 bars using these reports for commercial purposes other than news
+   media, so the spike reports both what parses reliably and the open legal question before any
+   build.
 
 ### M5: Beta hardening + App Store
 Accessibility (Dynamic Type, VoiceOver on score cards), privacy labels, a vote-night load test, App Review prep, public TestFlight.

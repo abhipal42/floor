@@ -115,11 +115,15 @@ const app = createApp({
     ],
   },
   now: () => new Date("2026-11-12T00:00:00Z"),
-  geocode: async (address) => {
-    geocoded.push(address);
-    return address.includes("Austin")
-      ? { congress: 119, state: "TX", stateFips: "48", district: 37, countyFips: "48453" }
-      : null;
+  locate: async (place) => {
+    const austin = { congress: 119, state: "TX", stateFips: "48", district: 37, countyFips: "48453" };
+    if ("address" in place) {
+      geocoded.push(place.address);
+      return place.address.includes("Austin") ? austin : null;
+    }
+    geocoded.push(`${place.lat},${place.lng}`);
+    // Inside the continental US resolves to TX-37 here; anywhere else is outside every district.
+    return place.lat > 24 && place.lat < 50 && place.lng > -125 && place.lng < -66 ? austin : null;
   },
 });
 
@@ -199,6 +203,39 @@ describe("API", () => {
     const res = await app.request("/v1/reps?address=nowhere%20at%20all");
     expect(res.status).toBe(404);
     expect((await res.json()).error).toMatch(/city, state and ZIP/);
+  });
+
+  it("finds members from the browser's coordinates", async () => {
+    const res = await app.request("/v1/reps?lat=30.2747&lng=-97.7404");
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.district).toEqual({ congress: 119, state: "TX", district: 37, countyFips: "48453" });
+    expect(body.members.map((m: Member) => m.bioguideId)).toEqual(["D000399", "C001098"]);
+    expect(geocoded.at(-1)).toBe("30.2747,-97.7404");
+  });
+
+  it("says when coordinates fall outside every U.S. district", async () => {
+    const res = await app.request("/v1/reps?lat=51.5072&lng=-0.1276");
+    expect(res.status).toBe(404);
+    expect((await res.json()).error).toMatch(/isn't in a U.S. congressional district/);
+  });
+
+  it("asks for exactly one of an address or a full pair of coordinates", async () => {
+    const before = geocoded.length;
+    for (const [query, message] of [
+      ["", /Send an address, or both lat and lng/],
+      ["lat=30.27", /Send an address, or both lat and lng/],
+      ["lng=-97.74", /Send an address, or both lat and lng/],
+      ["address=1100%20Congress%20Ave%2C%20Austin%2C%20TX&lat=30.27&lng=-97.74", /not both/],
+      ["lat=91&lng=0", /lat must be between -90 and 90/],
+      ["lat=0&lng=181", /lng must be between -180 and 180/],
+      ["lat=north&lng=west", /./],
+    ] as const) {
+      const res = await app.request(`/v1/reps?${query}`);
+      expect(res.status, query).toBe(400);
+      expect((await res.json()).error, query).toMatch(message);
+    }
+    expect(geocoded.length).toBe(before);
   });
 
   it("rejects a too-short address without calling the geocoder", async () => {
@@ -288,7 +325,7 @@ describe("API", () => {
           throw new Error("getaddrinfo ENOTFOUND db.example.supabase.co");
         },
       },
-      geocode: async () => null,
+      locate: async () => null,
     });
     const res = await broken.request("/v1/status");
     expect(res.status).toBe(200);

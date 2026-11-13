@@ -8,6 +8,25 @@ is a milestone and ships a retro under `docs/retros/`.
 Older series live in [`docs/changelog/`](docs/changelog) (0.1.x: [`0.1.md`](docs/changelog/0.1.md)).
 Before 0.1.0 the history is the commit log on `main`.
 
+## 0.2.2 — 2026-11-12
+
+First step of the v0.3.0 milestone, "Your members on the web": the API can find someone's members
+from their location as well as from a typed address.
+
+### Added
+
+- `GET /v1/reps` accepts `lat` and `lng` (for example from the browser's location) as an
+  alternative to `address`. Coordinates are rounded to 4 decimal places (about 11 m) before they
+  go to the Census geocoder's coordinates endpoint, and are never stored or logged. A point outside
+  every U.S. district (abroad, at sea) gets a 404 that suggests entering an address instead.
+- `400` responses on `/v1/reps` when a request sends both an address and coordinates, neither, or
+  only one coordinate, or coordinates out of range.
+
+### Changed
+
+- `AppDeps.geocode(address)` is now `AppDeps.locate(place)`, taking `{ address }` or `{ lat, lng }`.
+- `docs/HANDOFF.md` and `docs/plan.md`/`plan.html` record the v0.3.0 milestone.
+
 ## 0.2.1 — 2026-11-12
 
 ### Changed

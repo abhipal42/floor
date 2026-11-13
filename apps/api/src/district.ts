@@ -1,4 +1,7 @@
-/** A congressional district resolved from an address. The address itself is never kept. */
+/** Where someone is: a typed address, or the browser's coordinates. Neither is ever kept. */
+export type Place = { address: string } | { lat: number; lng: number };
+
+/** A congressional district resolved from a place. The place itself is never kept. */
 export interface DistrictMatch {
   congress: number;
   state: string;       // postal code, e.g. "TX"
@@ -30,13 +33,38 @@ export function censusUrl(address: string, congress: number): string {
   return `https://geocoding.geo.census.gov/geocoder/geographies/onelineaddress?${params}`;
 }
 
+/**
+ * Coordinates are rounded to 4 decimal places (about 11 m) before they leave the API: enough to
+ * place someone in the right district except within a few metres of a boundary, and no more
+ * precise than that.
+ */
+export const COORDINATE_DECIMALS = 4;
+
+export function censusCoordinatesUrl(lat: number, lng: number, congress: number): string {
+  const vintage = CENSUS_VINTAGE[congress];
+  if (!vintage) throw new Error(`No Census vintage configured for the ${congress}th Congress`);
+  const params = new URLSearchParams({
+    x: lng.toFixed(COORDINATE_DECIMALS),
+    y: lat.toFixed(COORDINATE_DECIMALS),
+    benchmark: "Public_AR_Current",
+    vintage,
+    layers: "all",
+    format: "json",
+  });
+  return `https://geocoding.geo.census.gov/geocoder/geographies/coordinates?${params}`;
+}
+
 type Geo = Record<string, string>;
 
-/** Pulls state, district and county out of a Census geographies response. */
+/**
+ * Pulls state, district and county out of a Census geographies response. An address lookup nests
+ * the layers under `addressMatches[0]`; a coordinates lookup puts them straight on `result`.
+ */
 export function parseCensusDistrict(json: unknown, congress: number): DistrictMatch | null {
-  const match = (json as { result?: { addressMatches?: { geographies?: Record<string, Geo[]> }[] } })
-    ?.result?.addressMatches?.[0];
-  const geographies = match?.geographies;
+  const result = (json as {
+    result?: { addressMatches?: { geographies?: Record<string, Geo[]> }[]; geographies?: Record<string, Geo[]> };
+  })?.result;
+  const geographies = result?.addressMatches?.[0]?.geographies ?? result?.geographies;
   if (!geographies) return null;
 
   const cd = geographies[`${congress}th Congressional Districts`]?.[0];
@@ -69,4 +97,15 @@ export async function geocodeDistrict(
   fetchJson: FetchJson = defaultFetchJson,
 ): Promise<DistrictMatch | null> {
   return parseCensusDistrict(await fetchJson(censusUrl(address, congress)), congress);
+}
+
+/** Resolves a typed address or a pair of coordinates to a congressional district. */
+export async function locateDistrict(
+  place: Place,
+  congress: number,
+  fetchJson: FetchJson = defaultFetchJson,
+): Promise<DistrictMatch | null> {
+  const url =
+    "address" in place ? censusUrl(place.address, congress) : censusCoordinatesUrl(place.lat, place.lng, congress);
+  return parseCensusDistrict(await fetchJson(url), congress);
 }
