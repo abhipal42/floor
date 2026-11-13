@@ -60,6 +60,7 @@ const repo: VoteRepository = {
 
 /** Records how `partyLoyalty` was called, so we can check the party came off the member row. */
 const loyaltyCalls: string[] = [];
+const fundingCalls: string[] = [];
 
 const geocoded: string[] = [];
 const app = createApp({
@@ -80,6 +81,34 @@ const app = createApp({
     partyLoyalty: async (id, party) => {
       loyaltyCalls.push(`${id}/${party}`);
       return { votes: 120, withParty: 111, againstParty: 9 };
+    },
+    funding: async (id, limit) => {
+      fundingCalls.push(`${id}/${limit}`);
+      if (id !== "D000399") return null;
+      return {
+        cycle: 2026,
+        coverageStart: "2025-01-01",
+        coverageEnd: "2026-10-14",
+        receipts: 2_412_880,
+        smallDollar: 402_118,
+        itemized: 1_204_902,
+        pac: 611_500,
+        party: 5_000,
+        other: 189_360,
+        cashOnHand: 884_398,
+        committeesCycle: 2026,
+        committees: [
+          {
+            committeeId: "C00002550",
+            name: "American Trucking Associations PAC",
+            kind: "Trade group",
+            orgType: "T",
+            connectedOrg: "American Trucking Associations",
+            direct: 10_000,
+            earmarked: 0,
+          },
+        ].slice(0, limit),
+      };
     },
   },
   bills: {
@@ -170,6 +199,56 @@ describe("API", () => {
     });
     // The party used for the comparison comes from the member row, not from the client.
     expect(loyaltyCalls).toContain("D000399/D");
+  });
+
+  it("returns a member's campaign money, with the two FEC sources kept apart", async () => {
+    const res = await app.request("/v1/members/D000399/funding");
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.member).toEqual(members[0]);
+    expect(body.funding).toMatchObject({ cycle: 2026, receipts: 2_412_880, cashOnHand: 884_398 });
+    // What the campaign reported receiving is not a breakdown of what committees reported giving:
+    // the PAC total and the listed committees come from different filings and need not agree.
+    expect(body.funding.pac).toBe(611_500);
+    expect(body.funding.committees[0]).toMatchObject({ name: "American Trucking Associations PAC", direct: 10_000, earmarked: 0 });
+  });
+
+  it("names no individual donor anywhere in a funding response", async () => {
+    const res = await app.request("/v1/members/D000399/funding");
+    const body = await res.json();
+    // Earmark memos are where FEC names individuals, and the importer drops them (lesson 23).
+    // The response shape has nowhere to put one either: a committee carries exactly these keys,
+    // so a memo field added later fails here rather than reaching a client.
+    expect(Object.keys(body.funding.committees[0]).sort()).toEqual([
+      "committeeId", "connectedOrg", "direct", "earmarked", "kind", "name", "orgType",
+    ]);
+    // `earmarked` is an amount, not a memo: a number, never text.
+    for (const c of body.funding.committees) {
+      expect(typeof c.earmarked).toBe("number");
+      expect(c.name).toMatch(/PAC|Association|Committee|Fund|Inc|Corp|Union|Company|Group/i);
+    }
+  });
+
+  it("caps the committee list at what ?committees= asked for, and defaults to ten", async () => {
+    await app.request("/v1/members/D000399/funding");
+    expect(fundingCalls).toContain("D000399/10");
+    await app.request("/v1/members/D000399/funding?committees=3");
+    expect(fundingCalls).toContain("D000399/3");
+    expect((await app.request("/v1/members/D000399/funding?committees=51")).status).toBe(400);
+    expect((await app.request("/v1/members/D000399/funding?committees=-1")).status).toBe(400);
+  });
+
+  it("returns the member with null funding when FEC has no totals for them", async () => {
+    const res = await app.request("/v1/members/C001098/funding");
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.member.bioguideId).toBe("C001098");
+    expect(body.funding).toBeNull();
+  });
+
+  it("returns 404 for funding of an unknown member and 400 for a malformed ID", async () => {
+    expect((await app.request("/v1/members/Z000000/funding")).status).toBe(404);
+    expect((await app.request("/v1/members/doggett/funding")).status).toBe(400);
   });
 
   it("returns 404 for an unknown member and 400 for a malformed ID", async () => {
@@ -317,6 +396,7 @@ describe("API", () => {
         recentVotes: async () => [],
         getMember: async () => null,
         partyLoyalty: async () => ({ votes: 0, withParty: 0, againstParty: 0 }),
+        funding: async () => null,
       },
       bills: { getBill: async () => null },
       nominations: { getNomination: async () => null },
@@ -355,16 +435,18 @@ describe("API", () => {
   it("keeps nullability off the shared components, except where every use is nullable", async () => {
     // zod-openapi hoists `nullable` onto a registered component when a nullable use is registered
     // before a non-nullable one, which would quietly make the component nullable everywhere it is
-    // referenced — including at uses that are not supposed to accept null. Both of these are
+    // referenced — including at uses that are not supposed to accept null. All three of these are
     // nullable at every use they have, so carrying it on the component is correct for them:
     // LatestAction on Bill and Nomination, MeasureSummary on MemberVote (a procedural vote refers
-    // to no measure). Anything else showing up here needs checking against how it is actually used
-    // before the list is widened.
+    // to no measure), and Funding on MemberFunding, its only use, null when FEC has no totals for
+    // the member. Anything else showing up here needs checking against how it is actually used
+    // before the list is widened — and if Funding ever gains a use that must not accept null, it
+    // has to come off this list and out of the component, not be left here.
     const doc = await (await app.request("/openapi.json")).json();
     const schemas: Record<string, { nullable?: boolean }> = doc.components.schemas;
     const hoisted = Object.entries(schemas)
       .filter(([, schema]) => schema.nullable)
       .map(([name]) => name);
-    expect(hoisted.sort()).toEqual(["LatestAction", "MeasureSummary"]);
+    expect(hoisted.sort()).toEqual(["Funding", "LatestAction", "MeasureSummary"]);
   });
 });

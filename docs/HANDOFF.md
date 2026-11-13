@@ -87,6 +87,7 @@ Command Line Tools rather than Xcode: run it with `DEVELOPER_DIR=/Applications/X
 |---|---|
 | `GET /v1/reps?address=` or `?lat=&lng=` | District (119th Congress map) + House member + senators. Send an address *or* coordinates (e.g. from the browser's location), not both. Coordinates are rounded to 4 decimals (~11 m). Either goes only to the Census geocoder and isn't stored or logged. |
 | `GET /v1/members/{id}` | A member, plus how often they sided with their own party's majority |
+| `GET /v1/members/{id}/funding` | Their current campaign's money: what the campaign reported receiving (small-dollar, itemized, PAC, party, other, cash on hand) and the committees that reported giving to it, biggest direct giver first. `?committees=` (0-50, default 10). No individual donor is named |
 | `GET /v1/members/{bioguideId}/votes?limit=` | A member's recent votes with their position (and candidate, for Speaker elections) |
 | `GET /v1/votes/{id}` | One vote: totals, threshold, kind, bill link, **per-party breakdown**, and for a Speaker election **which candidate each party backed**. `?members=A000370,C001098` (up to ten) also returns those members' own positions, so the vote screen loads your delegation in one round trip. IDs look like `house-119-1-100` |
 | `GET /v1/bills/{id}` | Title, short title, CRS summary, sponsor, policy area, CBO estimates, last 30 actions, every vote on it. IDs look like `119-hr-2207` |
@@ -246,6 +247,16 @@ Real data broke our first assumptions several times. Each case below is now hand
 28. **The local web server lets the browser cache.** `serve.mjs` sends no cache headers, so after a
     rebuild a normal reload kept the old CSS and title. Hard-reload (Ctrl+Shift+R) before judging a
     change at `localhost:8790`; the deployed site is unaffected.
+29. **`campaign_finance.cycle` and `pac_contributions.cycle` are different things, and joining on
+    them silently empties the Senate.** The first is the election a campaign is *for* — 2028 for a
+    senator elected in 2022, 2030 for one elected in 2024. The second is the two-year FEC bulk file
+    the committee rows came from, currently 2026. `/v1/members/{id}/funding` first matched one to
+    the other, which looked right and passed every seeded test: House members are up every cycle,
+    so for them the two numbers agree. Against staging, Schumer (2028), Gillibrand (2030) and
+    Murkowski (2028) each came back with totals and **zero committees** — a senator up in 2028 is
+    still taking PAC money in the 2026 cycle. The query now takes the most recent cycle held for
+    that member, and the response carries `committeesCycle` next to `cycle` so a client can say
+    which period the committee list covers instead of implying it matches the campaign's.
 
 ---
 
@@ -667,8 +678,10 @@ steps ship as 0.2.x PATCH releases; 0.3.0 closes the milestone with its retro.
 4. **Campaign finance for every member.** Data landed in 0.2.4: `campaign_finance` (OpenFEC
    totals for each member's current campaign: small-dollar, itemized, PAC, party, other, cash on
    hand) and `pac_contributions` (every committee's direct and earmarked totals per member from the
-   2026 bulk file, with FEC's organization type for the "kind"). Still to do: the API route and the
-   section (the location mock it waited on was locked 2026-11-12).
+   2026 bulk file, with FEC's organization type for the "kind"). **The API route landed in 0.2.12:**
+   `/v1/members/{id}/funding`, which keeps the two FEC sources apart (lesson 24) and excludes party
+   and joint fundraising committees (lesson 23). Still to do: **the page section**, which reads the
+   live route for your members instead of the `funding` snapshot in `apps/web/src/data.ts`.
 5. **Donor context** from Senate LDA lobbying filings (what each PAC's organization lobbies on),
    matched to the member's votes by topic. The plain-English "who they are" lines are AI-written and
    wait for M4's label-and-cite pipeline.

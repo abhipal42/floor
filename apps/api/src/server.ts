@@ -19,6 +19,7 @@ function repositories(): Pick<AppDeps, "votes" | "members" | "bills" | "nominati
         recentVotes: async () => [],
         getMember: async () => null,
         partyLoyalty: async () => ({ votes: 0, withParty: 0, againstParty: 0 }),
+        funding: async () => null,
       },
       bills: { getBill: async () => null },
       nominations: { getNomination: async () => null },
