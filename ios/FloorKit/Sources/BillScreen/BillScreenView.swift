@@ -44,6 +44,7 @@ public struct BillScreenView: View {
         case let .loaded(bill):
             ScrollView {
                 VStack(alignment: .leading, spacing: 18) {
+                    if let saved = model.saved { SavedDataNote(saved) }
                     header(bill)
                     levels(bill)
                     if let summary = bill.summary, !summary.isEmpty {
