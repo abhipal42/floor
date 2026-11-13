@@ -13,6 +13,7 @@ let package = Package(
         .library(name: "RepScreen", targets: ["RepScreen"]),
         .library(name: "Home", targets: ["Home"]),
         .library(name: "DesignSystem", targets: ["DesignSystem"]),
+        .library(name: "WidgetFeed", targets: ["WidgetFeed"]),
     ],
     targets: [
         .target(name: "Models"),
@@ -32,6 +33,9 @@ let package = Package(
                 "RepScreen",
             ]
         ),
+        // What the home-screen widgets show, and how they fetch it. No views: those live in the
+        // widget extension (`ios/FloorWidgets`), so this stays testable on macOS.
+        .target(name: "WidgetFeed", dependencies: ["Models", "APIClient", "Onboarding"]),
         .testTarget(
             name: "ModelsTests",
             dependencies: ["Models"],
@@ -48,5 +52,7 @@ let package = Package(
         .testTarget(name: "BillScreenTests", dependencies: ["BillScreen"]),
         .testTarget(name: "RepScreenTests", dependencies: ["RepScreen"]),
         .testTarget(name: "DesignSystemTests", dependencies: ["DesignSystem"]),
+        // Reads ModelsTests' captured responses from the source tree, as APIClientTests does.
+        .testTarget(name: "WidgetFeedTests", dependencies: ["WidgetFeed"]),
     ]
 )

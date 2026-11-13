@@ -31,10 +31,13 @@ public struct FloorShell: View {
     @State private var billsPath: [HomeModel.Route] = []
     @State private var threePath: [HomeModel.Route] = []
     private let onChangeAddress: () -> Void
+    /// A link from a widget. The shell opens it on Finals and sets it back to nil.
+    @Binding private var link: FloorLink?
 
-    public init(model: HomeModel, onChangeAddress: @escaping () -> Void) {
+    public init(model: HomeModel, onChangeAddress: @escaping () -> Void, link: Binding<FloorLink?> = .constant(nil)) {
         _model = State(initialValue: model)
         self.onChangeAddress = onChangeAddress
+        _link = link
         FloorFonts.register()
     }
 
@@ -60,6 +63,21 @@ public struct FloorShell: View {
             tabBar
         }
         .tint(Palette.accent)
+        .onChange(of: link, initial: true) { _, incoming in follow(incoming) }
+    }
+
+    /// A widget's vote opens on Finals, over whatever that tab was showing, as a pushed vote screen
+    /// so Back returns to the feed.
+    private func follow(_ incoming: FloorLink?) {
+        guard let incoming else { return }
+        link = nil
+        switch incoming {
+        case let .vote(id):
+            tab = .finals
+            finalsPath = [.vote(id: id)]
+        case .open:
+            break
+        }
     }
 
     private func stack<Root: View>(

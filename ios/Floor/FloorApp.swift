@@ -5,19 +5,33 @@ import Models
 import Onboarding
 import SwiftUI
 import UIKit
+import WidgetFeed
+import WidgetKit
 
 @main
 struct FloorApp: App {
-    private let store = UserDefaultsDelegationStore()
+    /// In the App Group, so the widget sees the district too. The first launch of this build moves
+    /// a delegation saved by an older one out of the app's own defaults.
+    private let store: UserDefaultsDelegationStore
     /// Every screen's responses are saved, so the app opens on what it last showed when offline or
     /// slow, then refreshes. If the store cannot open, the app runs without one.
     private let api = FloorAPI(baseURL: FloorApp.apiBaseURL, cache: SwiftDataResponseCache.onDisk())
     @State private var delegation: Delegation?
+    /// A `floor://` link from a widget, waiting for the shell to open it.
+    @State private var pendingLink: FloorLink?
     @AppStorage(Appearance.storageKey) private var appearance: Appearance = .system
 
     init() {
         // Read once at launch, before any screen exists, so the first frame is the right one.
-        _delegation = State(initialValue: UserDefaultsDelegationStore().load())
+        let store = UserDefaultsDelegationStore.shared()
+        self.store = store
+        _delegation = State(initialValue: store.load())
+        // An upgrade from before the widget just copied the district into the App Group. A widget
+        // already on the home screen last read an empty group and says "pick your members"; tell
+        // it to look again rather than wait out its 30 minutes.
+        if store.movedFromLegacy {
+            WidgetCenter.shared.reloadAllTimelines()
+        }
     }
 
     /// Where the API lives.
@@ -40,7 +54,8 @@ struct FloorApp: App {
                 if let delegation {
                     FloorShell(
                         model: HomeModel(delegation: delegation, api: api),
-                        onChangeAddress: startOver
+                        onChangeAddress: startOver,
+                        link: $pendingLink
                     )
                     // A new delegation is a different feed, so the screen is rebuilt rather than
                     // reused with stale votes in it.
@@ -48,9 +63,13 @@ struct FloorApp: App {
                 } else {
                     OnboardingView(model: OnboardingModel(api: api, store: store)) { saved in
                         withAnimation { delegation = saved }
+                        // The widgets were showing "pick your members"; now they have some.
+                        WidgetCenter.shared.reloadAllTimelines()
                     }
                 }
             }
+            // Before onboarding there is no vote screen to open, so a link waits until there is.
+            .onOpenURL { url in pendingLink = FloorLink(url: url) }
             .onChange(of: appearance, initial: true) { _, choice in Self.apply(choice) }
         }
     }
@@ -75,6 +94,9 @@ struct FloorApp: App {
     /// new district saves can be swept up by the clear.
     private func startOver() {
         store.clear()
+        // The widget's saved votes name the old members too.
+        WidgetSnapshotStore.shared()?.clear()
+        WidgetCenter.shared.reloadAllTimelines()
         Task {
             await api.clearSavedResponses()
             withAnimation { delegation = nil }

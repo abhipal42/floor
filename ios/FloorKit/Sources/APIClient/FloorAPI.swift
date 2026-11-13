@@ -158,17 +158,26 @@ public struct FloorAPI: Sendable {
 
     // MARK: - Plumbing
 
-    private func escaped(_ component: String) -> String {
-        component.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? component
+    /// One path segment, percent-encoded. `/` is escaped too, so an id can never add a segment
+    /// and reach another route (`../status`, `x/votes`).
+    static func escaped(_ component: String) -> String {
+        component.addingPercentEncoding(withAllowedCharacters: segmentAllowed) ?? component
     }
 
+    private func escaped(_ component: String) -> String { Self.escaped(component) }
+
+    private static let segmentAllowed = CharacterSet.urlPathAllowed.subtracting(CharacterSet(charactersIn: "/"))
+
+    /// `path` is already percent-encoded (its ids went through ``escaped(_:)``), so it is set as the
+    /// encoded path rather than appended with `appendingPathComponent`, which would encode it a
+    /// second time (`%2F` → `%252F`).
     private func url(_ path: String, query: [URLQueryItem]) throws -> URL {
-        guard var components = URLComponents(
-            url: baseURL.appendingPathComponent(path),
-            resolvingAgainstBaseURL: false
-        ) else {
+        guard var components = URLComponents(url: baseURL, resolvingAgainstBaseURL: false) else {
             throw FloorAPIError.http(status: -1, message: "Bad base URL")
         }
+        var basePath = components.percentEncodedPath
+        while basePath.hasSuffix("/") { basePath.removeLast() }
+        components.percentEncodedPath = basePath + path
         components.queryItems = query.isEmpty ? nil : query
         guard let url = components.url else {
             throw FloorAPIError.http(status: -1, message: "Bad request URL")

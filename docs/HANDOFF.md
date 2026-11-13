@@ -81,7 +81,7 @@ Command Line Tools rather than Xcode: run it with `DEVELOPER_DIR=/Applications/X
 | `apps/worker` | Ingest CLI: members, roll calls, bills, nominations, campaign finance, AI bill analysis | `src/cli.ts`, `rollcalls.ts`, `bills.ts`, `nominations.ts`, `members.ts`, `fec.ts`, `analysis.ts` (M4 Layer 1), `analysis-eval.ts`, `db.ts` |
 | `apps/api` | Hono REST API with OpenAPI at `/openapi.json` | `src/app.ts` (routes + schemas), `pg.ts` (Postgres), `district.ts` (Census) |
 | `apps/web` | Landing page (v0.2.0): static HTML/CSS/TypeScript built with `tsc`, no framework | `src/data.ts` (every figure, with source and date), `src/logic.ts` (pure helpers), `src/main.ts` (rendering), `public/` |
-| `ios/` | SwiftUI app (XcodeGen, `project.yml`), `FloorKit` package: `Models`, `APIClient`, `DesignSystem`, `Onboarding`, `Home`, `VoteScreen`, `BillScreen`, `RepScreen` | `FloorKit/Sources/Models/` (one file per area, `Samples.swift` for previews), `FloorKit/Tests/ModelsTests/ContractTests.swift`, `DesignSystem/ScoreboardCard.swift`, `DesignSystem/Components.swift`, `DesignSystem/Fonts/` (Barlow Condensed, OFL), `Home/FloorShell.swift` (tabs), `Home/CatchUp.swift`, `Models/VoteOutcome.swift`, `BillScreen/LawLevels.swift`, `APIClient/ResponseCache.swift` (offline cache), `DesignSystem/SavedDataNote.swift` |
+| `ios/` | SwiftUI app (XcodeGen, `project.yml`), `FloorKit` package: `Models`, `APIClient`, `DesignSystem`, `Onboarding`, `Home`, `VoteScreen`, `BillScreen`, `RepScreen`, `WidgetFeed`; `FloorWidgets/` (the WidgetKit extension) | `FloorKit/Sources/Models/` (one file per area, `Samples.swift` for previews), `FloorKit/Tests/ModelsTests/ContractTests.swift`, `DesignSystem/ScoreboardCard.swift`, `DesignSystem/Components.swift`, `DesignSystem/Fonts/` (Barlow Condensed, OFL), `Home/FloorShell.swift` (tabs), `Home/CatchUp.swift`, `Models/VoteOutcome.swift`, `BillScreen/LawLevels.swift`, `APIClient/ResponseCache.swift` (offline cache), `DesignSystem/SavedDataNote.swift` |
 | `.github/workflows/ci.yml` | `scope` job (which parts changed) + node job (lint/typecheck/tests + OpenAPI drift) + macOS job (Swift tests + simulator build). **Pushes to `main` only** since 2026-11-13 — a PR never builds the code — and the macOS job runs only when the push touched `ios/` or `.github/` | |
 | `.github/workflows/ingest.yml` | **Hourly ingest** (since v0.2.20): members, then House and Senate roll calls for the session in progress (`rollcalls <chamber> current`), then bills and nominations, one after another in one job, in a `concurrency: ingest` group so a slow run makes the next wait instead of overlapping it. Members runs once a day (06 UTC) and on manual runs; GitHub disables the schedule after 60 days of repo inactivity (lesson 37). **Inert until the repo has a `DATABASE_URL` secret** (session pooler string) and `CONGRESS_API_KEY`; without the first it logs a warning and skips. Adding them needs repo admin (lesson 37) | |
 | `.github/workflows/guards.yml` | Shipping guards on every PR (the only workflow that still runs there): changelog, version, docs, tests, retro, PR title | `.github/scripts/guards.conf` (this repo's settings), `guards.sh` (shared, do not edit) |
@@ -670,7 +670,7 @@ live `#FF453A`, muted text `#9BA1AD`.
 - Deploy the worker as an always-on container (Fly.io or Railway) with session-aware polling: every 10 s in session, every 5 min otherwise. Until then, `.github/workflows/ingest.yml` polls hourly (lesson 37), which keeps `/v1/status` fresh but is far from the 30 s goal.
 - Floor events: House Clerk floor summary XML; Senate floor activity pages (scraped, with contract tests).
 - Votes get state `open` from floor events, then `final` when the roll call XML posts.
-- Supabase Realtime broadcast to open apps; APNs pushes; Live Activities (push-to-start, iOS 17.2+); widgets.
+- Supabase Realtime broadcast to open apps; APNs pushes; Live Activities (push-to-start, iOS 17.2+). (Home-screen widgets landed early, in v0.2.23; see "Widgets" below. A widget refreshes on WidgetKit's budget, about every 30 minutes, so it is not part of the 30 s goal.)
 - **Measure** Clerk and LIS posting latency on real session days (deferred from M1).
 - House running-tally OCR prototype from the floor video → go/no-go decision.
 - Alerting: page someone when `/v1/status` reports `ok: false` during a session.
@@ -1007,6 +1007,75 @@ Code: `RepScreen/MoneyView.swift` (views), `MoneyModel` in `RepScreenModel.swift
 - **State that outlives a view.** The section lives on `YourThreeModel` (it survives switching member)
   and the picked grid square on `RepScreenModel.selectedCall` (it survives a trip to Money, which
   rebuilds the record view).
+
+### Widgets (v0.2.23)
+
+Two home-screen widgets, built to the locked design, section "D · Widgets" of
+<https://claude.ai/artifact/X5NwWSe1NmugSRoCKh3vBn>.
+
+- **Small, "Latest final":** the newest *final* vote any of your members took part in — chamber,
+  the bill's citation, the result word, yea and nay in yea green and nay orange, and one member's
+  chip (your representative on a House vote, the first senator by surname on a Senate one). The
+  result word is `Vote.outcomeWord`, i.e. what the chamber recorded, not which side had more
+  votes: cloture that lost 53–47 reads REJECTED. A Speaker ballot shows its two leading
+  candidates' totals and ELECTED or NO ONE ELECTED (lesson 16), never the leader as a winner.
+- **Medium, "Your three · TX-37":** one row per member, representative first — position chip
+  (YEA, NAY, DNV, PRESENT, or the candidate they named on a Speaker ballot), surname, citation and
+  result (`H.R. 2347 · Agreed 62–21`), date. One member reads "Your delegate · DC" with a line
+  saying the jurisdiction has no senators and delegates vote on amendments, not passage; a vacancy
+  reads "Your two". A member with no votes yet gets a "—" chip and "No recorded votes yet".
+- **Where things live.** Everything the widgets show is built and tested in FloorKit's `WidgetFeed`
+  (`WidgetSnapshot.make`, `WidgetText`); `ios/FloorWidgets/FloorWidgets.swift` is the WidgetKit
+  timeline and the drawing only. Colours are `Palette` tokens, light and dark; the background is
+  the new `Palette.widget` swatch (#0B0C0F dark, white light), checked for contrast with the rest.
+- **Data.** The widget reads the delegation from the **App Group `group.$(FLOOR_BUNDLE_ID)`** —
+  `group.app.floor.ios` by default — and fetches `/v1/members/{id}/votes?limit=10` for each member
+  from the same `FloorAPIBaseURL` build setting as the app, on its own session (12 s request
+  timeout, no URL cache). Timeline: next refresh after 30 minutes (15 after a failure), plus a
+  second entry at the moment the data turns two hours old, when a muted "As of 3:40 PM" (or "As of
+  Nov 12") appears. A failed refresh shows the last snapshot saved for the same district
+  (`WidgetSnapshotStore`, key `floor.widget.snapshot.v1`), else "Couldn't reach Floor". No district
+  yet: "Open Floor to pick your members". The gallery placeholder is TX-37 exactly as staging
+  returned it on 2026-11-12; a test checks it against the captured fixtures.
+- **A refresh can be overtaken by "Change address".** `WidgetFeed.refresh` reads the delegation
+  again once the votes arrive and saves (and shows) the snapshot only if it still belongs to the
+  delegation in the group; otherwise it shows the empty state. Without that, a fetch in flight
+  wrote the old district's votes back into the group the app had just cleared.
+- **The move to the App Group.** `UserDefaultsDelegationStore.shared()` replaces the app's
+  standard-defaults store. On first launch of this build it copies `floor.delegation.v1` into the
+  group (a record already there wins), **keeps the old copy** so a group that turns out not to work
+  loses nothing, and reloads the widgets so one already on the home screen stops saying "pick your
+  members". `clear()` removes the key from both suites and `save()` drops the legacy copy, so an
+  old district cannot come back. The group counts as present only when
+  `FileManager.containerURL(forSecurityApplicationGroupIdentifier:)` returns a container —
+  `UserDefaults(suiteName:)` hands back a process-private suite for any name, entitled or not.
+  Without the group the app keeps using its own defaults and the widget shows the empty state.
+- **Privacy.** Unchanged: the group holds the district, the members and their public votes —
+  never an address or a coordinate (tested). The widget snapshot also drops the district's
+  `countyFips`. "Change address" clears the delegation, the response cache and the widget's saved
+  snapshot, then reloads the widgets.
+- **Taps.** `floor://vote/<id>` (`Models/FloorLink.swift`, scheme registered in the app's
+  Info.plist). Any app can open a `floor://` URL, so only ids shaped `^(house|senate)-\d+-\d+-\d+$`
+  (ASCII digits) are accepted, and `FloorAPI` now escapes `/` in every path id and no longer
+  encodes a path twice (`appendingPathComponent` turned `%2F` into `%252F`). The small widget opens
+  its vote; each medium row opens its own vote (`Link`), and the rest of the medium widget opens the
+  newest one shown. The app's `onOpenURL` hands the link to `FloorShell`, which switches to Finals
+  and pushes the vote screen. A link that arrives before onboarding waits until there is a shell.
+- **Tinted home screens.** In the accented and vibrant rendering modes every pixel is one tint, so
+  the chips become outlines rather than fills that would swallow their text.
+- **Versions.** `MARKETING_VERSION` and `CURRENT_PROJECT_VERSION` moved to the project-level
+  `settings` in `project.yml`, so the app and the extension cannot disagree (App Store Connect
+  rejects that). Both Info.plists use `$(MARKETING_VERSION)` / `$(CURRENT_PROJECT_VERSION)`.
+- **Bundle ids and the group come from one setting.** `FLOOR_BUNDLE_ID` (default
+  `app.floor.ios`) is the app's id; the widget is `$(FLOOR_BUNDLE_ID).widgets`; the App Group is
+  `FLOOR_APP_GROUP = group.$(FLOOR_BUNDLE_ID)`, written into both entitlements and both
+  Info.plists (`FloorAppGroup`, which Swift reads; fallback `group.app.floor.ios`). **A personal
+  device build on your own team passes `FLOOR_BUNDLE_ID=com.yourname.floor`** to `xcodebuild` (or
+  sets it in Xcode). Overriding `PRODUCT_BUNDLE_IDENTIFIER` instead gives the app and the widget the
+  same id, and the old hard-coded group would have been registered under your team.
+- **Signing, when TestFlight comes:** the App Group has to be registered in the developer account
+  and enabled for both bundle ids, `app.floor.ios` and `app.floor.ios.widgets`.
+- **Not built here:** Live Activities, push, and the AI section (M3/M4, other work in flight).
 
 ### Light mode on the landing page (v0.2.17)
 
