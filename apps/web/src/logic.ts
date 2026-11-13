@@ -54,6 +54,16 @@ export function activeLevel(tops: readonly number[], line: number): number {
   return on;
 }
 
+/**
+ * The step a reader is on along an unpinned road: `activeLevel`, except that the last box counts
+ * once it is fully in view, because at the very end of the page it can never reach the reading line.
+ */
+export function activeStep(tops: readonly number[], line: number, lastBottom: number, viewport: number): number {
+  const last = tops[tops.length - 1];
+  if (last !== undefined && lastBottom <= viewport && last < viewport * 0.8) return tops.length - 1;
+  return activeLevel(tops, line);
+}
+
 /** Upper-cases, truncates to the board width and centres a line (extra space goes right). */
 export function padFlap(text: string, width = FLAP_WIDTH): string {
   const s = text.toUpperCase().slice(0, width);
@@ -180,12 +190,6 @@ export function deckJump(front: number, k: number, dealing: boolean, n = DECK_SI
 /** Yea share of the bar on a final's card, at count-up progress p. */
 export function yeaShare(yea: number, nay: number, p: number): string {
   return (((100 * yea) / (yea + nay)) * p).toFixed(1) + "%";
-}
-
-/** The drive chart's field runs 6%..94% of the track; `pos` is 0..100 of the way to law. */
-export function driveBall(pos: number): { ball: string; fill: string } {
-  const ball = 6 + (88 * pos) / 100;
-  return { ball: ball.toFixed(1) + "%", fill: (ball - 6).toFixed(1) + "%" };
 }
 
 export type VotePos = "Y" | "N" | "P" | "M";

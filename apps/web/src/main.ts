@@ -59,7 +59,7 @@ import {
   FLAP_ROWS,
   FLAP_TICKS,
   FLAP_WIDTH,
-  activeLevel,
+  activeStep,
   headFloats,
   scrollStep,
   stepLength,
@@ -69,7 +69,6 @@ import {
   deckPose,
   deckJump,
   deckStep,
-  driveBall,
   easeOutCubic,
   easeOutQuart,
   esc,
@@ -163,6 +162,8 @@ function afterPaint(fn: () => void): void {
 interface Steps {
   /** What the progress pill calls one step: "Final", "Level". */
   noun: string;
+  /** The pill's text for a step, when it is not "<noun> n of count" (a closing step with a name). */
+  label?: (i: number) => string;
   count: number;
   go: (i: number) => void;
   /** The step a reader's own click (a tab, a card, Next) moves the section to, if any. */
@@ -279,6 +280,7 @@ function pin(stage: HTMLElement, s: Steps): void {
       if (!on) return null;
       const sc = scrolled();
       if (sc < 0 || sc >= len * s.count) return null;
+      if (s.label) return s.label(cur);
       if (s.count === 1) return s.noun;
       return s.noun + " " + (cur + 1) + " of " + s.count;
     },
@@ -675,58 +677,100 @@ function deck(): void {
 
 // ------------------------------------------------------------------ 02 · levels + drive chart
 
-// The section title and a six-stop map hold still beside one connected road of level cards; the
-// stop and card for the level the reader has scrolled to light up, and earlier ones read as cleared.
+// Locked mock 2026-11-13 (https://claude.ai/artifact/JZSvMDroyo5tVNVoKBA657): the title and a map of
+// seven stops hold still beside one road. A football rides the road's dashed rail and the rail fills
+// yellow behind it; the six level boxes lead to a condensed drive chart, the seventh and last step.
+// One index drives everything: the stop, the ball, the yellow line and the lit box always agree.
+
+/** The condensed drive chart: four real bills, where each one is now. Returns its box's inner HTML. */
+function driveBox(): string {
+  return (
+    '<div class="leg__top"><span class="leg__id"><span class="leg__n leg__n--drive" aria-hidden="true">DC</span><h3 class="leg__name" id="drive-title">The drive chart</h3></span>' +
+    '<span class="leg__need">Where four bills are now</span></div>' +
+    '<div role="tablist" aria-label="Bills" class="tabs tabs--sm" id="drive-tabs">' +
+    drives.items.map((d) => '<button type="button" role="tab" class="btab">' + esc(d.label) + "</button>").join("") +
+    "</div>" +
+    '<div class="dc" id="drive-panel" role="tabpanel" aria-labelledby="drive-title">' +
+    '<div class="dc__top"><span class="dc__id"><span class="dc__cite" data-cite></span><span class="dc__title" data-title></span></span><span class="dc__status" data-status></span></div>' +
+    '<div class="dc__bar" aria-hidden="true"><span class="dc__fill" data-fill></span><span class="dc__mid"></span></div>' +
+    '<div class="dc__lab" aria-hidden="true"><span>INTRODUCED</span><span data-mid></span><span>LAW</span></div>' +
+    '<ol class="dc__plays" data-plays></ol></div>' +
+    "<p class=\"fine\">From Congress.gov and the clerks' roll calls — never a guess at where a bill ends up.</p>"
+  );
+}
+
 function levelCards(): void {
   const track = el("#law-track");
   const road = el("#levels");
   const now = el("#law-now");
+  const DRIVE = levels.items.length; // the drive chart's step, after the six levels
+  const steps = DRIVE + 1;
+  const stepName = (i: number) => (i === DRIVE ? "The drive chart" : "Level " + (i + 1) + " · " + levels.items[i]!.name);
   track.innerHTML =
     '<span class="track__fill" aria-hidden="true"></span>' +
     levels.items
       .map(
         (l, i) =>
           '<li><button type="button" class="stop' + (l.boss ? " stop--boss" : "") + '" aria-label="Level ' + (i + 1) + ": " + esc(l.name) +
-          (l.boss ? ", boss level" : "") + '"><span class="stop__dot">' + (i + 1) + '</span><span class="stop__name">' + esc(l.name) +
-          (l.boss ? '<span class="stop__boss">BOSS</span>' : "") + "</span></button></li>",
+          '"><span class="stop__dot">' + (i + 1) + '</span><span class="stop__name">' + esc(l.name) +
+          "</span></button></li>",
       )
-      .join("");
-  road.innerHTML = '<div class="road__in">' + levels.items
-    .map(
-      (l, i) =>
-        '<article class="leg' + (l.boss ? " leg--boss" : "") + '"><span class="leg__pin" aria-hidden="true"></span><div class="leg__card">' +
-        '<div class="leg__top"><span class="leg__id"><span class="leg__n" aria-hidden="true">L' + (i + 1) + '</span><h3 class="leg__name"><span class="sr">Level ' +
-        (i + 1) + ": </span>" + esc(l.name) + "</h3>" + (l.boss ? '<span class="skew skew--accent">BOSS</span>' : "") + "</span>" +
-        '<span class="leg__need">' + esc(l.need) + '<span class="leg__cleared"> · CLEARED</span></span></div>' +
-        '<p class="leg__text">' + esc(l.body) + "</p>" +
-        '<div class="play"><span class="eyebrow play__k">REAL PLAY · ' + esc(l.example.when).toUpperCase() + '</span><span class="play__t">' + esc(l.example.title) +
-        '</span><span class="play__s num"><span class="yea">' + esc(l.example.yea) + '</span><span class="play__dash">–</span><span class="nay">' + esc(l.example.nay) +
-        '</span><span class="play__r" style="color:' + tone(l.example.tone) + '">' + esc(l.example.result) + "</span></span></div>" +
-        "</div></article>",
-    )
-    .join("") + "</div>";
+      .join("") +
+    '<li><button type="button" class="stop stop--drive" aria-label="The drive chart"><span class="stop__dot">DC</span><span class="stop__name">The drive chart</span></button></li>';
+  road.innerHTML =
+    '<div class="road__in"><span class="rail" aria-hidden="true"></span><span class="rail__fill" aria-hidden="true"></span><span class="ball" aria-hidden="true"></span>' +
+    levels.items
+      .map(
+        (l, i) =>
+          '<article class="leg' + (l.boss ? " leg--boss" : "") + '"><span class="leg__pin" aria-hidden="true"></span><div class="leg__card">' +
+          '<div class="leg__top"><span class="leg__id"><span class="leg__n" aria-hidden="true">L' + (i + 1) + '</span><h3 class="leg__name"><span class="sr">Level ' +
+          (i + 1) + ": </span>" + esc(l.name) + "</h3></span>" +
+          '<span class="leg__need">' + esc(l.need) + "</span></div>" +
+          '<p class="leg__text">' + esc(l.body) + "</p>" +
+          '<div class="play"><span class="eyebrow play__k">REAL PLAY · ' + esc(l.example.when).toUpperCase() + '</span><span class="play__t">' + esc(l.example.title) +
+          '</span><span class="play__s num"><span class="yea">' + esc(l.example.yea) + '</span><span class="play__dash">–</span><span class="nay">' + esc(l.example.nay) +
+          '</span><span class="play__r" style="color:' + tone(l.example.tone) + '">' + esc(l.example.result) + "</span></span></div>" +
+          "</div></article>",
+      )
+      .join("") +
+    '<article class="leg leg--drive" id="drive"><span class="leg__pin" aria-hidden="true"></span><div class="leg__card">' + driveBox() + "</div></article></div>";
 
   const stops = all<HTMLButtonElement>(".stop", track);
   const legs = all(".leg", road);
+  const pins = all(".leg__pin", road);
   const fill = el(".track__fill", track);
-  let on = -1;
-  const law = el(".law");
-  // Pinned (wide screens), the stage shows one card at a time and the pin drives the level;
-  // otherwise the road scrolls past the sticky map and the level follows the reading line.
-  const pinned = () => law.classList.contains("is-pinned");
   const lane = el(".road__in", road);
-  // Pinned, the road is a window onto the connected lane, moved so the focused card sits centred.
-  const centre = () => {
-    if (!pinned() || on < 0) {
+  const ball = el(".ball", lane);
+  const law = el(".law");
+  let on = -1;
+  // Pinned (wide screens), the pin drives the step and the lane moves so the lit box sits centred;
+  // otherwise the road scrolls past the sticky strip and the step follows the reading line.
+  const pinned = () => law.classList.contains("is-pinned");
+
+  // Where a pin's centre sits on the lane; the rail, the ball and the yellow line all measure from it.
+  const pinAt = (i: number) => {
+    const p = pins[i]!.getBoundingClientRect();
+    return p.top + p.height / 2 - lane.getBoundingClientRect().top;
+  };
+  const place = () => {
+    if (on < 0) return;
+    const first = pinAt(0);
+    const here = pinAt(on);
+    lane.style.setProperty("--rail-top", first + "px");
+    lane.style.setProperty("--rail-h", pinAt(steps - 1) - first + "px");
+    lane.style.setProperty("--run", here - first + "px");
+    ball.style.top = here + "px";
+    if (pinned()) {
+      // Centre the box itself, not its leg: a leg's top padding is the gap above the box.
+      const leg = legs[on]!;
+      const card = el(".leg__card", leg);
+      lane.style.transform = "translateY(" + Math.round(road.clientHeight / 2 - (leg.offsetTop + card.offsetTop + card.offsetHeight / 2)) + "px)";
+    } else {
       lane.style.transform = "";
-      return;
     }
-    const leg = legs[on]!;
-    const y = road.clientHeight / 2 - (leg.offsetTop + leg.offsetHeight / 2);
-    lane.style.transform = "translateY(" + Math.round(y) + "px)";
   };
 
-  const setLevel = (next: number) => {
+  const setStep = (next: number) => {
     if (next === on) return;
     on = next;
     legs.forEach((leg, i) => {
@@ -743,13 +787,14 @@ function levelCards(): void {
     const cur = el(".stop__dot", stops[on]).getBoundingClientRect();
     fill.style.setProperty("--fill-y", Math.max(0, cur.top - first.top) + "px");
     fill.style.setProperty("--fill-x", Math.max(0, cur.left - first.left) + "px");
-    now.textContent = "Level " + (on + 1) + " · " + levels.items[on]!.name;
-    centre();
+    now.textContent = stepName(on);
+    place();
   };
 
   const update = () => {
     if (pinned()) return;
-    setLevel(activeLevel(legs.map((leg) => leg.getBoundingClientRect().top), window.innerHeight * 0.45));
+    const last = legs[legs.length - 1]!.getBoundingClientRect();
+    setStep(activeStep(legs.map((leg) => leg.getBoundingClientRect().top), window.innerHeight * 0.45, last.bottom, window.innerHeight));
   };
 
   stops.forEach((stop, i) =>
@@ -773,23 +818,25 @@ function levelCards(): void {
   window.addEventListener("scroll", schedule, { passive: true });
   window.addEventListener("resize", () => {
     if (pinned()) {
-      centre();
+      place();
       return;
     }
-    lane.style.transform = "";
     on = -1;
     schedule();
   });
+  // A pin's place depends on the boxes' heights, which settle once fonts load and change when a bill
+  // tab lengthens or shortens the drive chart.
+  new ResizeObserver(() => place()).observe(lane);
   update();
 
-  // Pinned: the map and one level card hold still; each stretch of scroll clears a level.
+  driveChart();
+
+  // Pinned: the map and the road hold still; each stretch of scroll moves the ball one box on.
   pin(law, {
     noun: "Level",
-    count: levels.items.length,
-    go: (i) => {
-      setLevel(i);
-      centre();
-    },
+    count: steps,
+    label: (i) => (i === DRIVE ? "The drive chart" : "Level " + (i + 1) + " of " + DRIVE),
+    go: setStep,
     picked: (t) => {
       const stop = t.closest(".stop");
       const i = stop ? stops.indexOf(stop as HTMLButtonElement) : -1;
@@ -798,22 +845,12 @@ function levelCards(): void {
   });
 }
 
+/** Wires the condensed drive chart in the road's last box: a tab per bill, its status, bar and plays. */
 function driveChart(): void {
   const tabs = el("#drive-tabs");
-  tabs.innerHTML = drives.items.map((d) => '<button type="button" role="tab" class="btab">' + esc(d.label) + "</button>").join("");
   const panel = el("#drive-panel");
-  panel.innerHTML =
-    '<div class="drive__top"><span class="drive__id"><span class="drive__cite" data-cite></span><span class="drive__title" data-title></span></span><span class="drive__status" data-status></span></div>' +
-    '<div class="field" aria-hidden="true"><div class="field__law"><span>LAW</span></div><div class="field__mid"></div><div class="field__fill ease" data-fill></div>' +
-    '<div class="field__ball" data-ball><span></span></div></div>' +
-    '<div class="field__labels"><span>INTRODUCED</span><span class="c" data-mid></span><span class="r">SIGNED</span></div>' +
-    '<ol class="plays" data-plays></ol>';
-  const fill = el("[data-fill]", panel);
-  const ball = el("[data-ball]", panel);
-  let cur = 0;
-  let shown = false;
+  const bar = el("[data-fill]", panel);
   const show = (i: number) => {
-    cur = i;
     const d = drives.items[i]!;
     el("[data-cite]", panel).textContent = d.cite;
     el("[data-title]", panel).textContent = d.title;
@@ -824,23 +861,17 @@ function driveChart(): void {
     el("[data-plays]", panel).innerHTML = d.plays
       .map(
         (p) =>
-          '<li><span class="plays__w">' + esc(p.when) + '</span><span class="plays__what">' + esc(p.what) + '</span><span class="plays__s num" style="color:' +
+          '<li><span class="dc__w">' + esc(p.when) + '</span><span class="dc__what">' + esc(p.what) + '</span><span class="dc__s num" style="color:' +
           tone(p.tone) + '">' + esc(p.score) + "</span></li>",
       )
       .join("");
-    fill.style.background = tone(d.tone);
-    const g = shown ? driveBall(d.pos) : driveBall(0);
-    ball.style.left = g.ball;
-    fill.style.width = g.fill;
+    // Law fills green, a stall orange, a bill still moving yellow, like the rail it ends.
+    bar.style.width = d.pos + "%";
+    bar.style.background = d.pos >= 100 ? tone("yea") : d.tone === "nay" ? tone("nay") : "var(--accent)";
   };
   const set = wireTabs(tabs, show);
   set(0);
   show(0);
-  // The ball starts on its own goal line and drives to where the bill is once the chart is seen.
-  onVisible(panel, () => {
-    shown = true;
-    afterPaint(() => show(cur));
-  }, 0.4);
 }
 
 // ------------------------------------------------------------------ 03 · explained
@@ -885,7 +916,7 @@ function explain(): void {
       '<div class="ex-who"><span class="eyebrow">WHO IT TOUCHES</span>' + b.who.map((w) => '<span class="pill">' + esc(w) + "</span>").join("") + "</div>" +
       '<div class="callout"><span class="callout__k">WHAT IT DOESN\'T DO</span><span>' + esc(b.not) + "</span></div>" +
       '<div class="ex-foot"><span class="ex-stands"><span class="eyebrow">WHERE IT STANDS</span><span class="ex-stands__v" style="color:' + tone(b.tone) + '">' + esc(b.stands) +
-      '</span></span><span class="ex-meta">AI summary of the CRS summary · every point cites it · may contain errors</span></div>' +
+      '</span></span><span class="ex-meta">AI summary of the CRS summary · may contain errors</span></div>' +
       "</div>" +
       '<div class="ex-src"><span class="eyebrow">THE SOURCE · Congressional Research Service summary, excerpted</span>' +
       b.paras.map((t, k) => '<p class="ex-para" id="ex-para-' + (k + 1) + '"><b>¶' + (k + 1) + "</b> " + esc(t) + "</p>").join("") +
@@ -1748,7 +1779,6 @@ flapBoard();
 tickerBar();
 deck();
 levelCards();
-driveChart();
 explain();
 players();
 money();
