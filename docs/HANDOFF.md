@@ -44,15 +44,19 @@ npm run ingest -w @floor/worker -- rollcalls house 119 2          # new House vo
 npm run ingest -w @floor/worker -- rollcalls senate 119 2         # same for the Senate
 npm run ingest -w @floor/worker -- bills                          # load bills that votes refer to (only missing ones)
 npm run ingest -w @floor/worker -- nominations                    # load nominations that Senate votes refer to
+npm run ingest -w @floor/worker -- fec-totals                     # campaign totals for every current member (OpenFEC, ~10 min)
+npm run ingest -w @floor/worker -- fec-pacs 2026                  # committee-to-candidate totals from the FEC bulk files (~30 s)
 npm run openapi -w @floor/api                                    # regenerate apps/api/openapi.json after changing routes
 npm run build -w @floor/web && npm run serve -w @floor/web       # build and serve the landing page from apps/web/dist
 swift test --package-path ios/FloorKit                           # all FloorKit tests (96): models, contract, client, screen models
 ```
 
 `apps/api/openapi.json` is the committed contract. Re-run `npm run openapi` after any change to
-`app.ts`; CI fails if it has drifted, and the Swift contract tests check the models against it.
+`app.ts`; CI fails if it has drifted — on `main`, after the merge, so run it yourself first — and
+the Swift contract tests check the models against it.
 
-iOS (needs a Mac with Xcode 16+): `brew install xcodegen && cd ios && xcodegen && open Floor.xcodeproj`. CI builds it on a macOS runner on every push and PR.
+iOS (needs a Mac with Xcode 16+): `brew install xcodegen && cd ios && xcodegen && open Floor.xcodeproj`. CI builds it on a macOS runner on pushes to `main` only, so run
+`swift test --package-path ios/FloorKit` locally before you open a PR.
 If `swift test` dies with `Library not loaded: … SWBBuildService.framework`, `xcode-select` points at the
 Command Line Tools rather than Xcode: run it with `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer`
 (or `sudo xcode-select -s` that path).
@@ -72,8 +76,8 @@ Command Line Tools rather than Xcode: run it with `DEVELOPER_DIR=/Applications/X
 | `apps/api` | Hono REST API with OpenAPI at `/openapi.json` | `src/app.ts` (routes + schemas), `pg.ts` (Postgres), `district.ts` (Census) |
 | `apps/web` | Landing page (v0.2.0): static HTML/CSS/TypeScript built with `tsc`, no framework | `src/data.ts` (every figure, with source and date), `src/logic.ts` (pure helpers), `src/main.ts` (rendering), `public/` |
 | `ios/` | SwiftUI app (XcodeGen, `project.yml`), `FloorKit` package: `Models`, `APIClient`, `DesignSystem`, `Onboarding`, `Home`, `VoteScreen`, `BillScreen`, `RepScreen` | `FloorKit/Sources/Models/` (one file per area, `Samples.swift` for previews), `FloorKit/Tests/ModelsTests/ContractTests.swift`, `DesignSystem/ScoreboardCard.swift`, `DesignSystem/Components.swift`, `DesignSystem/Fonts/` (Barlow Condensed, OFL), `Home/FloorShell.swift` (tabs), `Home/CatchUp.swift`, `Models/VoteOutcome.swift`, `BillScreen/LawLevels.swift` |
-| `.github/workflows/ci.yml` | Node job (lint/typecheck/tests + OpenAPI drift) + macOS job (Swift tests + simulator build) | |
-| `.github/workflows/guards.yml` | Shipping guards on every PR: changelog, version, docs, tests, retro, PR title | `.github/scripts/guards.conf` (this repo's settings), `guards.sh` (shared, do not edit) |
+| `.github/workflows/ci.yml` | Node job (lint/typecheck/tests + OpenAPI drift) + macOS job (Swift tests + simulator build). **Pushes to `main` only** since 2026-11-13 — a PR never builds the code | |
+| `.github/workflows/guards.yml` | Shipping guards on every PR (the only workflow that still runs there): changelog, version, docs, tests, retro, PR title | `.github/scripts/guards.conf` (this repo's settings), `guards.sh` (shared, do not edit) |
 | `docs/` | `plan.md` / `plan.html` (design + plan), this file, `retros/` (one per milestone) | |
 | `VERSION`, `CHANGELOG.md` | Current version (mirrored by `MARKETING_VERSION` in `ios/project.yml`) and what each version shipped | |
 
@@ -99,6 +103,8 @@ Command Line Tools rather than Xcode: run it with `DEVELOPER_DIR=/Applications/X
 | `vote_positions` | 995,806 | Verified: every vote's positions add up to its official totals; no vote lacks positions |
 | `bills` / `actions` | 1,049 / 19,714 | Every bill a vote refers to; 976 have a CRS summary. All 2,319 votes on bills are linked (`votes.bill_id`) |
 | `nominations` | 448 | Every nomination a vote refers to; 201 are parts of a split nomination, 10 are military (no named nominee). All 905 nomination votes are linked (`votes.nomination_id`) |
+| `campaign_finance` | 512 | One row per current member: OpenFEC totals for their current campaign to date (House 2025–26; senators since their last election), with cash on hand. Of 537 current members, 23 have no totals filed for that campaign and 2 appointed senators (OK, SC) have no FEC ID yet; the page must say so rather than show nothing |
+| `pac_contributions` | 103,564 | Per member and giving committee, 2026 cycle: direct and earmarked totals, committee designation, type and organization type. No memo text, no individual names (lesson 23) |
 | `ingest_runs` | | Every ingest run with item count and error, which feeds `/v1/status` |
 
 Verification query (should return zeros for the last four columns):
@@ -195,6 +201,29 @@ Real data broke our first assumptions several times. Each case below is now hand
     reports `contradicted` and no over/short, so nothing prints "1 short" under AGREED. And
     **"Veto Sustained" is a failure**: the veto stands and the override lost. Found by review of
     v0.2.3, not by data, so watch real results for wordings the lists in `recordedOutcome` miss.
+23. **FEC committee-to-candidate rows are not all PAC checks, and none fit a $10,000 cap.** The bulk
+    file (`pas2`) mixes three kinds of money under transaction type `24K`:
+    - **Earmarked contributions:** individuals' money a committee passes through (MORPAC, AIPAC PAC).
+      Only the memo text says so ("EARMARK FROM …"), and that memo **names the individual**. The
+      importer reads the memo for the word EARMARK, then drops it, so no donor name is ever stored
+      (product rule). Jeffries' MORPAC row is $10,000 direct plus $30,747 earmarked.
+    - **Joint fundraising transfers** (committee designation `J`, e.g. "Johnson Leadership Fund", $1M)
+      and **party committees** (type `X`/`Y`/`Z`, e.g. NRSC, $62,000). Neither is a PAC check;
+      `isPac()` leaves both out.
+    - Even then about 280 PAC rows exceed $10,000, legally: the limit is $5,000 *per election*, and
+      one two-year cycle can hold a primary, a runoff, the general and old debt. Never present a
+      cycle total as "the maximum" without checking which elections it covers.
+    Voided checks are negative rows that net out; amended filings repeat a transaction, so keep the
+    latest filing per committee and transaction ID.
+24. **OpenFEC allows 60 requests a minute on our key**, not per hour (`x-ratelimit-remaining`
+    refills within a minute). One totals call per member loads all 535 in about 10 minutes. Totals
+    are what the *campaign* reported receiving; `pas2` is what *committees* reported giving. The two
+    disagree (Jeffries: $2.77M vs $2.53M from PACs), so label each by its source.
+
+25. **The dark palette's outcome colours fail on white.** Mint `#34D399` reads at about 1.9:1 on
+    white and the threshold yellow `#FACC15` at about 1.5:1, so light mode cannot reuse them. Every
+    text colour in light mode is a darker partner of its dark value (yea `#0B7A57`, nay `#A8481A`,
+    threshold `#8A6500`), and `PaletteTests` checks each one at 4.5:1 on the ground, panels and cards.
 
 ---
 
@@ -235,7 +264,7 @@ Real data broke our first assumptions several times. Each case below is now hand
 
 ## 5. Remaining milestones
 
-The working rhythm: break each milestone into tasks. For each task, write tests on real saved data first, then build and run `npm run check`. Ship it as a short branch and a PR into `main` — bump `VERSION` (and `MARKETING_VERSION` in `ios/project.yml`), add a `CHANGELOG.md` entry, and title the PR `vX.Y.Z type: summary`. The `guards` and CI checks must be green before merging; a MINOR bump (a milestone) also ships a retro in `docs/retros/`. The full rules are in [`CLAUDE.md`](../CLAUDE.md#shipping).
+The working rhythm: break each milestone into tasks. For each task, write tests on real saved data first, then build and run `npm run check`. Ship it as a short branch and a PR into `main` — bump `VERSION` (and `MARKETING_VERSION` in `ios/project.yml`), add a `CHANGELOG.md` entry, and title the PR `vX.Y.Z type: summary`. The `guards` check must be green before merging, but it does not build anything: `ci.yml` runs on `main` after the merge, so the local commands in `CLAUDE.md` › Before every PR are the real gate, and a red trunk is reverted rather than left. A MINOR bump (a milestone) also ships a retro in `docs/retros/`. The full rules are in [`CLAUDE.md`](../CLAUDE.md#shipping).
 
 ### M2: iOS core on real data
 **Goal:** a TestFlight build that shows how your reps voted, from real data. No live updates yet.
@@ -473,6 +502,25 @@ build differs from the mocks, and why:
 - **"Winning side" is the outcome, not the larger side** (`sidedWithOutcome`). They differ when a
   majority loses to a threshold — H.J.Res. 1 lost 212–206.
 
+### Light mode (v0.2.5)
+
+The app follows the system appearance. Dark is the canvas palette, unchanged; light is direction D,
+"Marble & Patina", from the re-theme proposal (<https://claude.ai/artifact/AinA8SbyMWgrsC2rsB5U9h>).
+
+- **Where colours live.** Each token in `DesignSystem/Palette.swift` is a `Swatch` with a light and
+  a dark hex; `Tones` lists them as data and `Palette` turns them into `Color`s that resolve from
+  the current appearance. Add a colour by adding a `Swatch`, never a literal in a view.
+- **Lit displays stay dark.** The split-flap board (Finals) and the turf scoreboard (Vote) call
+  `litObject()`, which pins them to dark, so every token inside resolves to its dark value. Silver
+  (the player card) is the same in both appearances, so text on it uses `Palette.silverInk`.
+- **Contrast is tested.** `PaletteTests` fails if a text token drops below 4.5:1 on the ground, a
+  panel or a card in either appearance (lesson 25).
+- **Not decided yet:** the yea and nay hues (the proposal's round 2 compares four pairings) and the
+  accent. Light mode uses the proposal's patina accent and darker versions of today's green and
+  orange. There is no in-app appearance switch; the system setting decides.
+- **Not mocked:** the proposal mocked Home only. Vote, Bill, Your three, Onboarding and the deck take
+  their light colours from the same tokens without a screen-by-screen mock.
+
 ### v0.3.0: Your members on the web (in progress)
 
 **Goal:** the landing page shows *your* three members, found from your location, instead of the
@@ -489,9 +537,11 @@ steps ship as 0.2.x PATCH releases; 0.3.0 closes the milestone with its retro.
    (loyalty, last 40, latest call, the delegate case). The five finals stay on the sample, labelled:
    a card's blurb and twist are hand-written, so the deck can't honestly be rebuilt from vote lists.
    The player cards are a national leaderboard and don't depend on your district.
-4. **Campaign finance for every member** from OpenFEC: principal committee totals (small-dollar,
-   itemized, PAC, other, cash on hand) and the biggest PAC checks with FEC's organization type as the
-   "kind". Ingest, table, API route, section.
+4. **Campaign finance for every member.** Data landed in 0.2.4: `campaign_finance` (OpenFEC
+   totals for each member's current campaign: small-dollar, itemized, PAC, party, other, cash on
+   hand) and `pac_contributions` (every committee's direct and earmarked totals per member from the
+   2026 bulk file, with FEC's organization type for the "kind"). Still to do: the API route and the
+   section, which waits on the mock lock.
 5. **Donor context** from Senate LDA lobbying filings (what each PAC's organization lobbies on),
    matched to the member's votes by topic. The plain-English "who they are" lines are AI-written and
    wait for M4's label-and-cite pipeline.
