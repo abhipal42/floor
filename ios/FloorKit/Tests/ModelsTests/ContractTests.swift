@@ -62,6 +62,10 @@ struct ContractTests {
             "BillAction": fields(BillAction.sample),
             "Bill": fields(Bill.sample),
             "Nomination": fields(Nomination.sample),
+            "AnalysisCitation": fields(AnalysisCitation.sample),
+            "AnalysisClaim": fields(AnalysisClaim.sample),
+            "AnalysisSource": fields(AnalysisSource.sample),
+            "BillAnalysis": fields(BillAnalysis.sample),
             "SourceStatus": fields(SourceStatus.sample),
             "Error": fields(APIError.sample),
             // Flat on the wire, nested in Swift: the vote's fields plus the three breakdowns.
@@ -77,6 +81,7 @@ struct ContractTests {
         "Member", "VoteTotals", "Candidate", "Vote", "VoteDetail", "PartyTotals", "CandidateTotal",
         "MemberPosition", "PartyLoyalty", "MemberDetail", "PacCheck", "Funding", "MemberFunding", "MemberVote", "MeasureSummary", "District",
         "Reps", "LatestAction", "CboEstimate", "BillAction", "Bill", "Nomination", "SourceStatus", "Error",
+        "AnalysisCitation", "AnalysisClaim", "AnalysisSource", "BillAnalysis",
     ])
     func modelFieldsMatchItsSchema(name: String) throws {
         let model = try #require(Self.modelFields()[name], "no model registered for \(name)")

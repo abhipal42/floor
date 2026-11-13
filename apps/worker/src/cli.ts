@@ -6,6 +6,8 @@ import { ingestSessions, sessionsToPoll } from "./rollcalls.js";
 import { congressClient, ingestVotedBills } from "./bills.js";
 import { ingestVotedNominations } from "./nominations.js";
 import { fecClient, ingestFecTotals, ingestPacContributions } from "./fec.js";
+import Anthropic from "@anthropic-ai/sdk";
+import { analyzeOptions, anthropicComplete, runAnalyses } from "./analysis.js";
 
 const USAGE = `Usage:
   npm run ingest -w @floor/worker -- members
@@ -17,6 +19,7 @@ const USAGE = `Usage:
   npm run ingest -w @floor/worker -- nominations --refresh [limit]
   npm run ingest -w @floor/worker -- fec-totals [limit]           (campaign totals per current member from OpenFEC; needs CONGRESS_API_KEY)
   npm run ingest -w @floor/worker -- fec-pacs [cycle]             (committee-to-candidate totals from the FEC bulk files; default 2026)
+  npm run ingest -w @floor/worker -- analyze [limit]              (AI analysis of bills whose CRS summary has none or changed; default 25; needs ANTHROPIC_API_KEY)
 
 Reads DATABASE_URL from the environment (use the Supabase service connection string).`;
 
@@ -78,6 +81,28 @@ async function main() {
       const cycle = Number(args[0] ?? 2026);
       const result = await ingestPacContributions(db, cycle, { log: (msg) => console.log(msg) });
       console.log(`Loaded ${result.rows} committee totals for ${result.members} members (${cycle} cycle)`);
+    } else if (command === "analyze") {
+      // Checked before anything is spent: a typo in the effort or the limit fails here, not mid-run.
+      const options = analyzeOptions(process.env, args[0]);
+      // Credentials come from the SDK's usual chain (ANTHROPIC_API_KEY first). Never log them.
+      const client = new Anthropic();
+      // One connection for the whole run: the run's advisory lock is held on it.
+      const conn = await pool.connect();
+      try {
+        const result = await runAnalyses(conn as unknown as Db, anthropicComplete(client, options.model, options), {
+          verifyWith: anthropicComplete(client, options.verifierModel, options),
+          limit: options.limit,
+          log: (msg) => console.log(msg),
+        });
+        if (result.ran) {
+          console.log(
+            `Analysed ${result.analysed} bills, ${result.failed} failed; ` +
+              `est. ${result.costUsd === null ? "unknown (a model with no known price ran)" : `$${result.costUsd.toFixed(2)}`}`,
+          );
+        }
+      } finally {
+        conn.release();
+      }
     } else if (command === "nominations") {
       if (!process.env.CONGRESS_API_KEY) throw new Error("Set CONGRESS_API_KEY in .env (free key: https://api.data.gov/signup)");
       const refresh = args.includes("--refresh");

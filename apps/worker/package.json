@@ -4,13 +4,16 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "ingest": "tsx --env-file-if-exists=../../.env src/cli.ts"
+    "ingest": "tsx --env-file-if-exists=../../.env src/cli.ts",
+    "eval:analysis": "tsx --env-file-if-exists=../../.env src/analysis-eval.ts"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^1.8.0",
     "@floor/db": "^0.0.0",
     "@floor/shared": "^0.0.0",
     "fflate": "^0.8.2",
-    "pg": "^8.13.1"
+    "pg": "^8.13.1",
+    "zod": "^3.25.76"
   },
   "devDependencies": {
     "@types/pg": "^8.11.10",

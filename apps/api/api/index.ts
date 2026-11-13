@@ -69,7 +69,7 @@ const repositories = pool
         partyLoyalty: async () => ({ votes: 0, withParty: 0, againstParty: 0 }),
         funding: async () => null,
       },
-      bills: { getBill: async () => null },
+      bills: { getBill: async () => null, getAnalysis: async () => null },
       nominations: { getNomination: async () => null },
       status: { lastRuns: async () => [] },
     };

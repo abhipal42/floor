@@ -27,13 +27,16 @@ listed at the top of the M2 section: snapshot tests and TestFlight distribution.
 git clone https://github.com/abhipal42/floor.git && cd floor
 npm install
 cp .env.example .env    # then fill in the two values (see below)
-npm run check           # lint + typecheck + 382 tests; must pass before every PR
+npm run check           # lint + typecheck + Node tests; must pass before every PR
 ```
 
 `.env` (never committed):
 
 - `DATABASE_URL`: Supabase → floor-staging → **Connect** → the Postgres connection string (`postgresql://…`), not the `https://…supabase.co` API URL. Use the Session pooler (`postgres.<ref>@aws-1-us-east-1.pooler.supabase.com:5432`): the direct `db.<ref>.supabase.co` host is IPv6-only and fails with `EHOSTUNREACH` on a network without IPv6 (it did from here on 2026-11-13). Close the worker when you are done with it — every open session-pooler connection is one of the 15 slots the whole project shares (lesson 37).
 - `CONGRESS_API_KEY`: your api.data.gov key.
+- `ANTHROPIC_API_KEY` (only for `analyze` and the analysis eval): a Claude API key. Optional
+  overrides: `FLOOR_AI_MODEL` (default `claude-sonnet-5-5`), `FLOOR_AI_VERIFIER_MODEL` (defaults to
+  `FLOOR_AI_MODEL`), `FLOOR_AI_EFFORT` (`low` / `medium` / `high`, default `medium`). See M4.
 
 ### Run things
 
@@ -47,6 +50,8 @@ npm run ingest -w @floor/worker -- bills                          # load bills t
 npm run ingest -w @floor/worker -- nominations                    # load nominations that Senate votes refer to
 npm run ingest -w @floor/worker -- fec-totals                     # campaign totals for every current member (OpenFEC, ~10 min)
 npm run ingest -w @floor/worker -- fec-pacs 2026                  # committee-to-candidate totals from the FEC bulk files (~30 s)
+npm run ingest -w @floor/worker -- analyze 25                     # AI analysis (M4 Layer 1) of up to 25 bills that need one; costs money
+npm run eval:analysis -w @floor/worker -- --out /tmp/eval.json    # the ~50-bill analysis eval; prints "Not run" without ANTHROPIC_API_KEY
 npm run openapi -w @floor/api                                    # regenerate apps/api/openapi.json after changing routes
 npm run build -w @floor/web && npm run serve -w @floor/web       # build and serve the landing page from apps/web/dist
 swift test --package-path ios/FloorKit                           # all FloorKit tests (248): models, contract, client, screen models
@@ -72,8 +77,8 @@ Command Line Tools rather than Xcode: run it with `DEVELOPER_DIR=/Applications/X
 |---|---|---|
 | `packages/shared` | Types + roll call parsers (House Clerk XML, Senate LIS XML) | `src/rollcall.ts`, fixtures in `fixtures/` (real government files) |
 | `packages/db` | Migration loader used by tests | `src/migrations.test.ts` |
-| `supabase/migrations` | Postgres schema (applied to staging in filename order) | 9 migrations; `20261113000100_ingest_failed.sql` is **not yet applied** to staging (lesson 38) |
-| `apps/worker` | Ingest CLI: members, roll calls, bills, nominations | `src/cli.ts`, `rollcalls.ts`, `bills.ts`, `nominations.ts`, `members.ts`, `db.ts` |
+| `supabase/migrations` | Postgres schema (applied to staging in filename order) | 10 migrations; `20261113000100_ingest_failed.sql` (lesson 38) and `20261114000000_bill_analyses_ai.sql` (M4) are **not yet applied** to staging |
+| `apps/worker` | Ingest CLI: members, roll calls, bills, nominations, campaign finance, AI bill analysis | `src/cli.ts`, `rollcalls.ts`, `bills.ts`, `nominations.ts`, `members.ts`, `fec.ts`, `analysis.ts` (M4 Layer 1), `analysis-eval.ts`, `db.ts` |
 | `apps/api` | Hono REST API with OpenAPI at `/openapi.json` | `src/app.ts` (routes + schemas), `pg.ts` (Postgres), `district.ts` (Census) |
 | `apps/web` | Landing page (v0.2.0): static HTML/CSS/TypeScript built with `tsc`, no framework | `src/data.ts` (every figure, with source and date), `src/logic.ts` (pure helpers), `src/main.ts` (rendering), `public/` |
 | `ios/` | SwiftUI app (XcodeGen, `project.yml`), `FloorKit` package: `Models`, `APIClient`, `DesignSystem`, `Onboarding`, `Home`, `VoteScreen`, `BillScreen`, `RepScreen` | `FloorKit/Sources/Models/` (one file per area, `Samples.swift` for previews), `FloorKit/Tests/ModelsTests/ContractTests.swift`, `DesignSystem/ScoreboardCard.swift`, `DesignSystem/Components.swift`, `DesignSystem/Fonts/` (Barlow Condensed, OFL), `Home/FloorShell.swift` (tabs), `Home/CatchUp.swift`, `Models/VoteOutcome.swift`, `BillScreen/LawLevels.swift`, `APIClient/ResponseCache.swift` (offline cache), `DesignSystem/SavedDataNote.swift` |
@@ -93,6 +98,7 @@ Command Line Tools rather than Xcode: run it with `DEVELOPER_DIR=/Applications/X
 | `GET /v1/members/{bioguideId}/votes?limit=` | A member's recent votes with their position (and candidate, for Speaker elections) |
 | `GET /v1/votes/{id}` | One vote: totals, threshold, kind, bill link, **per-party breakdown**, and for a Speaker election **which candidate each party backed**. `?members=A000370,C001098` (up to ten) also returns those members' own positions, so the vote screen loads your delegation in one round trip. IDs look like `house-119-1-100` |
 | `GET /v1/bills/{id}` | Title, short title, CRS summary, sponsor, policy area, CBO estimates, last 30 actions, every vote on it. IDs look like `119-hr-2207` |
+| `GET /v1/bills/{id}/analysis` | AI analysis of the bill's CRS summary (M4 Layer 1): purpose, provisions, affected groups, impact. `ai: true` on the response and on every line, a `disclaimer` to show with it, and per line the summary paragraph it cites (1-based, into `source.paragraphs`), a verbatim quote and the bill section. `source.stale` means the summary has changed since and a new analysis is pending. 404 until the worker has analysed the bill; **no UI shows it yet** (needs a locked design) |
 | `GET /v1/nominations/{id}` | Nominee, position, agency, received and latest action, every Senate vote on it. IDs look like `119-pn-1093-3` |
 | `GET /v1/status` | Per ingest source: last successful run, `lastNewDataAt` (last successful run that stored anything — the freshness signal `stale` cannot give once ingest is scheduled, lesson 38), the error of its latest run with an outcome (null once a later run succeeds; `abandoned run` for one that never finished within an hour, lessons 35 and 38), and `stale` |
 | `GET /openapi.json` | The contract. The Swift models are hand-written against it, and `ContractTests` fail CI if they drift (see M2). |
@@ -108,6 +114,7 @@ Command Line Tools rather than Xcode: run it with `DEVELOPER_DIR=/Applications/X
 | `nominations` | 448 | Every nomination a vote refers to; 201 are parts of a split nomination, 10 are military (no named nominee). All 905 nomination votes are linked (`votes.nomination_id`) |
 | `campaign_finance` | 512 | One row per current member: OpenFEC totals for their current campaign to date (House 2025–26; senators since their last election), with cash on hand. Of 537 current members, 23 have no totals filed for that campaign and 2 appointed senators (OK, SC) have no FEC ID yet; the page must say so rather than show nothing |
 | `pac_contributions` | 103,564 | Per member and giving committee, 2026 cycle: direct and earmarked totals, committee designation, type and organization type. No memo text, no individual names (lesson 23) |
+| `bill_analyses` / `bill_analysis_runs` | 0 / 0 | M4 Layer 1: the public analysis, one row per bill and CRS summary stage; and the private run log (attempts, errors, cost, rejected claims; no RLS policy, service role only). Their migration is not applied to staging yet, and no analysis has been generated (no Claude key on the project); see M4 |
 | `ingest_runs` | | Every ingest run with item count and error, which feeds `/v1/status` |
 
 Verification query (should return zeros for the last four columns):
@@ -358,6 +365,14 @@ Real data broke our first assumptions several times. Each case below is now hand
     when a push touches `ios/` or `.github/`, and PRs build nothing, so eight releases went by red
     and unseen. After any change to `apps/api/src/app.ts`, run `swift test --package-path ios/FloorKit`
     too, even if no Swift changed.
+40. **CRS summaries are the only AI source we have, and they label their own sections.** Of 1,049
+    stored bills, 976 have a summary; `bill_versions` is empty (no bill text is ingested), so M4
+    Layer 1 analyses the summary, keyed by its stage. Long summaries say which section each paragraph
+    covers — "(Sec. 101) This section provides…" — so the analysis reads the section off the cited
+    paragraph instead of trusting the model to name one. Lengths run from a sentence (a post office
+    naming) to ~292k characters (a continuing resolution with many divisions): median 762, 90th
+    percentile ~1,750 (2026-11-13). Paragraph splits are the `\n\n` that `htmlToText` writes, so a
+    change to `htmlToText` renumbers every citation and must bump `PROMPT_VERSION`.
 
 ---
 
@@ -665,6 +680,92 @@ live `#FF453A`, muted text `#9BA1AD`.
 - Layer 2 "What it means for you" from coarse opt-in profile attributes + county data (Census ACS, FCC). No names or addresses go to the model.
 - Projection model v1 (per-member probabilities → chamber simulation), backtested on the 3,500 stored roll calls (they're already in staging) and calibrated against a party-line baseline.
 - Optional display-only market odds (pending product decision).
+
+**Layer 1, server side: built in v0.2.22.** What exists and how it works:
+
+- **Source and version.** The only input is the bill's stored CRS summary (`bills.summary`), split
+  into paragraphs on blank lines; a version is its `summary_stage` (lesson 40). One row per
+  `(bill_id, source_kind, source_stage)` in `bill_analyses` (migration
+  `20261114000000_bill_analyses_ai.sql`, which repurposes the empty core table; `bill_version_id`
+  becomes optional for a later bill-text analysis). `source_hash` is sha256 of `stage + "\n" +
+  summary`; the job regenerates a row when that hash or `PROMPT_VERSION` changes, and a new stage
+  adds a row and keeps the old one. Each row stores `model`, `verifier_model`, `prompt_version`,
+  `generated_at` and the analysed paragraphs, so citations resolve after the summary moves on.
+- **Public vs private.** `bill_analyses` has the shared tables' public-read policy, so **everything in
+  it is readable by anyone through PostgREST** — it holds only what readers may see. Run bookkeeping
+  lives in `bill_analysis_runs`, one row per `(bill_id, source_hash, prompt_version)`: failed
+  `attempts`, `last_error`, `succeeded_at`, and `stats` (counts, tokens per model, cost, and the
+  claims the verifier rejected with its reasons). It has RLS on and **no policy**, so only the
+  service role can read it. Rejected claims must never reach a reader; don't add a policy to it.
+  **Re-run Supabase's security advisor after applying the migration.**
+- **Pipeline** (`apps/worker/src/analysis.ts`). (1) A draft call with structured JSON output writes
+  purpose, up to 8 provisions, affected groups and impact; every claim cites 1–3 paragraphs, each
+  with a verbatim quote. (2) `checkCitations` drops citations whose paragraph doesn't exist or doesn't
+  contain the quote (case, whitespace and curly quotes folded). A quote must be at least 20
+  characters and contain a word outside a stopword list of CRS boilerplate, so "This bill requires
+  the" or "among other things, the" — found in any paragraph — prove nothing and are cut. Claims left
+  with no citation are cut. The section ("Sec. 101") is the last CRS "(Sec. N)" label at or before
+  the quote's position in the paragraph (a paragraph can cover several sections), never taken from
+  the model. (3) A verifier call rules on each surviving claim against its cited paragraphs only;
+  unsupported claims, claims it doesn't rule on, and claims it gives conflicting verdicts on (a
+  repeated id) are cut. Nothing is softened. Both calls: `@anthropic-ai/sdk`, `claude-sonnet-5-5`,
+  effort `medium`, the fixed system prompt marked `cache_control`, and the server-side refusal
+  fallback (`fallbacks: "default"`).
+- **Failures.** A refusal, truncation, malformed output or other API error fails that bill: stored
+  nowhere public, counted in `bill_analysis_runs.attempts`, retried on later runs. After **3**
+  failed attempts a source is left alone until its summary or the prompt version changes, so one
+  bad bill can't be billed forever or starve the queue. Summaries over 600k characters are never
+  sent (not truncated). Errors no bill would avoid — `AuthenticationError`, `PermissionDeniedError`,
+  a `RateLimitError` that outlasted the SDK's retries — end the run at once, exit non-zero, and do
+  not count against the bill.
+- **Run it:** `npm run ingest -w @floor/worker -- analyze [limit]` (default 25 per run, newest
+  activity first; `limit` must be a positive integer and `FLOOR_AI_EFFORT` one of
+  `low|medium|high`, both checked before any call). A run holds a Postgres session advisory lock
+  (`pg_try_advisory_lock(4200001)`) on one dedicated connection, so a second, overlapping run
+  logs "another analysis run is in progress" and exits without spending anything. A session lock
+  needs a session connection: run it on the session pooler (5432) like the rest of the worker,
+  never the transaction pooler (6543), where consecutive statements can land on different backends. Logs bill ID,
+  counts and cost only — never the summary, never a key. Cost is summed per model across
+  `usage.iterations` (a refusal fallback bills the declined attempt too, at its own model's rate)
+  and printed as "unknown" if any model that ran has no known price.
+  `ingest_runs.source = 'bill_analyses'`; deliberately not in `/v1/status`'s freshness list, so an
+  unrun job never marks the API unhealthy.
+- **Env:** `ANTHROPIC_API_KEY` (required), `FLOOR_AI_MODEL`, `FLOOR_AI_VERIFIER_MODEL`,
+  `FLOOR_AI_EFFORT` (see §1).
+- **API:** `GET /v1/bills/{id}/analysis` (§2). `ai: true` and `label: "AI-generated"` on the
+  response, `ai: true` on every line, and `disclaimer` ("…It may contain errors…").
+- **Eval:** `apps/worker/fixtures/analysis/bills.json` is 51 real bills from staging (2026-11-13),
+  stratified by summary stage: 12 Introduced in House, 11 Passed House, 9 Public Law, 8 Reported to
+  House, 5 Introduced in Senate, 3 Passed Senate, one each of the rarer stages; 27 H.R., 10 H.Res.,
+  9 S.J.Res., 3 S., 2 H.J.Res.; summaries 150–30,000 characters. `npm run eval:analysis -w
+  @floor/worker` scores **citation validity** (share of drafted citations that resolve and quote
+  exactly), **verifier drop rate** (share of check-passing claims the verifier cut), keep rate, empty
+  analyses, **output validity** (every stored citation re-checked; must be 100%) and cost per bill.
+  **It has not been run:** no Claude key was available to the session that built it. Run it before
+  the backfill and record the numbers here.
+- **Cost estimate per bill** (Sonnet 5.5 at $2 / $10 per million input / output tokens; *not yet
+  measured* — the eval reports the real figure). A median summary (~760 characters, ~200 tokens):
+  draft ~1.1k input + ~2–3k output (adaptive thinking plus JSON), verify ~1.5k input + ~1–1.5k
+  output, so roughly **$0.03–0.05**. The largest stored summary (~75k tokens) is ~$0.35–0.50.
+  Backfilling all 976 summarised bills: roughly **$40–60** once; after that only new or changed
+  summaries cost anything. Both system prompts are ~600 tokens, just over Sonnet 5.5's 512-token
+  caching minimum, so caching saves little per bill; the eval's `cache read tokens` line shows
+  whether it is hitting.
+
+**Left for Layer 1:**
+- Apply the migration to staging (and re-check Supabase's security advisor), set `ANTHROPIC_API_KEY`
+  where the worker runs, run the eval, then backfill with `analyze`.
+- Schedule `analyze` after the `bills` ingest (with the M3 worker deploy).
+- Richer sources: bill text from GovInfo (then `bill_versions` rows and section citations into the
+  text itself), CBO estimates, committee reports; cost and supporter/opponent arguments wait on them.
+- Human review of the top 20 bills each week (`reviewed_by`), feedback buttons.
+- **The UI.** Showing AI summaries on the Bill screen or the web is a large UI change: it needs a
+  design mock locked with Ishan first (`CLAUDE.md` › Large UI changes). The Bill screen keeps showing
+  the CRS summary until then.
+
+**Not built, on purpose:** Layer 2 ("What it means for you") is blocked on Sourav's open decision
+about which profile questions are acceptable (§6). Projections and market odds are not part of this
+work.
 
 ### The landing page (v0.2.0)
 

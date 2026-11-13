@@ -1,3 +1,4 @@
+import { AI_DISCLAIMER } from "./app.js";
 import type {
   Bill,
   BillRepository,
@@ -199,6 +200,29 @@ const VOTE_COLUMNS = `v.id, v.kind, v.candidates, v.chamber, v.congress, v.sessi
   v.nomination_id, v.bill_ref, v.question, v.state, v.threshold, v.yea, v.nay, v.present, v.not_voting, v.result,
   v.occurred_at`;
 
+/** bill_analyses.analysis as the worker writes it (apps/worker/src/analysis.ts `Analysis`). */
+interface StoredClaim {
+  text: string;
+  citations: { paragraph: number; quote: string; section?: string | null }[];
+}
+
+interface AnalysisRow {
+  bill_id: string;
+  source_stage: string;
+  analysis: {
+    purpose: StoredClaim | null;
+    provisions?: StoredClaim[];
+    affectedGroups?: StoredClaim[];
+    impact?: StoredClaim[];
+    sourceParagraphs?: string[];
+  };
+  model: string;
+  verifier_model: string | null;
+  prompt_version: string;
+  generated_at: Date | string;
+  stale: boolean;
+}
+
 interface BillRow {
   id: string;
   congress: number;
@@ -344,6 +368,44 @@ export function pgRepositories(db: Db): {
           cboEstimates: b.cbo_estimates,
           actions: actions.map((a) => ({ actedOn: day(a.acted_on)!, chamber: a.chamber, text: a.text })),
           votes: votes.map(toVote),
+        };
+      },
+      async getAnalysis(id) {
+        // Prefer the analysis of the summary stage the bill is at now; fall back to the newest one.
+        // `stale` uses the worker's source hash (stage || '\n' || summary, sha256) to say the
+        // summary has changed since this analysis was made.
+        const { rows } = await db.query<AnalysisRow>(
+          `select a.bill_id, a.source_stage, a.analysis, a.model, a.verifier_model, a.prompt_version, a.generated_at,
+                  a.source_hash is distinct from
+                    encode(sha256(convert_to(coalesce(b.summary_stage, '') || E'\\n' || coalesce(b.summary, ''), 'UTF8')), 'hex')
+                    as stale
+             from bill_analyses a join bills b on b.id = a.bill_id
+            where a.bill_id = $1 and a.source_kind = 'crs_summary'
+            order by (a.source_stage = coalesce(b.summary_stage, '')) desc, a.generated_at desc
+            limit 1`,
+          [id],
+        );
+        const a = rows[0];
+        if (!a) return null;
+        const claim = (c: StoredClaim) => ({
+          text: c.text,
+          ai: true as const,
+          citations: c.citations.map((x) => ({ paragraph: x.paragraph, quote: x.quote, section: x.section ?? null })),
+        });
+        return {
+          billId: a.bill_id,
+          ai: true,
+          label: "AI-generated",
+          disclaimer: AI_DISCLAIMER,
+          source: { kind: "crs_summary", stage: a.source_stage, paragraphs: a.analysis.sourceParagraphs ?? [], stale: a.stale },
+          model: a.model,
+          verifierModel: a.verifier_model,
+          promptVersion: a.prompt_version,
+          generatedAt: new Date(a.generated_at).toISOString(),
+          purpose: a.analysis.purpose ? claim(a.analysis.purpose) : null,
+          provisions: (a.analysis.provisions ?? []).map(claim),
+          affectedGroups: (a.analysis.affectedGroups ?? []).map(claim),
+          impact: (a.analysis.impact ?? []).map(claim),
         };
       },
     },

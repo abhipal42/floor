@@ -230,6 +230,7 @@ flowchart LR
         <li>Output, as structured JSON: purpose, 3–5 key provisions, cost, affected groups with direction (▲ ▼ ●), supporter and opponent arguments, and impact rules keyed by profile attributes. Every claim cites a bill section.</li>
         <li>Models: Claude Sonnet 5.5 for analysis, Claude Haiku 5.5 for tagging and citation checks.</li>
         <li>Runs once per text version, so cost scales with bills, not users.</li>
+        <li><strong>As built in v0.2.22 (first cut):</strong> the only input is the stored CRS summary, because bill text, the committee report and CBO text aren't ingested yet; a "version" is the summary's stage (Introduced, Passed House, …). Output is purpose, provisions, affected groups and impact, each citing a summary <em>paragraph</em> with a verbatim quote; the bill section is read off that paragraph's "(Sec. N)" label, never the model's word. Citations are checked mechanically, then a second call (Sonnet 5.5 by default, any model via env) verifies each claim and unsupported ones are cut. Cost, direction arrows, arguments and impact rules wait for richer sources and Layer 2. See HANDOFF › M4.</li>
       </ul>
     </div>
     <div class="card">
