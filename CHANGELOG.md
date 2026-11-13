@@ -8,6 +8,38 @@ is a milestone and ships a retro under `docs/retros/`.
 Older series live in [`docs/changelog/`](docs/changelog) (0.1.x: [`0.1.md`](docs/changelog/0.1.md)).
 Before 0.1.0 the history is the commit log on `main`.
 
+## 0.2.15 — 2026-11-13
+
+The landing page's header floats.
+
+### Changed
+
+- **A full-width bar that draws in to a glass capsule.** At the top of the page the header spans the
+  width: the mark on the left, the four section links centred, "Get the app" on the right. Past
+  48px of scroll it narrows to a centred 664px capsule with a blurred fill, a hairline edge and a
+  divider after the mark, and it settles back under 16px. Picked from three options in the nav
+  artifact, after Flighty's header. At 860px and under the links stay hidden, as before, and the
+  capsule hugs the mark and the button.
+- The header's band keeps one height in both states. Pinned sections, the Road to law strip and
+  anchor offsets read it, so only the inner bar animates.
+- **At 900px and under, the band behind the capsule turns solid once it floats**, so the header and
+  Road to law's stuck level strip stack as one block. With a see-through band, the road's cards slid
+  past in the gap between them. On phones and tablets that trades away the glass for a clean edge.
+- "Get the app" moves out of the section links into its own place in the header.
+
+### Added
+
+- `headFloats`, `HEAD_FLOAT_AT` and `HEAD_DOCK_AT` in `logic.ts`, with tests: two thresholds so the
+  bar cannot flicker when a scroll comes to rest on one line.
+- `docs/HANDOFF.md`: the floating header, and **lesson 34** — in the browser pane, a programmatic
+  scroll right after a viewport change can fire no `scroll` event, which reads exactly like a bug in
+  a scroll handler.
+
+### Fixed
+
+- `docs/HANDOFF.md` named two releases wrongly after today's version collisions: the funding API
+  route landed in 0.2.13, not 0.2.12, and pinned sections in 0.2.14, not 0.2.13.
+
 ## 0.2.14 — 2026-11-13
 
 Sections that hold still while you scroll through them.

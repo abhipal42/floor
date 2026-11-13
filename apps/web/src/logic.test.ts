@@ -4,7 +4,10 @@ import {
   FLAP_TEXT_MAX,
   FLAP_TICKS,
   FLAP_WIDTH,
+  HEAD_DOCK_AT,
+  HEAD_FLOAT_AT,
   activeLevel,
+  headFloats,
   scrollStep,
   stepLength,
   stickTop,
@@ -288,5 +291,45 @@ describe("misc", () => {
   it("escapes HTML", () => {
     expect(esc(`<a href="x">Tom & Jerry's</a>`)).toBe("&lt;a href=&quot;x&quot;&gt;Tom &amp; Jerry&#39;s&lt;/a&gt;");
     expect(esc(5)).toBe("5");
+  });
+});
+
+describe("headFloats", () => {
+  it("stays a full-width bar at the top of the page", () => {
+    expect(headFloats(0, false)).toBe(false);
+    expect(headFloats(HEAD_FLOAT_AT, false)).toBe(false);
+  });
+
+  it("floats once the reader scrolls past the float line", () => {
+    expect(headFloats(HEAD_FLOAT_AT + 1, false)).toBe(true);
+    expect(headFloats(2000, false)).toBe(true);
+  });
+
+  it("keeps floating between the two lines, so it cannot flicker on one", () => {
+    // Coming back up: still floating anywhere above the dock line.
+    for (const y of [HEAD_FLOAT_AT, 30, HEAD_DOCK_AT + 1]) expect(headFloats(y, true)).toBe(true);
+    // Going down from the top: still docked anywhere below the float line.
+    for (const y of [HEAD_DOCK_AT + 1, 30, HEAD_FLOAT_AT]) expect(headFloats(y, false)).toBe(false);
+  });
+
+  it("docks again once back near the top", () => {
+    expect(headFloats(HEAD_DOCK_AT, true)).toBe(false);
+    expect(headFloats(0, true)).toBe(false);
+  });
+
+  it("settles on one answer when a trackpad jitters across a single line", () => {
+    // Without the gap, 47-49-47-49 around one threshold toggles every frame.
+    let floating = false;
+    const flips: boolean[] = [];
+    for (const y of [40, 49, 47, 49, 47, 49, 40, 30, 20, 17]) {
+      const next = headFloats(y, floating);
+      if (next !== floating) flips.push(next);
+      floating = next;
+    }
+    expect(flips).toEqual([true]);
+  });
+
+  it("leaves a real gap between the two lines", () => {
+    expect(HEAD_FLOAT_AT - HEAD_DOCK_AT).toBeGreaterThanOrEqual(24);
   });
 });
