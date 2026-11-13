@@ -9,6 +9,7 @@ import SwiftUI
 /// The mock's board reads "LATEST FINAL · 1 / 5"; this one shows only the latest, so it says so
 /// and dates it rather than numbering a sequence it does not page through.
 public struct HomeView: View {
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     let model: HomeModel
     let onChangeAddress: () -> Void
     let onOpenMember: (Member) -> Void
@@ -83,7 +84,12 @@ public struct HomeView: View {
     }
 
     private var delegationStrip: some View {
-        HStack(spacing: 10) {
+        // Three across is the mock; at accessibility sizes a third of the width cannot hold a
+        // surname and a seat, so the cards stack instead.
+        let layout = dynamicTypeSize.isAccessibilitySize
+            ? AnyLayout(VStackLayout(spacing: 10))
+            : AnyLayout(HStackLayout(spacing: 10))
+        return layout {
             ForEach(model.delegation.members) { member in
                 Button { onOpenMember(member) } label: { delegationCard(member) }
                     .buttonStyle(.plain)
@@ -104,8 +110,10 @@ public struct HomeView: View {
                 .lineLimit(1)
                 .minimumScaleFactor(0.6)
             Text(member.seatCaption)
-                .font(.system(size: 10))
+                .scaledFont(10)
                 .foregroundStyle(Palette.textMuted)
+                .multilineTextAlignment(.center)
+                .fixedSize(horizontal: false, vertical: true)
         }
         .frame(maxWidth: .infinity)
         .padding(.vertical, 10)
@@ -113,11 +121,7 @@ public struct HomeView: View {
         .background(Palette.panel, in: .rect(cornerRadius: 14))
         .overlay(RoundedRectangle(cornerRadius: 14).stroke(Palette.panelBorder, lineWidth: 1))
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel(
-            "\(member.fullName), \(member.title). "
-                + (share.map { "Voted with their party \(String(format: "%.1f", $0 * 100)) percent of the time" }
-                    ?? "No party-loyalty figure")
-        )
+        .accessibilityLabel(Spoken.delegationCard(member, withPartyShare: share))
         .accessibilityHint("Opens their record")
     }
 
@@ -220,7 +224,9 @@ public struct HomeView: View {
 /// is drawn settled.
 struct SplitFlapBoard: View {
     let item: FeedItem
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.accessibilityReduceMotion) private var systemReduceMotion
+    @Environment(\.playsArrivalAnimations) private var playsArrivalAnimations
+    private var reduceMotion: Bool { systemReduceMotion || !playsArrivalAnimations }
     @State private var settled = 0
 
     private static let glyphs = Array("ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789")

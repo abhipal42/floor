@@ -8,6 +8,39 @@ is a milestone and ships a retro under `docs/retros/`.
 Older series live in [`docs/changelog/`](docs/changelog) (0.1.x: [`0.1.md`](docs/changelog/0.1.md)).
 Before 0.1.0 the history is the commit log on `main`.
 
+## 0.2.25 — 2026-11-13
+
+Snapshot tests for the cards and screens, an accessibility pass, and the privacy manifests.
+
+### Added
+- **Snapshot tests** (`ios/FloorKit/Tests/SnapshotTests`, closes #1): 53 references from 24 tests.
+  `ScoreboardCard` in ten states (three digits a side, failed short of two-thirds, nay leading,
+  a shutout, a 1,309-character title, no citation, two senators, a Speaker ballot with no winner,
+  open, scheduled), each in light, dark and AX5; Vote, Bill, Rep, Onboarding and Home screens.
+  All from the captured fixtures, served by a `URLProtocol`. Built on `swift-snapshot-testing`
+  1.19.7, pinned exactly (test target only). Recorded on the iOS 26.2 simulator and skipped on
+  any other OS; CI's `ios` job runs them with Xcode 26.2 after the app build, and fails if that
+  Xcode or a 26.2 iPhone simulator is missing.
+- **`Spoken`** (`Models`): the VoiceOver sentence for each card — "H.R. 1013, On Passage, passed,
+  295 yea to 128 nay; your rep Jeffries voted nay. …" — tested on real fixtures.
+- **`scaledFont(_:weight:)`**: the mock's point size at the default text size, scaled with
+  Dynamic Type from there.
+- **Privacy manifests** for the app and the widget (`PrivacyInfo.xcprivacy`): no tracking;
+  `UserDefaults` for CA92.1 and 1C8F.1; the app declares Precise Location, Physical Address and
+  Coarse Location, and the widget Coarse Location (member ids in request paths reveal the
+  district), all not linked, for App Functionality. The App Store privacy-label answers are in the handoff (M5).
+
+### Changed
+- **Dynamic Type** on `ScoreboardCard`, the vote screen and the member cards (Home's delegation
+  strip, onboarding's three). Rows that cannot hold large text stack; member rows and cards go to
+  one column at accessibility sizes. Default-size layouts are unchanged.
+- **VoiceOver**: scores name their side ("failed, 212 yea to 206 nay" rather than "212 to 206");
+  a tied Speaker ballot names both candidates; the box score says "did not vote" throughout. Score
+  cards, the vote screen's board and member rows, and member cards read one
+  sentence each, with the seat spelled out rather than "House · TX-37".
+- **Reduce Motion**: the split-flap board and the catch-up deck also settle when
+  `playsArrivalAnimations` is false, so tests and previews can draw the settled frame.
+
 ## 0.2.24 — 2026-11-13
 
 The M3 live layer's backend: an always-on worker that tracks the floor, moves votes from `open` to

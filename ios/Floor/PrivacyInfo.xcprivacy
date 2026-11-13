@@ -1,0 +1,84 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  Floor's privacy manifest. What each entry is and why: docs/HANDOFF.md, "Privacy manifest and App
+  Store privacy labels" under M5. Keep the two in step: a new API or SDK that reads something about
+  the device changes both.
+-->
+<plist version="1.0">
+<dict>
+	<!-- No tracking: no advertising, no data broker, no SDK that links Floor's data with another
+	     company's. -->
+	<key>NSPrivacyTracking</key>
+	<false/>
+	<key>NSPrivacyTrackingDomains</key>
+	<array/>
+
+	<!-- Collected, not linked, App Functionality only.
+	     Precise Location and Physical Address: the address typed in onboarding, or one location
+	     fix, goes to Floor's API to find the district. Collected under Apple's definition: the
+	     address or coordinates leave the phone and may be kept beyond the request by the hosting
+	     provider's request logs and by the U.S. Census geocoder, whose retention Floor does not
+	     control. Floor's own code stores neither and never joins them to any identifier.
+	     Coarse Location: every later request names your members by Bioguide ID in its path
+	     (/v1/members/{id}/votes), and three members identify one district. -->
+	<key>NSPrivacyCollectedDataTypes</key>
+	<array>
+		<dict>
+			<key>NSPrivacyCollectedDataType</key>
+			<string>NSPrivacyCollectedDataTypePreciseLocation</string>
+			<key>NSPrivacyCollectedDataTypeLinked</key>
+			<false/>
+			<key>NSPrivacyCollectedDataTypeTracking</key>
+			<false/>
+			<key>NSPrivacyCollectedDataTypePurposes</key>
+			<array>
+				<string>NSPrivacyCollectedDataTypePurposeAppFunctionality</string>
+			</array>
+		</dict>
+		<dict>
+			<key>NSPrivacyCollectedDataType</key>
+			<string>NSPrivacyCollectedDataTypePhysicalAddress</string>
+			<key>NSPrivacyCollectedDataTypeLinked</key>
+			<false/>
+			<key>NSPrivacyCollectedDataTypeTracking</key>
+			<false/>
+			<key>NSPrivacyCollectedDataTypePurposes</key>
+			<array>
+				<string>NSPrivacyCollectedDataTypePurposeAppFunctionality</string>
+			</array>
+		</dict>
+		<dict>
+			<key>NSPrivacyCollectedDataType</key>
+			<string>NSPrivacyCollectedDataTypeCoarseLocation</string>
+			<key>NSPrivacyCollectedDataTypeLinked</key>
+			<false/>
+			<key>NSPrivacyCollectedDataTypeTracking</key>
+			<false/>
+			<key>NSPrivacyCollectedDataTypePurposes</key>
+			<array>
+				<string>NSPrivacyCollectedDataTypePurposeAppFunctionality</string>
+			</array>
+		</dict>
+	</array>
+
+	<!-- Required-reason APIs. UserDefaults only, for two reasons: the app's own defaults hold the
+	     appearance choice (@AppStorage) and, on builds from before the widget, the district —
+	     CA92.1; the App Group suite holds the resolved district and members, which the widget
+	     reads (UserDefaultsDelegationStore.shared) — 1C8F.1. No file timestamps, disk space, boot
+	     time or keyboard APIs are used; the SwiftData cache opens and deletes its store but never
+	     reads a file's dates. -->
+	<key>NSPrivacyAccessedAPITypes</key>
+	<array>
+		<dict>
+			<key>NSPrivacyAccessedAPIType</key>
+			<string>NSPrivacyAccessedAPICategoryUserDefaults</string>
+			<key>NSPrivacyAccessedAPITypeReasons</key>
+			<array>
+				<string>CA92.1</string>
+				<string>1C8F.1</string>
+			</array>
+		</dict>
+	</array>
+</dict>
+</plist>

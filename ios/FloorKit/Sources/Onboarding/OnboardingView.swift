@@ -15,6 +15,7 @@ public struct OnboardingView: View {
     @FocusState private var addressFocused: Bool
     @Environment(\.openURL) private var openURL
     @Environment(\.scenePhase) private var scenePhase
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     /// Set when the app leaves the screen for real — to Settings, say. The system alert only makes
     /// it inactive, so this tells a return from Settings apart from the alert closing.
     @State private var wasInBackground = false
@@ -213,14 +214,24 @@ public struct OnboardingView: View {
             Text(StateName.districtName(state: reps.district.state, district: reps.district.district).uppercased())
                 .font(.system(size: 12, weight: .bold))
                 .foregroundStyle(Palette.yea)
-            HStack(alignment: .top, spacing: 8) {
-                ForEach(orderedMembers(reps)) { member in
-                    memberCard(member)
+            if dynamicTypeSize.isAccessibilitySize {
+                // A third of the width cannot hold a surname and a seat at these sizes: one card
+                // per row instead of the mock's three columns.
+                VStack(spacing: 8) {
+                    ForEach(orderedMembers(reps)) { member in
+                        memberCard(member)
+                    }
                 }
-                // Always three columns, as the mock's grid is: D.C.'s one card keeps a card's
-                // width rather than stretching across the row.
-                ForEach(0..<max(0, 3 - reps.members.count), id: \.self) { _ in
-                    Color.clear.frame(maxWidth: .infinity, maxHeight: 1)
+            } else {
+                HStack(alignment: .top, spacing: 8) {
+                    ForEach(orderedMembers(reps)) { member in
+                        memberCard(member)
+                    }
+                    // Always three columns, as the mock's grid is: D.C.'s one card keeps a card's
+                    // width rather than stretching across the row.
+                    ForEach(0..<max(0, 3 - reps.members.count), id: \.self) { _ in
+                        Color.clear.frame(maxWidth: .infinity, maxHeight: 1)
+                    }
                 }
             }
             if let note = OnboardingModel.singleMemberNote(reps) {
@@ -256,7 +267,8 @@ public struct OnboardingView: View {
                     .foregroundStyle(Palette.text)
                     .lineLimit(1)
                     .minimumScaleFactor(0.6)
-                Text(seat).font(.system(size: 9)).foregroundStyle(Palette.textMuted)
+                Text(seat).scaledFont(9).foregroundStyle(Palette.textMuted)
+                    .fixedSize(horizontal: false, vertical: true)
             }
             .padding(6)
         }
@@ -267,7 +279,7 @@ public struct OnboardingView: View {
         .background(LinearGradient(colors: Palette.silver, startPoint: .topLeading, endPoint: .bottomTrailing),
                     in: .rect(cornerRadius: 12))
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel("\(member.fullName), \(member.title), \(seat), \(PartyName.singular(member.party))")
+        .accessibilityLabel(Spoken.member(member))
     }
 
     private var cta: some View {
