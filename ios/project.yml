@@ -12,10 +12,22 @@ options:
 # group, instead of the app and widget colliding on one id or registering ours under your team.
 settings:
   base:
-    MARKETING_VERSION: "0.2.36"
+    MARKETING_VERSION: "0.2.37"
     CURRENT_PROJECT_VERSION: "1"
     FLOOR_BUNDLE_ID: app.floor.ios
     FLOOR_APP_GROUP: group.$(FLOOR_BUNDLE_ID)
+    # Universal links: the share page's domain (apps/api/src/share.ts serves its
+    # apple-app-site-association). A personal build on your own team sets this to a domain it can
+    # claim, or builds without signing, since Apple refuses an entitlement for a domain whose
+    # association file does not name your team.
+    FLOOR_APPLINKS_DOMAIN: floor.app
+    # "Sync with iCloud" (round 11, section F): the iCloud key-value store's identifier, which the
+    # entitlement and Info.plist's FloorICloudKVS both read. Unsigned builds (CI) have no team
+    # prefix, so it is just the bundle id and the app shows its "iCloud isn't available in this
+    # build" placeholder. A build on a team without the iCloud capability sets `FLOOR_ICLOUD_KVS=`
+    # (empty) and builds without signing; the app then shows the same placeholder
+    # (`CloudSync.isAvailable`).
+    FLOOR_ICLOUD_KVS: $(TeamIdentifierPrefix)$(FLOOR_BUNDLE_ID)
 packages:
   FloorKit:
     path: FloorKit
@@ -59,6 +71,12 @@ targets:
         # archive-and-export rewrites it to `production` for TestFlight and the App Store. The App
         # ID needs the Push Notifications capability, so a personal team must be a paid one.
         aps-environment: development
+        # https://floor.app/bill/… opens the bill screen (`FloorLink`). Needs the Associated Domains
+        # capability on the App ID, and APPLE_TEAM_ID set on the API so the association file names it.
+        com.apple.developer.associated-domains: [applinks:$(FLOOR_APPLINKS_DOMAIN)]
+        # Follows and alert choices synced through the person's own iCloud (`CloudSync`). Needs the
+        # iCloud capability (key-value storage) on the App ID.
+        com.apple.developer.ubiquity-kvstore-identifier: $(FLOOR_ICLOUD_KVS)
     # A generated Info.plist rather than GENERATE_INFOPLIST_FILE, because the API's base URL has to
     # be a build setting: a Debug build talks to the dev server, a Release build to the deployment.
     info:
@@ -83,6 +101,8 @@ targets:
         NSSupportsLiveActivities: true
         # Which APNs gateway this build's tokens belong to, sent with the registration.
         FloorAPNSEnvironment: $(FLOOR_APNS_ENV)
+        # Read by `CloudSync.isAvailable`: whether this build carries the iCloud key-value store.
+        FloorICloudKVS: $(FLOOR_ICLOUD_KVS)
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: $(FLOOR_BUNDLE_ID)

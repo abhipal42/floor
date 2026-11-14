@@ -8,7 +8,8 @@ import SwiftUI
 ///
 /// The header carries Follow (the locked Following mock, section B). Your own reps read "Your rep"
 /// instead: they come from your district and can be hidden on the Following tab, not unfollowed.
-/// The mock's "Alerts on" button beside it is left out until alerts are actually sent.
+/// The mock's "Alerts on" button beside it is left out until alerts are actually sent. Its switch
+/// is Votes · Money · Contact (round 11).
 public struct RepScreenView: View {
     @State private var model: RepScreenModel
     @State private var section: MemberSection = .record
@@ -19,11 +20,13 @@ public struct RepScreenView: View {
     /// - Parameters:
     ///   - follows: the follow list; nil shows no Follow button (previews of the record alone).
     ///   - reps: Bioguide IDs of your own district's members.
+    ///   - section: the segment it opens on: Votes, unless a caller (a snapshot) says otherwise.
     public init(
-        model: RepScreenModel, follows: Follows? = nil, reps: [String] = [],
+        model: RepScreenModel, follows: Follows? = nil, reps: [String] = [], section: MemberSection = .record,
         onOpenVote: @escaping (Vote) -> Void = { _ in }
     ) {
         _model = State(initialValue: model)
+        _section = State(initialValue: section)
         self.follows = follows
         self.reps = Set(reps)
         self.onOpenVote = onOpenVote

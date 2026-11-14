@@ -41,6 +41,16 @@ public final class VoteScreenModel {
         self.delegation = delegation
     }
 
+    /// "What this vote is", open or folded. Open by default.
+    public var explainerOpen = true
+
+    /// The "Kinds of vote" list, from `GET /v1/vote-kinds`: saved, then fresh; nil until it loads
+    /// or when neither can be had.
+    public func voteKinds() async -> [VoteKindInfo]? {
+        if let fresh = try? await api.voteKinds() { return fresh.kinds }
+        return try? await api.savedOnly()?.api.voteKinds().kinds
+    }
+
     /// True until a load has finished with everything fresh — including one that was cancelled
     /// part-way — so a screen that reappears runs the refresh again.
     public var needsRefresh: Bool {

@@ -1,6 +1,7 @@
 import APIClient
 import Foundation
 import Models
+import Onboarding
 
 /// Loads one bill, then how your own members voted on it.
 @MainActor
@@ -47,6 +48,10 @@ public final class BillScreenModel {
     /// The citation chip whose paragraph is open, by ``AIAnalysis/Citation/id``. One at a time.
     public private(set) var openCitation: String?
     public private(set) var yourMembers: [MemberOnBill] = []
+    /// On this week's floor list, if it is: the "On the floor this week" banner.
+    public private(set) var listing: FloorListing?
+    /// What Share sends, from the API; nil until it answers (Share then builds its own).
+    public private(set) var share: BillShare?
     /// Set while any of the bill on screen (or your members' positions) is saved rather than fresh;
     /// see `revalidate`.
     public private(set) var saved: SavedCopy?
@@ -56,12 +61,26 @@ public final class BillScreenModel {
     private let billId: String
     private let members: [Member]
     private let api: FloorAPI
+    /// Your district and its members: who Speak up writes to. nil with no district set.
+    public let delegation: Delegation?
 
-    /// - Parameter members: your delegation, for "Your members on this bill". Empty skips it.
-    public init(billId: String, api: FloorAPI, members: [Member] = []) {
+    /// - Parameters:
+    ///   - members: your members, for "Your members on this bill". Empty skips it.
+    ///   - delegation: your district, for Speak up.
+    public init(billId: String, api: FloorAPI, members: [Member] = [], delegation: Delegation? = nil) {
         self.billId = billId
         self.api = api
         self.members = members
+        self.delegation = delegation
+    }
+
+    /// The bill's facts as Speak up and the offline share line say them.
+    public func facts(_ bill: Bill) -> BillFacts { BillFacts(bill: bill, listing: listing) }
+
+    /// A member's office contact, for Speak up: from their record, saved or fresh.
+    public func contact(for member: Member) async -> MemberContact? {
+        if let fresh = try? await api.member(id: member.bioguideId) { return fresh.contact }
+        return try? await api.savedOnly()?.api.member(id: member.bioguideId).contact
     }
 
     /// True until a load has finished with everything fresh — including one that was cancelled
@@ -87,6 +106,7 @@ public final class BillScreenModel {
                 guard mine == generation else { throw CancellationError() }
                 phase = .loaded(bill)
                 try await loadAnalysis(bill, pass: pass, generation: mine)
+                try await loadFloor(bill, pass: pass, generation: mine)
                 try await loadYourMembers(bill, pass: pass, generation: mine)
             }
             // A saved bill whose network pass failed never asked for the analysis on the network,
@@ -136,6 +156,17 @@ public final class BillScreenModel {
             // A refresh that fails keeps whatever the screen already shows.
             if case .loading = analysis { analysis = .failed }
         }
+    }
+
+    /// Best-effort: this week's floor list (for the banner) and the share line. A bill whose
+    /// schedule can't be had simply shows no banner.
+    private func loadFloor(_ bill: Bill, pass: Pass, generation mine: Int) async throws {
+        let billId = bill.id
+        let schedule = await pass.bestEffort { try await $0.schedule() }
+        let share = await pass.bestEffort { try await $0.billShare(id: billId) }
+        guard mine == generation else { throw CancellationError() }
+        if let schedule { listing = FloorListing(schedule: schedule, billId: billId) }
+        if let share { self.share = share }
     }
 
     /// What "no analysis" looks like for this bill: hidden when it has a summary (one may yet be

@@ -38,14 +38,26 @@ public final class AlertsModel {
         case permissionDenied
     }
 
+    /// One "Bills you follow" switch (round 11, section E).
+    public struct StepRow: Identifiable, Hashable {
+        public var id: String
+        public var title: String
+        public var caption: String?
+        public var on: Bool
+        public var step: WritableKeyPath<BillAlerts, Bool>
+    }
+
     public let follows: Follows
     public let reps: [Member]
     public let sync: AlertSync?
+    /// "Sync with iCloud"; nil leaves the row out (previews, tests of the switches alone).
+    public let cloud: CloudSync?
 
-    public init(follows: Follows, reps: [Member], sync: AlertSync?) {
+    public init(follows: Follows, reps: [Member], sync: AlertSync?, cloud: CloudSync? = nil) {
         self.follows = follows
         self.reps = reps
         self.sync = sync
+        self.cloud = cloud
     }
 
     private var state: FollowState { follows.state }
@@ -71,18 +83,47 @@ public final class AlertsModel {
         }
     }
 
+    /// The six step switches, in the design's order. Defaults: the first four on, committee and
+    /// topics off ("they'd be loud").
+    public var steps: [StepRow] {
+        let s = state.billSteps
+        let topics = state.followedTopics
+        return [
+            StepRow(id: "floorScheduled", title: "Scheduled for the floor",
+                    caption: "The week it's on the House list, or the Senate's next-day plan", on: s.floorScheduled, step: \.floorScheduled),
+            StepRow(id: "chamberVote", title: "Passes or fails a chamber", caption: "With the score", on: s.chamberVote, step: \.chamberVote),
+            StepRow(id: "toPresident", title: "Sent to the President", caption: nil, on: s.toPresident, step: \.toPresident),
+            StepRow(id: "lawOrVeto", title: "Becomes law or is vetoed", caption: nil, on: s.lawOrVeto, step: \.lawOrVeto),
+            StepRow(id: "committee", title: "Committee action", caption: "Hearings, markups, reported. Busy", on: s.committee, step: \.committee),
+            StepRow(id: "throughTopics", title: "Through topics too",
+                    caption: topics.isEmpty ? "Bills in topics you follow. You follow none yet" : Self.topicList(topics),
+                    on: s.throughTopics, step: \.throughTopics),
+        ]
+    }
+
+    /// `Labor and Employment, Health`; past three, `…, Health and 4 more`.
+    nonisolated static func topicList(_ topics: [String]) -> String {
+        guard topics.count > 3 else { return topics.joined(separator: ", ") }
+        return topics.prefix(3).joined(separator: ", ") + " and \(topics.count - 3) more"
+    }
+
+    public func setStep(_ step: WritableKeyPath<BillAlerts, Bool>, _ on: Bool) async {
+        follows.update { $0.setBillStep(step, on) }
+        await changed(on)
+    }
+
     public var voteOpened: Bool { state.voteOpened }
 
     /// "Live Activities": on by default; silent, so turning it on never asks for notifications.
     public var liveActivities: Bool { state.liveActivities }
 
-    /// More members and bills than one registration carries (1,000): the newest are left out.
+    /// More members, bills and topics than one registration carries (1,000): the newest are left out.
     public var overCap: Bool { AlertSync.overCap(state: state, reps: reps) }
 
-    /// Topics are followed but never alerted on; the screen says so when you follow any.
+    /// Topics alert only through "Through topics too"; the screen says so when you follow any.
     public var followsTopics: Bool { !state.followedTopics.isEmpty }
 
-    public var isEmpty: Bool { members.isEmpty && bills.isEmpty }
+    public var isEmpty: Bool { members.isEmpty && bills.isEmpty && !followsTopics }
 
     public var notice: Notice? {
         guard let sync, state.anyAlertOn(members: state.yourMembers(reps: reps), reps: reps) else { return nil }

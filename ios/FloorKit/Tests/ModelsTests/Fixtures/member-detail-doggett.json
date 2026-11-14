@@ -1,0 +1,23 @@
+{
+  "member": {
+    "bioguideId": "D000399",
+    "firstName": "Lloyd",
+    "lastName": "Doggett",
+    "party": "D",
+    "state": "TX",
+    "district": 37,
+    "chamber": "house"
+  },
+  "partyLoyalty": {
+    "votes": 1841,
+    "withParty": 1784,
+    "againstParty": 57
+  },
+  "contact": {
+    "phone": "202-225-4865",
+    "contactForm": null,
+    "website": "https://doggett.house.gov",
+    "office": "2307 Rayburn House Office Building",
+    "address": "2307 Rayburn House Office Building Washington DC 20515-0001"
+  }
+}

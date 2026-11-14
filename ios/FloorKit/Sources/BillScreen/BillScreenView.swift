@@ -19,17 +19,22 @@ public struct BillScreenView: View {
     private let follows: Follows?
     private let onOpenTopic: ((String) -> Void)?
     private let onOpenVote: (Vote) -> Void
+    /// Speak up's "Set your district", with no district; nil leaves the button out.
+    private let onSetDistrict: (() -> Void)?
+    @State private var speakingUp = false
 
     /// - Parameters:
     ///   - follows: the follow list; nil shows no Follow button (previews and the screen alone).
     ///   - onOpenTopic: opens a topic's page; nil leaves the topic out.
+    ///   - onSetDistrict: where Speak up sends someone with no district.
     public init(
         model: BillScreenModel, follows: Follows? = nil, onOpenTopic: ((String) -> Void)? = nil,
-        onOpenVote: @escaping (Vote) -> Void
+        onSetDistrict: (() -> Void)? = nil, onOpenVote: @escaping (Vote) -> Void
     ) {
         _model = State(initialValue: model)
         self.follows = follows
         self.onOpenTopic = onOpenTopic
+        self.onSetDistrict = onSetDistrict
         self.onOpenVote = onOpenVote
     }
 
@@ -69,6 +74,7 @@ public struct BillScreenView: View {
                     if let saved = model.saved { SavedDataNote(saved) }
                     if let follows { followRow(bill, follows: follows) }
                     header(bill)
+                    if let listing = model.listing { floorBanner(listing) }
                     AIAnalysisSection(
                         phase: model.analysis,
                         openCitation: model.openCitation,
@@ -83,6 +89,7 @@ public struct BillScreenView: View {
                     if let summary = bill.summary, !summary.isEmpty {
                         whatItDoes(summary, stage: bill.summaryStage)
                     }
+                    speakUpAndShare(bill)
                     if !model.yourMembers.isEmpty {
                         yourMembers
                     }
@@ -93,6 +100,14 @@ public struct BillScreenView: View {
                 .padding(.horizontal, 16)
                 .padding(.top, 8)
                 .padding(.bottom, 32)
+            }
+            .sheet(isPresented: $speakingUp) {
+                SpeakUpSheet(
+                    facts: model.facts(bill), delegation: model.delegation,
+                    contact: { await model.contact(for: $0) }, onSetDistrict: onSetDistrict
+                )
+                .presentationDetents([.large])
+                .presentationDragIndicator(.visible)
             }
             .toolbar {
                 // The mocks show only the back link and this label; an empty principal item hides the
@@ -125,6 +140,58 @@ public struct BillScreenView: View {
                 name: bill.citation, hint: "Adds its votes to Finals and lists it under Following"
             ) { follows.toggle(bill: BillListItem(bill: bill)) }
         }
+    }
+
+    /// "On the floor this week" (round 11, section C's bill screen).
+    private func floorBanner(_ listing: FloorListing) -> some View {
+        VStack(alignment: .leading, spacing: 3) {
+            Text("ON THE FLOOR THIS WEEK")
+                .font(Typography.label(12))
+                .tracking(1.2)
+                .foregroundStyle(Palette.threshold)
+            Text(listing.bannerLine + " Listed means it may come up; items move through the week.")
+                .scaledFont(11)
+                .foregroundStyle(Palette.textSecondary)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .padding(.horizontal, 11)
+        .padding(.vertical, 9)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Palette.threshold.opacity(0.1), in: .rect(cornerRadius: 12))
+        .overlay(RoundedRectangle(cornerRadius: 12).stroke(Palette.threshold.opacity(0.35), lineWidth: 1))
+        .accessibilityElement(children: .combine)
+    }
+
+    /// Speak up and Share, under the summary.
+    private func speakUpAndShare(_ bill: Bill) -> some View {
+        let facts = model.facts(bill)
+        let url = model.share.flatMap { URL(string: $0.url) } ?? ShareFallback.url(bill)
+        let text = model.share?.text ?? ShareFallback.text(facts)
+        return HStack(spacing: 6) {
+            Button { speakingUp = true } label: {
+                actionLabel("SPEAK UP", filled: true)
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Speak up")
+            .accessibilityHint("Write or call your own members about this bill")
+            ShareLink(item: url, subject: Text(bill.citation), message: Text(text)) {
+                actionLabel("SHARE", filled: false)
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Share")
+            .accessibilityHint("Sends a link to this bill's page, which opens in any browser")
+        }
+    }
+
+    private func actionLabel(_ title: String, filled: Bool) -> some View {
+        Text(title)
+            .font(Typography.label(13))
+            .tracking(0.6)
+            .foregroundStyle(filled ? Palette.ground : Palette.text)
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 10)
+            .background(filled ? Palette.threshold : Color.clear, in: .rect(cornerRadius: 9))
+            .overlay { if !filled { RoundedRectangle(cornerRadius: 9).strokeBorder(Palette.raised, lineWidth: 1) } }
     }
 
     private func citationLine(_ bill: Bill) -> Text {

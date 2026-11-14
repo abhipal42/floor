@@ -15,23 +15,28 @@ import SwiftUI
 // - The period reads "2026 campaign", as the landing page does, not "2026 cycle": for a senator
 //   the campaign year and the FEC cycle differ.
 // - No "NEW DATA · needs FEC ingest" banner on Money: that was the mock's note that data was
-//   missing, and it is not any more. Portfolio keeps one, because it still is.
-// - No back chevron in the header: the switch is how you get back to Record.
+//   missing, and it is not any more.
+// - No back chevron in the header: the switch is how you get back to Votes.
+//
+// Round 11 (https://claude.ai/artifact/VdSGbow4qnJwYe2sV7Tb2r, sections C and G) made the switch
+// Votes · Money · Contact and put disclosures under Money as Funding · Disclosures.
 
-/// Record / Money / Portfolio, as the mocks' segmented control.
-struct SectionSwitch: View {
-    @Binding var selection: MemberSection
+/// Votes / Money / Contact, as the mocks' segmented control; Money's Funding / Disclosures too.
+struct SectionSwitch<Section: Hashable & Identifiable & RawRepresentable & CaseIterable>: View
+    where Section.RawValue == String, Section.AllCases: RandomAccessCollection {
+    @Binding var selection: Section
+    var label = "Section"
 
     var body: some View {
         HStack(spacing: 0) {
-            ForEach(MemberSection.allCases) { section in
+            ForEach(Section.allCases) { section in
                 let on = section == selection
                 Button { selection = section } label: {
                     Text(section.rawValue)
                         .font(.footnote.weight(.semibold))
                         .foregroundStyle(on ? Palette.ground : Palette.textSecondary)
                         .lineLimit(1)
-                        .minimumScaleFactor(0.7)
+                        .minimumScaleFactor(0.5)
                         .frame(maxWidth: .infinity)
                         .padding(7)
                         .background(on ? Palette.text : .clear, in: .rect(cornerRadius: 8))
@@ -39,17 +44,16 @@ struct SectionSwitch: View {
                 }
                 .buttonStyle(.plain)
                 .accessibilityAddTraits(on ? [.isSelected] : [])
-                .accessibilityHint(section == .portfolio ? "Not loaded yet" : "")
             }
         }
         .padding(3)
         .background(Palette.panel, in: .rect(cornerRadius: 10))
         .accessibilityElement(children: .contain)
-        .accessibilityLabel("Section")
+        .accessibilityLabel(label)
     }
 }
 
-/// The compact header the Money and Portfolio segments put where the player card was.
+/// The compact header the Money and Contact segments put where the player card was.
 struct MemberHeader: View {
     let member: Member
 
@@ -68,7 +72,7 @@ struct MemberHeader: View {
 }
 
 /// Everything under the member switcher for one member: the record, or the compact header, the
-/// switch and the Money or Portfolio segment.
+/// switch and the Money or Contact segment.
 struct MemberSections: View {
     let record: RepScreenModel
     let member: Member?
@@ -80,14 +84,20 @@ struct MemberSections: View {
         switch section {
         case .record:
             RepRecordContent(model: record, fact: fact, onOpenVote: onOpenVote, section: $section)
-        case .money, .portfolio:
+        case .money, .contact:
             VStack(alignment: .leading, spacing: 16) {
                 if let member { MemberHeader(member: member) }
                 SectionSwitch(selection: $section)
                 if section == .money {
-                    MoneyContent(model: record.money, member: member)
+                    @Bindable var record = record
+                    SectionSwitch(selection: $record.moneySegment, label: "Money")
+                    if record.moneySegment == .funding {
+                        MoneyContent(model: record.money, member: member)
+                    } else {
+                        DisclosuresContent(model: record.disclosures, member: member)
+                    }
                 } else {
-                    PortfolioPlaceholder()
+                    ContactContent(record: record, member: member)
                 }
             }
         }
@@ -367,44 +377,6 @@ struct FundingFigures: View {
     }
 }
 
-// MARK: - Portfolio
-
-/// Financial disclosures have no data and no API yet (the v0.3.0 milestone), so the segment says so
-/// in the mock's own "new data" style rather than showing anything shaped like figures.
-struct PortfolioPlaceholder: View {
-    var body: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            HStack(alignment: .firstTextBaseline, spacing: 8) {
-                Text("NOT LOADED YET").fontWeight(.bold).foregroundStyle(Palette.threshold)
-                Text("Needs House disclosure ingest — not in the API yet. Senate filings come later.")
-                    .foregroundStyle(Palette.textSecondary)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-            .font(.caption2)
-            .padding(.horizontal, 10)
-            .padding(.vertical, 8)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .overlay(RoundedRectangle(cornerRadius: 10)
-                .strokeBorder(Palette.threshold, style: StrokeStyle(lineWidth: 1, dash: [4, 3])))
-            .accessibilityElement(children: .combine)
-
-            VStack(alignment: .leading, spacing: 8) {
-                Text("REPORTED ASSETS · RANGES, AS FILED")
-                    .font(.caption2).tracking(0.7).foregroundStyle(Palette.textMuted)
-                Text("Members report what they own and owe in value bands, and leave out their homes. "
-                    + "When this loads, Floor will show those ranges as filed, and their trades — never a "
-                    + "single net-worth figure.")
-                    .font(.footnote)
-                    .foregroundStyle(Palette.textSecondary)
-                    .lineSpacing(3)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-            .panel()
-            .accessibilityElement(children: .combine)
-        }
-    }
-}
-
 #Preview("Money · Jeffries") {
     ScrollView {
         FundingFigures(funding: .sample).padding(16)
@@ -412,6 +384,6 @@ struct PortfolioPlaceholder: View {
     .background(Palette.ground)
 }
 
-#Preview("Portfolio") {
-    PortfolioPlaceholder().padding(16).background(Palette.ground)
+#Preview("Disclosures · off") {
+    DisclosuresFigures(disclosures: Disclosures(enabled: false, reason: nil), member: nil).padding(16).background(Palette.ground)
 }

@@ -3,6 +3,7 @@ import APIClient
 import DesignSystem
 import Home
 import ActivityKit
+import Combine
 import LiveActivity
 import Models
 import Onboarding
@@ -28,6 +29,9 @@ struct FloorApp: App {
     @State private var follows: Follows
     /// Keeps the API's copy of the Alerts screen's choices current (`PUT /v1/devices`).
     @State private var alertSync: AlertSync
+    /// "Sync with iCloud": follows, alert choices and the district through the person's own
+    /// iCloud key-value store. A build without the entitlement gets the placeholder instead.
+    @State private var cloudSync: CloudSync
     /// ActivityKit, and the foreground poller that starts and ends Live Activities from `/v1/live`.
     private let activityHost: ActivityKitHost
     @State private var liveActivities: LiveActivityCoordinator
@@ -54,8 +58,15 @@ struct FloorApp: App {
         let follows = Follows(store: UserDefaultsFollowStore.shared()) {
             reload.soon()
             PushRelay.shared.sync?.schedule()
+            CloudRelay.shared.sync?.push()
         }
         _follows = State(initialValue: follows)
+        let cloud = CloudSync(
+            follows: follows, delegations: store,
+            cloud: CloudSync.isAvailable(info: Bundle.main.infoDictionary) ? NSUbiquitousKeyValueStore.default : nil
+        )
+        _cloudSync = State(initialValue: cloud)
+        CloudRelay.shared.sync = cloud
 
         let key = DeviceKey.stored()
         let sync = AlertSync(
@@ -137,13 +148,25 @@ struct FloorApp: App {
                         // The widgets were showing "pick your members"; now they have some.
                         WidgetCenter.shared.reloadAllTimelines()
                         alertSync.schedule()
+                        cloudSync.delegationChanged()
                     }
                 }
             }
             // Before onboarding there is no vote screen to open, so a link waits until there is.
             .onOpenURL { url in pendingLink = FloorLink(url: url) }
             .onChange(of: appearance, initial: true) { _, choice in Self.apply(choice) }
-            .onAppear { PushRelay.shared.onLink = { link in pendingLink = link } }
+            .onAppear {
+                PushRelay.shared.onLink = { link in pendingLink = link }
+                // A district another device set (or cleared) arrives through iCloud.
+                cloudSync.onDelegation = { incoming in
+                    withAnimation { delegation = incoming }
+                    WidgetCenter.shared.reloadAllTimelines()
+                    alertSync.schedule()
+                }
+            }
+            .onReceive(NotificationCenter.default.publisher(for: NSUbiquitousKeyValueStore.didChangeExternallyNotification).receive(on: RunLoop.main)) { _ in
+                cloudSync.pull()
+            }
             .onChange(of: scenePhase, initial: true) { _, phase in foreground(phase == .active) }
         }
     }
@@ -151,6 +174,7 @@ struct FloorApp: App {
     private func homeModel() -> HomeModel {
         let model = HomeModel(delegation: delegation, follows: follows, api: api)
         model.alertSync = alertSync
+        model.cloudSync = cloudSync
         return model
     }
 
@@ -163,6 +187,7 @@ struct FloorApp: App {
         guard active else { return }
         polling = Task { await liveActivities.run() }
         activityHost.refreshEnabled(sync: alertSync)
+        cloudSync.pull()
         Task {
             await alertSync.refreshPermission()
             alertSync.schedule()
@@ -192,6 +217,7 @@ struct FloorApp: App {
         let oldReps = delegation?.memberIds ?? []
         follows.update { $0.forgetReps(oldReps) }
         store.clear()
+        cloudSync.delegationChanged()
         // The widget's saved votes name the old members too.
         WidgetSnapshotStore.shared()?.clear()
         WidgetCenter.shared.reloadAllTimelines()
@@ -205,6 +231,13 @@ struct FloorApp: App {
             }
         }
     }
+}
+
+/// Where the follow list's change handler finds the iCloud sync, which is made after it.
+@MainActor
+final class CloudRelay {
+    static let shared = CloudRelay()
+    var sync: CloudSync?
 }
 
 /// Reloads the widgets a couple of seconds after the last change asked for it.

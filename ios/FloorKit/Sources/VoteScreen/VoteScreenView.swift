@@ -18,6 +18,7 @@ import SwiftUI
 public struct VoteScreenView: View {
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @State private var model: VoteScreenModel
+    @State private var showingKinds = false
     private let onOpenMeasure: (MeasureSummary) -> Void
     private let onOpenMember: (Member) -> Void
 
@@ -65,6 +66,8 @@ public struct VoteScreenView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 18) {
                     if let saved = model.saved { SavedDataNote(saved) }
+                    // No explainer is no card: an unknown kind of vote gets no line, never a guess.
+                    if let explainer = detail.vote.explainer { explainerCard(explainer) }
                     if detail.vote.kind == .election {
                         electionBoard(detail)
                         candidateTable(detail)
@@ -97,6 +100,66 @@ public struct VoteScreenView: View {
                         .fixedSize()
                 }
             }
+        }
+    }
+
+    /// "What this vote is" (round 11, section B): one hand-written line on what the vote does and
+    /// doesn't do, with the rule it rests on. Written by Floor from House and Senate rules, not AI.
+    /// Folds to its header; "?" opens every kind of vote.
+    private func explainerCard(_ explainer: VoteExplainer) -> some View {
+        VStack(alignment: .leading, spacing: 5) {
+            HStack {
+                Button { withAnimation(.snappy) { model.explainerOpen.toggle() } } label: {
+                    HStack(spacing: 6) {
+                        Text("WHAT THIS VOTE IS")
+                            .font(Typography.label(11))
+                            .tracking(1.1)
+                            .foregroundStyle(Palette.threshold)
+                        Image(systemName: model.explainerOpen ? "chevron.up" : "chevron.down")
+                            .font(.system(size: 10, weight: .bold))
+                            .foregroundStyle(Palette.threshold)
+                    }
+                    .frame(minHeight: 28)
+                    .contentShape(.rect)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("What this vote is")
+                .accessibilityValue(model.explainerOpen ? "Expanded" : "Collapsed")
+                .accessibilityHint(model.explainerOpen ? "Folds the explanation" : "Shows the explanation")
+                Spacer()
+                Button { showingKinds = true } label: {
+                    Text("?")
+                        .font(Typography.label(15))
+                        .foregroundStyle(Palette.threshold)
+                        .frame(minWidth: 30, minHeight: 28)
+                        .contentShape(.rect)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Kinds of vote")
+                .accessibilityHint("Lists every kind of vote and what each one does")
+            }
+            if model.explainerOpen {
+                Text(explainer.text)
+                    .scaledFont(12.5)
+                    .foregroundStyle(Palette.text)
+                    .lineSpacing(2)
+                    .fixedSize(horizontal: false, vertical: true)
+                Text(explainer.source)
+                    .font(.system(size: 10, weight: .medium, design: .monospaced))
+                    .foregroundStyle(Palette.textMuted)
+                    .accessibilityLabel("Source: \(explainer.source)")
+            }
+        }
+        .padding(.horizontal, 11)
+        .padding(.vertical, 8)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Palette.panel, in: .rect(cornerRadius: 12))
+        .overlay(RoundedRectangle(cornerRadius: 12).stroke(Palette.raised, lineWidth: 1))
+        .sheet(isPresented: $showingKinds) {
+            NavigationStack {
+                VoteKindsView(load: { await model.voteKinds() })
+            }
+            .presentationDragIndicator(.visible)
         }
     }
 
@@ -621,5 +684,89 @@ public struct VoteScreenView: View {
                 api: FloorAPI(baseURL: FloorAPI.localDevelopment)
             )
         )
+    }
+}
+
+/// "Kinds of vote" (round 11, section B): every kind Floor explains, its line and its rule, in the
+/// registry's order. Reached from the "?" on any vote.
+public struct VoteKindsView: View {
+    let load: () async -> [VoteKindInfo]?
+    @State private var kinds: [VoteKindInfo]?
+    @State private var failed = false
+
+    public init(load: @escaping () async -> [VoteKindInfo]?) {
+        self.load = load
+    }
+
+    public init(kinds: [VoteKindInfo]) {
+        load = { kinds }
+        _kinds = State(initialValue: kinds)
+    }
+
+    public var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 5) {
+                Text("KINDS OF VOTE")
+                    .font(Typography.headline(28))
+                    .foregroundStyle(Palette.text)
+                    .accessibilityAddTraits(.isHeader)
+                    .padding(.bottom, 4)
+                if let kinds {
+                    ForEach(Array(kinds.enumerated()), id: \.offset) { _, kind in row(kind) }
+                    Text("Written by Floor from House and Senate rules, not by AI. A kind of vote not listed here gets no explanation rather than a guess.")
+                        .scaledFont(10.5, weight: .medium)
+                        .foregroundStyle(Palette.textMuted)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .padding(.top, 6)
+                } else if failed {
+                    Text("Couldn't load the kinds of vote. Check your connection and try again.")
+                        .scaledFont(13)
+                        .foregroundStyle(Palette.textSecondary)
+                } else {
+                    ProgressView().tint(Palette.accent).frame(maxWidth: .infinity).padding(.top, 40)
+                }
+            }
+            .padding(16)
+        }
+        .background(Palette.ground)
+        .task {
+            guard kinds == nil else { return }
+            kinds = await load()
+            failed = kinds == nil
+        }
+    }
+
+    private func row(_ kind: VoteKindInfo) -> some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text(Self.title(kind).uppercased())
+                .font(Typography.display(14, weight: .blackItalic))
+                .foregroundStyle(Palette.text)
+                .fixedSize(horizontal: false, vertical: true)
+            Text(kind.text)
+                .scaledFont(10.5)
+                .foregroundStyle(Palette.textSecondary)
+                .fixedSize(horizontal: false, vertical: true)
+            Text([kind.chamber?.name, kind.when.map { "When: \($0)" }, kind.source].compactMap(\.self).joined(separator: " · "))
+                .font(.system(size: 9.5, weight: .medium, design: .monospaced))
+                .foregroundStyle(Palette.textMuted)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .padding(.horizontal, 10)
+        .padding(.vertical, 7)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Palette.panel, in: .rect(cornerRadius: 10))
+        .overlay(RoundedRectangle(cornerRadius: 10).stroke(Palette.panelBorder, lineWidth: 1))
+        .accessibilityElement(children: .combine)
+    }
+
+    /// The question as roll calls print it, less "On": `Suspend the Rules and Pass`, `Cloture Motion`.
+    static func title(_ kind: VoteKindInfo) -> String {
+        guard let first = kind.questions.first else { return kind.kind.replacingOccurrences(of: "_", with: " ") }
+        var title = first
+        for prefix in ["On Motion to ", "On the ", "On ", "Motion to "] where title.hasPrefix(prefix) {
+            title = String(title.dropFirst(prefix.count))
+            break
+        }
+        return title
     }
 }

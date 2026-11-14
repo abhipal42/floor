@@ -1,0 +1,23 @@
+{
+  "member": {
+    "bioguideId": "C001056",
+    "firstName": "John",
+    "lastName": "Cornyn",
+    "party": "R",
+    "state": "TX",
+    "district": null,
+    "chamber": "senate"
+  },
+  "partyLoyalty": {
+    "votes": 1576,
+    "withParty": 1517,
+    "againstParty": 59
+  },
+  "contact": {
+    "phone": "202-224-2934",
+    "contactForm": "https://www.cornyn.senate.gov/contact",
+    "website": "https://www.cornyn.senate.gov",
+    "office": "517 Hart Senate Office Building",
+    "address": "517 Hart Senate Office Building Washington DC 20510"
+  }
+}
