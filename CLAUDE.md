@@ -73,33 +73,18 @@ These are product decisions, not style. Each one was a correction to a design th
 - **No individual donors' names**, even though the FEC publishes them.
 - **Real data or a visible placeholder.** Never an invented number, quote or example.
 
-## Layout changes are checked at every standard viewport
+## How this file works
 
-Set by the owner on 2026-11-13. Any change to the website's shape or layout (spacing, sizing,
-position, a section's structure, what pins or stacks) is checked and confirmed issue-free before it
-ships, at each of these viewports:
+This file loads every session, so it holds what applies to every change. Rules for one part
+of the tree live in `.claude/rules/*.md` and load when you read or write a file they cover.
+CI (`claude-context`) caps this file at 8 KB and each rule at 6 KB, checks every rule's
+`paths:` glob still matches a file, and every pointer still exists. Anchor globs at the root
+(`apps/web/**`; a bare `*.ts` covers only the root).
+`python3 .github/scripts/claude_rules.py which <file>` lists a file's rules.
 
-| Viewport | Size |
-|---|---|
-| Small phone | 320 × 640 |
-| Phone | 375 × 812 |
-| Tablet | 820 × 1180 |
-| Laptop (short) | 1280 × 760 |
-| Desktop | 1440 × 900 |
-| Wide desktop | 1920 × 1080 |
-
-At each one, confirm: no sideways scroll; nothing overlaps, clips or overflows its box; text fits
-and wraps cleanly; spacing between and inside sections reads as intended rather than cramped or
-stranded; and anything that pins, sticks or animates behaves (pins only where it fits, lets go
-cleanly). A layout that is merely unbroken but looks wrong at a size counts as a failure. Say in the
-PR which viewports were checked and how.
-
-## Things that are easy to get wrong
-
-- **Never log Congress.gov URLs** — they carry the API key (lesson 7).
-- **Switch `CONGRESS` to 120 in `apps/api/src/district.ts` on 2027-01-03** (lesson 4).
-- Every table has row-level security; re-check Supabase's security advisor after any migration.
-- A Speaker election's `result` is the ballot's leader, not a winner (lesson 16).
+- `web-layout.md` (`apps/web/`): the six viewports every layout change is checked at
+- `congress-data.md` (`apps/api/`, `apps/worker/`, `packages/`): API keys in URLs, the Congress number, Speaker votes
+- `migrations.md` (`supabase/`, `packages/db/`): row-level security and the security advisor
 
 <!-- ria:ui-artifact-first v1 — source: RIA/templates/agent-rules/ui-artifact-first.md; edit there, not here -->
 ## Large UI changes: artifact first, then build

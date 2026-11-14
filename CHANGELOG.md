@@ -8,6 +8,20 @@ is a milestone and ships a retro under `docs/retros/`.
 Older series live in [`docs/changelog/`](docs/changelog) (0.1.x: [`0.1.md`](docs/changelog/0.1.md)).
 Before 0.1.0 the history is the commit log on `main`.
 
+## 0.2.40 — 2026-11-14
+
+### Changed
+- **Path-scoped agent rules.** The parts of `CLAUDE.md` that apply to one part of the tree moved
+  into `.claude/rules/` and load only when a file they cover is read or written: the six-viewport
+  layout check (`apps/web/`), the Congress-data traps (`apps/api/`, `apps/worker/`, `packages/`) and
+  row-level security (`supabase/`, `packages/db/`). `CLAUDE.md` keeps what applies to every change
+  and an index of the rules. `.gitignore` now tracks `.claude/rules/` and still ignores the rest
+  of `.claude/`.
+- **Guards template 2.0.0 → 2.1.0.** Adds the `claude-context` guard (`CLAUDE.md` plus always-loaded
+  rules ≤ 8 KB, each rule ≤ 6 KB as a ratchet, every rule glob matches a tracked file, every pointer
+  exists) with its matcher in `.github/scripts/claude_rules.py`. A rule file now counts as a doc
+  for the `docs` guard and is read by `retired-rules`.
+
 ## 0.2.39 — 2026-11-14
 
 ### Fixed

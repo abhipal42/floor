@@ -116,8 +116,12 @@ APP_PREFIX="${APP_PREFIX:-$(app_prefix "${APP:-.}")}"
 : "${SCOPE_SKIP:=}"
 : "${BASE_BRANCH:=main}"
 : "${RETIRED_RULES:=}"
-: "${RETIRED_RULES_DOCS:=(^|/)(CLAUDE|AGENTS|README)\.md$}"
+: "${RETIRED_RULES_DOCS:=(^|/)(CLAUDE|AGENTS|README)\.md$|^\.claude/rules/.*\.md$}"
 : "${PR_TITLE_CHECK_SUBJECT:=0}"
+: "${CLAUDE_ALWAYS_MAX:=8192}"
+: "${CLAUDE_FILE_MAX:=6144}"
+: "${CLAUDE_REFS_IGNORE:=}"
+: "${CLAUDE_REF_ROOTS:=}"
 
 VERSION_FILE=$(_norm "$VERSION_FILE")
 CHANGELOG=$(_norm "$CHANGELOG")
@@ -828,6 +832,28 @@ _workflows() {
 # first version accepted a quote as the terminator and no prefix at all, so
 # `echo "see guards.sh"` and RIA's own `ci-guards.sh all` both counted as the
 # template's guards being wired.
+# The context agents load (template 2.1.0). claude_rules.py ships beside this
+# script; it is RIA's brain/claude_rules.py, the matcher RIA's dispatch worker
+# loads rules with, so CI and the worker agree on what a glob covers.
+#   budget      CLAUDE.md + @-imports + rules with no `paths:` <= CLAUDE_ALWAYS_MAX;
+#               each path rule / nested CLAUDE.md <= CLAUDE_FILE_MAX. A RATCHET:
+#               over the cap fails only when this PR made it bigger, so a repo
+#               that is already over can adopt it and only ever shrink.
+#   rule-paths  every `paths:` glob covers a tracked file (a rename strands one).
+#   doc-refs    every file CLAUDE.md or a rule points at exists
+#               (CLAUDE_REFS_IGNORE: space-separated globs for paths outside git;
+#               CLAUDE_REF_ROOTS: folders pointers may be relative to, in a monorepo).
+cmd_claude_context() {
+  local py; py="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/claude_rules.py"
+  if [ ! -f "$py" ]; then
+    echo "::error::claude_rules.py is missing beside guards.sh. Re-run bootstrap to install it."
+    return 1
+  fi
+  CLAUDE_ALWAYS_MAX="$CLAUDE_ALWAYS_MAX" CLAUDE_FILE_MAX="$CLAUDE_FILE_MAX" \
+    CLAUDE_REFS_IGNORE="$CLAUDE_REFS_IGNORE" CLAUDE_REF_ROOTS="$CLAUDE_REF_ROOTS" \
+    python3 "$py" check --root "$(git rev-parse --show-toplevel)" --base "$MERGE_BASE"
+}
+
 cmd_workflow_wired() {
   local wfs body g missing=""
   wfs=$(_workflows)
@@ -952,7 +978,7 @@ if [ -d "$HERE/guards.d" ]; then
   done
 fi
 
-CORE=(scope docs tests changelog changelog-archive version-sync bump-level retro retro-debt followups pr-title retired-rules workflow-wired workflow-injection)
+CORE=(scope docs tests changelog changelog-archive version-sync bump-level retro retro-debt followups pr-title retired-rules workflow-wired workflow-injection claude-context)
 
 run_one() {
   local name="$1" fn

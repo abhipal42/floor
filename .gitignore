@@ -18,7 +18,8 @@ xcuserdata/
 
 # Local agent tooling
 .agents/
-.claude/
+**/.claude/*
+!/.claude/rules/
 .mcp.json
 skills-lock.json
 # Written by xcodegen from ios/project.yml, like ios/Floor/Info.plist.
