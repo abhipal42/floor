@@ -93,15 +93,37 @@ public struct PartyLoyalty: Codable, Sendable, Hashable {
 }
 
 /// `GET /v1/members/{id}`
+/// How to reach a member's office. Every field can be nil: most House offices list no web form,
+/// and the app falls back to the House's "Write Your Representative" form for those.
+public struct MemberContact: Codable, Sendable, Hashable {
+    public var phone: String?
+    public var contactForm: String?
+    public var website: String?
+    public var office: String?
+    /// Mailing address.
+    public var address: String?
+
+    public init(phone: String?, contactForm: String?, website: String?, office: String?, address: String?) {
+        self.phone = phone
+        self.contactForm = contactForm
+        self.website = website
+        self.office = office
+        self.address = address
+    }
+}
+
 public struct MemberDetail: Codable, Sendable, Hashable, Identifiable {
     public var member: Member
     public var partyLoyalty: PartyLoyalty
+    /// nil in a response saved by an earlier build.
+    public var contact: MemberContact?
 
     public var id: String { member.bioguideId }
 
-    public init(member: Member, partyLoyalty: PartyLoyalty) {
+    public init(member: Member, partyLoyalty: PartyLoyalty, contact: MemberContact? = nil) {
         self.member = member
         self.partyLoyalty = partyLoyalty
+        self.contact = contact
     }
 }
 

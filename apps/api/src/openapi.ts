@@ -8,7 +8,7 @@
  *   npm run openapi -w @floor/api
  */
 import { writeFileSync } from "node:fs";
-import { createApp } from "./app.js";
+import { createApp, NO_CONTACT } from "./app.js";
 
 // The document describes the contract, so the repositories need no data behind them.
 const app = createApp({
@@ -24,6 +24,7 @@ const app = createApp({
     search: async () => [],
     partyLoyalty: async () => ({ votes: 0, withParty: 0, againstParty: 0 }),
     funding: async () => null,
+    contact: async () => NO_CONTACT,
   },
   bills: { getBill: async () => null, getAnalysis: async () => null },
   nominations: { getNomination: async () => null },

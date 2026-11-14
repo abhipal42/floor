@@ -11,7 +11,7 @@
 import { handle } from "@hono/node-server/vercel";
 import { attachDatabasePool } from "@vercel/functions";
 import pg from "pg";
-import { createApp } from "../src/app.js";
+import { createApp, NO_CONTACT } from "../src/app.js";
 import { locateDistrict } from "../src/district.js";
 import { pgRepositories, poolerWarning, type Db } from "../src/pg.js";
 
@@ -70,6 +70,7 @@ const repositories = pool
         search: async () => [],
         partyLoyalty: async () => ({ votes: 0, withParty: 0, againstParty: 0 }),
         funding: async () => null,
+        contact: async () => NO_CONTACT,
       },
       bills: { getBill: async () => null, getAnalysis: async () => null },
       nominations: { getNomination: async () => null },

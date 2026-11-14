@@ -65,6 +65,7 @@ npm run ingest -w @floor/worker -- bills                          # load bills t
 npm run ingest -w @floor/worker -- bill-catalog                   # every bill of the Congress: list, details where due, stage (1,200 requests max)
 npm run ingest -w @floor/worker -- bill-catalog --full --budget 46000 --rate 3000   # the one-time backfill (~16 h, leaves the hourly job room; see Round 10)
 npm run ingest -w @floor/worker -- nominations                    # load nominations that Senate votes refer to
+npm run ingest -w @floor/worker -- schedule                       # the week ahead: House list this week + next, Senate convening and Digest program
 npm run ingest -w @floor/worker -- fec-totals                     # campaign totals for every current member (OpenFEC, ~10 min)
 npm run ingest -w @floor/worker -- fec-pacs 2026                  # committee-to-candidate totals from the FEC bulk files (~30 s)
 npm run ingest -w @floor/worker -- analyze 25                     # AI analysis (M4 Layer 1) of up to 25 bills that need one; costs money
@@ -95,15 +96,15 @@ Command Line Tools rather than Xcode: run it with `DEVELOPER_DIR=/Applications/X
 
 | Path | What | Key files |
 |---|---|---|
-| `packages/shared` | Types + roll call parsers (House Clerk XML, Senate LIS XML) + floor-event parsers (House floor summary, Senate schedule, floor page and vote menu) and Eastern-time helpers | `src/rollcall.ts`, `src/floor.ts`, fixtures in `fixtures/` (real government files) |
+| `packages/shared` | Types + roll call parsers (House Clerk XML, Senate LIS XML) + floor-event parsers (House floor summary, Senate schedule, floor page and vote menu), week-ahead parsers (House weekly list, Senate session days, Daily Digest program) and Eastern-time helpers | `src/rollcall.ts`, `src/floor.ts`, `src/schedule.ts`, fixtures in `fixtures/` (real government files) |
 | `packages/db` | Migration loader used by tests | `src/migrations.test.ts` |
-| `supabase/migrations` | Postgres schema (applied to staging in filename order) | 13 migrations; `20261113000100_ingest_failed.sql` (lesson 38), `20261114000000_bill_analyses_ai.sql` (M4), `20261114000100_live_layer.sql` (M3), `20261115000000_bill_catalog.sql` (Round 10) and `20261116000000_device_alerts.sql` (M3 alerts, v0.2.30) are **not yet applied** to staging |
-| `apps/worker` | Ingest CLI: members, roll calls, bills, nominations, campaign finance, AI bill analysis; the always-on live worker (M3) | `src/cli.ts`, `rollcalls.ts`, `bills.ts`, `catalog.ts` (every bill of the Congress), `stage.ts` (road-to-law stage), `nominations.ts`, `members.ts`, `fec.ts`, `analysis.ts` (M4 Layer 1), `analysis-eval.ts`, `db.ts`; live: `live.ts`, `realtime.ts`, `apns.ts`, `push.ts` (alerts and Live Activity pushes), `alert.ts`, `Dockerfile`, `fly.toml` |
-| `apps/api` | Hono REST API with OpenAPI at `/openapi.json` | `src/app.ts` (routes + schemas), `pg.ts` (Postgres), `bills.ts` (citations, short labels, bill-number parsing, the 32 topics), `district.ts` (Census) |
+| `supabase/migrations` | Postgres schema (applied to staging in filename order) | 15 migrations; `20261113000100_ingest_failed.sql` (lesson 38), `20261114000000_bill_analyses_ai.sql` (M4), `20261114000100_live_layer.sql` (M3), `20261115000000_bill_catalog.sql` (Round 10), `20261116000000_device_alerts.sql` (M3 alerts, v0.2.30), `20261117000000_floor_schedule.sql` and `20261117000100_member_contact.sql` (the week ahead) are **not yet applied** to staging |
+| `apps/worker` | Ingest CLI: members, roll calls, bills, nominations, campaign finance, AI bill analysis; the always-on live worker (M3) | `src/cli.ts`, `rollcalls.ts`, `bills.ts`, `catalog.ts` (every bill of the Congress), `schedule.ts` (the week ahead), `stage.ts` (road-to-law stage), `nominations.ts`, `members.ts`, `fec.ts`, `analysis.ts` (M4 Layer 1), `analysis-eval.ts`, `db.ts`; live: `live.ts`, `realtime.ts`, `apns.ts`, `push.ts` (alerts and Live Activity pushes), `alert.ts`, `Dockerfile`, `fly.toml` |
+| `apps/api` | Hono REST API with OpenAPI at `/openapi.json` | `src/app.ts` (routes + schemas), `pg.ts` (Postgres), `votekinds.ts` (the vote explainer table), `bills.ts` (citations, short labels, bill-number parsing, the 32 topics), `district.ts` (Census) |
 | `apps/web` | Landing page (v0.2.0): static HTML/CSS/TypeScript built with `tsc`, no framework | `src/data.ts` (every figure, with source and date), `src/logic.ts` (pure helpers), `src/main.ts` (rendering), `public/` |
 | `ios/` | SwiftUI app (XcodeGen, `project.yml`), `FloorKit` package: `Models`, `APIClient`, `DesignSystem`, `Onboarding`, `Home`, `VoteScreen`, `BillScreen`, `RepScreen`, `WidgetFeed`, `LiveActivity`, `Alerts`; `FloorWidgets/` (the WidgetKit extension: widgets and the Live Activity) | `FloorKit/Sources/Models/` (one file per area, `Samples.swift` for previews), `FloorKit/Tests/ModelsTests/ContractTests.swift`, `DesignSystem/ScoreboardCard.swift`, `DesignSystem/Components.swift`, `DesignSystem/Fonts/` (Barlow Condensed, OFL), `Home/FloorShell.swift` (tabs), `Home/CatchUp.swift`, `Models/VoteOutcome.swift`, `BillScreen/LawLevels.swift`, `APIClient/ResponseCache.swift` (offline cache), `DesignSystem/SavedDataNote.swift` |
 | `.github/workflows/ci.yml` | `scope` job (which parts changed) + node job (lint/typecheck/tests + OpenAPI drift) + macOS job (Swift tests + simulator build). **Pushes to `main` only** since 2026-11-13 — a PR never builds the code — and the macOS job runs only when the push touched `ios/` or `.github/` | |
-| `.github/workflows/ingest.yml` | **Hourly ingest** (since v0.2.20): members, then House and Senate roll calls for the session in progress (`rollcalls <chamber> current`), then bills and nominations, one after another in one job, in a `concurrency: ingest` group so a slow run makes the next wait instead of overlapping it. Members runs once a day (06 UTC) and on manual runs; GitHub disables the schedule after 60 days of repo inactivity (lesson 37). **Inert until the repo has a `DATABASE_URL` secret** (session pooler string) and `CONGRESS_API_KEY`; without the first it logs a warning and skips. Adding them needs repo admin (lesson 37) | |
+| `.github/workflows/ingest.yml` | **Hourly ingest** (since v0.2.20): members, then House and Senate roll calls for the session in progress (`rollcalls <chamber> current`), then bills and nominations, then the week-ahead `schedule`, then the bill catalog, one after another in one job, in a `concurrency: ingest` group so a slow run makes the next wait instead of overlapping it. Members runs once a day (06 UTC) and on manual runs; GitHub disables the schedule after 60 days of repo inactivity (lesson 37). **Inert until the repo has a `DATABASE_URL` secret** (session pooler string) and `CONGRESS_API_KEY`; without the first it logs a warning and skips. Adding them needs repo admin (lesson 37) | |
 | `.github/workflows/guards.yml` | Shipping guards on every PR (the only workflow that still runs there): changelog, version, docs, tests, retro, PR title | `.github/scripts/guards.conf` (this repo's settings), `guards.sh` (shared, do not edit) |
 | `docs/` | `plan.md` / `plan.html` (design + plan), this file, `retros/` (one per milestone) | |
 | `VERSION`, `CHANGELOG.md` | Current version (mirrored by `MARKETING_VERSION` in `ios/project.yml`) and what each version shipped | |
@@ -114,11 +115,11 @@ Command Line Tools rather than Xcode: run it with `DEVELOPER_DIR=/Applications/X
 |---|---|
 | `GET /v1/reps?address=` or `?lat=&lng=` | District (119th Congress map) + House member + senators. Send an address *or* coordinates (e.g. from the browser's location), not both. Coordinates are rounded to 4 decimals (~11 m). Either goes only to the Census geocoder and isn't stored or logged. |
 | `GET /v1/members?q=&chamber=&limit=` | Search **sitting** members (see `SITTING`, lesson 52): `q` is a name (`Schumer`, `velazquez`, `ocasio cortez` — accents, hyphens and apostrophes folded on both sides, from one table `FOLDS` in `search.ts` that the SQL `translate()` is built from, so ø, ł, ı and đ fold too), a state by name or code (`New York`, `NY`, `N.Y.`, `D.C.`, `Virgin Islands`), or a House seat (`NY-8`, `N.Y.-8`, `WY-AL`; a delegate jurisdiction's one seat for any number, `DC-1`). A state is **also searched as a name** and the two merged, the state's own members first ("Washington" is a state and a surname; "Al" is a code and starts names). Parsed in `search.ts` (`parseMemberQuery`), so the SQL is one of three fixed shapes. Senate before House; a name search puts surnames that start with it first; a state's House members by district. `q` 2–60 characters, `limit` 1–100 (default 60: California is 54). **Rate limited**: 120 per caller per minute (`MEMBER_SEARCH_RATE_LIMIT`), keyed apart from `/v1/reps` so the two never share a count; `/v1/members/{id}` and below are not limited |
-| `GET /v1/members/{id}` | A member, plus how often they sided with their own party's majority |
+| `GET /v1/members/{id}` | A member, how often they sided with their own party's majority, and `contact`: `{phone, contactForm, website, office, address}` from congress-legislators' current term, each null when upstream has none. Most House members have no `contactForm` (lesson 59): the app falls back to the House's "Write Your Representative" form. All null on a database without `20261117000100_member_contact.sql` |
 | `GET /v1/members/{id}/funding` | Their current campaign's money: what the campaign reported receiving (small-dollar, itemized, PAC, party, other, cash on hand) and the committees that reported giving to it, biggest direct giver first. `?committees=` (0-50, default 10). No individual donor is named |
 | `GET /v1/members/{bioguideId}/votes?limit=` | A member's recent votes with their position (and candidate, for Speaker elections) |
 | `GET /v1/votes?chamber=&limit=&before=` | The most recent **final** votes, newest first (`limit` 1–100, default 40), each with its `measure` (the same summary a member's record carries) and nobody's position: Finals' "All" (asked per chamber when one is picked), and the whole feed for someone who follows nobody. `before` (ISO time, e.g. the last vote's `occurredAt`) pages back. `topic=` (repeatable, since topic names hold commas; any case; up to 32) keeps only votes on bills in those CRS policy areas — Finals' "Following" for the topics you follow; names that are not topics match nothing (an empty list, not every vote). Every `measure` carries `policyArea` (null for a nomination). Edge-cached (`VOTES_CACHE_CONTROL`: 30 s, 60 s at the edge) and rate limited, 120 a minute per caller (`VOTES_RATE_LIMIT`; `/v1/votes/{id}` is not) |
-| `GET /v1/votes/{id}` | One vote: totals, threshold, kind, bill link, **per-party breakdown**, and for a Speaker election **which candidate each party backed**. `?members=A000370,C001098` (up to ten) also returns those members' own positions, so the vote screen loads your delegation in one round trip. IDs look like `house-119-1-100` |
+| `GET /v1/votes/{id}` | One vote (like every vote the API returns, with `explainer`: `{kind, text, source}`, the hand-written line for its question from `votekinds.ts`, or null for a question with no line, lesson 58): totals, threshold, kind, bill link, **per-party breakdown**, and for a Speaker election **which candidate each party backed**. `?members=A000370,C001098` (up to ten) also returns those members' own positions, so the vote screen loads your delegation in one round trip. IDs look like `house-119-1-100` |
 | `GET /v1/bills/{id}` | Title, short title, the list `label` (as `BillListItem.label`), the road-to-law `stage` (null until staged; read through `to_jsonb(b) ->> 'stage'`, so a database without the catalog migration still serves bills), CRS summary, sponsor, policy area, CBO estimates, last 30 actions, every vote on it. IDs look like `119-hr-2207` |
 | `GET /v1/bills/{id}/analysis` | AI analysis of the bill's CRS summary (M4 Layer 1): purpose, provisions, affected groups, impact. `ai: true` on the response and on every line, a `disclaimer` to show with it, and per line the summary paragraph it cites (1-based, into `source.paragraphs`), a verbatim quote and the bill section. `source.stale` means the summary has changed since and a new analysis is pending. 404 until the worker has analysed the bill (the app reads that as "none" and saves it like a response). Shown at the top of the Bill screen since v0.2.27 |
 | `GET /v1/nominations/{id}` | Nominee, position, agency, received and latest action, every Senate vote on it. IDs look like `119-pn-1093-3` |
@@ -127,6 +128,8 @@ Command Line Tools rather than Xcode: run it with `DEVELOPER_DIR=/Applications/X
 | `GET /v1/topics?congress=` | The 32 CRS policy areas in a fixed order, each with its bill count, how many of those had a floor vote, and the latest action date, for one Congress (default: the one in session). Areas with no bills are listed with zeros. Cached (`TOPICS_CACHE_CONTROL`, 5 min / edge 15 min); 120 a minute per caller |
 | `GET /v1/topics/{name}/bills?filter=all\|moving\|law\|stalled&cursor=&limit=` | A topic's bills, newest action first, 25 a page (max 50), keyset-paginated: pass `nextCursor` back as `cursor`. Each row: citation, plain short `label`, full title, `stage` (null for a bill not yet fetched in detail, which counts as unsettled), `stalled`, latest action, `hasFloorVote`. The cursor carries the stored action date, so a row with a date but no action text pages correctly. `moving` = not settled and acted on in 90 days; `stalled` = not settled, no action in 90 days (computed per request); settled = law, adopted, vetoed, failed. `name` is case-insensitive (`health`, `Arts%2C%20Culture%2C%20Religion`); 404 for anything not one of the 32, 400 for a cursor it did not issue. Same cache and limit as `/v1/topics`, and one count shared with it (each request counts once) |
 | `GET /v1/search?q=` | `{members, bills, topics}` in one call. A bill number in any spelling (`hr 1013`, `H.R.1013`, `s 2`, `hjres 12`, `s.j.res.197`, `119-hr-1013`) returns exactly that bill in every Congress, newest first, with `billNumber: true`, and nothing else. Otherwise words match bills by Postgres full-text search (short title, title, CRS summary; GIN index; current Congress ranked first; 20 max), topics by name, and sitting members exactly as `/v1/members?q=` reads them — the same reader (`parseMemberQuery` in `search.ts`, then `members.search`), up to 60, Senate first, so a whole state (Texas's 40) fits; optional `chamber` narrows the members only. Topics: names holding every word, else any holding one non-stopword word ("rural health" → Health; "and" → nothing). Companion bills (the House and Senate versions of one measure) are separate results, not linked. 2–100 characters. Cached 1 min / edge 5 min; 60 a minute per caller |
+| `GET /v1/schedule?week=` | The week ahead (any day of the week; default this week in Washington): `house: {inSession, items}`, the House's weekly list with pulled items kept (`removedAt`) — `inSession` is `true` when a list is published and `null` when none is (not yet, or a district work week; the two cannot be told apart, so `false` is never said) — and `senate: {meetings, items}` (each meeting's `convenesAt`, `proForma`, and the Daily Digest's `heading` and `program` text once the Record is out; `items` are the measures that program names) or `null` with `senateReason`. Each item: `category` (`rule`, `suspension`, `other`), `label` ("H.R. 5267"), `title`, `sourceText`, and from the catalog `billId`, `policyArea`, `stage`, `latestAction` (null when the bill is not stored yet). `sourceUpdatedAt` is the newest edit any source made to what is shown. Cached like topics (`SCHEDULE_CACHE_CONTROL`), 120 a minute per caller. Empty on a database without `20261117000000_floor_schedule.sql` |
+| `GET /v1/vote-kinds` | The explainer table in match order: each `kind`, `text`, `source` (the rule or law), `chamber` (or null), `when` (the condition in words, or null) and the `questions` it covers. Cached like topics |
 | `GET /v1/status` | Per ingest source: last successful run, `lastNewDataAt` (last successful run that stored anything — the freshness signal `stale` cannot give once ingest is scheduled, lesson 38), the error of its latest run with an outcome (null once a later run succeeds; `abandoned run` for one that never finished within an hour, lessons 35 and 38), and `stale` |
 | `GET /openapi.json` | The contract. The Swift models are hand-written against it, and `ContractTests` fail CI if they drift (see M2). |
 
@@ -134,7 +137,7 @@ Command Line Tools rather than Xcode: run it with `DEVELOPER_DIR=/Applications/X
 
 | Table | Rows | Notes |
 |---|---|---|
-| `members` | 716 | Everyone serving now, plus anyone whose last term ended after 2022-11-01. One party is corrected on ingest; see lesson 14 |
+| `members` | 716 | Everyone serving now, plus anyone whose last term ended after 2022-11-01. One party is corrected on ingest; see lesson 14. `phone`, `contact_form`, `website`, `office`, `address` (the latest term's) arrive with `20261117000100_member_contact.sql` and the next `members` run |
 | `votes` | 3,532 | House + Senate, 118th–119th Congress, Jan 3 2023 → Nov 11 2026. 20 are Speaker elections (`kind = 'election'`). Every vote with a measure reference is linked to a bill or a nomination |
 | `vote_positions` | 995,806 | Verified: every vote's positions add up to its official totals; no vote lacks positions |
 | `bills` / `actions` | 1,050 / 19,714 | Every bill a vote refers to (531 from the 118th Congress, 519 from the 119th); 976 have a CRS summary. All 2,319 votes on bills are linked (`votes.bill_id`). **Round 10 widens this to every bill of the 119th Congress (19,964 listed on 2026-11-13) once `20261115000000_bill_catalog.sql` is applied and the backfill has run**; until then `stage`, `list_updated_on`, `details_fetched_at` and `search` do not exist and the topic and search routes answer empty |
@@ -142,6 +145,7 @@ Command Line Tools rather than Xcode: run it with `DEVELOPER_DIR=/Applications/X
 | `campaign_finance` | 512 | One row per current member: OpenFEC totals for their current campaign to date (House 2025–26; senators since their last election), with cash on hand. Of 537 current members, 23 have no totals filed for that campaign and 2 appointed senators (OK, SC) have no FEC ID yet; the page must say so rather than show nothing |
 | `pac_contributions` | 103,564 | Per member and giving committee, 2026 cycle: direct and earmarked totals, committee designation, type and organization type. No memo text, no individual names (lesson 23) |
 | `bill_analyses` / `bill_analysis_runs` | 0 / 0 | M4 Layer 1: the public analysis, one row per bill and CRS summary stage; and the private run log (attempts, errors, cost, rejected claims; no RLS policy, service role only). Their migration is not applied to staging yet, and no analysis has been generated (no Claude key on the project); see M4 |
+| `floor_schedule` / `senate_meetings` | 0 / 0 | The week ahead, written by the `schedule` ingest once `20261117000000_floor_schedule.sql` is applied (not yet). `floor_schedule`: one row per House list item per week (the Clerk's `floor-item id`) and per measure a Senate program names (`2026-11-16:hr2347`), never deleted — `removed_at` marks a pulled item; `bill_id` is re-resolved against `bills` each run. `senate_meetings`: one row per meeting day, the convening from senate.gov and the Digest's heading and program. Public read, like `bills`. A run on 2026-11-14 found 15 House items for the week of 11-16 (13 under suspension, 2 under a rule) and the Senate at 3 p.m. on 11-16, program naming H.R. 2347 |
 | `ingest_runs` | | Every ingest run with item count and error, which feeds `/v1/status`. The live worker writes one per chamber per poll and prunes empty successful runs older than two days (keeping errors, runs that stored something, and the newest per source) |
 | `devices`, `device_subscriptions`, `live_activity_tokens`, `push_log`, `device_signups` | 0 | Alerts and Live Activities (v0.2.30): a phone's hashed key, push tokens, "A vote opened" and "Live Activities"; the members and bills it wants alerts about; each running activity's token; what the worker sent (dedupe and the digest; cast and absent members kept apart); and new keys per hashed caller per day. The worker prunes them hourly (`pruneDevices`: `push_log` after 2 days, activity tokens after 1, devices with no token after 1, devices silent for 60, signup counts after 7). RLS on, **no policy** (service connection only). Written by `PUT /v1/devices` and the worker once `20261116000000_device_alerts.sql` is applied (not yet). The old account-based `devices` it replaces was empty |
 | `floor_events`, `chamber_status`, `votes.announced_at` / `posted_at` / `broadcast_at` | 0 | M3. The migration sets `broadcast_at` on every vote already final (to its `occurred_at`), so the worker's first poll announces none of them. Written only by the live worker, after `20261114000100_live_layer.sql` is applied (not yet) |
@@ -527,6 +531,46 @@ Real data broke our first assumptions several times. Each case below is now hand
     races") — and only in the Xcode build, since FloorKit's `swift test` on macOS has no ActivityKit.
     `ActivityKitHost` (`ios/Floor/LiveActivities.swift`) looks activities up and changes them inside
     `nonisolated static` functions instead of handing one across from the main actor.
+
+57. **The Senate publishes no weekly list, but it does publish when it meets and what it plans.**
+    Checked on 2026-11-14, official sources only (cloakroom sites are out of scope).
+    `senate.gov/legislative/schedule/floor_schedule.xml` has every session day of the session with
+    `NextConveneDate` (ISO with offset) and `IsNextConveneProforma`, updated about a minute after
+    adjournment (4:52 adjourn, 4:53 update on 11-12): reliable, structured, used for
+    `senate_meetings.convenes_at`. Only the next meeting is ever known, so a later week reads as
+    `senate: null` with a reason. What the Senate plans is in the Daily Digest's "Next Meeting of the
+    SENATE" block ("3 p.m., Monday, November 16 … Program for Monday: Senate will resume
+    consideration of the nomination of …"), prose, published the next morning (Record of 11-12
+    updated 11-13 13:14 UTC). Congress.gov's API lists the issue (`/daily-congressional-record`, then
+    `/{vol}/{issue}/articles`, title "Daily Digest/Next Meeting of the SENATE + …"); we read the text
+    from govinfo (`govinfo.gov/content/pkg/CREC-<date>/html/<granule>.htm`), which needs no key. The
+    program is stored verbatim and only its bill citations are extracted; vote times and nominees stay
+    in the text rather than being parsed out of prose. Rejected: the Executive Calendar PDF (has the
+    unanimous-consent agreements, nominations only, PDF only); `floor_schedule.json` (next convene time
+    only, split into widget fields); the wrap-up XML `floor_activity/{YYYY}/{MM_DD_YYYY}_Senate_Floor.xml`
+    (stopped after 2025-12-30: every 2026 date is a 404 page served with 200, lesson 42). The House's
+    weekly file for a week it has none for is also a "File Not Found" page with HTTP 200
+    (`isHouseWeeklyNotFound`); anything else that is not a schedule fails the run.
+58. **Vote explainers are a table matched on the exact question.** Every distinct question stored on
+    2026-11-14 (62 across both chambers, 118th–119th) has a line in `VOTE_KINDS` or is named in
+    `UNEXPLAINED` (Senate "On the Motion", which does not say which motion; "On Retaining Division A"
+    and "…Divisions B and C"; "On Closing Portions of the Conference"), and `votekinds.test.ts` holds
+    that list. Two facts decide a line beyond the question: cloture on nominations needs a simple
+    majority since the 2013 and 2017 precedents, and the stored `threshold` already says `majority`
+    for them (423 of 436 majority-threshold cloture votes have a nomination; the rest are en bloc
+    nomination resolutions); and a House "On Agreeing to the Resolution" is a special rule when the
+    H.Res. title starts "Providing for (further) consideration", "Relating to consideration" or
+    "Providing for disposition" (`RULE_TITLE`; 245 of 300 voted House resolutions). The opening-day
+    rules package and one-line waivers do not match and get the general resolution line. The live
+    floor summary words questions in lower case ("On agreeing to the resolution"), so matching ignores
+    case and spacing. The rule citations were checked against the 119th Congress House Rules and the
+    Standing Rules of the Senate on 2026-11-14; "no amendments" under suspension is precedent, not
+    the text of Rule XV.
+59. **Most House offices list no contact form.** In congress-legislators' current terms senators carry
+    `contact_form`; most representatives do not (none of the three in our fixture do). The field is
+    stored null rather than filled with a guess; the app links the House's own "Write Your
+    Representative" form instead. `fax` and `rss_url` are not stored (`ids.rss_url` already has the
+    feed).
 
 ---
 
@@ -1796,6 +1840,35 @@ Built to the same locked design (<https://claude.ai/artifact/8Qfr9ymPEKuYGSLjiuX
   - The bill screen's topic is its own card after the six levels, linking to the topic; the mock's
     "Where it stands" card is not added (the six levels already say it).
   - Members segment count is your members (reps shown plus followed), the mock's "Members · 6".
+
+### The week ahead, vote explainers and member contact (server side)
+
+Backend only; the iOS screens are a later change on these routes. The Swift models (`Schedule.swift`,
+`VoteExplainer`, `VoteKindInfo`, `MemberContact`) are added so the contract tests keep passing.
+
+- **`schedule` ingest** (`apps/worker/src/schedule.ts`, hourly in `ingest.yml` before the bill
+  catalog). House: this week's and next week's list from docs.house.gov, upserted by item id;
+  an item that leaves the file or gets a `remove-date` keeps its row with `removed_at`, and one that
+  comes back is cleared. Senate: the next convening (no key needed) and, with `CONGRESS_API_KEY`, the
+  latest Record's Digest program (2 Congress.gov requests, then govinfo). The three parts run
+  independently; a failing one is the run's error (one `schedule` row in `ingest_runs`) and the job
+  step goes red, while the others still store.
+- **Explainers** (`apps/api/src/votekinds.ts`): computed per vote in `toVote` from the question, the
+  chamber, the threshold and `on_rule` (selected with every vote; for an open vote read from the bill
+  its reference names). Never AI, never a guess (lesson 58).
+- **Contact**: `members.ts` maps the latest term's `phone`, `contact_form`, `url` (as `website`),
+  `office` and `address`; `/v1/members/{id}` returns them.
+
+**To deploy:**
+
+1. **Apply both migrations before merging** (`20261117000000_floor_schedule.sql`, then
+   `20261117000100_member_contact.sql`). The `members` step writes the new columns and fails without
+   them, and the `schedule` step needs its tables. The API is safe either way (`liveQuery`: empty
+   week, null contact). Re-check Supabase's security advisor: both new tables have RLS and a public
+   read policy, like `bills`.
+2. After the first successful hourly run, add `schedule: 24` to `MAX_AGE_HOURS` in
+   `apps/api/src/app.ts` so `/v1/status` watches it (left out until then, as `bill_catalog` was, or
+   `/v1/status` would read `ok: false` from the moment this deploys).
 
 ### Alerts and the Live Activity (v0.2.30)
 

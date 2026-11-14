@@ -1,6 +1,6 @@
 import { serve } from "@hono/node-server";
 import pg from "pg";
-import { createApp, type AppDeps } from "./app.js";
+import { createApp, NO_CONTACT, type AppDeps } from "./app.js";
 import { locateDistrict } from "./district.js";
 import { pgRepositories, type Db } from "./pg.js";
 
@@ -22,6 +22,7 @@ function repositories(): Pick<AppDeps, "votes" | "members" | "bills" | "nominati
         search: async () => [],
         partyLoyalty: async () => ({ votes: 0, withParty: 0, againstParty: 0 }),
         funding: async () => null,
+        contact: async () => NO_CONTACT,
       },
       bills: { getBill: async () => null, getAnalysis: async () => null },
       nominations: { getNomination: async () => null },

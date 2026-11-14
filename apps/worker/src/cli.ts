@@ -2,7 +2,8 @@ import pg from "pg";
 import type { Chamber } from "@floor/shared";
 import { type Db } from "./db.js";
 import { ingestMembers } from "./members.js";
-import { ingestSessions, sessionsToPoll } from "./rollcalls.js";
+import { defaultFetch, ingestSessions, sessionsToPoll } from "./rollcalls.js";
+import { ingestSchedule } from "./schedule.js";
 import { congressClient, ingestVotedBills } from "./bills.js";
 import { DEFAULT_KEY_RESERVE, DEFAULT_RATE_PER_HOUR, ingestCatalog } from "./catalog.js";
 import { ingestVotedNominations } from "./nominations.js";
@@ -30,6 +31,8 @@ const USAGE = `Usage:
   npm run ingest -w @floor/worker -- fec-totals [limit]           (campaign totals per current member from OpenFEC; needs CONGRESS_API_KEY)
   npm run ingest -w @floor/worker -- fec-pacs [cycle]             (committee-to-candidate totals from the FEC bulk files; default 2026)
   npm run ingest -w @floor/worker -- analyze [limit]              (AI analysis of bills whose CRS summary has none or changed; default 25; needs ANTHROPIC_API_KEY)
+  npm run ingest -w @floor/worker -- schedule                     (the week ahead: the House's weekly list for this week and next, the
+                                         Senate's next convening, and with CONGRESS_API_KEY its Daily Digest program)
   npm run ingest -w @floor/worker -- live                         (always-on: floor events, vote state, roll calls; until SIGTERM)
   npm run ingest -w @floor/worker -- latency [days]               (posting latency the live worker measured; default 30 days)
 
@@ -75,6 +78,17 @@ async function main() {
             `first sighting -> XML median ${seen.median ?? "-"} s, p90 ${seen.p90 ?? "-"} s`,
         );
       }
+    } else if (command === "schedule") {
+      const key = process.env.CONGRESS_API_KEY;
+      const result = await ingestSchedule(db, defaultFetch, {
+        // congressClient keeps its URL (which carries the key) out of errors and logs (lesson 7).
+        congress: key ? congressClient(key) : undefined,
+        log: (msg) => console.log(msg),
+      });
+      console.log(
+        `Schedule: ${result.weeks} House weeks, ${result.items} items stored, ${result.removed} newly removed; ` +
+          `Senate next meets ${result.senateMeeting ?? "(none published)"}, program ${result.senateProgram ?? (key ? "(none in the latest Record)" : "(skipped: no CONGRESS_API_KEY)")}`,
+      );
     } else if (command === "members") {
       const count = await ingestMembers(db, getJson);
       console.log(`Upserted ${count} members`);

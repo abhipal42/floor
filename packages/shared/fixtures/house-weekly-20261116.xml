@@ -1,0 +1,197 @@
+<floorschedule congress-num="119" week-date="2026-11-16" create-date="2026-11-11T10:28:15.343" orig-publish-date="2026-11-11T17:40:32.483" update-date="2026-11-13T17:02:23.730">
+  <current-status>R</current-status>
+  <language>en-us</language>
+  <copyright>Pursuant to Title 17 Section 105 of the United States Code, this file is not subject to copyright protection and is in the public domain.</copyright>
+  <publish-dates>
+    <publish-date date="2026-11-11T17:40:32.483" />
+    <publish-date date="2026-11-12T13:08:29.733" />
+    <publish-date date="2026-11-13T14:57:59.330" />
+    <publish-date date="2026-11-13T16:38:55.327" />
+    <publish-date date="2026-11-13T17:02:23.730" />
+  </publish-dates>
+  <category type="Items that may be considered under suspension of the rules" sort-order="1">
+    <floor-items>
+      <floor-item id="409831" add-date="2026-11-11T10:29:14.330" remove-date="" sort-order="1" publish-date="2026-11-11T17:40:32.483">
+        <legis-num>H.R. 7254 </legis-num>
+        <floor-text>To amend the National Trails System Act to direct the Secretary of the Interior to conduct a study on the feasibility of designating the Bay Area Ridge National Scenic Trail, and for other purposes., as amended </floor-text>
+        <files>
+          <file doc-url="http://docs.house.gov/billsthisweek/20261116/h7254_rh_xml.pdf" doc-type="PDF" add-date="2026-11-11T10:29:14.350" sort-order="1" publish-date="2026-11-11T17:40:32.483" />
+        </files>
+      </floor-item>
+      <floor-item id="409832" add-date="2026-11-11T10:29:34.797" remove-date="" sort-order="2" publish-date="2026-11-11T17:40:32.483">
+        <legis-num>H.R. 7954 </legis-num>
+        <floor-text>Don Young Doug LaMalfa Indian Buffalo Management Act </floor-text>
+        <files>
+          <file doc-url="http://docs.house.gov/billsthisweek/20261116/h7954_rh_xml.pdf" doc-type="PDF" add-date="2026-11-11T10:29:34.803" sort-order="1" publish-date="2026-11-11T17:40:32.483" />
+        </files>
+      </floor-item>
+      <floor-item id="409833" add-date="2026-11-11T10:29:51.280" remove-date="" sort-order="3" publish-date="2026-11-11T17:40:32.483">
+        <legis-num>H.R. 8195 </legis-num>
+        <floor-text>Responsible Cormorant Management and Control Act of 2026, as amended </floor-text>
+        <updates>
+          <update-date date="2026-11-13T16:38:45.613" publish-date="2026-11-13T16:38:55.327">
+            <explanatory-notes doc-modified="True" />
+          </update-date>
+        </updates>
+        <files>
+          <file doc-url="http://docs.house.gov/billsthisweek/20261116/H8195_SUS_xml (1).pdf" doc-type="PDF" add-date="2026-11-13T16:38:45.637" sort-order="2" publish-date="2026-11-11T17:40:32.483" />
+        </files>
+      </floor-item>
+      <floor-item id="409834" add-date="2026-11-11T10:30:06.250" remove-date="" sort-order="4" publish-date="2026-11-11T17:40:32.483">
+        <legis-num>H.R. 8483 </legis-num>
+        <floor-text>Barona Group of Capitan Grande Band of Mission Indians Land Transfer Act of 2026, as amended </floor-text>
+        <files>
+          <file doc-url="http://docs.house.gov/billsthisweek/20261116/h8483_rh_xml.pdf" doc-type="PDF" add-date="2026-11-11T10:30:06.263" sort-order="1" publish-date="2026-11-11T17:40:32.483" />
+        </files>
+      </floor-item>
+      <floor-item id="409835" add-date="2026-11-11T10:30:26.877" remove-date="" sort-order="5" publish-date="2026-11-11T17:40:32.483">
+        <legis-num>H.R. 9600 </legis-num>
+        <floor-text>Common Sense 250 Act of 2026 </floor-text>
+        <files>
+          <file doc-url="http://docs.house.gov/billsthisweek/20261116/h9600_rh_xml.pdf" doc-type="PDF" add-date="2026-11-11T10:30:26.873" sort-order="1" publish-date="2026-11-11T17:40:32.483" />
+        </files>
+      </floor-item>
+      <floor-item id="409836" add-date="2026-11-11T10:30:51.567" remove-date="" sort-order="6" publish-date="2026-11-11T17:40:32.483">
+        <legis-num>H.R. 10136 </legis-num>
+        <floor-text>Crossett Experimental Forest Act of 2026, as amended </floor-text>
+        <files>
+          <file doc-url="http://docs.house.gov/billsthisweek/20261116/h10136_rh_xml.pdf" doc-type="PDF" add-date="2026-11-11T10:30:51.567" sort-order="1" publish-date="2026-11-11T17:40:32.483" />
+        </files>
+      </floor-item>
+      <floor-item id="409839" add-date="2026-11-11T10:32:22.320" remove-date="" sort-order="7" publish-date="2026-11-11T17:40:32.483">
+        <legis-num>H.R. 9640 </legis-num>
+        <floor-text>Earth MRI Reauthorization Act of 2026, as amended </floor-text>
+        <updates>
+          <update-date date="2026-11-11T10:35:46.140" publish-date="2026-11-11T17:40:32.483">
+            <explanatory-notes doc-modified="False">Sort order changed.</explanatory-notes>
+          </update-date>
+        </updates>
+        <files>
+          <file doc-url="http://docs.house.gov/billsthisweek/20261116/H9640_RH_xml.pdf" doc-type="PDF" add-date="2026-11-11T10:32:22.310" sort-order="1" publish-date="2026-11-11T17:40:32.483" />
+        </files>
+      </floor-item>
+      <floor-item id="409840" add-date="2026-11-11T10:32:35.443" remove-date="" sort-order="8" publish-date="2026-11-11T17:40:32.483">
+        <legis-num>H.R. 9785 </legis-num>
+        <floor-text>South Dakota Water Feasibility Studies Act, as amended </floor-text>
+        <updates>
+          <update-date date="2026-11-11T10:35:50.123" publish-date="2026-11-11T17:40:32.483">
+            <explanatory-notes doc-modified="False">Sort order changed.</explanatory-notes>
+          </update-date>
+        </updates>
+        <files>
+          <file doc-url="http://docs.house.gov/billsthisweek/20261116/h9785_rh_xml.pdf" doc-type="PDF" add-date="2026-11-11T10:32:35.457" sort-order="1" publish-date="2026-11-11T17:40:32.483" />
+        </files>
+      </floor-item>
+      <floor-item id="409841" add-date="2026-11-11T10:32:50.927" remove-date="" sort-order="9" publish-date="2026-11-11T17:40:32.483">
+        <legis-num>H.R. 9269</legis-num>
+        <floor-text>Renewing the African American Civil Rights Network Act, as amended </floor-text>
+        <updates>
+          <update-date date="2026-11-11T10:35:56.980" publish-date="2026-11-11T17:40:32.483">
+            <explanatory-notes doc-modified="False">Sort order changed.</explanatory-notes>
+          </update-date>
+        </updates>
+        <files>
+          <file doc-url="http://docs.house.gov/billsthisweek/20261116/h9269_rh_xml.pdf" doc-type="PDF" add-date="2026-11-11T10:32:50.927" sort-order="1" publish-date="2026-11-11T17:40:32.483" />
+        </files>
+      </floor-item>
+      <floor-item id="409837" add-date="2026-11-11T10:31:06.533" remove-date="" sort-order="10" publish-date="2026-11-11T17:40:32.483">
+        <legis-num>H.R. 2400 </legis-num>
+        <floor-text>Pit River Land Transfer Act of 2026, as amended </floor-text>
+        <files>
+          <file doc-url="http://docs.house.gov/billsthisweek/20261116/BILLS-119hr2400eas.pdf" doc-type="PDF" add-date="2026-11-11T10:31:06.537" sort-order="1" publish-date="2026-11-11T17:40:32.483" />
+        </files>
+      </floor-item>
+      <floor-item id="409838" add-date="2026-11-11T10:31:49.617" remove-date="" sort-order="11" publish-date="2026-11-11T17:40:32.483">
+        <legis-num>H.R. 7934</legis-num>
+        <floor-text>Settlement Agreement Information Database Act of 2026 </floor-text>
+        <updates>
+          <update-date date="2026-11-13T16:38:12.100" publish-date="2026-11-13T16:38:55.327">
+            <explanatory-notes doc-modified="False" />
+          </update-date>
+        </updates>
+        <files>
+          <file doc-url="https://www.congress.gov/119/bills/hr7934/BILLS-119hr7934ih.pdf" doc-type="PDF" add-date="2026-11-11T10:31:49.620" sort-order="1" publish-date="2026-11-11T17:40:32.483" />
+        </files>
+      </floor-item>
+      <floor-item id="409842" add-date="2026-11-11T10:33:06.850" remove-date="" sort-order="12" publish-date="2026-11-11T17:40:32.483">
+        <legis-num>H.R. 5490 </legis-num>
+        <floor-text>Dismantle Foreign Scam Syndicates Act, as amended </floor-text>
+        <updates>
+          <update-date date="2026-11-12T13:08:21.467" publish-date="2026-11-12T13:08:29.733">
+            <explanatory-notes doc-modified="True" />
+          </update-date>
+        </updates>
+        <files>
+          <file doc-url="http://docs.house.gov/billsthisweek/20261116/H5490_SUS_xml (1).pdf" doc-type="PDF" add-date="2026-11-12T13:08:21.483" sort-order="2" publish-date="2026-11-11T17:40:32.483" />
+        </files>
+      </floor-item>
+      <floor-item id="409844" add-date="2026-11-11T10:34:38.710" remove-date="" sort-order="14" publish-date="2026-11-11T17:40:32.483">
+        <legis-num>H.R. 4464 </legis-num>
+        <floor-text>Preventive Health Savings Act </floor-text>
+        <files>
+          <file doc-url="http://docs.house.gov/billsthisweek/20261116/h4464_rh_xml.pdf" doc-type="PDF" add-date="2026-11-11T10:34:38.723" sort-order="1" publish-date="2026-11-11T17:40:32.483" />
+        </files>
+      </floor-item>
+    </floor-items>
+  </category>
+  <category type="Items that may be considered pursuant to a rule" sort-order="4">
+    <floor-items>
+      <floor-item id="409846" add-date="2026-11-13T11:05:25.050" remove-date="" sort-order="1" publish-date="2026-11-13T14:57:59.330">
+        <legis-num>H.R. 3495</legis-num>
+        <floor-text>Direct Seller and Real Estate Agent Harmonization Act</floor-text>
+        <files>
+          <file doc-url="https://www.govinfo.gov/content/pkg/BILLS-119hr3495rh/pdf/BILLS-119hr3495rh.pdf" doc-type="PDF" add-date="2026-11-13T11:05:25.063" sort-order="1" publish-date="2026-11-13T14:57:59.330" />
+          <file doc-url="https://www.govinfo.gov/content/pkg/BILLS-119hr3495rh/xml/BILLS-119hr3495rh.xml" doc-type="XML" add-date="2026-11-13T11:05:25.070" sort-order="2" publish-date="2026-11-13T14:57:59.330" />
+        </files>
+        <floor-subitems>
+          <floor-subitem id="503906" add-date="2026-11-13T11:07:35.687" remove-date="" sort-order="1" publish-date="2026-11-13T14:57:59.330">
+            <legis-num />
+            <floor-text>H. Rept. 119-494 Part I – Report from the Committee on Education and Workforce to accompany H.R. 3495</floor-text>
+            <updates>
+              <update-date date="2026-11-13T11:14:28.327" publish-date="2026-11-13T14:57:59.330">
+                <explanatory-notes doc-modified="False" />
+              </update-date>
+            </updates>
+            <files>
+              <file doc-url="https://www.govinfo.gov/content/pkg/CRPT-119hrpt494/pdf/CRPT-119hrpt494.pdf" doc-type="PDF" add-date="2026-11-13T11:07:35.687" sort-order="1" publish-date="" />
+            </files>
+          </floor-subitem>
+          <floor-subitem id="503907" add-date="2026-11-13T11:08:11.540" remove-date="" sort-order="2" publish-date="2026-11-13T14:57:59.330">
+            <legis-num />
+            <floor-text>H. Rept. 119-494 Part II – Supplemental report from the Committee on Education and Workforce to accompany H.R. 3495</floor-text>
+            <updates>
+              <update-date date="2026-11-13T11:14:34.373" publish-date="2026-11-13T14:57:59.330">
+                <explanatory-notes doc-modified="False" />
+              </update-date>
+            </updates>
+            <files>
+              <file doc-url="https://www.govinfo.gov/content/pkg/CRPT-119hrpt494/pdf/CRPT-119hrpt494-pt2.pdf" doc-type="PDF" add-date="2026-11-13T11:08:11.550" sort-order="1" publish-date="" />
+            </files>
+          </floor-subitem>
+        </floor-subitems>
+      </floor-item>
+      <floor-item id="409847" add-date="2026-11-13T11:10:21.193" remove-date="" sort-order="2" publish-date="2026-11-13T14:57:59.330">
+        <legis-num>H.R. 5267</legis-num>
+        <floor-text>American Franchise Act</floor-text>
+        <files>
+          <file doc-url="https://www.govinfo.gov/content/pkg/BILLS-119hr5267rh/pdf/BILLS-119hr5267rh.pdf" doc-type="PDF" add-date="2026-11-13T11:10:21.197" sort-order="1" publish-date="2026-11-13T14:57:59.330" />
+          <file doc-url="https://www.govinfo.gov/content/pkg/BILLS-119hr5267rh/xml/BILLS-119hr5267rh.xml" doc-type="XML" add-date="2026-11-13T11:10:21.200" sort-order="2" publish-date="2026-11-13T14:57:59.330" />
+        </files>
+        <floor-subitems>
+          <floor-subitem id="503908" add-date="2026-11-13T11:11:25.617" remove-date="" sort-order="1" publish-date="2026-11-13T14:57:59.330">
+            <legis-num />
+            <floor-text>H. Rept. 119-802 – Report from the Committee on Education and Workforce to accompany H.R. 5267</floor-text>
+            <updates>
+              <update-date date="2026-11-13T11:11:35.163" publish-date="2026-11-13T14:57:59.330">
+                <explanatory-notes doc-modified="False" />
+              </update-date>
+            </updates>
+            <files>
+              <file doc-url="https://www.govinfo.gov/content/pkg/CRPT-119hrpt802/pdf/CRPT-119hrpt802.pdf" doc-type="PDF" add-date="2026-11-13T11:11:35.157" sort-order="1" publish-date="" />
+            </files>
+          </floor-subitem>
+        </floor-subitems>
+      </floor-item>
+    </floor-items>
+  </category>
+</floorschedule>

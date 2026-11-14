@@ -9,15 +9,20 @@ export interface Db {
 export async function upsertMembers(db: Db, rows: MemberRow[]): Promise<number> {
   if (rows.length === 0) return 0;
   await db.query(
-    `insert into members (bioguide_id, first_name, last_name, party, state, district, chamber, term_start, term_end, ids)
-     select bioguide_id, first_name, last_name, party, state, district, chamber, term_start, term_end, ids
+    `insert into members (bioguide_id, first_name, last_name, party, state, district, chamber, term_start, term_end, ids,
+                          phone, contact_form, website, office, address)
+     select bioguide_id, first_name, last_name, party, state, district, chamber, term_start, term_end, ids,
+            phone, contact_form, website, office, address
        from jsonb_to_recordset($1::jsonb) as x(
          bioguide_id text, first_name text, last_name text, party text, state text,
-         district smallint, chamber chamber, term_start date, term_end date, ids jsonb)
+         district smallint, chamber chamber, term_start date, term_end date, ids jsonb,
+         phone text, contact_form text, website text, office text, address text)
      on conflict (bioguide_id) do update set
        first_name = excluded.first_name, last_name = excluded.last_name, party = excluded.party,
        state = excluded.state, district = excluded.district, chamber = excluded.chamber,
-       term_start = excluded.term_start, term_end = excluded.term_end, ids = excluded.ids`,
+       term_start = excluded.term_start, term_end = excluded.term_end, ids = excluded.ids,
+       phone = excluded.phone, contact_form = excluded.contact_form, website = excluded.website,
+       office = excluded.office, address = excluded.address`,
     [JSON.stringify(rows)],
   );
   return rows.length;

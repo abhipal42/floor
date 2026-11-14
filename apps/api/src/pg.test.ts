@@ -200,6 +200,11 @@ describe("Postgres repositories", () => {
       threshold: "majority",
       totals: { yea: 219, nay: 208, present: 0, notVoting: 8 },
       result: "Passed",
+      explainer: {
+        kind: "passage",
+        text: expect.stringMatching(/^The vote on the measure itself/),
+        source: "U.S. Constitution, Art. I, Sec. 7",
+      },
     });
     expect(await repos.votes.getVote("house-119-1-999")).toBeNull();
   });
@@ -1087,5 +1092,122 @@ describe("device repository", () => {
     expect(await subs(hash("1"))).toEqual([]);
     await repos.devices.unregister(hash("2"));
     await pg.exec("delete from votes where id = 'house-119-3-950'");
+  });
+});
+
+describe("Postgres repositories: explainers, contact, the week ahead", () => {
+  let db: PGlite;
+  let r: ReturnType<typeof pgRepositories>;
+
+  beforeAll(async () => {
+    db = new PGlite();
+    await db.exec(`
+      create schema auth;
+      create table auth.users (id uuid primary key);
+      create function auth.uid() returns uuid language sql stable as $$ select null::uuid $$;
+    `);
+    for (const m of loadMigrations()) await db.exec(m.sql);
+    await db.exec(`
+      insert into members (bioguide_id, first_name, last_name, party, state, district, chamber, term_start, term_end,
+                           phone, contact_form, website, office, address) values
+        ('A000370', 'Alma', 'Adams', 'D', 'NC', 12, 'house', '2025-01-03', '2099-01-03',
+         '202-225-1510', null, 'https://adams.house.gov', '2436 Rayburn House Office Building', '2436 Rayburn House Office Building Washington DC 20515-3312'),
+        ('S000033', 'Bernard', 'Sanders', 'I', 'VT', null, 'senate', '2025-01-03', '2099-01-03', null, null, null, null, null);
+      insert into bills (id, congress, bill_type, number, title, short_title, policy_area, latest_action_on, latest_action_text) values
+        ('119-hres-1650', 119, 'hres', 1650, 'Providing for consideration of the bill (H.R. 5267) to amend title 10.', null, null, null, null),
+        ('119-hres-900', 119, 'hres', 900, 'Condemning something.', null, null, null, null),
+        ('119-hr-5267', 119, 'hr', 5267, 'To amend title 10, United States Code.', 'Example Defense Act', 'Armed Forces and National Security',
+         '2026-11-10', 'Rules Committee Resolution H. Res. 1650 Reported to House.');
+      insert into votes (id, chamber, congress, session, roll_number, question, state, threshold, yea, nay, result, bill_id, bill_ref, occurred_at) values
+        ('house-119-2-319', 'house', 119, 2, 319, 'On Agreeing to the Resolution', 'final', 'majority', 215, 209, 'Passed', '119-hres-1650', 'H RES 1650', '2026-11-10T23:20:00Z'),
+        ('house-119-2-318', 'house', 119, 2, 318, 'On Ordering the Previous Question', 'final', 'majority', 213, 207, 'Passed', '119-hres-1650', 'H RES 1650', '2026-11-10T23:00:00Z'),
+        ('house-119-2-200', 'house', 119, 2, 200, 'On Agreeing to the Resolution', 'final', 'majority', 300, 100, 'Passed', '119-hres-900', 'H RES 900', '2026-06-10T23:00:00Z'),
+        ('senate-119-2-233', 'senate', 119, 2, 233, 'On the Cloture Motion', 'final', 'majority', 52, 45, 'Cloture Motion Agreed to', null, 'PN1093-3', '2026-09-15T15:00:00Z'),
+        ('senate-119-2-234', 'senate', 119, 2, 234, 'On the Cloture Motion', 'final', 'three_fifths_sworn', 61, 38, 'Cloture Motion Agreed to', null, 'H.R. 5267', '2026-09-16T15:00:00Z'),
+        ('senate-119-2-235', 'senate', 119, 2, 235, 'On the Motion', 'final', 'majority', 48, 51, 'Motion Rejected', null, null, '2026-09-17T15:00:00Z');
+      insert into floor_schedule (chamber, week_of, item_id, category, category_text, legis_num, bill_id, title, sort_order, added_at, removed_at, source_updated_at) values
+        ('house', '2026-11-16', '409838', 'rule', 'Items that may be considered pursuant to a rule', 'H.R. 5267', '119-hr-5267', 'Example Defense Act', 2, '2026-11-11T15:31:00Z', null, '2026-11-13T22:02:23Z'),
+        ('house', '2026-11-16', '409831', 'suspension', 'Items that may be considered under suspension of the rules', 'H.R. 7254', null, 'To amend the National Trails System Act ..., as amended', 1, '2026-11-11T15:29:14Z', null, '2026-11-13T22:02:23Z'),
+        ('house', '2026-11-16', '409840', 'other', 'Items that may be considered', 'H. Res. ___', null, 'Impeaching someone.', 1, '2026-11-11T15:40:00Z', '2026-11-12T15:00:00Z', '2026-11-13T22:02:23Z'),
+        ('senate', '2026-11-16', '2026-11-16:hr2347', 'other', 'Named in the Daily Digest''s program for 3 p.m., Monday, November 16', 'H.R. 2347', null, 'H.R. 2347', 1, '2026-11-13T13:20:00Z', null, '2026-11-13T13:14:38Z'),
+        ('house', '2026-11-09', '409800', 'suspension', 'Items that may be considered under suspension of the rules', 'H.R. 3978', null, 'Last week', 1, null, null, '2026-11-09T12:00:00Z');
+      insert into senate_meetings (meeting_date, convenes_at, pro_forma, digest_heading, program, record_issue, source_updated_at) values
+        ('2026-11-16', '2026-11-16T20:00:00Z', false, '3 p.m., Monday, November 16', 'Senate will resume consideration of the nomination ...', '172/171', '2026-11-13T13:14:38Z'),
+        ('2026-11-23', '2026-11-23T20:00:00Z', true, null, null, null, '2026-11-20T20:00:00Z');
+    `);
+    r = pgRepositories(db as unknown as Db);
+  });
+
+  it("explains a rule's adoption and previous question as a rule, and any other resolution generically", async () => {
+    expect((await r.votes.getVote("house-119-2-319"))?.explainer?.kind).toBe("rule");
+    expect((await r.votes.getVote("house-119-2-318"))?.explainer?.text).toMatch(/^Ends debate on a rule/);
+    expect((await r.votes.getVote("house-119-2-200"))?.explainer?.kind).toBe("resolution");
+  });
+
+  it("tells majority cloture on a nomination from three-fifths cloture on a bill", async () => {
+    expect((await r.votes.getVote("senate-119-2-233"))?.explainer?.text).toMatch(/simple majority/);
+    expect((await r.votes.getVote("senate-119-2-234"))?.explainer?.text).toMatch(/three-fifths/);
+  });
+
+  it("gives no explainer for a question with no written line", async () => {
+    expect((await r.votes.getVote("senate-119-2-235"))?.explainer).toBeNull();
+  });
+
+  it("carries the explainer on vote lists too", async () => {
+    const recent = await r.votes.recentVotes("house", 10);
+    expect(recent.find((x) => x.vote.id === "house-119-2-319")?.vote.explainer?.kind).toBe("rule");
+  });
+
+  it("reads a member's contact details, all null for a member upstream gave none", async () => {
+    expect(await r.members.contact("A000370")).toEqual({
+      phone: "202-225-1510",
+      contactForm: null,
+      website: "https://adams.house.gov",
+      office: "2436 Rayburn House Office Building",
+      address: "2436 Rayburn House Office Building Washington DC 20515-3312",
+    });
+    expect(await r.members.contact("S000033")).toEqual({ phone: null, contactForm: null, website: null, office: null, address: null });
+    expect(await r.members.contact("Z000000")).toEqual({ phone: null, contactForm: null, website: null, office: null, address: null });
+  });
+
+  it("reads one week: House items in the source's order with their bills, the Senate's meetings and items", async () => {
+    const week = await r.schedule.week("2026-11-16");
+    expect(week.house.map((i) => i.label)).toEqual(["H.R. 7254", "H.R. 5267", "H. Res. ___"]);
+    expect(week.house[1]).toEqual({
+      category: "rule",
+      categoryText: "Items that may be considered pursuant to a rule",
+      billId: "119-hr-5267",
+      label: "H.R. 5267",
+      title: "Example Defense Act",
+      sourceText: "Example Defense Act",
+      policyArea: "Armed Forces and National Security",
+      stage: null,
+      latestAction: { on: "2026-11-10", text: "Rules Committee Resolution H. Res. 1650 Reported to House." },
+      addedAt: "2026-11-11T15:31:00.000Z",
+      removedAt: null,
+    });
+    // Unknown to the catalog: the source's own words, no bill fields.
+    expect(week.house[0]).toMatchObject({ billId: null, title: "To amend the National Trails System Act ..., as amended", stage: null });
+    expect(week.house[2]?.removedAt).toBe("2026-11-12T15:00:00.000Z");
+    expect(week.senateItems.map((i) => i.label)).toEqual(["H.R. 2347"]);
+    expect(week.senateMeetings).toEqual([
+      {
+        date: "2026-11-16",
+        convenesAt: "2026-11-16T20:00:00.000Z",
+        proForma: false,
+        heading: "3 p.m., Monday, November 16",
+        program: "Senate will resume consideration of the nomination ...",
+        recordIssue: "172/171",
+      },
+    ]);
+    expect(week.sourceUpdatedAt).toBe("2026-11-13T22:02:23.000Z");
+    expect((await r.schedule.week("2026-11-23")).senateMeetings[0]).toMatchObject({ proForma: true, program: null });
+    expect(await r.schedule.week("2026-12-07")).toEqual({ house: [], senateMeetings: [], senateItems: [], sourceUpdatedAt: null });
+  });
+
+  it("reads the week as empty before the schedule migration is applied, rather than failing", async () => {
+    const bare = new PGlite();
+    const none = pgRepositories(bare as unknown as Db);
+    expect(await none.schedule.week("2026-11-16")).toEqual({ house: [], senateMeetings: [], senateItems: [], sourceUpdatedAt: null });
   });
 });
