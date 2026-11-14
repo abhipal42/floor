@@ -8,6 +8,9 @@ name: Production smoke
 #
 # Retries because the production alias can lag the status by a few seconds; five tries over about
 # two minutes is far longer than that, and far shorter than a broken API left up.
+#
+# /src/app.ts must 404: before v0.2.39 Vercel served the project folder as static files, so the
+# API's source answered 200 (HANDOFF lesson 70).
 on:
   status
 
@@ -24,7 +27,7 @@ jobs:
     env:
       API: https://floor-api.vercel.app
     steps:
-      - name: /v1/status, the share page and its card answer
+      - name: /v1/status, the share page and its card answer, and the source does not
         run: |
           set -u
           check() { # path, expected status, expected content-type prefix
@@ -32,7 +35,7 @@ jobs:
           }
           for try in 1 2 3 4 5; do
             ok=1
-            for spec in "/v1/status 200 application/json" "/bill/119/hr/5267 200 text/html" "/bill/119/hr/5267/card.png 200 image/png"; do
+            for spec in "/v1/status 200 application/json" "/bill/119/hr/5267 200 text/html" "/bill/119/hr/5267/card.png 200 image/png" "/src/app.ts 404 text/plain"; do
               set -- $spec
               got=$(check "$1")
               echo "try $try: $1 -> $got"
