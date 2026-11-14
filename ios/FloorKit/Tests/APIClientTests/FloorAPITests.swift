@@ -191,6 +191,48 @@ struct FloorAPITests {
         #expect(try await saved.api.funding(id: "C001098").funding?.cycle == 2030)
     }
 
+    // MARK: - Bill analysis
+
+    @Test func decodesABillAnalysis() async throws {
+        let session = StubURLProtocol.session(always: .response(status: 200, body: try fixtureData("bill-analysis")))
+        let analysis = try #require(try await FloorAPI(baseURL: base, session: session).billAnalysis(id: "118-hr-6363"))
+        #expect(StubURLProtocol.lastURL?.absoluteString == "https://api.example.test/v1/bills/118-hr-6363/analysis")
+        #expect(analysis.ai && analysis.label == "AI-generated")
+        #expect(analysis.provisions.first?.citations.first?.section == "Sec. 101")
+    }
+
+    /// The route's 404 means "not analysed yet": nil, and saved as such for offline.
+    @Test func aMissingAnalysisIsNoneAndIsSaved() async throws {
+        let cache = try SwiftDataResponseCache.inMemory()
+        let session = StubURLProtocol.session(always: .json(#"{"error":"No AI analysis for bill 119-hr-1 yet"}"#, status: 404))
+        let api = FloorAPI(baseURL: base, session: session, cache: cache)
+        #expect(try await api.billAnalysis(id: "119-hr-1") == nil)
+        let saved = await cache.entries()
+        #expect(saved.map(\.key) == ["api.example.test/v1/bills/119-hr-1/analysis"])
+        #expect(saved.first?.body == Data("null".utf8))
+        let offline = try #require(api.savedOnly())
+        #expect(try await offline.api.billAnalysis(id: "119-hr-1") == nil)
+    }
+
+    /// A 404 that isn't the API's own (a proxy's page, a misrouted base URL) says nothing about the
+    /// bill: an error, and nothing saved.
+    @Test func aForeign404IsAnErrorNotNone() async throws {
+        let cache = try SwiftDataResponseCache.inMemory()
+        let session = StubURLProtocol.session(always: .json("<html>Not Found</html>", status: 404))
+        await #expect(throws: FloorAPIError.self) {
+            _ = try await FloorAPI(baseURL: base, session: session, cache: cache).billAnalysis(id: "119-hr-1")
+        }
+        #expect(await cache.entries().isEmpty)
+    }
+
+    /// Only a 404 reads as "none"; any other failure on the route is still an error.
+    @Test func otherErrorsOnTheAnalysisRouteStillThrow() async throws {
+        let session = StubURLProtocol.session(always: .json("<html>502</html>", status: 502))
+        await #expect(throws: FloorAPIError.self) {
+            _ = try await FloorAPI(baseURL: base, session: session).billAnalysis(id: "119-hr-1")
+        }
+    }
+
     // MARK: - Decoding real responses
 
     @Test func decodesEveryRouteFromARealResponse() async throws {

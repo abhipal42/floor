@@ -38,6 +38,17 @@ public struct Swatch: Sendable, Equatable {
         let (x, y) = (luminance(a), luminance(b))
         return (max(x, y) + 0.05) / (min(x, y) + 0.05)
     }
+
+    /// `top` drawn at `opacity` over an opaque `bottom`, channel by channel: the colour a tinted
+    /// surface actually is, so text on it can be contrast-tested.
+    public static func mix(_ top: UInt32, over bottom: UInt32, opacity: Double) -> UInt32 {
+        var out: UInt32 = 0
+        for shift: UInt32 in [16, 8, 0] {
+            let a = Double((top >> shift) & 0xFF), b = Double((bottom >> shift) & 0xFF)
+            out |= UInt32((a * opacity + b * (1 - opacity)).rounded()) << shift
+        }
+        return out
+    }
 }
 
 /// Every adaptive token, as data, so the tests can check contrast without drawing anything.
@@ -93,6 +104,13 @@ public enum Tones {
     public static let teal = Swatch(light: 0x0B4A45, dark: 0x0F9488)
     public static let dim = Swatch(light: 0x3F4945, dark: 0x858B95)
     public static let ai = Swatch(light: 0x5B3FB5, dark: 0xC4B5FD)
+    /// Text on an `ai` fill: the AI tag, an open citation chip. The live/AI mock's #1A1033 on the
+    /// dark violet; white on the light one, which the dark ink would not read on.
+    public static let aiInk = Swatch(light: 0xFFFFFF, dark: 0x1A1033)
+    /// How strongly the AI card is washed with `ai` at its top, over the ground (the mock's
+    /// `rgba(196,181,253,.08)`, fading to .02). Its text is tested against this, the strongest point:
+    /// `textMuted` reads only 4.1:1 there in light, so the card uses `textSecondary`.
+    public static let aiCardTint = 0.08
 
     /// The Money bar's four fills, left to right: small-dollar, larger gifts, PACs, transfers and
     /// other. Each must read at 1.5:1 against its neighbour and 3:1 against the empty track
@@ -204,6 +222,8 @@ public enum Palette {
     public static let dim = Color(Tones.dim)
     /// The "✦ FLOOR EXPLAINS · AI" label and the border of a card a model wrote.
     public static let ai = Color(Tones.ai)
+    /// Text on an ``ai`` fill.
+    public static let aiInk = Color(Tones.aiInk)
 
     // Lit displays: the same in both appearances.
     /// The split-flap board: its frame, and the top and bottom halves of each cell.

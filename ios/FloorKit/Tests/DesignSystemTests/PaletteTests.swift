@@ -89,6 +89,32 @@ struct PaletteTests {
         #expect(Swatch.contrast(Tones.trailing.light, Tones.ground.light) >= 3)
     }
 
+    /// The AI tag and an open citation chip print `aiInk` on an `ai` fill, in both appearances.
+    @Test func aiTagTextReadsOnTheAIFill() {
+        #expect(Swatch.contrast(Tones.aiInk.light, Tones.ai.light) >= 4.5)
+        #expect(Swatch.contrast(Tones.aiInk.dark, Tones.ai.dark) >= 4.5)
+    }
+
+    /// The AI card is the ground washed with `ai`. Every text token drawn on it must read at 4.5:1
+    /// at the strongest wash, in both appearances — and `textMuted`, which the first build used for
+    /// the disclaimer and headings, must be shown not to, so this can fail.
+    @Test func aiCardTextReadsOnItsTint() {
+        for (name, pick) in [("light", { (s: Swatch) in s.light }), ("dark", { (s: Swatch) in s.dark })] {
+            let tint = Swatch.mix(pick(Tones.ai), over: pick(Tones.ground), opacity: Tones.aiCardTint)
+            for (token, swatch) in [("text", Tones.text), ("textSecondary", Tones.textSecondary), ("ai", Tones.ai)] {
+                #expect(Swatch.contrast(pick(swatch), tint) >= 4.5, "\(token) on the AI card, \(name)")
+            }
+        }
+        let lightTint = Swatch.mix(Tones.ai.light, over: Tones.ground.light, opacity: Tones.aiCardTint)
+        #expect(Swatch.contrast(Tones.textMuted.light, lightTint) < 4.5)
+    }
+
+    @Test func mixCompositesChannelByChannel() {
+        #expect(Swatch.mix(0xFFFFFF, over: 0x000000, opacity: 0.5) == 0x808080)
+        #expect(Swatch.mix(0x5B3FB5, over: 0xECEFEE, opacity: 0) == 0xECEFEE)
+        #expect(Swatch.mix(0x5B3FB5, over: 0xECEFEE, opacity: 1) == 0x5B3FB5)
+    }
+
     /// Light mode is a real light theme: the ground and panels are light, text is dark.
     @Test func lightValuesAreLightAndDarkValuesAreDark() {
         for surface in Self.surfaces {
