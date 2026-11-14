@@ -650,6 +650,13 @@ Real data broke our first assumptions several times. Each case below is now hand
     the iOS 26.2 snapshot showed short vertical marks just outside each unselected chip's ends. A
     10 pt radius, under half the height, drew clean. Keep a stroked pill's radius below half its
     smallest height (mind Dynamic Type making it taller, never shorter).
+69. **A snapshot can pass on the Mac and fail on the runner over a time zone.** v0.2.37's vote
+    screen printed its time with `.formatted()`, which reads `TimeZone.current` and ignores the
+    `\.timeZone` the snapshot harness pins to Eastern. On an Eastern Mac that drew "11:58 AM" and
+    matched; CI's runner is UTC and drew "3:58 PM", and `main` went red. Locally the change stayed
+    under the 0.5% pixel tolerance even when forced, so the snapshot cannot be the test for this: the
+    label is now `VoteScreenView.whenLabel(_:timeZone:locale:)`, fed the environment's zone and
+    unit-tested in both zones. Any view that prints a time takes the zone from the environment.
 
 ---
 

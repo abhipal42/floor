@@ -194,3 +194,19 @@ struct VoteBoxScoreTests {
         #expect(dems.squares.suffix(3).allSatisfy { $0 == .notVoting })
     }
 }
+
+/// The vote screen's time follows the time zone it is given, not the machine's (lesson 69): CI runs
+/// in UTC, and a label read from `TimeZone.current` drew 3:58 PM there against an Eastern 11:58 AM.
+@Suite("Vote time label")
+struct VoteTimeLabelTests {
+    @Test func printsTheGivenZoneNotTheMachines() {
+        let date = Date(timeIntervalSince1970: 1_790_783_880) // 2026-09-30 15:58 UTC
+        let us = Locale(identifier: "en_US")
+        let eastern = VoteScreenView.whenLabel(date, timeZone: TimeZone(identifier: "America/New_York")!, locale: us)
+        let utc = VoteScreenView.whenLabel(date, timeZone: TimeZone(identifier: "UTC")!, locale: us)
+        #expect(eastern.replacingOccurrences(of: "\u{202F}", with: " ") == "Sep 30, 11:58 AM" || eastern.replacingOccurrences(of: "\u{202F}", with: " ") == "Sep 30 at 11:58 AM")
+        #expect(utc.contains("3:58"))
+        #expect(eastern != utc)
+    }
+}
+

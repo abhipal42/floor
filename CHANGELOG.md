@@ -8,6 +8,14 @@ is a milestone and ships a retro under `docs/retros/`.
 Older series live in [`docs/changelog/`](docs/changelog) (0.1.x: [`0.1.md`](docs/changelog/0.1.md)).
 Before 0.1.0 the history is the commit log on `main`.
 
+## 0.2.38 — 2026-11-14
+
+### Fixed
+- **The vote screen prints its time in the environment's time zone**, not `TimeZone.current`. On
+  the phone that is still the device's zone. In the snapshot tests it is Eastern, which CI's UTC
+  runner drew as "3:58 PM" against the recorded "11:58 AM" and turned `main` red after 0.2.37. The
+  label is `VoteScreenView.whenLabel(_:timeZone:locale:)`, unit-tested in both zones (lesson 69).
+
 ## 0.2.37 — 2026-11-14
 
 Round 11 on the phone (locked mock: <https://claude.ai/artifact/VdSGbow4qnJwYe2sV7Tb2r>). The server
