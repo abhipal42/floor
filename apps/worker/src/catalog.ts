@@ -38,7 +38,6 @@ import {
 import { startRun, type Db } from "./db.js";
 import { withRetry } from "./rollcalls.js";
 import { restage, STAGEABLE } from "./stage.js";
-import { recordCommitteeEvents, storedActionKeys } from "./billevents.js";
 
 export const LIST_PAGE = 250;
 export const DEFAULT_RATE_PER_HOUR = 4_500;
@@ -322,15 +321,11 @@ export function looksLikeShortTitle(title: string): boolean {
   return /\bAct\b/.test(title) && title.length <= 120;
 }
 
-/**
- * Phase 2 for one bill: fetch, store and stage it. A stage that moved forward, and committee
- * actions it had not stored before, are recorded as bill events for the alerts (billevents.ts).
- */
+/** Phase 2 for one bill: fetch, store and stage it. */
 export async function fetchDetails(
   db: Db,
   get: CongressGet,
   b: { congress: number; bill_type: BillType; number: number; title: string },
-  now: Date = new Date(),
 ): Promise<void> {
   const path = `/bill/${b.congress}/${b.bill_type}/${b.number}`;
   const bill = await get(path);
@@ -344,10 +339,8 @@ export async function fetchDetails(
     wantTitles ? get(`${path}/titles?limit=250`) : Promise.resolve(null),
   ]);
   const row = toBillRow(bill, summaries, titles ?? {});
-  const before = await storedActionKeys(db, row.id);
   await withRetry(() => upsertBill(db, row, toActionRows(actions), { keepShortTitle: titles === null }));
-  await restage(db, [row.id], now);
-  await recordCommitteeEvents(db, row.id, actions, before, now);
+  await restage(db, [row.id]);
 }
 
 /**
@@ -487,7 +480,7 @@ export async function ingestCatalog(
             await fetchDetails(db, (path) => {
               mine.left--;
               return get(path);
-            }, b, now());
+            }, b);
             result.fetched++;
             if (result.fetched % 100 === 0) log(`details: ${result.fetched} of ${due.length}, ${budget.used} requests`);
           } catch (err) {

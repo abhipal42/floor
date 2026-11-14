@@ -27,8 +27,6 @@ describe("migrations", () => {
       "actions",
       "bill_analyses",
       "bill_analysis_runs",
-      "bill_events",
-      "bill_push_log",
       "bill_versions",
       "bills",
       "campaign_finance",
@@ -110,7 +108,7 @@ describe("migrations", () => {
   it("keep device registrations private: RLS on and no policy on any alert table, and no account column", async () => {
     // Push tokens and what a phone follows are read only by the API's and the worker's service
     // connection. A policy here (even a select one) would expose them through PostgREST.
-    const tables = ["devices", "device_subscriptions", "device_signups", "live_activity_tokens", "push_log", "bill_events", "bill_push_log"];
+    const tables = ["devices", "device_subscriptions", "device_signups", "live_activity_tokens", "push_log"];
     const { rows: policies } = await db.query("select tablename, policyname from pg_policies where tablename = any($1)", [tables]);
     expect(policies).toEqual([]);
     const { rows: secured } = await db.query<{ relname: string }>(
@@ -131,26 +129,18 @@ describe("migrations", () => {
       "live_activities",
       "created_at",
       "updated_at",
-      "bill_scheduled",
-      "bill_chamber_vote",
-      "bill_to_president",
-      "bill_law",
-      "bill_committee",
-      "bill_through_topics",
     ]);
   });
 
-  it("refuse a malformed key hash or token, and a subscription to something that is not a member, bill or topic", async () => {
+  it("refuse a malformed key hash or token, and a subscription to something that is not a member or bill", async () => {
     await expect(db.exec("insert into devices (key_hash) values ('not-a-hash')")).rejects.toThrow();
     await expect(
       db.exec(`insert into devices (key_hash, apns_token) values ('${"a".repeat(64)}', 'zz')`),
     ).rejects.toThrow();
     const { rows } = await db.query<{ id: string }>(`insert into devices (key_hash) values ('${"b".repeat(64)}') returning id`);
     await expect(
-      db.query("insert into device_subscriptions values ($1, 'committee', 'HSBA', true)", [rows[0]!.id]),
+      db.query("insert into device_subscriptions values ($1, 'topic', 'Health', true)", [rows[0]!.id]),
     ).rejects.toThrow();
-    // A topic can be followed for bill alerts (20261117000150_bill_alerts.sql).
-    await db.query("insert into device_subscriptions values ($1, 'topic', 'Civil Rights and Liberties, Minority Issues', false)", [rows[0]!.id]);
     await db.query("delete from devices where id = $1", [rows[0]!.id]);
   });
 

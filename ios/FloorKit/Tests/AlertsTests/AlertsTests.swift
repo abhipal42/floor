@@ -339,7 +339,7 @@ struct DeviceKeyTests {
     @Test func aRegistrationEncodesEveryKeyTheRouteRequires() throws {
         let data = try JSONEncoder().encode(DeviceRegistration.sample)
         let object = try #require(try JSONSerialization.jsonObject(with: data) as? [String: Any])
-        #expect(Set(object.keys) == ["apnsToken", "apnsEnvironment", "pushToStartToken", "voteOpened", "liveActivities", "subscriptions", "billAlerts"])
+        #expect(Set(object.keys) == ["apnsToken", "apnsEnvironment", "pushToStartToken", "voteOpened", "liveActivities", "subscriptions"])
         #expect(object["pushToStartToken"] is NSNull)
     }
 }
