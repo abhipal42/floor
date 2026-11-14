@@ -8,6 +8,45 @@ is a milestone and ships a retro under `docs/retros/`.
 Older series live in [`docs/changelog/`](docs/changelog) (0.1.x: [`0.1.md`](docs/changelog/0.1.md)).
 Before 0.1.0 the history is the commit log on `main`.
 
+## 0.2.37 — 2026-11-14
+
+Round 11 on the phone (locked mock: <https://claude.ai/artifact/VdSGbow4qnJwYe2sV7Tb2r>). The server
+side shipped in 0.2.31–0.2.36.
+
+### Added
+- **Week tab**, between Finals and Bills. It has House and Senate segments and arrows to step
+  between weeks.
+  - House bills are grouped as "debated under a rule" or "fast track, needs ⅔". Anything you
+    follow, directly or through a topic, sorts first with the gold edge. Pulled items stay in
+    place, dimmed, marked "Off the list".
+  - The Senate segment shows the next convening and the Daily Digest's program, verbatim.
+  - When nothing is published, the tab says so with a placeholder and never claims a recess.
+  - The bill screen gets an "On the floor this week" banner.
+- **"What this vote is"** sits above the score and folds. Its "?" opens the full "Kinds of vote"
+  list. No card appears for a question type the table doesn't cover.
+- **Member Contact tab** (Votes · Money · Contact): phone, the office's contact form (the House-wide
+  form when the office lists none) and website.
+- **Speak up**, from the bill screen, goes only to your own members.
+  - No stance is chosen for you. The message is fixed text with only the bill's facts, and you can
+    edit it.
+  - "Copy & open form" copies the message and opens the office's form. "Call instead" shows a
+    script.
+  - Nothing is sent or stored, and no AI writes any of it.
+- **Share** on the bill screen: the server's neutral line plus the floor.app link.
+- **Alerts: "Bills you follow"** has six switches, sent as `billAlerts` with topic subscriptions.
+  The per-bill final-vote switches move under "Each bill's final votes".
+- **iCloud sync** of follows, alert choices and district, behind `FLOOR_ICLOUD_KVS`. A build
+  without the capability shows a placeholder instead of the switch.
+- **Money tab, Funding · Disclosures.**
+  - Assets show as filed. Trades show "filed N days after", with the 45-day deadline stated as a
+    fact. Paper filings are links. Values are never summed.
+  - Until the API serves disclosures, the tab shows the API's reason.
+- Snapshot tests for every new screen. The fixtures are real responses captured 2026-11-14.
+
+### Fixed
+- **The universal-links entitlement is back** (`applinks:$(FLOOR_APPLINKS_DOMAIN)`, default
+  `floor.app`). 0.2.35's re-land of 0.2.32 had dropped it.
+
 ## 0.2.36 — 2026-11-14
 
 ### Changed

@@ -2218,10 +2218,10 @@ the Bill screen's Share button are the app's half, in "Round 11 on the phone" be
   the landing page's beta sign-up, `…/#get`, until there is an App Store listing), `APPLE_TEAM_ID`,
   `FLOOR_BUNDLE_ID` (default `app.floor.ios`).
 - **Universal links:** `FloorLink` reads `https://floor.app/bill/119/hr/5267` (and `www.`) as
-  `.bill(id: "119-hr-5267")`, and `floor://bill/<id>`; the shell opens it on Bills. v0.2.32 asked for
-  `com.apple.developer.associated-domains: applinks:$(FLOOR_APPLINKS_DOMAIN)` in `ios/project.yml`;
-  **the v0.2.35 re-land does not carry that entitlement or the `FLOOR_APPLINKS_DOMAIN` setting**, so
-  today only `floor://` links open the app, and an https share link opens in the browser. **Left:** the Apple team, the
+  `.bill(id: "119-hr-5267")`, and `floor://bill/<id>`; the shell opens it on Bills. The app asks for
+  `com.apple.developer.associated-domains: applinks:$(FLOOR_APPLINKS_DOMAIN)` in `ios/project.yml`
+  (default `floor.app`; v0.2.35's re-land dropped it, v0.2.37 restored it). Until the items below
+  are done, an https share link opens in the browser. **Left:** the Apple team, the
   Associated Domains capability on the App ID, `APPLE_TEAM_ID` on `floor-api`, and the floor.app
   domain itself (it is the design's; nothing points it at Vercel yet).
 - **Where the build differs from the mock, and why:** the lookup asks for an address, not a ZIP,
