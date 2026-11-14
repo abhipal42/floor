@@ -12,6 +12,8 @@ import { analyzeOptions, anthropicComplete, runAnalyses } from "./analysis.js";
 import { LiveWorker, parseLatencyDays, postingLatency, revalidatingFetch, runLive, summarize } from "./live.js";
 import { supabaseBroadcaster } from "./realtime.js";
 import { StatusAlerter } from "./alert.js";
+import { ApnsSender, apnsConfigFromEnv } from "./apns.js";
+import { PushBroadcaster, composeBroadcasters } from "./push.js";
 
 const USAGE = `Usage:
   npm run ingest -w @floor/worker -- members
@@ -184,7 +186,13 @@ async function main() {
 /** The always-on loop. Stops cleanly on SIGTERM (what Fly and Railway send) or SIGINT. */
 async function live(db: Db) {
   const log = (msg: string) => console.log(`${new Date().toISOString()} ${msg}`);
-  const broadcaster = supabaseBroadcaster(process.env);
+  const realtime = supabaseBroadcaster(process.env);
+  // Alerts and Live Activities (push.ts). Without every APNS_* variable this sends nothing.
+  const apnsConfig = apnsConfigFromEnv(process.env);
+  const apns = new ApnsSender(apnsConfig);
+  const push = new PushBroadcaster({ db, apns, environment: apnsConfig?.production ? "production" : "sandbox", log });
+  // Pushes first: they never throw, so a failed Realtime broadcast (retried next poll) cannot skip them.
+  const broadcaster = composeBroadcasters(push, realtime);
   const alerter = new StatusAlerter({
     webhookUrl: process.env.ALERT_WEBHOOK_URL || undefined,
     statusUrl: process.env.FLOOR_STATUS_URL || undefined,
@@ -218,11 +226,14 @@ async function live(db: Db) {
     });
   }
   log(
-    `live worker starting: realtime ${broadcaster.enabled ? "on" : "off (SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY unset)"}, ` +
+    `live worker starting: realtime ${realtime.enabled ? "on" : "off (SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY unset)"}, ` +
+      `pushes ${push.enabled ? `on (${apnsConfig?.production ? "production" : "sandbox"})` : "off (APNS_KEY_ID / APNS_TEAM_ID / APNS_PRIVATE_KEY / APNS_TOPIC unset)"}, ` +
       `alerts ${alerter.enabled ? "on" : "off (ALERT_WEBHOOK_URL unset)"}, ` +
       `bill linking ${key ? "on" : "off (CONGRESS_API_KEY unset)"}`,
   );
   const ticks = await runLive(worker, stop.signal, { log });
+  // The APNs HTTP/2 session would otherwise keep the process alive after the loop has stopped.
+  apns.close();
   log(`stopped after ${ticks} polls`);
 }
 

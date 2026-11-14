@@ -40,15 +40,16 @@ struct PrivacyManifestTests {
     }
 
     /// The app sends the lookup inputs once, then member ids (which reveal the district) on every
-    /// request; the widget sends only the member ids.
+    /// request, and — with alerts on — its push tokens and random device key (Device ID, v0.2.30);
+    /// the widget sends only the member ids (the Live Activity it draws sends nothing).
     @Test(arguments: [
         ("Floor", Set([
             "NSPrivacyCollectedDataTypePreciseLocation", "NSPrivacyCollectedDataTypePhysicalAddress",
-            "NSPrivacyCollectedDataTypeCoarseLocation",
+            "NSPrivacyCollectedDataTypeCoarseLocation", "NSPrivacyCollectedDataTypeDeviceID",
         ])),
         ("FloorWidgets", Set(["NSPrivacyCollectedDataTypeCoarseLocation"])),
     ])
-    func collectsOnlyLocationUnlinkedForAppFunctionality(bundle: String, types: Set<String>) throws {
+    func collectsUnlinkedForAppFunctionalityOnly(bundle: String, types: Set<String>) throws {
         let collected = try #require(manifest(bundle)["NSPrivacyCollectedDataTypes"] as? [[String: Any]])
         #expect(collected.count == types.count)
         #expect(Set(collected.compactMap { $0["NSPrivacyCollectedDataType"] as? String }) == types)

@@ -8,6 +8,47 @@ is a milestone and ships a retro under `docs/retros/`.
 Older series live in [`docs/changelog/`](docs/changelog) (0.1.x: [`0.1.md`](docs/changelog/0.1.md)).
 Before 0.1.0 the history is the commit log on `main`.
 
+## 0.2.30 — 2026-11-13
+
+Alerts and the Live Activity: round 8's "A · Live Activity", "B · Dynamic Island" and "C · Alerts"
+(<https://claude.ai/artifact/X5NwWSe1NmugSRoCKh3vBn>), generalized to everything you follow by
+round 9's Alerts screen (<https://claude.ai/artifact/C7qGitvJMSLFmCkYYQgNre>, section C). Built and
+tested end to end; nothing is pushed until an APNs key is set and the worker is deployed (M3).
+
+### Added
+- **Live Activity and Dynamic Island** (FloorKit `LiveActivity`, drawn by the widget extension):
+  open — "H.R. 1013 · On Passage", no running count, "Needs a majority", "Opened 2:43 PM", your
+  members "not recorded yet" — then final — the score, the threshold line, each member's chip and
+  "voted nay · on the losing side" — ending 15 minutes after the final. Compact, expanded and
+  minimal island presentations. `VoteActivityAttributes` / `ContentState` are a wire contract with
+  the worker, tested on both sides on the same fixtures.
+- **Local start while the app is open**: `/v1/live` polled every 5 s in the foreground only; an
+  open vote involving your members (by chamber) or a followed bill starts an activity when "A vote
+  opened" is on; the final ends it with your members' positions.
+- **Alerts screen**, from a bell in Following's top bar: "How they voted" per member (reps on,
+  followed off), per followed bill (off), and "A vote opened" (off). Notification permission is
+  asked only when you turn something on; a card says when alerts are on but not allowed.
+- **Device registration, no accounts**: `PUT`/`DELETE /v1/devices` and
+  `PUT`/`DELETE /v1/devices/activities/{voteId}`, keyed by a random per-phone key sent as
+  `Authorization: Device <key>` (stored hashed), rate limited 30 a minute. Migration
+  `20261116000000_device_alerts.sql`: `devices` re-made without accounts, plus
+  `device_subscriptions`, `live_activity_tokens`, `push_log` — RLS on, no policy.
+- **Worker pushes** (`apps/worker/src/push.ts`), from the live loop's opens and `broadcast_at`
+  finals: "Doggett voted nay on H.R. 1013." / "It passed the House 295–128.", "A House vote opened:
+  H.R. 1013, On Passage.", "A vote on H.R. 1013, which you follow.", a busy night's digest ("Your
+  members cast 6 votes today."), Live Activity push-to-start and end; claimed in `push_log` so a
+  retried poll never sends twice; 410 clears dead tokens. Behind the existing no-op APNs sender.
+- `/v1/live` votes carry `measure` (an open vote's bill from its roll call reference).
+- Privacy manifest: **Device ID** collected (not linked, not tracking, App Functionality), with the
+  reasoning in HANDOFF M5.
+
+### Changed
+- `FollowState` gains `billAlerts` and `voteOpened` (older records open with both off).
+- `ChamberGlyph` moved from the widget extension to DesignSystem.
+- The app's entitlements carry `aps-environment`; `NSSupportsLiveActivities` in its Info.plist;
+  `FLOOR_APNS_ENV` (sandbox in Debug, production in Release) says which gateway a token belongs to.
+- Snapshot references: 15 new images (8 tests); none re-recorded.
+
 ## 0.2.29 — 2026-11-13
 
 Round 10 on the phone: follow bills and topics. Built to the locked design

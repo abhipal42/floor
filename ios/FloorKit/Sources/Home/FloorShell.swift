@@ -4,6 +4,7 @@ import RepScreen
 import SwiftUI
 import VoteScreen
 import BillScreen
+import Alerts
 
 /// The app once you are onboarded (or skipped it): three tabs — Finals, Bills, Following — under
 /// the locked mocks' floating tab bar. Following replaced "Your three" (the locked
@@ -68,6 +69,7 @@ public struct FloorShell: View {
                     onOpenMember: { followingPath.append(.member(id: $0.bioguideId)) },
                     onOpenBill: { followingPath.append(.bill(id: $0)) },
                     onOpenTopic: { followingPath.append(.topic(name: $0)) },
+                    onOpenAlerts: { followingPath.append(.alerts) },
                     onFindReps: onFindReps,
                     onChangeAddress: onChangeAddress
                 )
@@ -156,6 +158,13 @@ public struct FloorShell: View {
         case .catchUp:
             CatchUpDeckView(model: model) { path.wrappedValue.append(.vote(id: $0)) }
                 .navigationTitle("Catch up")
+        case .alerts:
+            AlertsView(model: model.alertsModel())
+                .navigationTitle("Alerts")
+                .toolbar {
+                    // The screen's own headline names it; keep the bar from printing it twice.
+                    ToolbarItem(placement: .principal) { Text(verbatim: " ").accessibilityHidden(true) }
+                }
         }
     }
 

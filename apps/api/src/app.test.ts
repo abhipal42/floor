@@ -6,7 +6,11 @@ import {
   VOTES_CACHE_CONTROL,
   TOPICS_CACHE_CONTROL,
   TOPICS_RATE_LIMIT,
+  DEVICES_RATE_LIMIT,
+  DEVICE_SUBSCRIPTION_MAX,
   congressOn,
+  deviceKeyHash,
+  type DeviceRepository,
   decodeCursor,
   createApp,
   type BillListItem,
@@ -116,6 +120,7 @@ const openVote: LiveVote = {
   openedAt: "2026-11-10T23:20:53.000Z",
   announcedAt: "2026-11-10T23:33:00.000Z",
   postedAt: null,
+  measure: { id: "119-hres-1650", kind: "bill", citation: "H.Res. 1650", title: "Providing for consideration", policyArea: null },
 };
 const houseStatus: ChamberStatus = {
   chamber: "house",
@@ -883,5 +888,113 @@ describe("topics and search", () => {
     expect(congressOn(new Date("2025-01-02T17:00:00Z"))).toBe(118);
     expect(congressOn(new Date("2025-01-03T17:00:00Z"))).toBe(119);
     expect(congressOn(new Date("2027-01-04T17:00:00Z"))).toBe(120);
+  });
+});
+
+describe("device routes", () => {
+  const key = "k".repeat(43);
+  const auth = { authorization: `Device ${key}` };
+  const keyHash = deviceKeyHash(`Device ${key}`)!;
+  const registration = {
+    apnsToken: "AB".repeat(32),
+    apnsEnvironment: "sandbox",
+    pushToStartToken: null,
+    voteOpened: false,
+    subscriptions: [
+      { kind: "member", id: "D000399", howVoted: true },
+      { kind: "bill", id: "119-hr-1013", howVoted: false },
+    ],
+  };
+  const calls: unknown[][] = [];
+  const devices: DeviceRepository = {
+    register: async (...args) => void calls.push(["register", ...args]),
+    unregister: async (h) => (calls.push(["unregister", h]), true),
+    setActivityToken: async (h, voteId, token) => {
+      calls.push(["activity", h, voteId, token]);
+      return voteId === "house-119-2-404" ? "no_vote" : h === keyHash ? "ok" : "no_device";
+    },
+    removeActivityToken: async (h, voteId) => void calls.push(["end", h, voteId]),
+  };
+  const deviceApp = () =>
+    createApp({ ...emptyDeps, locate: async () => null, devices, limitStore: new MemoryLimitStore(), now: () => new Date("2026-11-13T20:00:00Z") });
+  const put = (app: ReturnType<typeof createApp>, body: unknown, headers: Record<string, string> = auth) =>
+    app.request("/v1/devices", { method: "PUT", headers: { "content-type": "application/json", ...headers }, body: JSON.stringify(body) });
+
+  it("stores the registration under the key's hash, never the key, with tokens lower-cased", async () => {
+    calls.length = 0;
+    const res = await put(deviceApp(), registration);
+    expect(res.status).toBe(200);
+    expect(res.headers.get("cache-control")).toBe("no-store");
+    expect(await res.json()).toEqual({ subscriptions: 2, voteOpened: false });
+    expect(keyHash).toMatch(/^[0-9a-f]{64}$/);
+    expect(calls).toEqual([
+      ["register", keyHash, { ...registration, apnsToken: "ab".repeat(32) }, new Date("2026-11-13T20:00:00Z")],
+    ]);
+    expect(JSON.stringify(calls)).not.toContain(key);
+  });
+
+  it("answers 401 without a well-formed device key", async () => {
+    const app = deviceApp();
+    for (const headers of [{}, { authorization: `Bearer ${key}` }, { authorization: "Device short" }] as Record<string, string>[]) {
+      const res = await put(app, registration, headers);
+      expect(res.status).toBe(401);
+    }
+    expect((await app.request("/v1/devices", { method: "DELETE" })).status).toBe(401);
+  });
+
+  it("refuses a malformed token, a topic subscription, a bad id, or too many subscriptions", async () => {
+    const app = deviceApp();
+    const bad = [
+      { ...registration, apnsToken: "not-hex" },
+      { ...registration, subscriptions: [{ kind: "topic", id: "Health", howVoted: true }] },
+      { ...registration, subscriptions: [{ kind: "member", id: "doggett", howVoted: true }] },
+      { ...registration, subscriptions: [{ kind: "bill", id: "H.R. 1013", howVoted: true }] },
+      {
+        ...registration,
+        subscriptions: Array.from({ length: DEVICE_SUBSCRIPTION_MAX + 1 }, (_, i) => ({ kind: "bill", id: `119-hr-${i}`, howVoted: true })),
+      },
+      { ...registration, apnsEnvironment: "staging" },
+    ];
+    for (const body of bad) expect((await put(app, body)).status).toBe(400);
+  });
+
+  it("unregisters, and keeps and ends a Live Activity's token", async () => {
+    calls.length = 0;
+    const app = deviceApp();
+    expect((await app.request("/v1/devices", { method: "DELETE", headers: auth })).status).toBe(204);
+    const activity = (voteId: string, headers: Record<string, string> = auth) =>
+      app.request(`/v1/devices/activities/${voteId}`, {
+        method: "PUT",
+        headers: { "content-type": "application/json", ...headers },
+        body: JSON.stringify({ token: "CD".repeat(32) }),
+      });
+    expect((await activity("house-119-2-321")).status).toBe(204);
+    expect((await activity("house-119-2-404")).status).toBe(404);
+    expect((await activity("house-119-2-321", { authorization: `Device ${"z".repeat(43)}` })).status).toBe(404);
+    expect((await activity("not-a-vote")).status).toBe(400);
+    expect((await app.request("/v1/devices/activities/house-119-2-321", { method: "DELETE", headers: auth })).status).toBe(204);
+    expect(calls[0]).toEqual(["unregister", keyHash]);
+    expect(calls[1]).toEqual(["activity", keyHash, "house-119-2-321", "cd".repeat(32)]);
+    expect(calls.at(-1)).toEqual(["end", keyHash, "house-119-2-321"]);
+  });
+
+  it("answers 503 where there is no database to keep a registration in", async () => {
+    const app = createApp({ ...emptyDeps, locate: async () => null });
+    expect((await put(app, registration)).status).toBe(503);
+  });
+
+  it("rate limits the device routes together, per caller", async () => {
+    const app = deviceApp();
+    const statuses: number[] = [];
+    for (let i = 0; i < DEVICES_RATE_LIMIT.limit; i++) statuses.push((await put(app, registration)).status);
+    expect(new Set(statuses)).toEqual(new Set([200]));
+    expect((await app.request("/v1/devices", { method: "DELETE", headers: auth })).status).toBe(429);
+  });
+
+  it("documents the device routes and their key in the OpenAPI document", async () => {
+    const doc = await (await deviceApp().request("/openapi.json")).json();
+    expect(Object.keys(doc.paths)).toEqual(expect.arrayContaining(["/v1/devices", "/v1/devices/activities/{voteId}"]));
+    expect(doc.components.securitySchemes.deviceKey).toMatchObject({ type: "apiKey", in: "header", name: "Authorization" });
+    expect(doc.components.schemas.LiveVote.properties.measure).toBeDefined();
   });
 });

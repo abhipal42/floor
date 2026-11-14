@@ -5,6 +5,14 @@
     "version": "0.1.0"
   },
   "components": {
+    "securitySchemes": {
+      "deviceKey": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "Authorization",
+        "description": "`Device <key>`: the phone's own random 32-byte key, base64url (43 characters)"
+      }
+    },
     "schemas": {
       "Chamber": {
         "type": "string",
@@ -1275,6 +1283,16 @@
             "type": "string",
             "nullable": true,
             "description": "When the worker first saw the roll call XML, polling live; null if it was backfilled"
+          },
+          "measure": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MeasureSummary"
+              },
+              {
+                "description": "What is being voted on. An open vote is not linked to its bill yet, so this is read from the roll call's bill reference (`billRef`) when the bill is in the catalog; null for a procedural vote or an unknown bill"
+              }
+            ]
           }
         },
         "required": [
@@ -1296,7 +1314,8 @@
           "result",
           "openedAt",
           "announcedAt",
-          "postedAt"
+          "postedAt",
+          "measure"
         ]
       },
       "Live": {
@@ -1546,6 +1565,102 @@
           "members",
           "bills",
           "topics"
+        ]
+      },
+      "DeviceRegistered": {
+        "type": "object",
+        "properties": {
+          "subscriptions": {
+            "type": "integer"
+          },
+          "voteOpened": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "subscriptions",
+          "voteOpened"
+        ]
+      },
+      "DeviceSubscription": {
+        "type": "object",
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "member",
+              "bill"
+            ]
+          },
+          "id": {
+            "type": "string",
+            "description": "A Bioguide ID, or a Floor bill id (`119-hr-1013`)",
+            "example": "D000399"
+          },
+          "howVoted": {
+            "type": "boolean",
+            "description": "Alert when the vote is final: how a member voted, or that a followed bill was voted on. Off items are still listed, because \"A vote opened\" covers votes involving any of them"
+          }
+        },
+        "required": [
+          "kind",
+          "id",
+          "howVoted"
+        ]
+      },
+      "DeviceRegistration": {
+        "type": "object",
+        "properties": {
+          "apnsToken": {
+            "type": "string",
+            "nullable": true,
+            "pattern": "^[0-9a-fA-F]{64,200}$",
+            "description": "The alert token; null without notification permission"
+          },
+          "apnsEnvironment": {
+            "type": "string",
+            "enum": [
+              "sandbox",
+              "production"
+            ],
+            "description": "sandbox for a Debug build"
+          },
+          "pushToStartToken": {
+            "type": "string",
+            "nullable": true,
+            "pattern": "^[0-9a-fA-F]{64,200}$",
+            "description": "ActivityKit's push-to-start token (iOS 17.2+)"
+          },
+          "voteOpened": {
+            "type": "boolean",
+            "description": "\"A vote opened\": alert, and start a Live Activity, when a vote involving these opens"
+          },
+          "subscriptions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DeviceSubscription"
+            },
+            "maxItems": 1000
+          }
+        },
+        "required": [
+          "apnsToken",
+          "apnsEnvironment",
+          "pushToStartToken",
+          "voteOpened",
+          "subscriptions"
+        ]
+      },
+      "ActivityToken": {
+        "type": "object",
+        "properties": {
+          "token": {
+            "type": "string",
+            "pattern": "^[0-9a-fA-F]{64,200}$"
+          }
+        },
+        "required": [
+          "token"
         ]
       }
     },
@@ -2345,6 +2460,204 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/SearchResults"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/devices": {
+      "put": {
+        "summary": "Register this phone for alerts and Live Activities, or replace its registration",
+        "description": "The whole registration each time: tokens, \"A vote opened\", and every member and bill with its \"How they voted\" switch. Identified by the `Authorization: Device <key>` header (a random 32-byte key, base64url); no account, no address. Rate limited, 30 a minute per caller, shared with the other device routes.",
+        "security": [
+          {
+            "deviceKey": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DeviceRegistration"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Registered",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeviceRegistered"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No `Authorization: Device <key>` header, or a malformed key",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "This deployment has no database to keep registrations in",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "summary": "Forget this phone: its tokens, subscriptions and Live Activity tokens",
+        "security": [
+          {
+            "deviceKey": []
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Forgotten (or never registered)"
+          },
+          "401": {
+            "description": "No `Authorization: Device <key>` header, or a malformed key",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "This deployment has no database to keep registrations in",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/devices/activities/{voteId}": {
+      "put": {
+        "summary": "The push token of this phone's Live Activity for a vote, so the final can reach it",
+        "security": [
+          {
+            "deviceKey": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^(house|senate)-\\d{2,3}-\\d-\\d{1,5}$",
+              "example": "house-119-2-321"
+            },
+            "required": true,
+            "name": "voteId",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ActivityToken"
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "Saved"
+          },
+          "401": {
+            "description": "No `Authorization: Device <key>` header, or a malformed key",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such vote, or this phone is not registered",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "This deployment has no database to keep registrations in",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "summary": "This phone's Live Activity for a vote ended",
+        "security": [
+          {
+            "deviceKey": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^(house|senate)-\\d{2,3}-\\d-\\d{1,5}$",
+              "example": "house-119-2-321"
+            },
+            "required": true,
+            "name": "voteId",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Removed (or never saved)"
+          },
+          "401": {
+            "description": "No `Authorization: Device <key>` header, or a malformed key",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "This deployment has no database to keep registrations in",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
                 }
               }
             }

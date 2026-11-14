@@ -134,8 +134,8 @@ Targets: floor event to push under 30 s; roll call posted to "your rep voted" un
 - SwiftUI + Observation, Swift 6, minimum iOS 17.2.
 - ActivityKit (Live Activity + Dynamic Island), WidgetKit, App Intents.
 - Swift Charts, SwiftData offline cache, Supabase Swift SDK (auth + realtime), Sign in with Apple.
-- Packages (one `FloorKit` Swift package, one library per area): `Models` (checked against the OpenAPI contract), `APIClient`, `DesignSystem`, and one per feature — built: `Onboarding`, `Home`, `VoteScreen`, `BillScreen`, `RepScreen`, `WidgetFeed`; still to come: `Realtime`, `Alerts`. Extensions share `Models` and `DesignSystem`, and read the saved delegation through the App Group `group.app.floor.ios`.
-- Widgets (v0.2.23): two home-screen widgets in the `FloorWidgets` extension — small, the latest final involving your members; medium, each member's most recent vote. They fetch the same `/v1/members/{id}/votes` route every 30 minutes and open the vote in the app through `floor://vote/<id>`. Live Activities and push are still M3.
+- Packages (one `FloorKit` Swift package, one library per area): `Models` (checked against the OpenAPI contract), `APIClient`, `DesignSystem`, and one per feature — built: `Onboarding`, `Home`, `VoteScreen`, `BillScreen`, `RepScreen`, `WidgetFeed`, `LiveActivity`, `Alerts` (v0.2.30); still to come: `Realtime`. Extensions share `Models` and `DesignSystem`, and read the saved delegation through the App Group `group.app.floor.ios`.
+- Widgets (v0.2.23): two home-screen widgets in the `FloorWidgets` extension — small, the latest final involving your members; medium, each member's most recent vote. They fetch the same `/v1/members/{id}/votes` route every 30 minutes and open the vote in the app through `floor://vote/<id>`. Since v0.2.30 the same extension draws the Live Activity and Dynamic Island; alerts and Live Activity pushes are built and wait on an APNs key and the deployed worker (M3).
 - Navigation (v0.2.3): three tabs — Finals, Bills, Your three — each with its own stack. Since v0.2.28 the third is **Following**: your district's members pinned, plus any member of Congress you follow, kept on the phone with no account. Display type is Barlow Condensed (OFL, bundled); colours stay in `Palette`. The screens follow the locked phone mocks in the design canvas.
 - Appearance (v0.2.5, switch v0.2.6): the app follows the system light or dark setting unless the reader picks Light or Dark from the menu on Finals. Dark is the canvas palette; light is "Marble & Patina" (cool marble ground, white panels, patina accent). The split-flap board and the turf scoreboard stay dark in both, as lit displays.
 - Tests: Swift Testing, snapshot tests per card state, onboarding UI tests.
@@ -155,7 +155,8 @@ Targets: floor event to push under 30 s; roll call posted to "your rep voted" un
 | statements | member_id, bill_id, stance, quote, url, ts |
 | projections | vote_id, ts, p_pass, projected_yea, projected_nay, model_version |
 | bill_analysis / impact_rules | bill_version_id, json, citations, model, reviewed_by |
-| profiles / follows / devices | user_id, district, county, opt-in attributes, follows, APNs / Live Activity tokens |
+| profiles / follows | user_id, district, county, opt-in attributes, follows (unused: follows stay on the phone) |
+| devices / device_subscriptions / live_activity_tokens / push_log | no accounts (v0.2.30): a hashed per-phone key, APNs and Live Activity tokens, the members and bills it wants alerts about, what was sent |
 
 ## Milestones
 

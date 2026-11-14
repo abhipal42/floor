@@ -1,3 +1,4 @@
+import Alerts
 import APIClient
 import Foundation
 import Models
@@ -177,6 +178,16 @@ public final class HomeModel {
         case topic(name: String)
         /// The catch-up deck.
         case catchUp
+        /// The Alerts screen, from Following's top bar.
+        case alerts
+    }
+
+    /// Sends the Alerts screen's choices to the API. nil in previews and tests, where the screen
+    /// still works and nothing is sent.
+    @ObservationIgnored public var alertSync: AlertSync?
+
+    public func alertsModel() -> AlertsModel {
+        AlertsModel(follows: follows, reps: reps, sync: alertSync)
     }
 
     /// Your district's members, as onboarding found them; empty with no district.

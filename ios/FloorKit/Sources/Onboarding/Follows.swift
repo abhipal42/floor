@@ -68,14 +68,25 @@ public struct FollowState: Codable, Sendable, Hashable {
     /// Bioguide IDs of your own reps you hid. They can't be unfollowed — they are your district —
     /// only hidden from the tab, the feed's "Your members" and the widgets' default.
     public private(set) var hiddenReps: [String]
-    /// Alert choices you changed, by Bioguide ID. Absent means the default: on for your reps, off for
-    /// members you follow. Nothing sends alerts yet; this is where the push work will read them.
+    /// "How they voted" choices you changed, by Bioguide ID. Absent means the default: on for your
+    /// reps, off for members you follow (round 9, section C). Read by `AlertSync` (Alerts module).
     public private(set) var alerts: [String: Bool]
+    /// The same for bills you follow, by bill id: "A vote on H.R. 1013, which you follow." Absent
+    /// means off, as for a member you follow. Absent in records from before v0.2.30.
+    public private(set) var billAlerts: [String: Bool]
+    /// "A vote opened": alert, and start a Live Activity, when a vote involving your members or bills
+    /// opens. Off by default (round 9, section C).
+    public private(set) var voteOpened: Bool
 
-    public init(entries: [FollowEntry] = [], hiddenReps: [String] = [], alerts: [String: Bool] = [:]) {
+    public init(
+        entries: [FollowEntry] = [], hiddenReps: [String] = [], alerts: [String: Bool] = [:],
+        billAlerts: [String: Bool] = [:], voteOpened: Bool = false
+    ) {
         self.entries = []
         self.hiddenReps = []
         self.alerts = alerts
+        self.billAlerts = billAlerts
+        self.voteOpened = voteOpened
         for entry in entries where !contains(entry.kind, entry.id) { self.entries.append(entry) }
         for id in hiddenReps where !self.hiddenReps.contains(id) { self.hiddenReps.append(id) }
     }
@@ -92,7 +103,9 @@ public struct FollowState: Codable, Sendable, Hashable {
         self.init(
             entries: entries.compactMap(\.value),
             hiddenReps: (try? container.decodeIfPresent([String].self, forKey: .hiddenReps)) ?? [],
-            alerts: (try? container.decodeIfPresent([String: Bool].self, forKey: .alerts)) ?? [:]
+            alerts: (try? container.decodeIfPresent([String: Bool].self, forKey: .alerts)) ?? [:],
+            billAlerts: (try? container.decodeIfPresent([String: Bool].self, forKey: .billAlerts)) ?? [:],
+            voteOpened: (try? container.decodeIfPresent(Bool.self, forKey: .voteOpened)) ?? false
         )
     }
 
@@ -123,6 +136,7 @@ public struct FollowState: Codable, Sendable, Hashable {
     public mutating func unfollow(_ kind: FollowKind, _ id: String) {
         entries.removeAll { $0.kind == kind && $0.id == id }
         if kind == .member { alerts[id] = nil }
+        if kind == .bill { billAlerts[id] = nil }
     }
 
     /// Moves within one kind's list, with `List`'s `onMove` arguments; other kinds keep their places.
@@ -250,13 +264,29 @@ public struct FollowState: Codable, Sendable, Hashable {
         reps.filter { !isHidden(rep: $0.bioguideId) }
     }
 
-    // MARK: Alerts (stored only; nothing sends them yet)
+    // MARK: Alerts (the Alerts screen; sent to the API by `AlertSync`)
 
     /// Whether this member's votes should alert you: your choice if you made one, else on for your
     /// own reps and off for members you follow.
     public func alertsOn(member id: String, isRep: Bool) -> Bool { alerts[id] ?? isRep }
 
     public mutating func setAlerts(member id: String, _ on: Bool) { alerts[id] = on }
+
+    /// Whether a vote on this bill should alert you: your choice, else off.
+    public func alertsOn(bill id: String) -> Bool { billAlerts[id] ?? false }
+
+    public mutating func setAlerts(bill id: String, _ on: Bool) { billAlerts[id] = on }
+
+    public mutating func setVoteOpened(_ on: Bool) { voteOpened = on }
+
+    /// Anything at all would alert: a "How they voted" switch on for one of `members` (your members,
+    /// reps first) or a followed bill, or "A vote opened". What decides whether the phone registers.
+    public func anyAlertOn(members: [Member], reps: [Member]) -> Bool {
+        let repIds = Set(reps.map(\.bioguideId))
+        return voteOpened
+            || members.contains { alertsOn(member: $0.bioguideId, isRep: repIds.contains($0.bioguideId)) }
+            || followedBillIds.contains { alertsOn(bill: $0) }
+    }
 }
 
 /// One array element decoded on its own: nil, rather than a thrown error, when it can't be read.

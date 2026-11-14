@@ -6,6 +6,7 @@ import type {
   BillRepository,
   BillStage,
   CatalogRepository,
+  DeviceRepository,
   TopicFilter,
   LiveRepository,
   CandidateTotal,
@@ -472,8 +473,77 @@ export function pgRepositories(db: Db): {
   status: StatusRepository;
   live: LiveRepository;
   catalog: CatalogRepository;
+  devices: DeviceRepository;
 } {
   return {
+    devices: {
+      async register(keyHash, reg, now) {
+        // An APNs token belongs to one install. A phone that reinstalled Floor makes a new key and
+        // may get its old token back: the token moves to the new registration rather than failing
+        // the unique constraint (or alerting twice).
+        await db.query(
+          `update devices set apns_token = case when apns_token = $2 then null else apns_token end,
+                              push_to_start_token = case when push_to_start_token = $3 then null else push_to_start_token end
+            where key_hash <> $1 and (apns_token = $2 or push_to_start_token = $3)`,
+          [keyHash, reg.apnsToken, reg.pushToStartToken],
+        );
+        // One statement, so a registration and its subscription list change together. The delete
+        // and the upsert touch different rows (those not in the new list, and those in it).
+        await db.query(
+          `with d as (
+             insert into devices (key_hash, apns_token, apns_env, push_to_start_token, vote_opened, updated_at)
+             values ($1, $2, $3, $4, $5, $6)
+             on conflict (key_hash) do update set apns_token = excluded.apns_token, apns_env = excluded.apns_env,
+               push_to_start_token = excluded.push_to_start_token, vote_opened = excluded.vote_opened,
+               updated_at = excluded.updated_at
+             returning id
+           ), x as (
+             select distinct on (kind, id) kind, id, how_voted
+               from jsonb_to_recordset($7::jsonb) as r(kind text, id text, how_voted boolean)
+           ), gone as (
+             delete from device_subscriptions s using d
+              where s.device_id = d.id
+                and not exists (select 1 from x where x.kind = s.target_kind and x.id = s.target_id)
+           )
+           insert into device_subscriptions (device_id, target_kind, target_id, how_voted)
+           select d.id, x.kind, x.id, x.how_voted from d, x
+           on conflict (device_id, target_kind, target_id) do update set how_voted = excluded.how_voted`,
+          [
+            keyHash,
+            reg.apnsToken,
+            reg.apnsEnvironment,
+            reg.pushToStartToken,
+            reg.voteOpened,
+            now.toISOString(),
+            JSON.stringify(reg.subscriptions.map((x) => ({ kind: x.kind, id: x.id, how_voted: x.howVoted }))),
+          ],
+        );
+      },
+      async unregister(keyHash) {
+        const { rows } = await db.query("delete from devices where key_hash = $1 returning id", [keyHash]);
+        return rows.length > 0;
+      },
+      async setActivityToken(keyHash, voteId, token, now) {
+        const { rows } = await db.query<{ device: string | null; vote: string | null }>(
+          `select (select id from devices where key_hash = $1)::text as device, (select id from votes where id = $2) as vote`,
+          [keyHash, voteId],
+        );
+        if (!rows[0]?.device) return "no_device";
+        if (!rows[0].vote) return "no_vote";
+        await db.query(
+          `insert into live_activity_tokens (device_id, vote_id, token, updated_at) values ($1, $2, $3, $4)
+           on conflict (device_id, vote_id) do update set token = excluded.token, updated_at = excluded.updated_at`,
+          [rows[0].device, voteId, token, now.toISOString()],
+        );
+        return "ok";
+      },
+      async removeActivityToken(keyHash, voteId) {
+        await db.query(
+          `delete from live_activity_tokens t using devices d where d.id = t.device_id and d.key_hash = $1 and t.vote_id = $2`,
+          [keyHash, voteId],
+        );
+      },
+    },
     catalog: {
       async topicCounts(congress) {
         const { rows } = await db.query<{ name: string; bills: number; voted: number; latest: Date | string | null }>(
@@ -554,9 +624,20 @@ export function pgRepositories(db: Db): {
         // Final: published by the live worker since `finalAfter` (`broadcast_at`, which every final
         // vote gets however it was stored), and itself from the last day, so a backfilled old vote
         // the worker marked without announcing is not "just final".
-        const { rows } = await liveQuery(db)<VoteRow & { opened_at: Date | null; announced_at: Date | null; posted_at: Date | null }>(
-          `select ${VOTE_COLUMNS}, v.opened_at, v.announced_at, v.posted_at
+        const { rows } = await liveQuery(db)<
+          VoteRow & MeasureRow & { measure_bill_id: string | null; opened_at: Date | null; announced_at: Date | null; posted_at: Date | null }
+        >(
+          // An open vote is linked to its bill only after it is final (the worker's bill linking), so
+          // the bill is also found from the roll call's own reference, "H R 1013" or "H.R. 1013".
+          `select ${VOTE_COLUMNS}, ${MEASURE_COLUMNS}, b.id as measure_bill_id, v.opened_at, v.announced_at, v.posted_at
              from votes v
+             left join lateral (
+               select v.congress || '-' || m[1] || '-' || m[2] as id
+                 from regexp_match(regexp_replace(lower(coalesce(v.bill_ref, '')), '[^a-z0-9]', '', 'g'),
+                                   '^(hr|s|hres|sres|hjres|sjres|hconres|sconres)([0-9]+)$') as m
+             ) ref on true
+             left join bills b on b.id = coalesce(v.bill_id, ref.id)
+             left join nominations n on n.id = v.nomination_id
             where (v.state = 'open' and v.announced_at > $2::timestamptz - interval '1 day')
                or (v.state = 'final' and v.broadcast_at > $1
                    and coalesce(v.occurred_at, v.broadcast_at) > $2::timestamptz - interval '1 day')
@@ -570,6 +651,7 @@ export function pgRepositories(db: Db): {
           openedAt: iso(r.opened_at),
           announcedAt: iso(r.announced_at),
           postedAt: iso(r.posted_at),
+          measure: toMeasure({ ...r, bill_id: r.measure_bill_id }),
         }));
       },
     },

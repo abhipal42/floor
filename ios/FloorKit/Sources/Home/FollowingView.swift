@@ -24,6 +24,8 @@ public struct FollowingView: View {
     let onOpenMember: (Member) -> Void
     let onOpenBill: (String) -> Void
     let onOpenTopic: (String) -> Void
+    /// The bell in the top bar: the Alerts screen. nil (previews) shows no bell.
+    let onOpenAlerts: (() -> Void)?
     let onFindReps: () -> Void
     let onChangeAddress: () -> Void
     @State private var editing = false
@@ -36,6 +38,7 @@ public struct FollowingView: View {
         onOpenMember: @escaping (Member) -> Void,
         onOpenBill: @escaping (String) -> Void = { _ in },
         onOpenTopic: @escaping (String) -> Void = { _ in },
+        onOpenAlerts: (() -> Void)? = nil,
         onFindReps: @escaping () -> Void,
         onChangeAddress: @escaping () -> Void
     ) {
@@ -44,6 +47,7 @@ public struct FollowingView: View {
         self.onOpenMember = onOpenMember
         self.onOpenBill = onOpenBill
         self.onOpenTopic = onOpenTopic
+        self.onOpenAlerts = onOpenAlerts
         self.onFindReps = onFindReps
         self.onChangeAddress = onChangeAddress
     }
@@ -152,6 +156,19 @@ public struct FollowingView: View {
             Text("FOLLOWING").font(Typography.headline(28)).foregroundStyle(Palette.text)
                 .accessibilityAddTraits(.isHeader)
             Spacer()
+            if !editing, let onOpenAlerts {
+                Button(action: onOpenAlerts) {
+                    Image(systemName: "bell")
+                        .font(.system(size: 16, weight: .semibold))
+                        .foregroundStyle(Palette.threshold)
+                        .frame(minWidth: 30, minHeight: 30)
+                        .contentShape(.rect)
+                }
+                .buttonStyle(.plain)
+                .padding(.trailing, 10)
+                .accessibilityLabel("Alerts")
+                .accessibilityHint("Choose which votes alert you")
+            }
             if !editing, canEdit, segment == .members {
                 Button("EDIT") { editing = true }
                     .font(Typography.label(15))

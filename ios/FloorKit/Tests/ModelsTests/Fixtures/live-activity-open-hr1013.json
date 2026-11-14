@@ -1,0 +1,11 @@
+{
+  "state": "open",
+  "result": null,
+  "totals": null,
+  "openedAt": "2026-11-11T19:43:00.000Z",
+  "calledAt": "2026-11-11T19:43:30.000Z",
+  "members": [
+    { "id": "D000399", "name": "Doggett", "position": null, "choice": null }
+  ],
+  "moreMembers": 0
+}
