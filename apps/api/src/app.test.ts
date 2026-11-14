@@ -596,6 +596,7 @@ describe("API", () => {
         { source: "senate_rollcalls", lastSuccessAt: "2026-11-09T00:00:00.000Z", lastNewDataAt: null, lastError: "HTTP 503", stale: true },
         { source: "bills", lastSuccessAt: null, lastNewDataAt: null, lastError: null, stale: true },
         { source: "nominations", lastSuccessAt: null, lastNewDataAt: null, lastError: null, stale: true },
+        { source: "schedule", lastSuccessAt: null, lastNewDataAt: null, lastError: null, stale: true },
       ],
     });
   });
@@ -628,7 +629,7 @@ describe("API", () => {
     expect(res.status).toBe(200);
     const body = await res.json();
     expect(body.ok).toBe(false);
-    expect(body.sources).toHaveLength(5);
+    expect(body.sources).toHaveLength(6);
     expect(body.sources.every((s: { stale: boolean }) => s.stale)).toBe(true);
     expect(body.sources[0].lastError).toMatch(/ENOTFOUND/);
   });
