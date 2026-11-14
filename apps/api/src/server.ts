@@ -16,6 +16,7 @@ function repositories(): Pick<
   | "live"
   | "devices"
   | "disclosures"
+  | "schedule"
 > {
   if (!process.env.DATABASE_URL) {
     console.warn("DATABASE_URL is not set: serving empty data");
@@ -59,14 +60,16 @@ const allowedOrigins = (process.env.ALLOWED_ORIGINS ?? "http://localhost:8790")
   .map((o) => o.trim())
   .filter(Boolean);
 
+const port = Number(process.env.PORT ?? 8787);
 const app = createApp({
   ...repositories(),
   locate: (place) => locateDistrict(place, CONGRESS),
   allowedOrigins,
   // Off unless set: financial disclosures wait on the §13107(c) question (HANDOFF.md).
   disclosuresEnabled: process.env.DISCLOSURES_ENABLED === "true",
+  // Share pages served here link to, and look members up on, this server.
+  share: { base: `http://localhost:${port}`, apiBase: `http://localhost:${port}` },
 });
-const port = Number(process.env.PORT ?? 8787);
 
 serve({ fetch: app.fetch, port }, (info) => {
   console.log(

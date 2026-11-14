@@ -105,6 +105,11 @@ jobs:
         run: |
           npm run openapi -w @floor/api
           git diff --exit-code -- apps/api/openapi.json
+      # Builds the API with the Vercel CLI (offline, no login) and serves the traced function from
+      # a copy holding only what the trace kept. v0.2.32 passed every test above and still died on
+      # every route in production, because hb.wasm was not in the function (HANDOFF lesson 64).
+      - name: API runs from its traced Vercel function
+        run: npm run function-smoke -w @floor/api
 
   ios:
     # Only when the push touched ios/ — or .github/, so a change to this

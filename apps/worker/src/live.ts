@@ -515,7 +515,15 @@ export interface LiveDeps {
   linkMeasures?: () => Promise<void>;
   /** Hourly housekeeping beside the ingest-run prune: the push tables (`pruneDevices`). */
   maintenance?: (now: Date) => Promise<unknown>;
+  /**
+   * Sends the bill alerts the ingests recorded (`BillEventPusher.run`, billevents.ts). Called at
+   * most every `BILL_ALERTS_EVERY_MS`, whatever the session: bills move when the chambers are out too.
+   */
+  billAlerts?: (now: Date) => Promise<unknown>;
 }
+
+/** How often the live worker sends recorded bill events: the catalog that records most runs hourly. */
+export const BILL_ALERTS_EVERY_MS = 60_000;
 
 export interface TickResult {
   /** Each chamber as last known (a chamber not polled this tick keeps its previous state). */
@@ -547,6 +555,7 @@ export class LiveWorker {
   private readonly lastRepair: Record<Chamber, number> = { house: -Infinity, senate: -Infinity };
   private lastPrune = -Infinity;
   private lastSweep = -Infinity;
+  private lastBillAlerts = -Infinity;
   private readonly reportedStuck = new Set<string>();
   private lastLink = -Infinity;
   private pendingLink = false;
@@ -756,6 +765,11 @@ export class LiveWorker {
       this.lastPrune = t;
       await step("prune ingest runs", () => pruneIngestRuns(db));
       if (this.deps.maintenance) await step("prune devices", () => this.deps.maintenance!(now));
+    }
+
+    if (this.deps.billAlerts && t - this.lastBillAlerts >= BILL_ALERTS_EVERY_MS) {
+      this.lastBillAlerts = t;
+      await step("bill alerts", () => this.deps.billAlerts!(now));
     }
 
     if (t - this.lastSweep >= SWEEP_EVERY_MS) {

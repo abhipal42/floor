@@ -1,0 +1,45 @@
+name: Production smoke
+#
+# After Vercel reports floor-api deployed from main, ask production whether it answers.
+# Vercel's git integration posts a commit status ("Vercel – floor-api"), not a GitHub deployment,
+# so this listens for that status. v0.2.32 built and deployed green and then answered 500 on every
+# route; nothing looked until a person did (HANDOFF lesson 64). A failure here is a red X on the
+# commit on main: revert it.
+#
+# Retries because the production alias can lag the status by a few seconds; five tries over about
+# two minutes is far longer than that, and far shorter than a broken API left up.
+on:
+  status
+
+permissions:
+  contents: read
+
+jobs:
+  floor-api:
+    if: >-
+      github.event.state == 'success' &&
+      github.event.context == 'Vercel – floor-api' &&
+      contains(github.event.branches.*.name, 'main')
+    runs-on: ubuntu-latest
+    env:
+      API: https://floor-api.vercel.app
+    steps:
+      - name: /v1/status, the share page and its card answer
+        run: |
+          set -u
+          check() { # path, expected status, expected content-type prefix
+            curl -sS -o /dev/null -w '%{http_code} %{content_type}' --max-time 20 "$API$1" || echo "000 -"
+          }
+          for try in 1 2 3 4 5; do
+            ok=1
+            for spec in "/v1/status 200 application/json" "/bill/119/hr/5267 200 text/html" "/bill/119/hr/5267/card.png 200 image/png"; do
+              set -- $spec
+              got=$(check "$1")
+              echo "try $try: $1 -> $got"
+              case "$got" in "$2 $3"*) ;; *) ok=0 ;; esac
+            done
+            [ "$ok" = 1 ] && exit 0
+            sleep 25
+          done
+          echo "::error::floor-api is not answering in production. Revert the commit on main that deployed it."
+          exit 1

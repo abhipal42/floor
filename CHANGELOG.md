@@ -8,6 +8,51 @@ is a milestone and ships a retro under `docs/retros/`.
 Older series live in [`docs/changelog/`](docs/changelog) (0.1.x: [`0.1.md`](docs/changelog/0.1.md)).
 Before 0.1.0 the history is the commit log on `main`.
 
+## 0.2.35 — 2026-11-14
+
+Bill-step alerts and the share page, back — 0.2.32 (#41) re-landed with the crash that took
+`floor-api` down fixed, and two checks that would have caught it. Round 11
+(<https://claude.ai/artifact/VdSGbow4qnJwYe2sV7Tb2r>), sections D and E, server side and the app's
+link handling.
+
+### Added (as in 0.2.32)
+- **Bill-step alerts** (backend): `bill_events` records each step a followed bill takes (on the
+  floor schedule, a chamber's vote, to the President, law or veto, committee action), and
+  `bill_push_log` what each phone was sent (dedupe, and a digest past three a day). Six
+  `devices.bill_*` switches; `device_subscriptions` also takes topics. `PUT /v1/devices` accepts
+  `billAlerts` and topic subscriptions. The live worker sends them once APNs is configured.
+  Migration `20261117000150_bill_alerts.sql` is already applied to production (it stayed through
+  the revert).
+- **`GET /v1/bills/{id}/share`**: the share sheet's `{url, text, kicker}`, with "on the floor this
+  week" from the floor schedule.
+- **The share page** `/bill/{congress}/{type}/{number}`: title, CRS summary, the road to law, the
+  latest action, how your members voted, "Get Floor for iPhone"; a 1200×630 PNG preview card drawn
+  with satori and resvg; `/.well-known/apple-app-site-association`, which answers 404 until
+  `APPLE_TEAM_ID` is set.
+- **`FloorLink`** opens `https://floor.app/bill/…` in the app.
+- **Root `vercel.json`** proxies `/bill/*` (and the association file) to `floor-api`.
+- The member lookup asks for an address, not a ZIP, and the privacy line reads "This page saves
+  nothing" (lesson 63).
+
+### Fixed — why 0.2.32 answered 500 on every route (lesson 64)
+- **Root cause:** satori imports `harfbuzzjs`, whose module value is a promise that compiles
+  `hb.wasm` as soon as it is evaluated, from a path Vercel's file trace cannot follow. The file was
+  not in the function, the promise rejected with nothing awaiting it, and Node exits on an
+  unhandled rejection. share.ts imported satori at module load, so every instance died at boot.
+  Reproduced offline with `vercel build` and the traced function run alone under Node.
+- `hb.wasm` and resvg's `index_bg.wasm` are now in `includeFiles` (`apps/api/vercel.json`).
+- satori, resvg and the fonts load on the first card request only, once per instance; a failure
+  is a `500` (`no-store`) for `/bill/…/card.png` alone. The page, its tags and every other route
+  never touch the card libraries.
+
+### Added (checks)
+- `entry.test.ts`: boots the real entry with both card libraries throwing; `/v1/status` and the
+  share page still answer, the card fails alone.
+- `npm run function-smoke -w @floor/api`, now a step in `ci.yml`: builds with the Vercel CLI,
+  copies out only the traced function, serves it, and renders the card from it.
+- `production-smoke.yml`: when Vercel posts floor-api's success status for a commit on `main`,
+  curls production `/v1/status`, `/bill/119/hr/5267` and its card, failing loudly.
+
 ## 0.2.34 — 2026-11-14
 
 Financial disclosures for both chambers: imported, and served only behind a flag that is off.

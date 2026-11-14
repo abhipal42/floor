@@ -6,14 +6,17 @@
   "scripts": {
     "dev": "tsx --env-file-if-exists=../../.env src/server.ts",
     "openapi": "tsx src/openapi.ts openapi.json",
-    "loadtest": "tsx src/loadtest.ts"
+    "loadtest": "tsx src/loadtest.ts",
+    "function-smoke": "node scripts/function-smoke.mjs"
   },
   "dependencies": {
     "@hono/node-server": "^1.13.7",
     "@hono/zod-openapi": "^0.18.3",
+    "@resvg/resvg-wasm": "^2.6.2",
     "@vercel/functions": "3.10.4",
     "hono": "^4.6.14",
     "pg": "^8.13.1",
+    "satori": "^0.33.5",
     "zod": "^3.24.1"
   },
   "devDependencies": {
