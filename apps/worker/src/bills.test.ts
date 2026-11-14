@@ -6,9 +6,11 @@ import { loadMigrations } from "@floor/db";
 import { beforeAll, describe, expect, it } from "vitest";
 import {
   congressClient,
+  fetchActions,
   htmlToText,
   ingestVotedBills,
   parseMeasureRef,
+  upsertBill,
   pickShortTitle,
   toActionRows,
   toBillRow,
@@ -147,6 +149,77 @@ describe("congressClient", () => {
     expect(urls[0]).toBe("https://api.congress.gov/v3/bill/119/hr/1?format=json&api_key=SECRET-KEY");
     expect(urls[1]).toBe(urls[0]);
   });
+
+  it("puts every attempt, retries included, through its meter and reports the key's remaining requests", async () => {
+    let calls = 0;
+    const fakeFetch = (async () => {
+      calls++;
+      if (calls === 1) return new Response("busy", { status: 503, headers: { "x-ratelimit-remaining": "812" } });
+      return Response.json({ ok: true }, { headers: { "x-ratelimit-remaining": "811" } });
+    }) as unknown as typeof fetch;
+    let taken = 0;
+    const seen: number[] = [];
+    const get = congressClient("SECRET-KEY", fakeFetch, {
+      take: async () => {
+        taken++;
+      },
+      observe: (n) => seen.push(n),
+    });
+    const realTimeout = globalThis.setTimeout;
+    globalThis.setTimeout = ((fn: () => void) => realTimeout(fn, 0)) as typeof setTimeout;
+    try {
+      expect(await get("/bill/119/hr/1")).toEqual({ ok: true });
+    } finally {
+      globalThis.setTimeout = realTimeout;
+    }
+    expect(taken).toBe(2);
+    expect(seen).toEqual([812, 811]);
+  });
+
+  it("stops before a request its meter refuses", async () => {
+    let calls = 0;
+    const fakeFetch = (async () => {
+      calls++;
+      return Response.json({});
+    }) as unknown as typeof fetch;
+    const get = congressClient("SECRET-KEY", fakeFetch, {
+      take: async () => {
+        throw new Error("budget spent");
+      },
+    });
+    await expect(get("/bill/119/hr/1")).rejects.toThrow("budget spent");
+    expect(calls).toBe(0);
+  });
+});
+
+describe("fetchActions", () => {
+  it("reads every page past the first 250 and merges them", async () => {
+    const action = (i: number) => ({ actionDate: "2026-01-01", text: `Action ${i}` });
+    const paths: string[] = [];
+    const get: CongressGet = async (path) => {
+      paths.push(path);
+      const offset = Number(/offset=(\d+)/.exec(path)?.[1] ?? 0);
+      const items = Array.from({ length: Math.min(250, 520 - offset) }, (_, i) => action(offset + i));
+      return { actions: items, pagination: { count: 520 } };
+    };
+    const merged = await fetchActions(get, "/bill/118/hr/2670");
+    expect(paths).toEqual([
+      "/bill/118/hr/2670/actions?limit=250",
+      "/bill/118/hr/2670/actions?limit=250&offset=250",
+      "/bill/118/hr/2670/actions?limit=250&offset=500",
+    ]);
+    expect(toActionRows(merged).map((a) => a.text)).toHaveLength(520);
+  });
+
+  it("asks once when the first page holds them all", async () => {
+    let n = 0;
+    const merged = await fetchActions(async () => {
+      n++;
+      return actions;
+    }, "/bill/119/hconres/14");
+    expect(n).toBe(1);
+    expect(merged["actions"]).toEqual(actions["actions"]);
+  });
 });
 
 describe("ingestVotedBills", () => {
@@ -200,6 +273,12 @@ describe("ingestVotedBills", () => {
     expect(stored[0]?.sponsor_id).toBe("A000375");
     expect(stored[0]?.n).toBe(toActionRows(actions).length);
 
+    // Staged on the way in, after its votes were linked, and stamped as fetched for the catalog.
+    const { rows: staged } = await pg.query<{ stage: string; fetched: boolean }>(
+      "select stage, details_fetched_at is not null as fetched from bills",
+    );
+    expect(staged).toEqual([{ stage: "adopted", fetched: true }]);
+
     // One bill failing is counted, not the run's error: otherwise one bad reference would mark bills
     // failed on every run until someone fixed it upstream (lesson 38).
     const { rows: run } = await pg.query<{ items: number; failed: number; error: string | null }>(
@@ -232,6 +311,18 @@ describe("ingestVotedBills", () => {
     );
     const after = await pg.query<{ id: string; bill_id: string | null }>("select id, bill_id from votes order by id");
     expect(after.rows).toEqual(before.rows);
+  });
+
+  it("keeps a stored short title when the catalog skipped the /titles request", async () => {
+    await pg.exec("update bills set short_title = 'Budget Resolution Act' where id = '119-hconres-14'");
+    const row = toBillRow(bill, summaries, {});
+    await upsertBill(pg as unknown as Db, row, [], { keepShortTitle: true });
+    const kept = await pg.query<{ short_title: string | null }>("select short_title from bills where id = '119-hconres-14'");
+    expect(kept.rows[0]?.short_title).toBe("Budget Resolution Act");
+    // Without the flag the fetched titles are the authority, even when they hold no short title.
+    await upsertBill(pg as unknown as Db, row, toActionRows(actions));
+    const replaced = await pg.query<{ short_title: string | null }>("select short_title from bills where id = '119-hconres-14'");
+    expect(replaced.rows[0]?.short_title).toBeNull();
   });
 
   it("is idempotent: a second run only retries the bill that failed", async () => {

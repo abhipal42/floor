@@ -1,5 +1,22 @@
 import { describe, expect, it } from "vitest";
-import { AI_DISCLAIMER, createApp, type ChamberStatus, type LiveVote, type Member, type Vote, type VoteRepository } from "./app.js";
+import {
+  AI_DISCLAIMER,
+  SEARCH_CACHE_CONTROL,
+  SEARCH_RATE_LIMIT,
+  TOPICS_CACHE_CONTROL,
+  TOPICS_RATE_LIMIT,
+  congressOn,
+  decodeCursor,
+  createApp,
+  type BillListItem,
+  type CatalogRepository,
+  type ChamberStatus,
+  type LiveVote,
+  type Member,
+  type Vote,
+  type VoteRepository,
+} from "./app.js";
+import { MemoryLimitStore } from "./limit.js";
 
 const sample: Vote = {
   id: "house-119-1-100",
@@ -89,6 +106,22 @@ const houseStatus: ChamberStatus = {
   checkedAt: "2026-11-10T23:33:00.000Z",
 };
 const liveCalls: string[] = [];
+
+/** Repositories with nothing in them, for tests that exercise one route. */
+const emptyDeps = {
+  votes: repo,
+  members: {
+    membersFor: async () => [],
+    recentVotes: async () => [],
+    getMember: async () => null,
+    partyLoyalty: async () => ({ votes: 0, withParty: 0, againstParty: 0 }),
+    funding: async () => null,
+  },
+  bills: { getBill: async () => null, getAnalysis: async () => null },
+  nominations: { getNomination: async () => null },
+  status: { lastRuns: async () => [] },
+  live: { chambers: async () => [], liveVotes: async () => [] },
+};
 
 const app = createApp({
   votes: repo,
@@ -530,7 +563,8 @@ describe("API", () => {
     // nullable at every use they have, so carrying it on the component is correct for them:
     // LatestAction on Bill and Nomination, MeasureSummary on MemberVote (a procedural vote refers
     // to no measure), and Funding on MemberFunding, its only use, null when FEC has no totals for
-    // the member. Anything else showing up here needs checking against how it is actually used
+    // the member; and BillStage on BillListItem, its only use, null until the worker has staged the
+    // bill. Anything else showing up here needs checking against how it is actually used
     // before the list is widened — and if Funding ever gains a use that must not accept null, it
     // has to come off this list and out of the component, not be left here.
     const doc = await (await app.request("/openapi.json")).json();
@@ -538,6 +572,168 @@ describe("API", () => {
     const hoisted = Object.entries(schemas)
       .filter(([, schema]) => schema.nullable)
       .map(([name]) => name);
-    expect(hoisted.sort()).toEqual(["Funding", "LatestAction", "MeasureSummary"]);
+    expect(hoisted.sort()).toEqual(["BillStage", "Funding", "LatestAction", "MeasureSummary"]);
+  });
+});
+
+describe("topics and search", () => {
+  const item = (id: string, on: string | null): BillListItem => {
+    const [congress, type, number] = id.split("-");
+    return {
+      id,
+      congress: Number(congress),
+      type: type!,
+      number: Number(number),
+      citation: `${type!.toUpperCase()} ${number}`,
+      label: id,
+      title: id,
+      policyArea: "Health",
+      stage: "introduced",
+      stalled: false,
+      latestAction: on ? { on, text: "Referred." } : null,
+      hasFloorVote: false,
+    };
+  };
+  const health = [item("119-sjres-197", "2026-09-29"), item("119-hr-4541", "2026-07-27"), item("119-hr-2493", "2026-04-22")];
+  const calls: string[] = [];
+  const catalog: CatalogRepository = {
+    topicCounts: async (congress) => {
+      calls.push(`counts ${congress}`);
+      return [{ name: "Health", bills: 3, billsWithFloorVote: 1, latestActionOn: "2026-09-29" }];
+    },
+    topicBills: async (congress, topic, filter, after, limit) => {
+      calls.push(`bills ${congress} ${topic} ${filter} ${after ? `${after.on}|${after.id}` : "-"} ${limit}`);
+      const start = after ? health.findIndex((b) => b.id === after.id) + 1 : 0;
+      return health.slice(start, start + limit).map((bill) => ({ bill, at: { on: bill.latestAction?.on ?? null, id: bill.id } }));
+    },
+    billsByNumber: async (type, number, congress) => {
+      calls.push(`number ${type} ${number} ${congress}`);
+      return type === "hr" && number === 1013 ? [item("119-hr-1013", "2026-11-11")] : [];
+    },
+    searchBills: async (q, congress, limit) => {
+      calls.push(`words ${q} ${congress} ${limit}`);
+      return q.includes("rural") ? [health[2]!] : [];
+    },
+    searchMembers: async (q) => (q === "doggett" ? [members[0]!] : []),
+  };
+  const now = () => new Date("2026-11-13T17:00:00Z");
+  const topicsApp = () =>
+    createApp({ ...emptyDeps, catalog, now, limitStore: new MemoryLimitStore(), locate: async () => null });
+
+  it("lists all 32 topics, filling in the empty ones, cached at the edge", async () => {
+    const res = await topicsApp().request("/v1/topics");
+    expect(res.status).toBe(200);
+    expect(res.headers.get("cache-control")).toBe(TOPICS_CACHE_CONTROL);
+    const body = await res.json();
+    expect(body.congress).toBe(119);
+    expect(body.topics).toHaveLength(32);
+    expect(body.topics.find((t: { name: string }) => t.name === "Health")).toEqual({
+      name: "Health",
+      bills: 3,
+      billsWithFloorVote: 1,
+      latestActionOn: "2026-09-29",
+    });
+    expect(body.topics.find((t: { name: string }) => t.name === "Taxation")).toEqual({
+      name: "Taxation",
+      bills: 0,
+      billsWithFloorVote: 0,
+      latestActionOn: null,
+    });
+  });
+
+  it("pages a topic with a cursor, and reads an encoded name", async () => {
+    calls.length = 0;
+    const app = topicsApp();
+    const first = await (await app.request("/v1/topics/health/bills?limit=2&filter=moving")).json();
+    expect(first.topic.name).toBe("Health");
+    expect(first.filter).toBe("moving");
+    expect(first.bills.map((b: BillListItem) => b.id)).toEqual(["119-sjres-197", "119-hr-4541"]);
+    expect(first.nextCursor).toEqual(expect.any(String));
+    const second = await (
+      await app.request(`/v1/topics/Health/bills?limit=2&filter=moving&cursor=${first.nextCursor}`)
+    ).json();
+    expect(second.bills.map((b: BillListItem) => b.id)).toEqual(["119-hr-2493"]);
+    expect(second.nextCursor).toBeNull();
+    // One extra row is asked for, to know whether there is another page.
+    expect(calls).toContain("bills 119 Health moving 2026-07-27|119-hr-4541 3");
+
+    const encoded = await app.request("/v1/topics/Arts%2C%20Culture%2C%20Religion/bills");
+    expect(encoded.status).toBe(200);
+    expect((await encoded.json()).topic.name).toBe("Arts, Culture, Religion");
+  });
+
+  it("refuses a topic that is not a policy area, and a forged cursor", async () => {
+    const app = topicsApp();
+    expect((await app.request("/v1/topics/Healthcare/bills")).status).toBe(404);
+    expect((await app.request("/v1/topics/Health/bills?cursor=not-a-cursor")).status).toBe(400);
+    const forged = Buffer.from(JSON.stringify(["2026-01-01'; drop table bills;--", "x"])).toString("base64url");
+    expect((await app.request(`/v1/topics/Health/bills?cursor=${forged}`)).status).toBe(400);
+    expect((await app.request("/v1/topics/Health/bills?filter=everything")).status).toBe(400);
+  });
+
+  it("resolves a bill number exactly and searches nothing else", async () => {
+    calls.length = 0;
+    const res = await topicsApp().request("/v1/search?q=H.R.1013");
+    expect(res.headers.get("cache-control")).toBe(SEARCH_CACHE_CONTROL);
+    const body = await res.json();
+    expect(body).toMatchObject({ query: "H.R.1013", billNumber: true, members: [], topics: [] });
+    expect(body.bills.map((b: BillListItem) => b.id)).toEqual(["119-hr-1013"]);
+    expect(calls).toEqual(["number hr 1013 null"]);
+  });
+
+  it("groups word matches into members, bills and topics", async () => {
+    const rural = await (await topicsApp().request("/v1/search?q=rural%20health")).json();
+    expect(rural.billNumber).toBe(false);
+    expect(rural.bills.map((b: BillListItem) => b.id)).toEqual(["119-hr-2493"]);
+    expect(rural.topics).toEqual([]);
+    const topic = await (await topicsApp().request("/v1/search?q=health")).json();
+    expect(topic.topics).toEqual([{ name: "Health", bills: 3, billsWithFloorVote: 1, latestActionOn: "2026-09-29" }]);
+    const member = await (await topicsApp().request("/v1/search?q=doggett")).json();
+    expect(member.members.map((m: Member) => m.lastName)).toEqual(["Doggett"]);
+    expect((await topicsApp().request("/v1/search?q=a")).status).toBe(400);
+  });
+
+  it("rate-limits search per caller, apart from the other routes' counts", async () => {
+    const app = topicsApp();
+    const from = { headers: { "x-forwarded-for": "203.0.113.9" } };
+    for (let i = 0; i < SEARCH_RATE_LIMIT.limit; i++) {
+      expect((await app.request("/v1/search?q=doggett", from)).status).toBe(200);
+    }
+    const refused = await app.request("/v1/search?q=doggett", from);
+    expect(refused.status).toBe(429);
+    expect((await refused.json()).error).toMatch(/Too many requests/);
+    // Topics keep their own count.
+    expect((await app.request("/v1/topics", from)).status).toBe(200);
+  });
+
+  it("counts each topics request once, the list and its pages alike", async () => {
+    const app = topicsApp();
+    const from = { headers: { "x-forwarded-for": "203.0.113.10" } };
+    const first = await app.request("/v1/topics", from);
+    expect(first.headers.get("RateLimit-Remaining")).toBe(String(TOPICS_RATE_LIMIT.limit - 1));
+    const second = await app.request("/v1/topics/Health/bills", from);
+    expect(second.headers.get("RateLimit-Remaining")).toBe(String(TOPICS_RATE_LIMIT.limit - 2));
+  });
+
+  it("takes the next cursor from the stored action date, even when the row shows no latest action", async () => {
+    // A bill listed with an action date but no action text: latestAction is null on the row.
+    const dated: CatalogRepository = {
+      ...catalog,
+      topicBills: async (_c, _t, _f, after, limit) =>
+        [item("119-hr-7", null), item("119-hr-8", null)]
+          .map((bill, i) => ({ bill, at: { on: i === 0 ? "2026-10-01" : "2026-09-01", id: bill.id } }))
+          .filter((r) => !after || r.at.id < after.id)
+          .slice(0, limit),
+    };
+    const app = createApp({ ...emptyDeps, catalog: dated, now, limitStore: new MemoryLimitStore(), locate: async () => null });
+    const first = await (await app.request("/v1/topics/Health/bills?limit=1")).json();
+    expect(decodeCursor(first.nextCursor)).toEqual({ on: "2026-10-01", id: "119-hr-7" });
+  });
+
+  it("knows which Congress is in session", () => {
+    expect(congressOn(new Date("2026-11-13T17:00:00Z"))).toBe(119);
+    expect(congressOn(new Date("2025-01-02T17:00:00Z"))).toBe(118);
+    expect(congressOn(new Date("2025-01-03T17:00:00Z"))).toBe(119);
+    expect(congressOn(new Date("2027-01-04T17:00:00Z"))).toBe(120);
   });
 });

@@ -1,0 +1,328 @@
+{
+ "actions": [
+  {
+   "actionCode": "E40000",
+   "actionDate": "2026-06-10",
+   "sourceSystem": {
+    "code": 9,
+    "name": "Library of Congress"
+   },
+   "text": "Became Public Law No: 119-98.",
+   "type": "President"
+  },
+  {
+   "actionCode": "36000",
+   "actionDate": "2026-06-10",
+   "sourceSystem": {
+    "code": 9,
+    "name": "Library of Congress"
+   },
+   "text": "Became Public Law No: 119-98.",
+   "type": "BecameLaw"
+  },
+  {
+   "actionCode": "E30000",
+   "actionDate": "2026-06-10",
+   "sourceSystem": {
+    "code": 9,
+    "name": "Library of Congress"
+   },
+   "text": "Signed by President.",
+   "type": "President"
+  },
+  {
+   "actionCode": "36000",
+   "actionDate": "2026-06-10",
+   "sourceSystem": {
+    "code": 9,
+    "name": "Library of Congress"
+   },
+   "text": "Signed by President.",
+   "type": "BecameLaw"
+  },
+  {
+   "actionCode": "E20000",
+   "actionDate": "2026-06-09",
+   "sourceSystem": {
+    "code": 2,
+    "name": "House floor actions"
+   },
+   "text": "Presented to President.",
+   "type": "Floor"
+  },
+  {
+   "actionCode": "28000",
+   "actionDate": "2026-06-09",
+   "sourceSystem": {
+    "code": 9,
+    "name": "Library of Congress"
+   },
+   "text": "Presented to President.",
+   "type": "President"
+  },
+  {
+   "actionCode": "H38310",
+   "actionDate": "2026-06-09",
+   "sourceSystem": {
+    "code": 2,
+    "name": "House floor actions"
+   },
+   "text": "Motion to reconsider laid on the table Agreed to without objection.",
+   "type": "Floor"
+  },
+  {
+   "actionCode": "H37100",
+   "actionDate": "2026-06-09",
+   "sourceSystem": {
+    "code": 2,
+    "name": "House floor actions"
+   },
+   "text": "On passage Passed by recorded vote: 214 - 212 (Roll no. 214). (text: CR H4017-4018)",
+   "type": "Floor"
+  },
+  {
+   "actionCode": "8000",
+   "actionDate": "2026-06-09",
+   "sourceSystem": {
+    "code": 9,
+    "name": "Library of Congress"
+   },
+   "text": "Passed/agreed to in House: On passage Passed by recorded vote: 214 - 212 (Roll no. 214). (text: CR H4017-4018)",
+   "type": "Floor"
+  },
+  {
+   "actionCode": "H36210",
+   "actionDate": "2026-06-09",
+   "sourceSystem": {
+    "code": 2,
+    "name": "House floor actions"
+   },
+   "text": "On motion to commit Failed by the Yeas and Nays: 211 - 215 (Roll no. 213).",
+   "type": "Floor"
+  },
+  {
+   "actionCode": "H8A000",
+   "actionDate": "2026-06-09",
+   "sourceSystem": {
+    "code": 2,
+    "name": "House floor actions"
+   },
+   "text": "The previous question on the motion to commit was ordered pursuant to clause 2(b) of rule XIX.",
+   "type": "Floor"
+  },
+  {
+   "actionCode": "H36200",
+   "actionDate": "2026-06-09",
+   "sourceSystem": {
+    "code": 2,
+    "name": "House floor actions"
+   },
+   "text": "Mr. Boyle (PA) moved to commit to the Committee on the Budget. (text: CR H4027)",
+   "type": "Floor"
+  },
+  {
+   "actionCode": "H35000",
+   "actionDate": "2026-06-09",
+   "sourceSystem": {
+    "code": 2,
+    "name": "House floor actions"
+   },
+   "text": "The previous question was ordered pursuant to the rule.",
+   "type": "Floor"
+  },
+  {
+   "actionCode": "H8D000",
+   "actionDate": "2026-06-09",
+   "sourceSystem": {
+    "code": 2,
+    "name": "House floor actions"
+   },
+   "text": "DEBATE - The House proceeded with one hour of debate on S. 2.",
+   "type": "Floor"
+  },
+  {
+   "actionCode": "H8D000",
+   "actionDate": "2026-06-09",
+   "sourceSystem": {
+    "code": 2,
+    "name": "House floor actions"
+   },
+   "text": "Rule provides for consideration of H.R. 8312, H.R. 8464, H. Res. 1335 and S. 2. The resolution provides for consideration of H.R. 8312, H.R. 8464, H. Res. 1335, and S. 2 under a closed rule with one hour of general debate on each measure. The resolution provides for a motion to recommit H.R. 8312 and H.R. 8464 and a motion to commit S. 2.",
+   "type": "Floor"
+  },
+  {
+   "actionCode": "H30000",
+   "actionDate": "2026-06-09",
+   "sourceSystem": {
+    "code": 2,
+    "name": "House floor actions"
+   },
+   "text": "Considered under the provisions of rule H. Res. 1345. (consideration: CR H4017-4029)",
+   "type": "Floor"
+  },
+  {
+   "actionCode": "H1L220",
+   "actionDate": "2026-06-09",
+   "sourceSystem": {
+    "code": 2,
+    "name": "House floor actions"
+   },
+   "text": "Rule H. Res. 1345 passed House.",
+   "type": "Floor"
+  },
+  {
+   "actionCode": "H1L210",
+   "actionDate": "2026-06-08",
+   "sourceSystem": {
+    "code": 2,
+    "name": "House floor actions"
+   },
+   "text": "Rules Committee Resolution H. Res. 1345 Reported to House. Rule provides for consideration of H.R. 8312, H.R. 8464, H. Res. 1335 and S. 2. The resolution provides for consideration of H.R. 8312, H.R. 8464, H. Res. 1335, and S. 2 under a closed rule with one hour of general debate on each measure. The resolution provides for a motion to recommit H.R. 8312 and H.R. 8464 and a motion to commit S. 2.",
+   "type": "Floor"
+  },
+  {
+   "actionCode": "H15000",
+   "actionDate": "2026-06-08",
+   "sourceSystem": {
+    "code": 2,
+    "name": "House floor actions"
+   },
+   "text": "Held at the desk.",
+   "type": "Floor"
+  },
+  {
+   "actionCode": "H14000",
+   "actionDate": "2026-06-08",
+   "sourceSystem": {
+    "code": 2,
+    "name": "House floor actions"
+   },
+   "text": "Received in the House.",
+   "type": "Floor"
+  },
+  {
+   "actionDate": "2026-06-05",
+   "sourceSystem": {
+    "name": "Senate"
+   },
+   "text": "Message on Senate action sent to the House.",
+   "type": "Floor"
+  },
+  {
+   "actionDate": "2026-06-05",
+   "sourceSystem": {
+    "name": "Senate"
+   },
+   "text": "Passed Senate with an amendment by Yea-Nay Vote. 52 - 47. Record Vote Number: 163. (text: CR S2570-2571)",
+   "type": "Floor"
+  },
+  {
+   "actionCode": "17000",
+   "actionDate": "2026-06-05",
+   "sourceSystem": {
+    "code": 9,
+    "name": "Library of Congress"
+   },
+   "text": "Passed/agreed to in Senate: Passed Senate with an amendment by Yea-Nay Vote. 52 - 47. Record Vote Number: 163.",
+   "type": "Floor"
+  },
+  {
+   "actionDate": "2026-06-05",
+   "sourceSystem": {
+    "name": "Senate"
+   },
+   "text": "Motion by Senator Wyden to commit to Senate Committee on the Judiciary with instructions rejected in Senate by Voice Vote. (text: CR S2567)",
+   "type": "Floor"
+  },
+  {
+   "actionDate": "2026-06-05",
+   "sourceSystem": {
+    "name": "Senate"
+   },
+   "text": "Motion by Senator Rosen to commit to Senate Committee on the Judiciary with instructions rejected in Senate by Voice Vote. (text: CR S2567)",
+   "type": "Floor"
+  },
+  {
+   "actionDate": "2026-06-05",
+   "sourceSystem": {
+    "name": "Senate"
+   },
+   "text": "Motion by Senator Wyden to commit to Senate Committee on the Judiciary with instructions rejected in Senate by Yea-Nay Vote. 48 - 51. Record Vote Number: 153. (text: CR S2562)",
+   "type": "Floor"
+  },
+  {
+   "actionDate": "2026-06-04",
+   "sourceSystem": {
+    "name": "Senate"
+   },
+   "text": "Motion by Senator Warnock to commit to Senate Committee on the Judiciary with instructions rejected in Senate by Yea-Nay Vote. 46 - 52. Record Vote Number: 147. (text: CR S2558)",
+   "type": "Floor"
+  },
+  {
+   "actionDate": "2026-06-04",
+   "sourceSystem": {
+    "name": "Senate"
+   },
+   "text": "Motion by Senator Ossoff to commit to Senate Committee on the Judiciary with instructions rejected in Senate by Yea-Nay Vote. 47 - 50. Record Vote Number: 141. (text: CR S2552)",
+   "type": "Floor"
+  },
+  {
+   "actionDate": "2026-06-04",
+   "sourceSystem": {
+    "name": "Senate"
+   },
+   "text": "Motion by Senator Schumer to commit to Senate Committee on the Judiciary with instructions rejected in Senate by Yea-Nay Vote. 49 - 50. Record Vote Number: 137. (text: CR S2549)",
+   "type": "Floor"
+  },
+  {
+   "actionDate": "2026-06-04",
+   "sourceSystem": {
+    "name": "Senate"
+   },
+   "text": "Considered by Senate. (consideration: CR S2545-2571)",
+   "type": "Floor"
+  },
+  {
+   "actionDate": "2026-06-03",
+   "sourceSystem": {
+    "name": "Senate"
+   },
+   "text": "Measure laid before Senate by motion. (consideration: CR S2510-2518)",
+   "type": "Floor"
+  },
+  {
+   "actionDate": "2026-06-03",
+   "sourceSystem": {
+    "name": "Senate"
+   },
+   "text": "Motion to proceed to consideration of measure agreed to in Senate by Yea-Nay Vote. 53 - 46. Record Vote Number: 136.",
+   "type": "Floor"
+  },
+  {
+   "actionDate": "2026-05-20",
+   "sourceSystem": {
+    "name": "Senate"
+   },
+   "text": "Placed on Senate Legislative Calendar under General Orders. Calendar No. 417.",
+   "type": "Calendars"
+  },
+  {
+   "actionDate": "2026-05-20",
+   "sourceSystem": {
+    "name": "Senate"
+   },
+   "text": "Committee on the Budget. Original measure reported to Senate by Senator Graham. Without written report.",
+   "type": "Committee"
+  },
+  {
+   "actionCode": "14000",
+   "actionDate": "2026-05-20",
+   "sourceSystem": {
+    "code": 9,
+    "name": "Library of Congress"
+   },
+   "text": "Committee on the Budget. Original measure reported to Senate by Senator Graham. Without written report.",
+   "type": "Committee"
+  }
+ ]
+}

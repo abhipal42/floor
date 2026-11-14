@@ -1,0 +1,93 @@
+{
+ "bills": [
+  {
+   "congress": 119,
+   "introducedDate": "2026-11-10",
+   "latestAction": {
+    "actionDate": "2026-11-10",
+    "text": "Referred to the House Committee on Energy and Commerce."
+   },
+   "number": "10976",
+   "originChamber": "House",
+   "originChamberCode": "H",
+   "title": "Community Control of Data Centers Act",
+   "type": "HR",
+   "updateDate": "2026-11-12",
+   "updateDateIncludingText": "2026-11-12",
+   "url": "https://api.congress.gov/v3/bill/119/hr/10976?format=json"
+  },
+  {
+   "congress": 119,
+   "introducedDate": "2026-11-10",
+   "latestAction": {
+    "actionDate": "2026-11-10",
+    "text": "Referred to the House Committee on Small Business."
+   },
+   "number": "10977",
+   "originChamber": "House",
+   "originChamberCode": "H",
+   "title": "Small Business Tariff Relief Hotline Act",
+   "type": "HR",
+   "updateDate": "2026-11-12",
+   "updateDateIncludingText": "2026-11-12",
+   "url": "https://api.congress.gov/v3/bill/119/hr/10977?format=json"
+  },
+  {
+   "congress": 119,
+   "introducedDate": "2026-11-10",
+   "latestAction": {
+    "actionDate": "2026-11-10",
+    "text": "Referred to the House Committee on Oversight and Government Reform."
+   },
+   "number": "10982",
+   "originChamber": "House",
+   "originChamberCode": "H",
+   "title": "Protecting Vulnerable Patients, Seniors, and Families Act",
+   "type": "HR",
+   "updateDate": "2026-11-12",
+   "updateDateIncludingText": "2026-11-12",
+   "url": "https://api.congress.gov/v3/bill/119/hr/10982?format=json"
+  },
+  {
+   "congress": 119,
+   "introducedDate": "2026-11-10",
+   "latestAction": {
+    "actionDate": "2026-11-10",
+    "text": "Referred to the House Committee on Energy and Commerce."
+   },
+   "number": "10987",
+   "originChamber": "House",
+   "originChamberCode": "H",
+   "title": "Local Transmission Accountability Act",
+   "type": "HR",
+   "updateDate": "2026-11-12",
+   "updateDateIncludingText": "2026-11-12",
+   "url": "https://api.congress.gov/v3/bill/119/hr/10987?format=json"
+  },
+  {
+   "congress": 119,
+   "introducedDate": "2026-11-10",
+   "latestAction": {
+    "actionDate": "2026-11-10",
+    "text": "Referred to the Committee on Energy and Commerce, and in addition to the Committee on Intelligence (Permanent Select), for a period to be subsequently determined by the Speaker, in each case for consideration of such provisions as fall within the jurisdiction of the committee concerned."
+   },
+   "number": "10981",
+   "originChamber": "House",
+   "originChamberCode": "H",
+   "title": "American AI Security Act",
+   "type": "HR",
+   "updateDate": "2026-11-12",
+   "updateDateIncludingText": "2026-11-12",
+   "url": "https://api.congress.gov/v3/bill/119/hr/10981?format=json"
+  }
+ ],
+ "pagination": {
+  "count": 482,
+  "next": "https://api.congress.gov/v3/bill/119?fromDateTime=2026-11-12T00:00:00Z&sort=updateDate asc&offset=5&limit=5&format=json"
+ },
+ "request": {
+  "congress": "119",
+  "contentType": "application/json",
+  "format": "json"
+ }
+}

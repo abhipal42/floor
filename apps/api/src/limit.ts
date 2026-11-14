@@ -51,14 +51,22 @@ export interface RateLimitOptions {
   now?: () => number;
   /** Overridable so tests need not fake headers. */
   key?: (c: Context) => string;
+  /**
+   * Prefixes the caller's key, so routes sharing one store keep separate counts: without it a
+   * caller's searches would spend their address lookups.
+   */
+  scope?: string;
+  /** The 429 body's error. */
+  message?: string;
 }
 
 /**
  * Caps how often one caller may hit a route.
  *
- * Used on `/v1/reps`, which is the only route that reaches a third party — every lookup is a
- * request to the U.S. Census geocoder, and being rate-limited there would take the route down for
- * everyone. The rest of the API reads our own database and is cheap.
+ * Used on `/v1/reps`, the only route that reaches a third party — every lookup is a request to the
+ * U.S. Census geocoder, and being rate-limited there would take the route down for everyone — and,
+ * more loosely, on `/v1/search` and `/v1/topics`, which read our own database but run full-text
+ * and aggregate queries a stray client loop should not be able to repeat without limit.
  */
 export function rateLimit(options: RateLimitOptions): MiddlewareHandler {
   const store = options.store ?? new MemoryLimitStore();
@@ -67,7 +75,8 @@ export function rateLimit(options: RateLimitOptions): MiddlewareHandler {
 
   return async (c, next) => {
     const now = clock();
-    const { count, resetAt } = store.hit(keyOf(c), options.windowMs, now);
+    const key = options.scope ? `${options.scope}:${keyOf(c)}` : keyOf(c);
+    const { count, resetAt } = store.hit(key, options.windowMs, now);
     const remaining = Math.max(0, options.limit - count);
 
     c.header("RateLimit-Limit", String(options.limit));
@@ -76,7 +85,7 @@ export function rateLimit(options: RateLimitOptions): MiddlewareHandler {
 
     if (count > options.limit) {
       c.header("Retry-After", String(Math.ceil((resetAt - now) / 1000)));
-      return c.json({ error: "Too many address lookups. Please wait a moment and try again." }, 429);
+      return c.json({ error: options.message ?? "Too many address lookups. Please wait a moment and try again." }, 429);
     }
     await next();
   };

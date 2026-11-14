@@ -1,5 +1,6 @@
 import { startRun, type Db } from "./db.js";
 import { withRetry } from "./rollcalls.js";
+import { restage } from "./stage.js";
 
 /** What a vote is about, parsed from the chamber's measure reference. */
 export type MeasureRef =
@@ -166,21 +167,33 @@ export function toActionRows(actionsJson: Json): ActionRow[] {
   return rows;
 }
 
-/** Stores a bill with its actions in one statement. Unknown sponsors are stored as null. */
-export async function upsertBill(db: Db, bill: BillRow, actions: ActionRow[]): Promise<void> {
+/**
+ * Stores a bill with its actions in one statement, and stamps it as fetched (`details_fetched_at`).
+ * Unknown sponsors are stored as null. With `keepShortTitle`, the stored short title stays: the
+ * catalog skips the `/titles` request for bills whose display title already is one.
+ */
+export async function upsertBill(
+  db: Db,
+  bill: BillRow,
+  actions: ActionRow[],
+  opts: { keepShortTitle?: boolean } = {},
+): Promise<void> {
   await db.query(
     `with b as (
        insert into bills (id, congress, bill_type, number, title, short_title, sponsor_id, introduced_on,
                           origin_chamber, policy_area, summary, summary_stage, latest_action_on, latest_action_text,
-                          cbo_estimates, source_updated_at, updated_at)
+                          cbo_estimates, source_updated_at, updated_at, details_fetched_at)
        values ($1, $2, $3, $4, $5, $6, (select bioguide_id from members where bioguide_id = $7), $8,
-               $9::chamber, $10, $11, $12, $13, $14, $15::jsonb, $16, now())
+               $9::chamber, $10, $11, $12, $13, $14, $15::jsonb, $16, now(), now())
        on conflict (id) do update set
-         title = excluded.title, short_title = excluded.short_title, sponsor_id = excluded.sponsor_id,
+         title = excluded.title,
+         short_title = case when $18 then coalesce(bills.short_title, excluded.short_title) else excluded.short_title end,
+         sponsor_id = excluded.sponsor_id,
          introduced_on = excluded.introduced_on, origin_chamber = excluded.origin_chamber,
          policy_area = excluded.policy_area, summary = excluded.summary, summary_stage = excluded.summary_stage,
          latest_action_on = excluded.latest_action_on, latest_action_text = excluded.latest_action_text,
-         cbo_estimates = excluded.cbo_estimates, source_updated_at = excluded.source_updated_at, updated_at = now()
+         cbo_estimates = excluded.cbo_estimates, source_updated_at = excluded.source_updated_at, updated_at = now(),
+         details_fetched_at = now()
        returning id
      ), cleared as (
        delete from actions where bill_id = $1
@@ -192,20 +205,40 @@ export async function upsertBill(db: Db, bill: BillRow, actions: ActionRow[]): P
       bill.id, bill.congress, bill.bill_type, bill.number, bill.title, bill.short_title, bill.sponsor_id,
       bill.introduced_on, bill.origin_chamber, bill.policy_area, bill.summary, bill.summary_stage,
       bill.latest_action_on, bill.latest_action_text, JSON.stringify(bill.cbo_estimates), bill.source_updated_at,
-      JSON.stringify(actions),
+      JSON.stringify(actions), opts.keepShortTitle ?? false,
     ],
   );
 }
 
 export type CongressGet = (path: string) => Promise<Json>;
 
-/** Congress.gov API client. Retries rate limits and server errors with backoff. */
-export function congressClient(apiKey: string, fetchImpl: typeof fetch = fetch): CongressGet {
+/**
+ * What a caller can learn from, and impose on, every request a client sends: the catalog's
+ * `RequestBudget` implements it.
+ */
+export interface RequestMeter {
+  /** Awaited before every attempt, retries included, so a retried request is paced and counted. */
+  take(): Promise<void>;
+  /**
+   * api.data.gov's `X-RateLimit-Remaining` for the key, from every response that carries it. The
+   * key is shared by every job that uses it, so this is the one number that counts them all.
+   */
+  observe?(remaining: number): void;
+}
+
+/**
+ * Congress.gov API client. Retries rate limits and server errors with backoff. With a `meter`,
+ * every attempt waits on it and every response reports the key's remaining requests to it.
+ */
+export function congressClient(apiKey: string, fetchImpl: typeof fetch = fetch, meter?: RequestMeter): CongressGet {
   return async (path) => {
     const sep = path.includes("?") ? "&" : "?";
     const url = `https://api.congress.gov/v3${path}${sep}format=json&api_key=${apiKey}`;
     for (let attempt = 1; ; attempt++) {
+      await meter?.take();
       const res = await fetchImpl(url, { headers: { "user-agent": "floor-ingest/0.1" } });
+      const remaining = Number(res.headers.get("x-ratelimit-remaining") ?? Number.NaN);
+      if (Number.isFinite(remaining)) meter?.observe?.(remaining);
       if (res.ok) return (await res.json()) as Json;
       if ((res.status === 429 || res.status >= 500) && attempt < 5) {
         await new Promise((r) => setTimeout(r, 1000 * 2 ** attempt));
@@ -215,6 +248,23 @@ export function congressClient(apiKey: string, fetchImpl: typeof fetch = fetch):
       throw new Error(`Congress.gov ${path} returned HTTP ${res.status}`);
     }
   };
+}
+
+/**
+ * A bill's actions, every page: `/actions` stops at 250 a page, and the largest bills (an NDAA, an
+ * omnibus) have more. Merged into one response so `toActionRows` reads it as one.
+ */
+export async function fetchActions(get: CongressGet, billPath: string): Promise<Json> {
+  const first = await get(`${billPath}/actions?limit=250`);
+  const all = [...list(first["actions"])];
+  const count = Number((first["pagination"] as Json | undefined)?.["count"] ?? all.length);
+  for (let offset = 250; offset < count && all.length >= offset; offset += 250) {
+    const page = await get(`${billPath}/actions?limit=250&offset=${offset}`);
+    const items = list(page["actions"]);
+    if (items.length === 0) break;
+    all.push(...items);
+  }
+  return { ...first, actions: all };
 }
 
 /**
@@ -260,7 +310,7 @@ export async function ingestVotedBills(
       try {
         const [bill, actions, summaries, titles] = await Promise.all([
           get(path),
-          get(`${path}/actions?limit=250`),
+          fetchActions(get, path),
           get(`${path}/summaries`),
           get(`${path}/titles?limit=250`),
         ]);
@@ -273,8 +323,11 @@ export async function ingestVotedBills(
             [id, b.congress, b.refs],
           );
           linkedVotes += linked[0]?.n ?? 0;
+          // A passage vote can settle a chamber before the bill's actions say so (stage.ts).
+          await restage(db, [id]);
           opts.log?.(`${id}: linked ${linked[0]?.n ?? 0} votes`);
         } else {
+          await restage(db, [id]);
           opts.log?.(`${id}: refreshed`);
         }
         bills++;

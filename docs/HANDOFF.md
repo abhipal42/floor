@@ -10,6 +10,9 @@ landed in v0.2.25, with M5's accessibility pass and privacy manifests; one item 
 the top of the M2 section: TestFlight distribution. **M3's backend is
 built but not deployed** (v0.2.24): the live worker, vote state, `/v1/live`, realtime, APNs and
 alerting plumbing. Turning it on needs a Fly account and a migration applied; see the M3 section.
+**Round 10's server side is built** (v0.2.26): every bill of the Congress (not only voted ones),
+a stored road-to-law stage, and `/v1/topics`, `/v1/topics/{name}/bills` and `/v1/search`. It waits
+on a migration and a 10–16-hour backfill; see "Round 10" in §5.
 
 ---
 
@@ -50,6 +53,8 @@ npm run ingest -w @floor/worker -- rollcalls house 119 2          # new House vo
 npm run ingest -w @floor/worker -- rollcalls senate 119 2         # same for the Senate
 npm run ingest -w @floor/worker -- rollcalls house current        # the session in progress (what the hourly schedule runs)
 npm run ingest -w @floor/worker -- bills                          # load bills that votes refer to (only missing ones)
+npm run ingest -w @floor/worker -- bill-catalog                   # every bill of the Congress: list, details where due, stage (1,200 requests max)
+npm run ingest -w @floor/worker -- bill-catalog --full --budget 46000 --rate 3000   # the one-time backfill (~16 h, leaves the hourly job room; see Round 10)
 npm run ingest -w @floor/worker -- nominations                    # load nominations that Senate votes refer to
 npm run ingest -w @floor/worker -- fec-totals                     # campaign totals for every current member (OpenFEC, ~10 min)
 npm run ingest -w @floor/worker -- fec-pacs 2026                  # committee-to-candidate totals from the FEC bulk files (~30 s)
@@ -60,7 +65,7 @@ npm run ingest -w @floor/worker -- latency 30                     # roll call po
 npm run loadtest -w @floor/api -- --duration 30 --connections 50 # vote-night load test against a LOCAL API (refuses production)
 npm run openapi -w @floor/api                                    # regenerate apps/api/openapi.json after changing routes
 npm run build -w @floor/web && npm run serve -w @floor/web       # build and serve the landing page from apps/web/dist
-swift test --package-path ios/FloorKit                           # all FloorKit tests (252): models, contract, client, screen models
+swift test --package-path ios/FloorKit                           # all FloorKit tests (317): models, contract, client, screen models, snapshots
 ```
 
 `apps/api/openapi.json` is the committed contract. Re-run `npm run openapi` after any change to
@@ -83,9 +88,9 @@ Command Line Tools rather than Xcode: run it with `DEVELOPER_DIR=/Applications/X
 |---|---|---|
 | `packages/shared` | Types + roll call parsers (House Clerk XML, Senate LIS XML) + floor-event parsers (House floor summary, Senate schedule, floor page and vote menu) and Eastern-time helpers | `src/rollcall.ts`, `src/floor.ts`, fixtures in `fixtures/` (real government files) |
 | `packages/db` | Migration loader used by tests | `src/migrations.test.ts` |
-| `supabase/migrations` | Postgres schema (applied to staging in filename order) | 11 migrations; `20261113000100_ingest_failed.sql` (lesson 38), `20261114000000_bill_analyses_ai.sql` (M4) and `20261114000100_live_layer.sql` (M3) are **not yet applied** to staging |
-| `apps/worker` | Ingest CLI: members, roll calls, bills, nominations, campaign finance, AI bill analysis; the always-on live worker (M3) | `src/cli.ts`, `rollcalls.ts`, `bills.ts`, `nominations.ts`, `members.ts`, `fec.ts`, `analysis.ts` (M4 Layer 1), `analysis-eval.ts`, `db.ts`; live: `live.ts`, `realtime.ts`, `apns.ts`, `alert.ts`, `Dockerfile`, `fly.toml` |
-| `apps/api` | Hono REST API with OpenAPI at `/openapi.json` | `src/app.ts` (routes + schemas), `pg.ts` (Postgres), `district.ts` (Census) |
+| `supabase/migrations` | Postgres schema (applied to staging in filename order) | 12 migrations; `20261113000100_ingest_failed.sql` (lesson 38), `20261114000000_bill_analyses_ai.sql` (M4), `20261114000100_live_layer.sql` (M3) and `20261115000000_bill_catalog.sql` (Round 10) are **not yet applied** to staging |
+| `apps/worker` | Ingest CLI: members, roll calls, bills, nominations, campaign finance, AI bill analysis; the always-on live worker (M3) | `src/cli.ts`, `rollcalls.ts`, `bills.ts`, `catalog.ts` (every bill of the Congress), `stage.ts` (road-to-law stage), `nominations.ts`, `members.ts`, `fec.ts`, `analysis.ts` (M4 Layer 1), `analysis-eval.ts`, `db.ts`; live: `live.ts`, `realtime.ts`, `apns.ts`, `alert.ts`, `Dockerfile`, `fly.toml` |
+| `apps/api` | Hono REST API with OpenAPI at `/openapi.json` | `src/app.ts` (routes + schemas), `pg.ts` (Postgres), `bills.ts` (citations, short labels, bill-number parsing, the 32 topics), `district.ts` (Census) |
 | `apps/web` | Landing page (v0.2.0): static HTML/CSS/TypeScript built with `tsc`, no framework | `src/data.ts` (every figure, with source and date), `src/logic.ts` (pure helpers), `src/main.ts` (rendering), `public/` |
 | `ios/` | SwiftUI app (XcodeGen, `project.yml`), `FloorKit` package: `Models`, `APIClient`, `DesignSystem`, `Onboarding`, `Home`, `VoteScreen`, `BillScreen`, `RepScreen`, `WidgetFeed`; `FloorWidgets/` (the WidgetKit extension) | `FloorKit/Sources/Models/` (one file per area, `Samples.swift` for previews), `FloorKit/Tests/ModelsTests/ContractTests.swift`, `DesignSystem/ScoreboardCard.swift`, `DesignSystem/Components.swift`, `DesignSystem/Fonts/` (Barlow Condensed, OFL), `Home/FloorShell.swift` (tabs), `Home/CatchUp.swift`, `Models/VoteOutcome.swift`, `BillScreen/LawLevels.swift`, `APIClient/ResponseCache.swift` (offline cache), `DesignSystem/SavedDataNote.swift` |
 | `.github/workflows/ci.yml` | `scope` job (which parts changed) + node job (lint/typecheck/tests + OpenAPI drift) + macOS job (Swift tests + simulator build). **Pushes to `main` only** since 2026-11-13 — a PR never builds the code — and the macOS job runs only when the push touched `ios/` or `.github/` | |
@@ -107,6 +112,9 @@ Command Line Tools rather than Xcode: run it with `DEVELOPER_DIR=/Applications/X
 | `GET /v1/bills/{id}/analysis` | AI analysis of the bill's CRS summary (M4 Layer 1): purpose, provisions, affected groups, impact. `ai: true` on the response and on every line, a `disclaimer` to show with it, and per line the summary paragraph it cites (1-based, into `source.paragraphs`), a verbatim quote and the bill section. `source.stale` means the summary has changed since and a new analysis is pending. 404 until the worker has analysed the bill; **no UI shows it yet** (needs a locked design) |
 | `GET /v1/nominations/{id}` | Nominee, position, agency, received and latest action, every Senate vote on it. IDs look like `119-pn-1093-3` |
 | `GET /v1/live?since=` | Each chamber's session state as the live worker last saw it (`inSession`, `convenesAt`, `checkedAt`), and the votes that are `open` (named in the last day) or that the worker published as `final` within `since` minutes (`broadcast_at`; default 120, max 1440) and that were themselves voted in the last day, with `openedAt` / `announcedAt` / `postedAt`. Sent with `Cache-Control: public, max-age=5, s-maxage=5`, so Vercel's edge answers vote-night polling. Empty — `{chambers: [], votes: []}`, not an error — on a database without the M3 migration (Postgres `42P01`/`42703` are read as "nothing live"), and until the worker runs |
+| `GET /v1/topics?congress=` | The 32 CRS policy areas in a fixed order, each with its bill count, how many of those had a floor vote, and the latest action date, for one Congress (default: the one in session). Areas with no bills are listed with zeros. Cached (`TOPICS_CACHE_CONTROL`, 5 min / edge 15 min); 120 a minute per caller |
+| `GET /v1/topics/{name}/bills?filter=all\|moving\|law\|stalled&cursor=&limit=` | A topic's bills, newest action first, 25 a page (max 50), keyset-paginated: pass `nextCursor` back as `cursor`. Each row: citation, plain short `label`, full title, `stage` (null for a bill not yet fetched in detail, which counts as unsettled), `stalled`, latest action, `hasFloorVote`. The cursor carries the stored action date, so a row with a date but no action text pages correctly. `moving` = not settled and acted on in 90 days; `stalled` = not settled, no action in 90 days (computed per request); settled = law, adopted, vetoed, failed. `name` is case-insensitive (`health`, `Arts%2C%20Culture%2C%20Religion`); 404 for anything not one of the 32, 400 for a cursor it did not issue. Same cache and limit as `/v1/topics`, and one count shared with it (each request counts once) |
+| `GET /v1/search?q=` | `{members, bills, topics}` in one call. A bill number in any spelling (`hr 1013`, `H.R.1013`, `s 2`, `hjres 12`, `s.j.res.197`, `119-hr-1013`) returns exactly that bill in every Congress, newest first, with `billNumber: true`, and nothing else. Otherwise words match bills by Postgres full-text search (short title, title, CRS summary; GIN index; current Congress ranked first; 20 max), topics by name, and serving members by name, state (`TX`, `Texas`) or district (`TX-35`, `WY-AL`) via `memberQuery` in `pg.ts` (10 max). Companion bills (the House and Senate versions of one measure) are separate results, not linked. 2–100 characters. Cached 1 min / edge 5 min; 60 a minute per caller |
 | `GET /v1/status` | Per ingest source: last successful run, `lastNewDataAt` (last successful run that stored anything — the freshness signal `stale` cannot give once ingest is scheduled, lesson 38), the error of its latest run with an outcome (null once a later run succeeds; `abandoned run` for one that never finished within an hour, lessons 35 and 38), and `stale` |
 | `GET /openapi.json` | The contract. The Swift models are hand-written against it, and `ContractTests` fail CI if they drift (see M2). |
 
@@ -117,7 +125,7 @@ Command Line Tools rather than Xcode: run it with `DEVELOPER_DIR=/Applications/X
 | `members` | 716 | Everyone serving now, plus anyone whose last term ended after 2022-11-01. One party is corrected on ingest; see lesson 14 |
 | `votes` | 3,532 | House + Senate, 118th–119th Congress, Jan 3 2023 → Nov 11 2026. 20 are Speaker elections (`kind = 'election'`). Every vote with a measure reference is linked to a bill or a nomination |
 | `vote_positions` | 995,806 | Verified: every vote's positions add up to its official totals; no vote lacks positions |
-| `bills` / `actions` | 1,049 / 19,714 | Every bill a vote refers to; 976 have a CRS summary. All 2,319 votes on bills are linked (`votes.bill_id`) |
+| `bills` / `actions` | 1,050 / 19,714 | Every bill a vote refers to (531 from the 118th Congress, 519 from the 119th); 976 have a CRS summary. All 2,319 votes on bills are linked (`votes.bill_id`). **Round 10 widens this to every bill of the 119th Congress (19,964 listed on 2026-11-13) once `20261115000000_bill_catalog.sql` is applied and the backfill has run**; until then `stage`, `list_updated_on`, `details_fetched_at` and `search` do not exist and the topic and search routes answer empty |
 | `nominations` | 448 | Every nomination a vote refers to; 201 are parts of a split nomination, 10 are military (no named nominee). All 905 nomination votes are linked (`votes.nomination_id`) |
 | `campaign_finance` | 512 | One row per current member: OpenFEC totals for their current campaign to date (House 2025–26; senators since their last election), with cash on hand. Of 537 current members, 23 have no totals filed for that campaign and 2 appointed senators (OK, SC) have no FEC ID yet; the page must say so rather than show nothing |
 | `pac_contributions` | 103,564 | Per member and giving committee, 2026 cycle: direct and earmarked totals, committee designation, type and organization type. No memo text, no individual names (lesson 23) |
@@ -426,6 +434,45 @@ Real data broke our first assumptions several times. Each case below is now hand
     size at the default and scales from there, and the AX5 snapshots are what catch the next row
     that cannot hold it. Related: SwiftUI's `accessibilityReduceMotion` is read-only, so a test or a
     preview cannot ask for the settled frame through it — hence `playsArrivalAnimations`.
+
+46. **Most bills of a Congress never reach a vote, and the House reserves numbers.** On 2026-11-13
+    Congress.gov listed 19,964 bills and resolutions for the 119th Congress; 519 of them had a roll call.
+    The list also carries placeholders the House holds for its leadership — H.R. 1–11 read "Reserved for
+    the Speaker." or "Reserved for the Minority Leader." with no action, sponsor or text — and the catalog
+    skips them (a number later introduced for real changes title and `updateDate`, and is listed then).
+47. **The bill list's `updateDate` is a date, not a time.** `/bill/{congress}` gives `2026-11-12`, while a
+    bill's own detail says `2026-11-12T05:53:39Z`. So an incremental run cannot ask "changed since my last
+    run": it lists from a day before the newest date stored, and a bill fetched during the day it changed
+    is fetched once more after that day ends (`detailsDue` in `catalog.ts`), or a second change the same day
+    would go unseen. `fromDateTime` works without `toDateTime`. Offset paging over a list sorted by update
+    date can skip a row when a bill earlier in it is updated mid-run, so the daily 06 UTC run re-lists in
+    full (~80 requests).
+48. **Most bills have no CRS summary, and the display title usually is the short title.** Of 30 random
+    119th-Congress bills, 8 had a CRS summary (CRS writes them weeks to months after introduction) and all
+    30 had a policy area. Full-text search over summaries therefore finds mostly voted and older bills;
+    titles carry the rest. Congress.gov's `title` is the short title when the bill had one at introduction
+    (306 of the 326 stored 118th-Congress bills with a short title showed it as `title`), so the catalog
+    fetches `/titles` only when the title reads like an official one ("To amend …", 62 of 750 listed):
+    about 2.35 requests a bill on average instead of 4.
+49. **Presented, vetoed and signed are House actions too, not only markers.** "Presented to President.",
+    "Vetoed by President." and "Signed by President." appear under the House's source system as well as
+    Library of Congress markers, so the stage reads them from any action's text. A veto override that
+    fails is its own marker ("Failed of passage in House over veto"), not "Failed of passage/not agreed
+    to", so H.R. 131 (119th) stages as `vetoed`, not `failed`.
+50. **A failed suspension vote is not a failed bill.** "Failed of passage/not agreed to in House On
+    motion to suspend the rules and pass the bill …" is the same marker a real defeat gets, but a
+    suspension needs two thirds and the House can still pass the bill under a rule. In staging on
+    2026-11-13, four 119th-Congress bills carried that marker with no later passage — among them
+    H.R. 9238 (198–218) and S. 2503, which had passed the Senate and then fell short in the House
+    264–133, a majority. Both would have staged `failed` (settled, so hidden from "moving"); they
+    stage `introduced` and `passed_senate`.
+51. **Our api.data.gov key's limit is 20,000 requests an hour, not 5,000**, and every response says
+    how many are left: `X-RateLimit-Limit: 20000`, `X-RateLimit-Remaining: 19944` on 2026-11-13. The
+    catalog reads `X-RateLimit-Remaining` and stops below 500, so it yields to the per-vote and
+    nominations steps and the live worker however much they spent. The 4,500-an-hour default pace
+    was set for a standard 5,000 key and is left there: it is the safe figure if the key is ever
+    replaced, and `--rate` raises it. A listing row can also lack `updateDate`; none has been seen,
+    and the catalog skips and counts such a row rather than store it with no high-water mark.
 
 ---
 
@@ -1317,6 +1364,90 @@ steps ship as 0.2.x PATCH releases; 0.3.0 closes the milestone with its retro.
    bulk index. 5 U.S.C. §13107 bars using these reports for commercial purposes other than news
    media, so the spike reports both what parses reliably and the open legal question before any
    build.
+
+### Round 10: follow bills and topics — the server side (v0.2.26)
+
+**Design:** locked artifact "Round 10 · Follow bills and topics"
+(<https://claude.ai/artifact/8Qfr9ymPEKuYGSLjiuXdS2>). This PR is the API and data only; the
+Following tab's Bills and Topics segments, the topic page and "+ Add" search are a later iOS PR on
+these routes, and member following is being built separately.
+
+- **Every bill of the Congress** (`apps/worker/src/catalog.ts`, command `bill-catalog`). Lists
+  `/bill/{congress}` 250 at a time oldest update first, upserting what the list gives (title, type,
+  number, origin, introduced date, latest action, `updateDate` → `list_updated_on`); then fetches the
+  detail of each bill whose list date is newer than its `details_fetched_at` (bill + actions always;
+  summaries only when it has one; titles only when the title is not already a short one — lesson 48);
+  then stages every fetched bill that has no stage. Bills already fetched that changed are fetched
+  before never-fetched ones (`order by (details_fetched_at is null), details_fetched_at, …`), so the
+  backfill never holds up a followed bill's news. Actions are paged past 250. Concurrency 4, paced
+  by `RequestBudget` (default 4,500 requests an hour, `--rate`; client retries count), capped per
+  run (`--budget`, default 1,200); it stops quietly on a 429 that survives the client's retries, or
+  once the key's `X-RateLimit-Remaining` is below the reserve (`--reserve`, default 500; lesson 51).
+  A re-list only writes rows whose listed fields changed (`is distinct from`), a page is
+  deduplicated by id before its upsert, and a full listing logs a warning when the stored count
+  differs from Congress.gov's `pagination.count`. It logs what is due and the estimated requests
+  and hours to clear it. The per-vote `bills` step is unchanged and still links
+  votes; it now also stamps `details_fetched_at` and restages the bill after linking.
+- **The hourly ingest** (`ingest.yml`) runs `bill-catalog --budget 1200` after Nominations, and
+  `--full` at 06 UTC and on manual runs (lesson 47). Still inert until the repo has its secrets.
+- **Stage** (`apps/worker/src/stage.ts`, stored in `bills.stage`, formerly the never-written
+  `status`): `introduced`, `passed_house`, `passed_senate`, `passed_both`, `to_president`, `law`,
+  `vetoed`, `failed`, and `adopted` for a resolution agreed to by every chamber it needs. The same
+  reading as FloorKit's `BillProgress`/`LawLevels` — Congress.gov's chamber-less summary markers, plus
+  a chamber's own passage roll call when the marker lags (H.R. 1013) — tested on twelve real bills.
+  "Stalled" is not stored: the API computes it per request (not settled, no action in 90 days). A
+  failed motion to proceed or cloture, or a failed suspension vote (lesson 50), leaves a bill
+  `introduced`/`passed_*` (the design's "VOTE FAILED" chip is the latest action, which every row
+  carries). Motions to table, refer, commit or reconsider never count as passage, and a concurrent
+  resolution agreed to "with an amendment" is not adopted until the other chamber agrees. **A bill
+  known only from the list has stage null** — the list's one latest action cannot say where it
+  stands — except "Became Public Law No: …", which settles it as `law`; the API's contract already
+  says null means "not staged yet".
+- **Short labels** (`billLabel` in `apps/api/src/bills.ts`): the short title; else Congressional Review
+  Act resolutions become "Disapproving X's rule: Y", arms-sale disapprovals "Disapproving the arms sale
+  to Qatar" (with the title's own verb: "arms export" for an export licence, "arms transfer"), House rules "Rule for H.R. 140, H.J.Res. 27 and S. 619", en bloc nomination resolutions
+  "Confirming nominations en bloc", and anything else loses "A bill"/"A joint resolution" and ", and for
+  other purposes"; capped at 160 characters at a word. Deterministic, tested on 16 real titles and one
+  constructed transfer title.
+- **Search** uses `bills.search`, a stored generated `tsvector` (short title A, title B, summary C)
+  with a GIN index, queried with `websearch_to_tsquery`. Member matching is `memberQuery` in `pg.ts`,
+  written to be shared: the member-following work's `GET /v1/members?q=` (not on `main` when this
+  landed) should call it rather than parse names again.
+- **Topics** are the 32 CRS policy areas (`POLICY_AREAS`). Congress.gov also uses "Private
+  Legislation"; it is not offered as a topic. Counts are per Congress (default: the one in session,
+  `congressOn`), so the design's "29 bills with a floor vote" for Health (both Congresses) reads 9 for
+  the 119th alone until the backfill adds the rest.
+- **Swift:** `BillStage`, `TopicFilter`, `BillListItem`, `Topic`, `TopicList`, `TopicBills`,
+  `SearchResults` in `FloorKit/Sources/Models/Topics.swift` (samples in `TopicSamples.swift`), covered
+  by `ContractTests`. `BillListItem` decodes a stage it does not know as nil, so a stage added on the
+  server cannot fail a page. No client methods or UI yet.
+
+**Turning it on (in this order):**
+
+1. Apply `supabase/migrations/20261115000000_bill_catalog.sql` (renames `bills.status` to `stage` with
+   a check, adds `list_updated_on`, `details_fetched_at` — set to `updated_at` for the 1,050 bills
+   already stored — and the generated `search` column with its GIN index, plus `bills_topic`). No new
+   table, so no new policy: `bills` keeps its public read policy. Re-run Supabase's security advisor
+   afterwards anyway (lesson 8). **Apply it before running this version's worker**: `bills` and
+   `bill-catalog` write the new columns and fail without them. The API is safe either way: until the
+   migration the topic pages and bill search answer empty (`liveQuery`), and `/v1/topics` counts by
+   `policy_area`, which exists already.
+2. Run the backfill once, from a machine with the production `.env`. Measured on 2026-11-13: 19,964
+   listed, ~19,400 of them never fetched, ~2.35 requests a bill → about **46,000 requests**. The
+   hourly ingest shares the key (its catalog step alone spends up to 1,200 an hour), so either:
+   - **leave the workflow running and slow the backfill down** (~16 hours):
+     `npm run ingest -w @floor/worker -- bill-catalog --full --budget 46000 --rate 3000`; or
+   - **pause the workflow** (`gh workflow disable ingest.yml -R abhipal42/floor`), run
+     `npm run ingest -w @floor/worker -- bill-catalog --full --budget 46000` (~10 hours at the
+     default 4,500 an hour), then `gh workflow enable ingest.yml -R abhipal42/floor`.
+
+   Either way the run stops itself if the key drops below 500 requests left this hour (lesson 51);
+   it resumes where it stopped (run it again). Without a manual run, the hourly step clears it in
+   about 38 runs (~1.6 days) once the repo has its secrets. The run stages all 1,050 existing bills
+   from their stored actions on its way out, with no requests; bills not yet fetched stay unstaged.
+3. Then add `bill_catalog: 48` to `MAX_AGE_HOURS` in `apps/api/src/app.ts`, so `/v1/status` watches the
+   source. It is left out until the first run, or `/v1/status` would report `ok: false` (and the alerter
+   fire) from the moment this deploys.
 
 ### M5: Beta hardening + App Store
 Accessibility (Dynamic Type, VoiceOver on score cards), privacy labels, a vote-night load test, App Review prep, public TestFlight.

@@ -1,7 +1,12 @@
 import { AI_DISCLAIMER } from "./app.js";
+import { billCitation, billLabel } from "./bills.js";
 import type {
   Bill,
+  BillListItem,
   BillRepository,
+  BillStage,
+  CatalogRepository,
+  TopicFilter,
   LiveRepository,
   CandidateTotal,
   MeasureSummary,
@@ -66,7 +71,9 @@ const MISSING_SCHEMA = new Set(["42P01", "42703"]);
 /**
  * Queries for /v1/live, where a database without the M3 migration (`chamber_status`,
  * `votes.broadcast_at`) answers "nothing live" rather than a 500: the route's documented empty
- * state. Any other error still throws.
+ * state. Any other error still throws. The bill lists (topic pages, search) use it the same way
+ * for `bills.stage` and `bills.search` (20261115000000_bill_catalog.sql): the API deploys on merge,
+ * before the migration is applied.
  */
 const liveQuery =
   (db: Db) =>
@@ -140,24 +147,90 @@ const toMember = (r: MemberRow): Member => ({
   chamber: r.chamber,
 });
 
-/**
- * How each chamber writes a bill number. Defined once because both `getBill` and the vote feed
- * report it: if they formatted it separately, the same bill could appear as "H.R. 1013" on one
- * screen and something else on another.
- */
-const BILL_LABEL: Record<string, string> = {
-  hr: "H.R.",
-  s: "S.",
-  hres: "H.Res.",
-  sres: "S.Res.",
-  hjres: "H.J.Res.",
-  sjres: "S.J.Res.",
-  hconres: "H.Con.Res.",
-  sconres: "S.Con.Res.",
+/** A bill row as every bill list reads it. */
+const LIST_COLUMNS = `b.id, b.congress, b.bill_type, b.number, b.title, b.short_title, b.policy_area, b.stage,
+  b.latest_action_on, b.latest_action_text,
+  (b.stage is null or b.stage not in ('law', 'adopted', 'vetoed', 'failed'))
+    and (b.latest_action_on is null or b.latest_action_on < ($NOW::timestamptz at time zone 'America/New_York')::date - 90) as stalled,
+  exists (select 1 from votes v where v.bill_id = b.id) as has_floor_vote`;
+
+/** `LIST_COLUMNS` with the parameter that carries "now" numbered for the query it goes into. */
+const listColumns = (nowParam: number) => LIST_COLUMNS.replaceAll("$NOW", `$${nowParam}`);
+
+interface ListRow {
+  id: string;
+  congress: number;
+  bill_type: string;
+  number: number;
+  title: string;
+  short_title: string | null;
+  policy_area: string | null;
+  stage: BillStage | null;
+  latest_action_on: Date | string | null;
+  latest_action_text: string | null;
+  stalled: boolean;
+  has_floor_vote: boolean;
+}
+
+const toListItem = (r: ListRow): BillListItem => ({
+  id: r.id,
+  congress: r.congress,
+  type: r.bill_type,
+  number: r.number,
+  citation: billCitation(r.bill_type, r.number),
+  label: billLabel(r.title, r.short_title),
+  title: r.title,
+  policyArea: r.policy_area,
+  stage: r.stage,
+  stalled: r.stalled,
+  latestAction:
+    r.latest_action_on && r.latest_action_text ? { on: day(r.latest_action_on)!, text: r.latest_action_text } : null,
+  hasFloorVote: r.has_floor_vote,
+});
+
+/** Filters on a topic page. Settled = nothing more will happen: law, adopted, vetoed, failed. */
+const TOPIC_FILTER_SQL: Record<TopicFilter, string> = {
+  all: "true",
+  moving: `(b.stage is null or b.stage not in ('law', 'adopted', 'vetoed', 'failed'))
+           and b.latest_action_on >= ($NOW::timestamptz at time zone 'America/New_York')::date - 90`,
+  law: "b.stage = 'law'",
+  stalled: `(b.stage is null or b.stage not in ('law', 'adopted', 'vetoed', 'failed'))
+            and (b.latest_action_on is null or b.latest_action_on < ($NOW::timestamptz at time zone 'America/New_York')::date - 90)`,
 };
 
-const billCitation = (type: string, number: number): string =>
-  `${BILL_LABEL[type] ?? type.toUpperCase()} ${number}`;
+const STATE_NAMES: Record<string, string> = {
+  alabama: "AL", alaska: "AK", arizona: "AZ", arkansas: "AR", california: "CA", colorado: "CO", connecticut: "CT",
+  delaware: "DE", florida: "FL", georgia: "GA", hawaii: "HI", idaho: "ID", illinois: "IL", indiana: "IN", iowa: "IA",
+  kansas: "KS", kentucky: "KY", louisiana: "LA", maine: "ME", maryland: "MD", massachusetts: "MA", michigan: "MI",
+  minnesota: "MN", mississippi: "MS", missouri: "MO", montana: "MT", nebraska: "NE", nevada: "NV",
+  "new hampshire": "NH", "new jersey": "NJ", "new mexico": "NM", "new york": "NY", "north carolina": "NC",
+  "north dakota": "ND", ohio: "OH", oklahoma: "OK", oregon: "OR", pennsylvania: "PA", "rhode island": "RI",
+  "south carolina": "SC", "south dakota": "SD", tennessee: "TN", texas: "TX", utah: "UT", vermont: "VT",
+  virginia: "VA", washington: "WA", "west virginia": "WV", wisconsin: "WI", wyoming: "WY",
+  "district of columbia": "DC", "american samoa": "AS", guam: "GU", "northern mariana islands": "MP",
+  "puerto rico": "PR", "virgin islands": "VI",
+};
+const STATE_CODES = new Set(Object.values(STATE_NAMES));
+
+/**
+ * How a member search reads its query. Shared so every route that finds members by text (search
+ * today; a member picker's `?q=` when one lands) reads "TX-35", "Texas" and "Doggett" the same way.
+ *
+ * - `TX-35`, `tx 35`, `TX35`, `TX-AL`: that state's member for the district (at-large is 0).
+ * - `TX`, `Texas`, `new york`: every serving member from the state.
+ * - Anything else: names. Every word must start the first or last name ("lloyd dogg").
+ */
+export function memberQuery(q: string): { state: string; district: number | null } | { words: string[] } | null {
+  const text = q.trim().toLowerCase().replace(/\s+/g, " ");
+  const district = /^([a-z]{2})[\s-]?(\d{1,2}|al)$/.exec(text);
+  if (district && STATE_CODES.has(district[1]!.toUpperCase())) {
+    return { state: district[1]!.toUpperCase(), district: district[2] === "al" ? 0 : Number(district[2]) };
+  }
+  if (text.length === 2 && STATE_CODES.has(text.toUpperCase())) return { state: text.toUpperCase(), district: null };
+  if (STATE_NAMES[text]) return { state: STATE_NAMES[text]!, district: null };
+  const words = text.split(/[^\p{L}'-]+/u).filter((w) => w.length >= 2);
+  return words.length > 0 ? { words } : null;
+}
 
 /** The columns both the feed and the vote route select to describe a vote's measure. */
 const MEASURE_COLUMNS = `b.bill_type, b.number as bill_number, b.short_title as bill_short_title,
@@ -344,8 +417,93 @@ export function pgRepositories(db: Db): {
   nominations: NominationRepository;
   status: StatusRepository;
   live: LiveRepository;
+  catalog: CatalogRepository;
 } {
   return {
+    catalog: {
+      async topicCounts(congress) {
+        const { rows } = await db.query<{ name: string; bills: number; voted: number; latest: Date | string | null }>(
+          `select b.policy_area as name, count(*)::int as bills,
+                  count(*) filter (where exists (select 1 from votes v where v.bill_id = b.id))::int as voted,
+                  max(b.latest_action_on) as latest
+             from bills b
+            where b.congress = $1 and b.policy_area is not null
+            group by b.policy_area`,
+          [congress],
+        );
+        return rows.map((r) => ({ name: r.name, bills: r.bills, billsWithFloorVote: r.voted, latestActionOn: day(r.latest) }));
+      },
+      async topicBills(congress, topic, filter, after, limit, now) {
+        // Keyset pagination on (latest_action_on desc nulls last, id desc), the bills_topic index's order.
+        const params: unknown[] = [congress, topic, now.toISOString(), limit];
+        let page = "true";
+        if (after) {
+          params.push(after.id);
+          if (after.on === null) {
+            page = `b.latest_action_on is null and b.id < $5`;
+          } else {
+            params.push(after.on);
+            page = `(b.latest_action_on < $6::date or (b.latest_action_on = $6::date and b.id < $5) or b.latest_action_on is null)`;
+          }
+        }
+        const { rows } = await liveQuery(db)<ListRow>(
+          `select ${listColumns(3)} from bills b
+            where b.congress = $1 and b.policy_area = $2 and ${TOPIC_FILTER_SQL[filter].replaceAll("$NOW", "$3")} and ${page}
+            order by b.latest_action_on desc nulls last, b.id desc
+            limit $4`,
+          params,
+        );
+        return rows.map((r) => ({ bill: toListItem(r), at: { on: day(r.latest_action_on), id: r.id } }));
+      },
+      async billsByNumber(type, number, congress, now) {
+        const { rows } = await liveQuery(db)<ListRow>(
+          `select ${listColumns(4)} from bills b
+            where b.bill_type = $1 and b.number = $2 and ($3::int is null or b.congress = $3::int)
+            order by b.congress desc`,
+          [type, number, congress, now.toISOString()],
+        );
+        return rows.map(toListItem);
+      },
+      async searchBills(q, congress, limit, now) {
+        // websearch_to_tsquery reads what people type ("rural health", "\"clean water\"", "-tariff")
+        // and never throws on stray punctuation. The current Congress ranks ahead of older ones.
+        const { rows } = await liveQuery(db)<ListRow>(
+          `select ${listColumns(4)} from bills b, websearch_to_tsquery('english', $1) as query
+            where b.search @@ query
+            order by ts_rank(b.search, query) * (case when b.congress = $2 then 2 else 1 end) desc,
+                     b.latest_action_on desc nulls last, b.id desc
+            limit $3`,
+          [q, congress, limit, now.toISOString()],
+        );
+        return rows.map(toListItem);
+      },
+      async searchMembers(q, limit, now) {
+        const parsed = memberQuery(q);
+        if (!parsed) return [];
+        const serving = `term_end >= ($1::timestamptz at time zone 'America/New_York')::date`;
+        const order = "order by chamber desc, state, district nulls first, last_name, first_name limit $2";
+        let rows: MemberRow[];
+        if ("state" in parsed) {
+          ({ rows } = await db.query<MemberRow>(
+            `select ${MEMBER_COLUMNS} from members m
+              where ${serving} and state = $3 and ($4::int is null or chamber = 'house' and district = $4::int)
+              ${order}`,
+            [now.toISOString(), limit, parsed.state, parsed.district],
+          ));
+        } else {
+          // Every word starts the first or the last name (or a later word of a compound last name).
+          ({ rows } = await db.query<MemberRow>(
+            `select ${MEMBER_COLUMNS} from members m
+              where ${serving} and (
+                select bool_and(lower(first_name) like w || '%' or lower(last_name) like w || '%' or lower(last_name) like '% ' || w || '%')
+                  from unnest($3::text[]) as w)
+              ${order}`,
+            [now.toISOString(), limit, parsed.words.map((w) => w.replace(/[%_\\]/g, ""))],
+          ));
+        }
+        return rows.map(toMember);
+      },
+    },
     live: {
       async chambers() {
         const { rows } = await liveQuery(db)<{

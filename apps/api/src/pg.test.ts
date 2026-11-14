@@ -654,3 +654,159 @@ describe("live repository", () => {
     await old.close();
   });
 });
+
+describe("catalog", () => {
+  // Real bills from production (2026-11-13), summaries trimmed; stages as the worker derives them.
+  // H.R. 6 and 118th S. 2 are stand-ins for an old untouched bill and a same-numbered older one.
+  let catalog: ReturnType<typeof pgRepositories>["catalog"];
+  let db: PGlite;
+  const now = new Date("2026-11-13T17:00:00Z");
+
+  beforeAll(async () => {
+    db = new PGlite();
+    await db.exec(`
+      create schema auth;
+      create table auth.users (id uuid primary key);
+      create function auth.uid() returns uuid language sql stable as $$ select null::uuid $$;
+    `);
+    for (const m of loadMigrations()) await db.exec(m.sql);
+    await db.exec(`
+      insert into members (bioguide_id, first_name, last_name, party, state, district, chamber, term_start, term_end) values
+        ('D000399', 'Lloyd', 'Doggett', 'D', 'TX', 37, 'house', '2025-01-03', '2027-01-03'),
+        ('C001098', 'Ted', 'Cruz', 'R', 'TX', null, 'senate', '2025-01-03', '2031-01-03'),
+        ('H001096', 'Harriet', 'Hageman', 'R', 'WY', 0, 'house', '2025-01-03', '2027-01-03'),
+        ('V000131', 'Marc', 'Veasey', 'D', 'TX', 33, 'house', '2023-01-03', '2025-01-03'),
+        ('G000594', 'Tony', 'Gonzales', 'R', 'TX', 23, 'house', '2025-01-03', '2027-01-03'),
+        ('C001063', 'Henry', 'Cuellar', 'D', 'TX', 28, 'house', '2025-01-03', '2027-01-03');
+      insert into bills (id, congress, bill_type, number, title, short_title, policy_area, stage, summary,
+                         latest_action_on, latest_action_text) values
+        ('119-hr-2493', 119, 'hr', 2493, 'To reauthorize certain programs relating to rural health care.',
+         'Improving Care in Rural America Reauthorization Act of 2025', 'Health', 'passed_house',
+         'This bill reauthorizes through FY2030 grant programs administered by the Health Resources and Services Administration that provide funding for rural health care.',
+         '2026-04-22', 'Received in the Senate.'),
+        ('119-hr-4541', 119, 'hr', 4541, 'To reauthorize the EARLY Act.', 'EARLY Act Reauthorization of 2025', 'Health', 'passed_house',
+         'This bill reauthorizes and revises programs of the Centers for Disease Control and Prevention that support services addressing breast and cervical cancer.',
+         '2026-07-27', 'Read twice and referred to the Committee on Health, Education, Labor, and Pensions.'),
+        ('119-sjres-197', 119, 'sjres', 197,
+         'A joint resolution providing for congressional disapproval under chapter 8 of title 5, United States Code, of the rule submitted by the Centers for Medicare & Medicaid Services relating to "Medicare and Medicaid Programs; Contract Year 2027 Policy and Technical Changes".',
+         null, 'Health', 'introduced', null, '2026-09-29', 'Motion to proceed to consideration of measure not agreed to in Senate by Yea-Nay Vote. 48 - 51.'),
+        ('119-hr-6', 119, 'hr', 6, 'An old idea Act', null, 'Health', 'introduced', null, '2025-03-01', 'Referred to the House Committee on Energy and Commerce.'),
+        ('119-s-2', 119, 's', 2, 'Secure America Act', 'Secure America Act', 'Immigration', 'law', null, '2026-06-10', 'Became Public Law No: 119-98.'),
+        ('118-s-2', 118, 's', 2, 'An older Senate bill', null, 'Immigration', 'introduced', null, '2023-02-01', 'Referred.'),
+        ('119-hr-1013', 119, 'hr', 1013, 'To amend the Internal Revenue Code of 1986 to allow 403(b) plans to invest in collective investment trusts.',
+         'Retirement Fairness for Charities and Educational Institutions Act of 2025', 'Finance and Financial Sector', 'passed_house', null,
+         '2026-11-11', 'Passed/agreed to in House: On passage Passed by the Yeas and Nays: 295 - 128 (Roll no. 321).');
+      insert into votes (id, chamber, congress, session, roll_number, question, state, bill_id) values
+        ('senate-119-2-500', 'senate', 119, 2, 500, 'On the Motion to Proceed', 'final', '119-sjres-197'),
+        ('house-119-2-321', 'house', 119, 2, 321, 'On Passage', 'final', '119-hr-1013');
+    `);
+    catalog = pgRepositories(db as unknown as Db).catalog;
+  });
+
+  it("counts bills per topic, and those with a floor vote, for one Congress", async () => {
+    const counts = await catalog.topicCounts(119);
+    expect(counts.sort((a, b) => a.name.localeCompare(b.name))).toEqual([
+      { name: "Finance and Financial Sector", bills: 1, billsWithFloorVote: 1, latestActionOn: "2026-11-11" },
+      { name: "Health", bills: 4, billsWithFloorVote: 1, latestActionOn: "2026-09-29" },
+      { name: "Immigration", bills: 1, billsWithFloorVote: 0, latestActionOn: "2026-06-10" },
+    ]);
+  });
+
+  it("lists a topic newest action first, with label, stage and stalled", async () => {
+    const bills = (await catalog.topicBills(119, "Health", "all", null, 10, now)).map((r) => r.bill);
+    expect(bills.map((b) => b.id)).toEqual(["119-sjres-197", "119-hr-4541", "119-hr-2493", "119-hr-6"]);
+    expect(bills[0]).toMatchObject({
+      citation: "S.J.Res. 197",
+      label:
+        "Disapproving the Centers for Medicare & Medicaid Services' rule: Medicare and Medicaid Programs; Contract Year 2027 Policy and Technical Changes",
+      stage: "introduced",
+      stalled: false,
+      hasFloorVote: true,
+      latestAction: { on: "2026-09-29", text: expect.stringContaining("48 - 51") },
+    });
+    // 90 days before 2026-11-13 is 2026-08-15: the EARLY Act's referral on 2026-07-27 is older.
+    expect(bills.map((b) => b.stalled)).toEqual([false, true, true, true]);
+  });
+
+  it("filters moving, law and stalled", async () => {
+    const ids = async (topic: string, filter: "moving" | "law" | "stalled") =>
+      (await catalog.topicBills(119, topic, filter, null, 10, now)).map((r) => r.bill.id);
+    expect(await ids("Health", "moving")).toEqual(["119-sjres-197"]);
+    expect(await ids("Health", "stalled")).toEqual(["119-hr-4541", "119-hr-2493", "119-hr-6"]);
+    expect(await ids("Immigration", "law")).toEqual(["119-s-2"]);
+    // A law is settled: never stalled however long ago it was signed.
+    expect(await ids("Immigration", "stalled")).toEqual([]);
+  });
+
+  it("pages with a keyset cursor, without skipping or repeating", async () => {
+    const first = await catalog.topicBills(119, "Health", "all", null, 2, now);
+    const second = await catalog.topicBills(119, "Health", "all", first.at(-1)!.at, 2, now);
+    expect([...first, ...second].map((r) => r.bill.id)).toEqual(["119-sjres-197", "119-hr-4541", "119-hr-2493", "119-hr-6"]);
+  });
+
+  it("pages past a bill with an action date but no action text", async () => {
+    await db.exec(`insert into bills (id, congress, bill_type, number, title, policy_area, latest_action_on)
+                   values ('119-hr-9', 119, 'hr', 9, 'A dated, textless Act', 'Health', '2026-08-01')`);
+    try {
+      const walk: string[] = [];
+      let after: { on: string | null; id: string } | null = null;
+      for (let i = 0; i < 6; i++) {
+        const page = await catalog.topicBills(119, "Health", "all", after, 1, now);
+        if (page.length === 0) break;
+        walk.push(page[0]!.bill.id);
+        after = page[0]!.at;
+      }
+      expect(walk).toEqual(["119-sjres-197", "119-hr-9", "119-hr-4541", "119-hr-2493", "119-hr-6"]);
+      expect((await catalog.topicBills(119, "Health", "all", null, 2, now))[1]).toMatchObject({
+        bill: { id: "119-hr-9", latestAction: null, stage: null },
+        at: { on: "2026-08-01", id: "119-hr-9" },
+      });
+    } finally {
+      await db.exec("delete from bills where id = '119-hr-9'");
+    }
+  });
+
+  it("finds bills by number in every Congress, newest first", async () => {
+    expect((await catalog.billsByNumber("s", 2, null, now)).map((b) => b.id)).toEqual(["119-s-2", "118-s-2"]);
+    expect((await catalog.billsByNumber("s", 2, 118, now)).map((b) => b.id)).toEqual(["118-s-2"]);
+    expect(await catalog.billsByNumber("hr", 99999, null, now)).toEqual([]);
+  });
+
+  it("matches words in short titles, titles and summaries", async () => {
+    expect((await catalog.searchBills("rural health", 119, 10, now)).map((b) => b.id)).toEqual(["119-hr-2493"]);
+    // Stemming: "cancers" finds "cancer" in the EARLY Act's summary.
+    expect((await catalog.searchBills("cervical cancers", 119, 10, now)).map((b) => b.id)).toEqual(["119-hr-4541"]);
+    expect((await catalog.searchBills("medicare", 119, 10, now)).map((b) => b.id)).toEqual(["119-sjres-197"]);
+    // Stray punctuation and stop words never throw.
+    expect(await catalog.searchBills("the & of ) (", 119, 10, now)).toEqual([]);
+  });
+
+  it("finds serving members by name, state and district", async () => {
+    const names = async (q: string) => (await catalog.searchMembers(q, 10, now)).map((m) => m.lastName);
+    expect(await names("doggett")).toEqual(["Doggett"]);
+    expect(await names("lloyd dog")).toEqual(["Doggett"]);
+    expect(await names("TX")).toEqual(["Cruz", "Gonzales", "Cuellar", "Doggett"]);
+    expect(await names("texas")).toEqual(["Cruz", "Gonzales", "Cuellar", "Doggett"]);
+    expect(await names("TX-37")).toEqual(["Doggett"]);
+    expect(await names("wy al")).toEqual(["Hageman"]);
+    // Veasey's term ended: not serving, not found.
+    expect(await names("veasey")).toEqual([]);
+    expect(await names("rural health")).toEqual([]);
+  });
+
+  it("answers empty, not 500, on a database without the catalog migration", async () => {
+    // The API deploys on merge; the migration is applied by hand after review.
+    const old = new PGlite();
+    await old.exec(`
+      create schema auth;
+      create table auth.users (id uuid primary key);
+      create function auth.uid() returns uuid language sql stable as $$ select null::uuid $$;
+    `);
+    for (const m of loadMigrations().filter((m) => !m.name.endsWith("_bill_catalog.sql"))) await old.exec(m.sql);
+    const before = pgRepositories(old as unknown as Db).catalog;
+    expect(await before.searchBills("health", 119, 10, now)).toEqual([]); // bills.search: 42703
+    expect(await before.topicBills(119, "Health", "all", null, 10, now)).toEqual([]); // bills.stage: 42703
+    expect(await before.billsByNumber("hr", 1, null, now)).toEqual([]);
+    await old.close();
+  });
+});

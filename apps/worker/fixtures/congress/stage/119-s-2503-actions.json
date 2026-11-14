@@ -1,0 +1,191 @@
+{
+ "actions": [
+  {
+   "actionCode": "H37300",
+   "actionDate": "2026-02-24",
+   "sourceSystem": {
+    "code": 2,
+    "name": "House floor actions"
+   },
+   "text": "On motion to suspend the rules and pass the bill Failed by the Yeas and Nays: (2/3 required): 264 - 133 (Roll no. 72).",
+   "type": "Floor"
+  },
+  {
+   "actionCode": "9000",
+   "actionDate": "2026-02-24",
+   "sourceSystem": {
+    "code": 9,
+    "name": "Library of Congress"
+   },
+   "text": "Failed of passage/not agreed to in House On motion to suspend the rules and pass the bill Failed by the Yeas and Nays: (2/3 required): 264 - 133 (Roll no. 72).",
+   "type": "Floor"
+  },
+  {
+   "actionCode": "H30000",
+   "actionDate": "2026-02-24",
+   "sourceSystem": {
+    "code": 2,
+    "name": "House floor actions"
+   },
+   "text": "Considered as unfinished business. (consideration: CR H2277)",
+   "type": "Floor"
+  },
+  {
+   "actionCode": "H37220",
+   "actionDate": "2026-02-23",
+   "sourceSystem": {
+    "code": 2,
+    "name": "House floor actions"
+   },
+   "text": "At the conclusion of debate, the Yeas and Nays were demanded and ordered. Pursuant to the provisions of clause 8, rule XX, the Chair announced that further proceedings on the motion would be postponed.",
+   "type": "Floor"
+  },
+  {
+   "actionCode": "H8D000",
+   "actionDate": "2026-02-23",
+   "sourceSystem": {
+    "code": 2,
+    "name": "House floor actions"
+   },
+   "text": "DEBATE - The House proceeded with forty minutes of debate on S. 2503.",
+   "type": "Floor"
+  },
+  {
+   "actionCode": "H30000",
+   "actionDate": "2026-02-23",
+   "sourceSystem": {
+    "code": 2,
+    "name": "House floor actions"
+   },
+   "text": "Considered under suspension of the rules. (consideration: CR H2248-2257)",
+   "type": "Floor"
+  },
+  {
+   "actionCode": "H30300",
+   "actionDate": "2026-02-23",
+   "sourceSystem": {
+    "code": 2,
+    "name": "House floor actions"
+   },
+   "text": "Mr. Graves moved to suspend the rules and pass the bill.",
+   "type": "Floor"
+  },
+  {
+   "actionCode": "H15000",
+   "actionDate": "2025-12-18",
+   "sourceSystem": {
+    "code": 2,
+    "name": "House floor actions"
+   },
+   "text": "Held at the desk.",
+   "type": "Floor"
+  },
+  {
+   "actionCode": "H14000",
+   "actionDate": "2025-12-18",
+   "sourceSystem": {
+    "code": 2,
+    "name": "House floor actions"
+   },
+   "text": "Received in the House.",
+   "type": "Floor"
+  },
+  {
+   "actionDate": "2025-12-18",
+   "sourceSystem": {
+    "name": "Senate"
+   },
+   "text": "Message on Senate action sent to the House.",
+   "type": "Floor"
+  },
+  {
+   "actionDate": "2025-12-17",
+   "sourceSystem": {
+    "name": "Senate"
+   },
+   "text": "Passed Senate with an amendment by Unanimous Consent. (text: CR S8813-8817)",
+   "type": "Floor"
+  },
+  {
+   "actionCode": "17000",
+   "actionDate": "2025-12-17",
+   "sourceSystem": {
+    "code": 9,
+    "name": "Library of Congress"
+   },
+   "text": "Passed/agreed to in Senate: Passed Senate with an amendment by Unanimous Consent.",
+   "type": "Floor"
+  },
+  {
+   "actionDate": "2025-12-17",
+   "sourceSystem": {
+    "name": "Senate"
+   },
+   "text": "The committee substitute withdrawn by Unanimous Consent.",
+   "type": "Floor"
+  },
+  {
+   "actionDate": "2025-12-17",
+   "sourceSystem": {
+    "name": "Senate"
+   },
+   "text": "Measure laid before Senate by unanimous consent. (consideration: CR S8811-8817)",
+   "type": "Floor"
+  },
+  {
+   "actionDate": "2025-11-18",
+   "sourceSystem": {
+    "name": "Senate"
+   },
+   "text": "Placed on Senate Legislative Calendar under General Orders. Calendar No. 269.",
+   "type": "Calendars"
+  },
+  {
+   "actionDate": "2025-11-18",
+   "sourceSystem": {
+    "name": "Senate"
+   },
+   "text": "Committee on Commerce, Science, and Transportation. Reported by Senator Cruz with an amendment in the nature of a substitute. Without written report.",
+   "type": "Committee"
+  },
+  {
+   "actionCode": "14000",
+   "actionDate": "2025-11-18",
+   "sourceSystem": {
+    "code": 9,
+    "name": "Library of Congress"
+   },
+   "text": "Committee on Commerce, Science, and Transportation. Reported by Senator Cruz with an amendment in the nature of a substitute. Without written report.",
+   "type": "Committee"
+  },
+  {
+   "actionDate": "2025-10-21",
+   "sourceSystem": {
+    "name": "Senate"
+   },
+   "text": "Committee on Commerce, Science, and Transportation. Ordered to be reported with an amendment in the nature of a substitute favorably.",
+   "type": "Committee"
+  },
+  {
+   "actionDate": "2025-07-29",
+   "sourceSystem": {
+    "name": "Senate"
+   },
+   "text": "Read twice and referred to the Committee on Commerce, Science, and Transportation.",
+   "type": "IntroReferral"
+  },
+  {
+   "actionCode": "10000",
+   "actionDate": "2025-07-29",
+   "sourceSystem": {
+    "code": 9,
+    "name": "Library of Congress"
+   },
+   "text": "Introduced in Senate",
+   "type": "IntroReferral"
+  }
+ ],
+ "pagination": {
+  "count": 20
+ }
+}
