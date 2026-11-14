@@ -8,6 +8,34 @@ is a milestone and ships a retro under `docs/retros/`.
 Older series live in [`docs/changelog/`](docs/changelog) (0.1.x: [`0.1.md`](docs/changelog/0.1.md)).
 Before 0.1.0 the history is the commit log on `main`.
 
+## 0.2.32 — 2026-11-14
+
+Bill-step alerts and the share link. Round 11
+(<https://claude.ai/artifact/VdSGbow4qnJwYe2sV7Tb2r>), sections D and E, server side and the app's
+link handling.
+
+### Added
+- **Bill-step alerts** (backend): `bill_events` records each step a followed bill takes (on the
+  floor schedule, a chamber's vote, to the President, law or veto, committee action), and
+  `bill_push_log` what each phone was sent (dedupe, and a digest past three a day). Six
+  `devices.bill_*` switches; `device_subscriptions` also takes topics. `PUT /v1/devices` accepts
+  `billAlerts` and topic subscriptions. The live worker sends them once APNs is configured.
+- **`GET /v1/bills/{id}/share`**: the share sheet's `{url, text, kicker}`, with "on the floor this
+  week" from the floor schedule.
+- **The share page** `/bill/{congress}/{type}/{number}`: title, CRS summary, the road to law, the
+  latest action, how your members voted, "Get Floor for iPhone"; a 1200×630 PNG preview card drawn
+  with satori and resvg; `/.well-known/apple-app-site-association`, which answers 404 until
+  `APPLE_TEAM_ID` is set.
+- **`FloorLink`** opens `https://floor.app/bill/…` in the app.
+- **Root `vercel.json`** proxies `/bill/*` (and the association file) to `floor-api`.
+- Migration `20261117000150_bill_alerts.sql` (applied separately; not yet applied).
+
+### Changed from the locked mock
+- The member lookup asks for an address, not a ZIP: the Census geocoder `/v1/reps` uses needs an
+  address, and a ZIP can span districts.
+- The privacy line reads "This page saves nothing", not "Not stored": the address travels in a GET
+  URL that Vercel's request log may keep, so the page claims only what it does itself.
+
 ## 0.2.31 — 2026-11-14
 
 The week ahead, vote explainers and member contact, server side. Round 11
