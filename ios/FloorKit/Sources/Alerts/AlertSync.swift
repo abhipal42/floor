@@ -32,13 +32,15 @@ extension FloorAPI: DeviceRegistrar {
     }
 }
 
-/// Keeps the API's copy of this phone's alert choices current (`PUT /v1/devices`).
+/// Keeps the API's copy of this phone's alert and Live Activity choices current (`PUT /v1/devices`).
 ///
-/// It registers only once notifications are allowed and there is a token, and only something it
-/// has not already sent: the last registration that succeeded is remembered, so launching the app
-/// or opening the Alerts screen costs nothing when nothing changed. With nothing left on — no
-/// "How they voted" switch and no "A vote opened" — or with permission taken away, it unregisters,
-/// so the API keeps no list of what an alert-less phone follows.
+/// It registers when something is on — an alert, or Live Activities with something to show them
+/// for — and the phone can use it: notifications allowed (alerts), or Live Activities enabled
+/// (their tokens, so an activity can be started and ended by push; no APNs alert token then). It
+/// sends only what it has not already sent, except that it always sends once per launch and once a
+/// day, so a registration the server lost (pruned, restored, a failed migration) heals itself. With
+/// nothing on, or no way to use it, it unregisters, so the API keeps no list for a phone that wants
+/// nothing.
 @MainActor
 @Observable
 public final class AlertSync {
@@ -57,13 +59,23 @@ public final class AlertSync {
     @ObservationIgnored private let source: @MainActor () -> (state: FollowState, reps: [Member])
     /// Called when permission is granted, so the app can ask APNs for a token.
     @ObservationIgnored private let onAllowed: @MainActor () -> Void
+    /// Whether Live Activities are enabled for Floor (Settings › Floor); ActivityKit in the app.
+    @ObservationIgnored private let activitiesEnabled: @MainActor () -> Bool
+    @ObservationIgnored private let now: () -> Date
     /// Called after a registration succeeds: the app resends Live Activity tokens the API refused
     /// (404) while the phone was not registered yet.
     @ObservationIgnored public var onRegistered: @MainActor () -> Void = {}
     @ObservationIgnored private var pending: Task<Void, Never>?
     @ObservationIgnored private let debounce: Duration
+    /// False until the first registration of this launch has gone out.
+    @ObservationIgnored private var sentThisLaunch = false
 
     static let sentKey = "floor.alerts.registered.v1"
+    static let sentAtKey = "floor.alerts.registeredAt.v1"
+    /// The route's limit (`DEVICE_SUBSCRIPTION_MAX`): past it, the newest follows are left out.
+    public static let subscriptionCap = 1000
+    /// A registration older than this is sent again even if nothing changed.
+    public static let refreshAfter: TimeInterval = 24 * 3600
 
     public init(
         registrar: any DeviceRegistrar,
@@ -72,6 +84,8 @@ public final class AlertSync {
         environment: DeviceRegistration.Environment,
         defaults: UserDefaults = .standard,
         debounce: Duration = .seconds(2),
+        now: @escaping () -> Date = Date.init,
+        activitiesEnabled: @escaping @MainActor () -> Bool = { false },
         onAllowed: @escaping @MainActor () -> Void = {},
         source: @escaping @MainActor () -> (state: FollowState, reps: [Member])
     ) {
@@ -81,12 +95,15 @@ public final class AlertSync {
         self.environment = environment
         self.defaults = defaults
         self.debounce = debounce
+        self.now = now
+        self.activitiesEnabled = activitiesEnabled
         self.onAllowed = onAllowed
         self.source = source
     }
 
     /// The registration for these choices: every one of your members (reps not hidden, then
-    /// followed) and every followed bill, each with its "How they voted" switch.
+    /// followed) and every followed bill, each with its "How they voted" switch — at most
+    /// ``subscriptionCap``, members first.
     public static func registration(
         state: FollowState, reps: [Member], apnsToken: String?, pushToStartToken: String?,
         environment: DeviceRegistration.Environment
@@ -98,8 +115,14 @@ public final class AlertSync {
         let bills = state.followedBillIds.map { DeviceSubscription(kind: .bill, id: $0, howVoted: state.alertsOn(bill: $0)) }
         return DeviceRegistration(
             apnsToken: apnsToken, apnsEnvironment: environment, pushToStartToken: pushToStartToken,
-            voteOpened: state.voteOpened, subscriptions: members + bills
+            voteOpened: state.voteOpened, liveActivities: state.liveActivities,
+            subscriptions: Array((members + bills).prefix(subscriptionCap))
         )
+    }
+
+    /// More members and bills than one registration takes; the Alerts screen says so.
+    public static func overCap(state: FollowState, reps: [Member]) -> Bool {
+        state.yourMembers(reps: reps).count + state.followedBillIds.count > subscriptionCap
     }
 
     /// Reads the permission again (the app returning from Settings, say).
@@ -108,7 +131,7 @@ public final class AlertSync {
         if permission == .allowed { onAllowed() }
     }
 
-    /// Asks for permission if it has never been asked. Called when the user turns a switch on —
+    /// Asks for permission if it has never been asked. Called when the user turns an alert on —
     /// never before (round 9: "ask only when the user turns something on").
     public func askIfNeeded() async {
         if await permissions.status() == .notDetermined {
@@ -132,30 +155,39 @@ public final class AlertSync {
     public func sync() async {
         permission = await permissions.status()
         let (state, reps) = source()
-        let anyOn = state.anyAlertOn(members: state.yourMembers(reps: reps), reps: reps)
-        // Tokens live in memory and arrive a moment after launch. A missing token means "not here
-        // yet", never "unregister": that would delete the API's copy — and every Live Activity
-        // token with it — on any cold launch where APNs answered slower than the debounce.
-        if permission == .allowed, anyOn, apnsToken == nil, pushToStartToken == nil { return }
-        let wanted = permission == .allowed && anyOn
+        let members = state.yourMembers(reps: reps)
+        let alerts = permission == .allowed
+        let activities = activitiesEnabled()
+        // Tokens live in memory and arrive a moment after launch. A missing alert token while alerts
+        // are allowed means "not here yet", never "register without it" or "unregister": either
+        // would wipe the API's copy on any cold launch where APNs answered slower than the debounce.
+        if alerts, apnsToken == nil, state.anythingOn(members: members, reps: reps) { return }
+        let wanted = state.anythingOn(members: members, reps: reps) && (alerts || activities)
         let last = defaults.data(forKey: Self.sentKey)
         if !wanted {
             guard last != nil else { return }
             do {
                 try await registrar.unregister(key: key)
                 defaults.removeObject(forKey: Self.sentKey)
+                defaults.removeObject(forKey: Self.sentAtKey)
             } catch {
                 // Offline: the next sync tries again.
             }
             return
         }
         let registration = Self.registration(
-            state: state, reps: reps, apnsToken: apnsToken, pushToStartToken: pushToStartToken, environment: environment
+            state: state, reps: reps, apnsToken: alerts ? apnsToken : nil,
+            pushToStartToken: activities ? pushToStartToken : nil, environment: environment
         )
-        guard let encoded = try? JSONEncoder.sorted.encode(registration), encoded != last else { return }
+        guard let encoded = try? JSONEncoder.sorted.encode(registration) else { return }
+        let sentAt = defaults.object(forKey: Self.sentAtKey) as? Date
+        let fresh = sentAt.map { now().timeIntervalSince($0) < Self.refreshAfter } ?? false
+        if encoded == last, fresh, sentThisLaunch { return }
         do {
             try await registrar.register(registration, key: key)
             defaults.set(encoded, forKey: Self.sentKey)
+            defaults.set(now(), forKey: Self.sentAtKey)
+            sentThisLaunch = true
             onRegistered()
         } catch {
             // Offline or refused: nothing is remembered, so the next sync sends it again.

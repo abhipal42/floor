@@ -174,11 +174,21 @@ final class StubSource: LiveSource, @unchecked Sendable {
     var live: Live
     var positions: [MemberPosition] = []
     var positionCalls: [[String]] = []
+    var liveCalls = 0
+    /// What `voteDetail` answers; nil throws, as offline would.
+    var detail: VoteDetail?
+    var detailFails = false
     init(_ live: Live) { self.live = live }
-    func liveNow() async throws -> Live { live }
-    func positions(voteId: String, members: [String]) async throws -> [MemberPosition] {
+    func liveNow() async throws -> Live {
+        liveCalls += 1
+        return live
+    }
+    func voteDetail(id: String, members: [String]) async throws -> VoteDetail {
         positionCalls.append(members)
-        return positions
+        if detailFails { throw URLError(.notConnectedToInternet) }
+        if let detail { return detail }
+        let vote = live.votes.first { $0.id == id }!.vote
+        return VoteDetail(vote: vote, partyTotals: [], candidateTotals: [], positions: positions, measure: nil)
     }
 }
 
@@ -217,11 +227,11 @@ struct LiveActivityCoordinatorTests {
     @Test func startsAnOpenVoteInvolvingYourMembersOnlyWithAVoteOpenedOn() async {
         let source = StubSource(Live(chambers: [], votes: [HR1013.live(state: .open)]))
         let host = FakeHost()
-        await coordinator(source, host, interest: .init(members: [HR1013.doggett], bills: [], voteOpened: false)).poll()
+        await coordinator(source, host, interest: .init(members: [HR1013.doggett], bills: [], liveActivities: false)).poll()
         #expect(host.log.isEmpty)
-        await coordinator(source, host, interest: .init(members: [HR1013.cornyn], bills: [], voteOpened: true)).poll()
+        await coordinator(source, host, interest: .init(members: [HR1013.cornyn], bills: [], liveActivities: true)).poll()
         #expect(host.log.isEmpty, "a senator is not on a House vote")
-        await coordinator(source, host, interest: .init(members: [HR1013.doggett, HR1013.cornyn], bills: [], voteOpened: true)).poll()
+        await coordinator(source, host, interest: .init(members: [HR1013.doggett, HR1013.cornyn], bills: [], liveActivities: true)).poll()
         #expect(host.log == ["start house-119-2-321"])
         #expect(host.shown["house-119-2-321"]?.members.map(\.name) == ["Doggett"])
     }
@@ -230,7 +240,7 @@ struct LiveActivityCoordinatorTests {
         let source = StubSource(Live(chambers: [], votes: [HR1013.live(state: .open)]))
         let host = FakeHost()
         host.enabled = false
-        let c = coordinator(source, host, interest: .init(members: [], bills: ["119-hr-1013"], voteOpened: true))
+        let c = coordinator(source, host, interest: .init(members: [], bills: ["119-hr-1013"], liveActivities: true))
         await c.poll()
         #expect(host.log.isEmpty)
         host.enabled = true
@@ -242,7 +252,7 @@ struct LiveActivityCoordinatorTests {
     @Test func doesNotRestartOneTheUserDismissed() async {
         let source = StubSource(Live(chambers: [], votes: [HR1013.live(state: .open)]))
         let host = FakeHost()
-        let c = coordinator(source, host, interest: .init(members: [HR1013.doggett], bills: [], voteOpened: true))
+        let c = coordinator(source, host, interest: .init(members: [HR1013.doggett], bills: [], liveActivities: true))
         await c.poll()
         host.shown = [:] // swiped away
         await c.poll()
@@ -253,7 +263,7 @@ struct LiveActivityCoordinatorTests {
         let source = StubSource(Live(chambers: [], votes: [HR1013.live(state: .open)]))
         let host = FakeHost()
         host.shown["house-119-2-321"] = try HR1013.open // started by push while the app was closed
-        let c = coordinator(source, host, interest: .init(members: [HR1013.doggett], bills: [], voteOpened: true))
+        let c = coordinator(source, host, interest: .init(members: [HR1013.doggett], bills: [], liveActivities: true))
         await c.poll()
         host.shown = [:]
         await c.poll()
@@ -264,7 +274,7 @@ struct LiveActivityCoordinatorTests {
         let source = StubSource(Live(chambers: [], votes: [HR1013.live(state: .open)]))
         let host = FakeHost()
         // "A vote opened" off: an activity already running (started by push) is still finished.
-        let c = coordinator(source, host, interest: .init(members: [HR1013.doggett, HR1013.cruz], bills: [], voteOpened: false))
+        let c = coordinator(source, host, interest: .init(members: [HR1013.doggett, HR1013.cruz], bills: [], liveActivities: false))
         host.shown["house-119-2-321"] = try HR1013.open
         await c.poll()
         #expect(host.log.isEmpty, "nothing changed while open")
@@ -276,6 +286,55 @@ struct LiveActivityCoordinatorTests {
         let (content, dismiss) = try #require(host.ended["house-119-2-321"])
         #expect(content == (try HR1013.final))
         #expect(dismiss == Formats.instant("2026-11-11T20:07:00.000Z"))
+    }
+
+    @Test func keepsTheActivityWhenPositionsCannotBeFetchedAndEndsItNextPoll() async throws {
+        let source = StubSource(Live(chambers: [], votes: [HR1013.live(state: .final)]))
+        let host = FakeHost()
+        host.shown["house-119-2-321"] = try HR1013.open
+        let c = coordinator(source, host, interest: .init(members: [HR1013.doggett], bills: [], liveActivities: true))
+        source.detailFails = true
+        await c.poll()
+        #expect(host.log.isEmpty, "not ended on 'not recorded yet'")
+        source.detailFails = false
+        source.positions = [MemberPosition(member: HR1013.doggett, position: .nay, choice: nil)]
+        await c.poll()
+        #expect(host.log == ["end house-119-2-321"])
+        #expect(host.ended["house-119-2-321"]?.0.members.first?.position == .nay)
+    }
+
+    @Test func endsAnActivityWhoseVoteHasLeftTheLiveView() async throws {
+        let source = StubSource(Live(chambers: [], votes: []))
+        let host = FakeHost()
+        host.shown["house-119-2-321"] = try HR1013.open
+        source.detail = VoteDetail(
+            vote: HR1013.live(state: .final).vote, partyTotals: [], candidateTotals: [],
+            positions: [MemberPosition(member: HR1013.doggett, position: .nay, choice: nil)], measure: nil
+        )
+        await coordinator(source, host, interest: .init(members: [HR1013.doggett], bills: [], liveActivities: true)).poll()
+        #expect(host.log == ["end house-119-2-321"])
+        let (content, dismiss) = try #require(host.ended["house-119-2-321"])
+        #expect(content.totals?.yea == 295)
+        #expect(content.members.first?.position == .nay)
+        #expect(dismiss == now)
+    }
+
+    @Test func asksForNothingWhenNothingCouldStartOrIsRunningAndBacksOffWhenNeitherChamberSits() async {
+        let source = StubSource(Live(chambers: [], votes: []))
+        let host = FakeHost()
+        let off = coordinator(source, host, interest: .init(members: [HR1013.doggett], bills: [], liveActivities: false))
+        #expect(await off.poll() == LiveActivityCoordinator.interval)
+        #expect(source.liveCalls == 0)
+        let on = coordinator(source, host, interest: .init(members: [HR1013.doggett], bills: [], liveActivities: true))
+        #expect(await on.poll() == LiveActivityCoordinator.idleInterval)
+        source.live = Live(chambers: [ChamberStatus(chamber: .house, inSession: true, convenesAt: nil, legislativeDay: nil, checkedAt: "x")], votes: [])
+        #expect(await on.poll() == LiveActivityCoordinator.interval)
+        #expect(source.liveCalls == 2)
+    }
+
+    @Test func listsMembersBySurnameAsTheWorkerDoes() {
+        let content = VoteActivityAttributes.ContentState(live: HR1013.live(state: .open), members: [HR1013.doggett, HR1013.cruz, HR1013.cornyn])
+        #expect(content.members.map(\.name) == ["Cornyn", "Cruz", "Doggett"])
     }
 
     @Test func dismissesAtOnceWhenTheFinalWasLongAgo() {

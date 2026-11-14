@@ -14,8 +14,21 @@ final class PushRelay {
         didSet { if let token = pendingToken { sync?.apnsToken = token } }
     }
     private var pendingToken: String?
-    /// A tapped alert's `floor://` link, for the shell to open.
-    var onLink: ((FloorLink) -> Void)?
+    /// A tapped alert's `floor://` link, for the shell to open. A tap that launched the app arrives
+    /// before any view has set this; it waits in `pendingLink` and is delivered when one does.
+    var onLink: ((FloorLink) -> Void)? {
+        didSet {
+            if let link = pendingLink, let onLink {
+                pendingLink = nil
+                onLink(link)
+            }
+        }
+    }
+    private var pendingLink: FloorLink?
+
+    func open(_ link: FloorLink) {
+        if let onLink { onLink(link) } else { pendingLink = link }
+    }
 
     func received(token: Data) {
         let hex = token.hexToken
@@ -57,7 +70,7 @@ final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCent
     nonisolated func userNotificationCenter(_ center: UNUserNotificationCenter, didReceive response: UNNotificationResponse) async {
         guard let raw = response.notification.request.content.userInfo["link"] as? String,
               let url = URL(string: raw), let link = FloorLink(url: url) else { return }
-        await MainActor.run { PushRelay.shared.onLink?(link) }
+        await MainActor.run { PushRelay.shared.open(link) }
     }
 }
 

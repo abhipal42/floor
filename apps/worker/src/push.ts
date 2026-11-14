@@ -51,6 +51,36 @@ export const PUSH_CONCURRENCY = 20;
 export const THREAD_ID = "floor";
 /** The ActivityKit type the app registers (`VoteActivityAttributes` in FloorKit's LiveActivity). */
 export const ACTIVITY_TYPE = "VoteActivityAttributes";
+/** A bill's title is cut to this many characters in a push (some run past 1,000). */
+export const TITLE_MAX = 120;
+/** APNs refuses a payload over 4 KB (5 KB for a VoIP push, which this is not). */
+export const PAYLOAD_MAX = 4096;
+/** A final older than this when it is published (after downtime) goes only into the digest. */
+export const LATE_FINAL_MS = 3_600_000;
+
+/** `text` cut to `max` characters on a word, with an ellipsis. */
+export function truncate(text: string, max = TITLE_MAX): string {
+  if (text.length <= max) return text;
+  const cut = text.slice(0, max - 1);
+  const space = cut.lastIndexOf(" ");
+  return `${(space > max * 0.6 ? cut.slice(0, space) : cut).replace(/[\s,;:.-]+$/, "")}…`;
+}
+
+const bytes = (payload: unknown) => Buffer.byteLength(JSON.stringify(payload), "utf8");
+
+/**
+ * The payload if it fits in APNs' 4 KB; else a smaller one without the bill's title (in the alert
+ * body and the activity's attributes); else null, and the push is skipped rather than refused.
+ */
+export function fitPayload(payload: Record<string, unknown>): Record<string, unknown> | null {
+  if (bytes(payload) <= PAYLOAD_MAX) return payload;
+  const smaller = structuredClone(payload) as { aps: Record<string, unknown> };
+  const alert = smaller.aps.alert as { body?: string } | undefined;
+  if (alert) delete alert.body;
+  const attributes = smaller.aps.attributes as { title?: string | null } | undefined;
+  if (attributes) attributes.title = null;
+  return bytes(smaller) <= PAYLOAD_MAX ? smaller : null;
+}
 
 const CHAMBER_NAME: Record<Chamber, string> = { house: "House", senate: "Senate" };
 
@@ -79,6 +109,8 @@ export interface PushVote {
   candidates: { name: string; total: number }[];
   openedAt: string | null;
   announcedAt: string | null;
+  /** When the roll call happened (the floor's time, else the XML's), ISO. */
+  occurredAt: string | null;
   /** The bill this vote is on, linked or read from the roll call's reference; null otherwise. */
   billId: string | null;
   /** `H.R. 1013`, a nomination's `PN1093-3`, or null for a procedural vote. */
@@ -261,26 +293,31 @@ export function openedAlert(v: PushVote): AlertCopy {
 }
 
 export interface DigestDay {
-  /** Bioguide ID → surname, and how many votes they cast in today's alerted finals. */
-  members: { name: string; votes: number }[];
+  /** Each member in today's alerted finals: votes cast (yea, nay, present, a candidate) and missed. */
+  members: { name: string; votes: number; missed?: number }[];
   /** Finals alerted today for a followed bill only. */
   billVotes: number;
 }
 
-/** "Your members cast 6 votes today." / "Doggett 2 · Cornyn 2 · Cruz 2. Tap to catch up." */
+/**
+ * "Your members cast 6 votes today." / "Doggett 2 · Cornyn 2 · Cruz 2. Tap to catch up." Absences
+ * are facts too: "Cornyn missed 1"; a night of only absences reads "Your members missed 4 votes
+ * today."
+ */
 export function digestAlert(day: DigestDay): AlertCopy {
-  const counted = day.members.filter((m) => m.votes > 0).sort((a, b) => b.votes - a.votes);
-  const total = counted.reduce((n, m) => n + m.votes, 0);
-  const bills = day.billVotes > 0 ? `${day.billVotes} ${day.billVotes === 1 ? "vote" : "votes"} on bills you follow` : "";
-  if (total === 0) {
-    return { title: `${bills.charAt(0).toUpperCase()}${bills.slice(1)} today.`, body: "Tap to catch up." };
-  }
-  const shown = counted.slice(0, 4).map((m) => `${m.name} ${m.votes}`);
-  if (counted.length > 4) shown.push(`${counted.length - 4} more`);
-  return {
-    title: `Your members cast ${total} ${total === 1 ? "vote" : "votes"} today.`,
-    body: `${shown.join(" · ")}${bills ? `, and ${bills}` : ""}. Tap to catch up.`,
-  };
+  const plural = (n: number) => `${n} ${n === 1 ? "vote" : "votes"}`;
+  const members = day.members.filter((m) => m.votes > 0 || (m.missed ?? 0) > 0).sort((a, b) => b.votes - a.votes);
+  const cast = members.reduce((n, m) => n + m.votes, 0);
+  const missed = members.reduce((n, m) => n + (m.missed ?? 0), 0);
+  const bills = day.billVotes > 0 ? `${plural(day.billVotes)} on bills you follow` : "";
+  const parts = members.slice(0, 4).map((m) =>
+    [m.votes > 0 ? `${m.name} ${m.votes}` : null, m.missed ? `${m.name} missed ${m.missed}` : null].filter(Boolean).join(" · "),
+  );
+  if (members.length > 4) parts.push(`${members.length - 4} more`);
+  const line = `${parts.join(" · ")}${bills ? `, and ${bills}` : ""}. Tap to catch up.`;
+  if (cast > 0) return { title: `Your members cast ${plural(cast)} today.`, body: line };
+  if (missed > 0) return { title: `Your members missed ${plural(missed)} today.`, body: line };
+  return { title: `${bills.charAt(0).toUpperCase()}${bills.slice(1)} today.`, body: "Tap to catch up." };
 }
 
 // MARK: - Payloads
@@ -293,8 +330,14 @@ export function alertPayload(copy: AlertCopy, voteId: string | null): Record<str
   return { aps: { alert, sound: "default", "thread-id": THREAD_ID }, link: link(voteId) };
 }
 
-/** Push-to-start (iOS 17.2+): starts the Live Activity with no tap; its alert is the "vote opened" line. */
-export function startPayload(v: PushVote, members: ActivityMember[], copy: AlertCopy, nowS: number): Record<string, unknown> {
+/**
+ * Push-to-start (iOS 17.2+): starts the Live Activity with no tap. Its alert (which ActivityKit
+ * requires on a start) is the "vote opened" line, **silent** unless the phone also has "A vote
+ * opened" on — then it carries the sound, and is that alert (one buzz, not two).
+ */
+export function startPayload(
+  v: PushVote, members: ActivityMember[], copy: AlertCopy, nowS: number, sound = false,
+): Record<string, unknown> {
   return {
     aps: {
       timestamp: nowS,
@@ -303,7 +346,7 @@ export function startPayload(v: PushVote, members: ActivityMember[], copy: Alert
       "attributes-type": ACTIVITY_TYPE,
       attributes: activityAttributes(v),
       "stale-date": nowS + ACTIVITY_STALE_S,
-      alert: { title: copy.title, body: copy.body },
+      alert: sound ? { title: copy.title, body: copy.body, sound: "default" } : { title: copy.title, body: copy.body },
       // iOS 18: hand the started activity its own update token at once.
       "input-push-token": 1,
     },
@@ -342,6 +385,7 @@ interface VoteRow {
   candidates: { name: string; total: number }[] | null;
   opened_at: Date | null;
   announced_at: Date | null;
+  occurred_at: Date | null;
   bill_id: string | null;
   bill_ref: string | null;
   bill_type: string | null;
@@ -358,7 +402,7 @@ const iso = (d: Date | null) => (d ? new Date(d).toISOString() : null);
 export async function loadVote(db: Db, id: string): Promise<PushVote | null> {
   const { rows } = await db.query<VoteRow>(
     `select v.id, v.chamber, v.kind, v.congress, v.roll_number, v.question, v.result, v.threshold, v.state,
-            v.yea, v.nay, v.present, v.not_voting, v.candidates, v.opened_at, v.announced_at, v.bill_id, v.bill_ref,
+            v.yea, v.nay, v.present, v.not_voting, v.candidates, v.opened_at, v.announced_at, v.occurred_at, v.bill_id, v.bill_ref,
             b.bill_type, b.number as bill_number, b.short_title, b.title as bill_title,
             n.citation as nomination_citation, n.nominee_name
        from votes v
@@ -400,9 +444,13 @@ export async function loadVote(db: Db, id: string): Promise<PushVote | null> {
     candidates: r.candidates ?? [],
     openedAt: iso(r.opened_at),
     announcedAt: iso(r.announced_at),
+    occurredAt: iso(r.occurred_at),
     billId: bill,
     citation,
-    title: r.nomination_citation && !type ? r.nominee_name : title,
+    title: (() => {
+      const t = r.nomination_citation && !type ? r.nominee_name : title;
+      return t ? truncate(t) : null;
+    })(),
   };
 }
 
@@ -410,7 +458,9 @@ interface Target {
   device: string;
   apnsToken: string | null;
   pushToStartToken: string | null;
-  /** Your members on the vote: in the chamber (open), or with a position (final). */
+  voteOpened: boolean;
+  liveActivities: boolean;
+  /** Your members on the vote: in the chamber (open), or with a position (final). By surname. */
   members: ActivityMember[];
   /** Of those, the ones whose "How they voted" is on (final only). */
   alertMembers: ActivityMember[];
@@ -418,6 +468,10 @@ interface Target {
   alertBill: boolean;
 }
 
+/**
+ * The phones a change concerns, one row each: members and the bill are aggregated per device in
+ * SQL, so a phone following 500 members is one row, not 500.
+ */
 async function targets(db: Db, v: PushVote, env: "sandbox" | "production"): Promise<Target[]> {
   const final = v.state === "final";
   // Open: a member is on the vote by sitting in its chamber (nobody's position is known yet).
@@ -426,46 +480,46 @@ async function targets(db: Db, v: PushVote, env: "sandbox" | "production"): Prom
     device: string;
     apns_token: string | null;
     push_to_start_token: string | null;
-    member_id: string | null;
-    last_name: string | null;
-    position: VotePosition | null;
-    choice: string | null;
-    target_kind: "member" | "bill";
-    how_voted: boolean;
+    vote_opened: boolean;
+    live_activities: boolean;
+    members: { id: string; name: string; position: VotePosition | null; choice: string | null; how_voted: boolean }[] | null;
+    alert_bill: boolean;
   }>(
-    `select d.id::text as device, d.apns_token, d.push_to_start_token, s.target_kind, s.how_voted,
-            m.bioguide_id as member_id, m.last_name, p.position, p.choice
-       from devices d
-       join device_subscriptions s on s.device_id = d.id
-       left join members m on s.target_kind = 'member' and m.bioguide_id = s.target_id
-       left join vote_positions p on p.vote_id = $1 and p.member_id = m.bioguide_id
-      where d.apns_env = $4
-        and ($3::boolean or d.vote_opened)
-        and (
-          (s.target_kind = 'member' and m.bioguide_id is not null and
-            case when $3::boolean then p.member_id is not null
-                 else m.chamber = $2::chamber and m.term_end > now()::date end)
-          or (s.target_kind = 'bill' and s.target_id = $5)
-        )
+    `with matched as (
+       select s.device_id, s.target_kind, s.how_voted, m.bioguide_id, m.last_name, p.position, p.choice
+         from device_subscriptions s
+         left join members m on s.target_kind = 'member' and m.bioguide_id = s.target_id
+         left join vote_positions p on p.vote_id = $1 and p.member_id = m.bioguide_id
+        where (s.target_kind = 'member' and m.bioguide_id is not null and
+                case when $3::boolean then p.member_id is not null
+                     else m.chamber = $2::chamber and m.term_end > now()::date end)
+           or (s.target_kind = 'bill' and s.target_id = $5)
+     )
+     select d.id::text as device, d.apns_token, d.push_to_start_token, d.vote_opened, d.live_activities,
+            jsonb_agg(jsonb_build_object('id', x.bioguide_id, 'name', x.last_name, 'position', x.position,
+                                         'choice', x.choice, 'how_voted', x.how_voted)
+                      order by x.last_name, x.bioguide_id) filter (where x.target_kind = 'member') as members,
+            coalesce(bool_or(x.target_kind = 'bill' and x.how_voted), false) as alert_bill
+       from devices d join matched x on x.device_id = d.id
+      where d.apns_env = $4 and ($3::boolean or d.vote_opened or d.live_activities)
+      group by d.id
       order by d.id`,
     [v.id, v.chamber, final, env, v.billId ?? ""],
   );
-  const byDevice = new Map<string, Target>();
-  for (const r of rows) {
-    let t = byDevice.get(r.device);
-    if (!t) {
-      t = { device: r.device, apnsToken: r.apns_token, pushToStartToken: r.push_to_start_token, members: [], alertMembers: [], alertBill: false };
-      byDevice.set(r.device, t);
-    }
-    if (r.target_kind === "bill") {
-      if (r.how_voted) t.alertBill = true;
-      continue;
-    }
-    const m: ActivityMember = { id: r.member_id!, name: r.last_name!, position: r.position, choice: r.choice };
-    t.members.push(m);
-    if (r.how_voted) t.alertMembers.push(m);
-  }
-  return [...byDevice.values()];
+  return rows.map((r) => {
+    const all = (r.members ?? []).map((m) => ({ ...m }));
+    const members = all.map(({ id, name, position, choice }) => ({ id, name, position, choice }));
+    return {
+      device: r.device,
+      apnsToken: r.apns_token,
+      pushToStartToken: r.push_to_start_token,
+      voteOpened: r.vote_opened,
+      liveActivities: r.live_activities,
+      members,
+      alertMembers: all.filter((m) => m.how_voted).map(({ id, name, position, choice }) => ({ id, name, position, choice })),
+      alertBill: r.alert_bill,
+    };
+  });
 }
 
 /** Claims sends in push_log; returns the devices that had not been sent this kind for this vote. */
@@ -473,18 +527,25 @@ async function claim(
   db: Db,
   voteId: string,
   kind: "opened" | "final" | "activity_start" | "activity_end",
-  rows: { device: string; members?: string[]; bills?: string[] }[],
+  rows: { device: string; members?: string[]; absent?: string[]; bills?: string[] }[],
   day: string,
   now: Date,
 ): Promise<Set<string>> {
   if (rows.length === 0) return new Set();
   const { rows: claimed } = await db.query<{ device_id: string }>(
-    `insert into push_log (device_id, vote_id, kind, members, bills, day, sent_at)
-     select x.device::uuid, $1, $2, coalesce(x.members, '{}'), coalesce(x.bills, '{}'), $3::date, $4::timestamptz
-       from jsonb_to_recordset($5::jsonb) as x(device text, members text[], bills text[])
+    `insert into push_log (device_id, vote_id, kind, members, absent, bills, day, sent_at)
+     select x.device::uuid, $1, $2, coalesce(x.members, '{}'), coalesce(x.absent, '{}'), coalesce(x.bills, '{}'),
+            $3::date, $4::timestamptz
+       from jsonb_to_recordset($5::jsonb) as x(device text, members text[], absent text[], bills text[])
      on conflict (device_id, vote_id, kind) do nothing
      returning device_id::text`,
-    [voteId, kind, day, now.toISOString(), JSON.stringify(rows.map((r) => ({ device: r.device, members: r.members ?? [], bills: r.bills ?? [] })))],
+    [
+      voteId,
+      kind,
+      day,
+      now.toISOString(),
+      JSON.stringify(rows.map((r) => ({ device: r.device, members: r.members ?? [], absent: r.absent ?? [], bills: r.bills ?? [] }))),
+    ],
   );
   return new Set(claimed.map((r) => r.device_id));
 }
@@ -500,35 +561,77 @@ async function sentToday(db: Db, devices: string[], kind: "opened" | "final", da
   return new Map(rows.map((r) => [r.device, r.n]));
 }
 
-/** Each device's finals today, for its digest: who cast how many, and the bill-only ones. */
+/**
+ * Each device's finals today, for its digest: per member, votes cast and votes missed, in the order
+ * their first alert of the day named them (alphabetical within one alert); and finals that matched
+ * only a followed bill.
+ */
 async function digestDays(db: Db, devices: string[], day: string): Promise<Map<string, DigestDay>> {
   if (devices.length === 0) return new Map();
-  // Members in the order their first vote of the day was alerted, so the evening's first name (your
-  // rep, usually, on the House's first vote) leads the line, as the mock's "Doggett 2 · Cornyn 2".
-  const { rows } = await db.query<{ device: string; member_id: string | null; name: string | null; votes: number; bill_votes: number }>(
+  const { rows } = await db.query<{ device: string; member_id: string | null; name: string | null; votes: number; missed: number; bill_votes: number }>(
     `with today as (
-       select device_id, members, bills, sent_at from push_log
+       select device_id, members, absent, bills, sent_at from push_log
         where device_id = any($1::uuid[]) and kind = 'final' and day = $2::date
-     )
-     select device, member_id, name, votes, bill_votes from (
-       select t.device_id::text as device, u.member_id, m.last_name as name, count(*)::int as votes, 0 as bill_votes,
-              min(t.sent_at) as first, min(u.ord) as ord
-         from today t cross join lateral unnest(t.members) with ordinality as u(member_id, ord)
-         join members m on m.bioguide_id = u.member_id
-        group by t.device_id, u.member_id, m.last_name
+     ), named as (
+       select t.device_id, u.member_id, true as cast_, t.sent_at, u.ord from today t
+         cross join lateral unnest(t.members) with ordinality as u(member_id, ord)
        union all
-       select device_id::text, null, null, 0, count(*)::int, null, null from today where cardinality(members) = 0 and cardinality(bills) > 0 group by device_id
-     ) x order by device, first nulls last, ord, name`,
+       select t.device_id, u.member_id, false, t.sent_at, u.ord + 1000 from today t
+         cross join lateral unnest(t.absent) with ordinality as u(member_id, ord)
+     )
+     select device, member_id, name, votes, missed, bill_votes from (
+       select n.device_id::text as device, n.member_id, m.last_name as name,
+              count(*) filter (where n.cast_)::int as votes, count(*) filter (where not n.cast_)::int as missed,
+              0 as bill_votes, min(n.sent_at) as first, min(n.ord) as ord
+         from named n join members m on m.bioguide_id = n.member_id
+        group by n.device_id, n.member_id, m.last_name
+       union all
+       select device_id::text, null, null, 0, 0, count(*)::int, null, null from today
+        where cardinality(members) = 0 and cardinality(absent) = 0 and cardinality(bills) > 0 group by device_id
+     ) x order by device, first nulls last, name`,
     [devices, day],
   );
   const out = new Map<string, DigestDay>();
   for (const r of rows) {
     const d = out.get(r.device) ?? { members: [], billVotes: 0 };
-    if (r.member_id && r.name) d.members.push({ name: r.name, votes: r.votes });
+    if (r.member_id && r.name) d.members.push({ name: r.name, votes: r.votes, missed: r.missed });
     else d.billVotes += r.bill_votes;
     out.set(r.device, d);
   }
   return out;
+}
+
+// MARK: - Housekeeping
+
+/** How long each kind of row is kept; see `pruneDevices`. */
+export const PRUNE = {
+  /** push_log: the digest needs today, the dedupe a retry window. */
+  pushLogDays: 2,
+  /** A device with no token at all (alerts and activities both unavailable) is no use to anyone. */
+  tokenlessDays: 1,
+  /** A phone re-registers at least daily while the app is used; two months of silence is a phone gone. */
+  staleDeviceDays: 60,
+  /** Activities live 12 h at most on the lock screen. */
+  activityTokenDays: 1,
+  /** The new-key allowance counts one day; a week is plenty to look back on. */
+  signupDays: 7,
+} as const;
+
+/** Deletes what the push tables no longer need. Run hourly by the live worker. */
+export async function pruneDevices(db: Db, now: Date): Promise<Record<string, number>> {
+  const at = (days: number) => new Date(now.getTime() - days * 86_400_000).toISOString();
+  const run = async (sql: string, params: unknown[]) => (await db.query(sql, params)).rows.length;
+  return {
+    pushLog: await run("delete from push_log where sent_at < $1 returning 1", [at(PRUNE.pushLogDays)]),
+    activityTokens: await run("delete from live_activity_tokens where updated_at < $1 returning 1", [at(PRUNE.activityTokenDays)]),
+    tokenless: await run(
+      `delete from devices d where d.apns_token is null and d.push_to_start_token is null and d.updated_at < $1
+          and not exists (select 1 from live_activity_tokens t where t.device_id = d.id) returning 1`,
+      [at(PRUNE.tokenlessDays)],
+    ),
+    stale: await run("delete from devices where updated_at < $1 returning 1", [at(PRUNE.staleDeviceDays)]),
+    signups: await run("delete from device_signups where day < $1::date returning 1", [at(PRUNE.signupDays).slice(0, 10)]),
+  };
 }
 
 // MARK: - Sending
@@ -553,7 +656,19 @@ export interface PushStats {
   unregistered: number;
 }
 
+/**
+ * APNs reasons that mean the token itself is no good — gone (410), malformed, for another app, or for
+ * the other gateway. The token is cleared, as for a 410, rather than tried on every vote.
+ */
+export const DEAD_TOKEN_REASONS = new Set(["BadDeviceToken", "DeviceTokenNotForTopic", "BadEnvironmentKeyInToken", "Unregistered"]);
+
+type Planned = { msg: ApnsMessage; onGone: () => Promise<unknown>; onSent?: () => Promise<unknown> };
+
 export class PushBroadcaster implements Broadcaster {
+  /** Changes waiting to be sent, and the drain working through them. */
+  private queue: VoteStateChange[] = [];
+  private draining: Promise<void> | null = null;
+
   constructor(
     private readonly deps: {
       db: Db;
@@ -570,10 +685,27 @@ export class PushBroadcaster implements Broadcaster {
     return this.deps.apns.enabled;
   }
 
-  /** Never throws: a push problem must not hold up the Realtime broadcast or stamping `broadcast_at`. */
+  /**
+   * Queues the changes and returns at once: APNs (thousands of phones, a slow gateway) never holds
+   * up the live loop's next poll. Sends happen in order, one change at a time, in the background.
+   * Never throws.
+   */
   async publish(changes: VoteStateChange[]): Promise<void> {
-    if (!this.enabled) return;
-    for (const change of changes) {
+    if (!this.enabled || changes.length === 0) return;
+    this.queue.push(...changes);
+    this.draining ??= this.drain().finally(() => {
+      this.draining = null;
+    });
+  }
+
+  /** Resolves once everything queued has been sent: tests, and the worker's shutdown. */
+  async idle(): Promise<void> {
+    while (this.draining) await this.draining;
+  }
+
+  private async drain(): Promise<void> {
+    while (this.queue.length) {
+      const change = this.queue.shift()!;
       try {
         const stats = await this.handle(change);
         if (stats.sent || stats.failed || stats.unregistered) {
@@ -592,14 +724,16 @@ export class PushBroadcaster implements Broadcaster {
     if (!vote || (vote.state !== "open" && vote.state !== "final")) return stats;
     const now = (this.deps.now ?? (() => new Date()))();
     const day = easternWallClock(now).slice(0, 10);
-    const messages: { msg: ApnsMessage; onGone: () => Promise<unknown> }[] = [];
+    const messages: Planned[] = [];
     const all = await targets(db, vote, this.deps.environment);
     if (vote.state === "open") await this.planOpen(vote, all, day, now, messages);
     else await this.planFinal(vote, all, day, now, messages);
-    await pool(messages, this.deps.concurrency ?? PUSH_CONCURRENCY, async ({ msg, onGone }) => {
+    await pool(messages, this.deps.concurrency ?? PUSH_CONCURRENCY, async ({ msg, onGone, onSent }) => {
       const res = await this.deps.apns.send(msg).catch((err: unknown) => ({ ok: false, reason: String(err) }) as ApnsResult);
-      if (res.ok) stats.sent++;
-      else if (res.unregistered) {
+      if (res.ok) {
+        stats.sent++;
+        await onSent?.();
+      } else if (res.unregistered || (res.reason && DEAD_TOKEN_REASONS.has(res.reason))) {
         stats.unregistered++;
         await onGone();
       } else {
@@ -615,41 +749,45 @@ export class PushBroadcaster implements Broadcaster {
   private clearStartToken = (device: string) =>
     this.deps.db.query("update devices set push_to_start_token = null where id = $1::uuid", [device]);
 
-  private async planOpen(
-    vote: PushVote,
-    all: Target[],
-    day: string,
-    now: Date,
-    out: { msg: ApnsMessage; onGone: () => Promise<unknown> }[],
-  ): Promise<void> {
+  /**
+   * A vote opened. Live Activities (on by default) start by push, silently; "A vote opened" (off by
+   * default) is the push alert. A phone with both gets one push: the start, with the alert's sound.
+   */
+  private async planOpen(vote: PushVote, all: Target[], day: string, now: Date, out: Planned[]): Promise<void> {
     const { db } = this.deps;
-    const reachable = all.filter((t) => t.pushToStartToken || t.apnsToken);
-    const claimed = await claim(db, vote.id, "opened", reachable.map((t) => ({ device: t.device })), day, now);
-    const counts = await sentToday(db, [...claimed], "opened", day);
-    const copy = openedAlert(vote);
-    const nowS = Math.floor(now.getTime() / 1000);
     // A phone that already runs an activity for this vote (the app started it while open, and sent
-    // its token) gets the plain alert, not a second activity.
+    // its token) gets no second one.
     const { rows: running } = await db.query<{ device: string }>(
       "select device_id::text as device from live_activity_tokens where vote_id = $1",
       [vote.id],
     );
     const hasActivity = new Set(running.map((r) => r.device));
+    const starts = (t: Target) => t.liveActivities && t.pushToStartToken !== null && !hasActivity.has(t.device);
+    const alerts = (t: Target) => t.voteOpened && t.apnsToken !== null;
+    const reachable = all.filter((t) => starts(t) || alerts(t));
+    const claimed = await claim(db, vote.id, "opened", reachable.map((t) => ({ device: t.device })), day, now);
+    const counts = await sentToday(db, [...claimed], "opened", day);
+    const copy = openedAlert(vote);
+    const nowS = Math.floor(now.getTime() / 1000);
     for (const t of reachable) {
       if (!claimed.has(t.device)) continue;
-      if (t.pushToStartToken && !hasActivity.has(t.device)) {
+      if (starts(t)) {
+        const payload = fitPayload(startPayload(vote, t.members, copy, nowS, t.voteOpened));
+        if (!payload) continue;
         out.push({
-          msg: { deviceToken: t.pushToStartToken, pushType: "liveactivity", payload: startPayload(vote, t.members, copy, nowS), priority: 10 },
+          msg: { deviceToken: t.pushToStartToken!, pushType: "liveactivity", payload, priority: t.voteOpened ? 10 : 5 },
           onGone: () => this.clearStartToken(t.device),
         });
-      } else if (t.apnsToken) {
+      } else {
         // Past the third, opens replace one another rather than stacking up on the lock screen.
         const stacked = (counts.get(t.device) ?? 1) <= OPENED_STACK_MAX;
+        const payload = fitPayload(alertPayload(copy, vote.id));
+        if (!payload) continue;
         out.push({
           msg: {
-            deviceToken: t.apnsToken,
+            deviceToken: t.apnsToken!,
             pushType: "alert",
-            payload: alertPayload(copy, vote.id),
+            payload,
             collapseId: stacked ? `opened-${vote.id}` : `opened-${day}`,
             // An "opened" alert an hour late is wrong, not late.
             expiration: nowS + 3600,
@@ -660,13 +798,7 @@ export class PushBroadcaster implements Broadcaster {
     }
   }
 
-  private async planFinal(
-    vote: PushVote,
-    all: Target[],
-    day: string,
-    now: Date,
-    out: { msg: ApnsMessage; onGone: () => Promise<unknown> }[],
-  ): Promise<void> {
+  private async planFinal(vote: PushVote, all: Target[], day: string, now: Date, out: Planned[]): Promise<void> {
     const { db } = this.deps;
     const nowS = Math.floor(now.getTime() / 1000);
     const alerting = all.filter((t) => t.apnsToken && (t.alertMembers.length > 0 || t.alertBill));
@@ -677,7 +809,8 @@ export class PushBroadcaster implements Broadcaster {
       "final",
       alerting.map((t) => ({
         device: t.device,
-        members: t.alertMembers.filter(cast).sort((a, b) => a.name.localeCompare(b.name)).map((m) => m.id),
+        members: t.alertMembers.filter(cast).map((m) => m.id),
+        absent: t.alertMembers.filter((m) => !cast(m)).map((m) => m.id),
         bills: t.alertBill && vote.billId ? [vote.billId] : [],
       })),
       day,
@@ -685,16 +818,21 @@ export class PushBroadcaster implements Broadcaster {
     );
     const mine = alerting.filter((t) => claimed.has(t.device));
     const counts = await sentToday(db, mine.map((t) => t.device), "final", day);
-    const busy = mine.filter((t) => (counts.get(t.device) ?? 1) > DIGEST_AFTER);
+    // A final more than an hour old (the worker was down, a backfill) is history, not news: it goes
+    // into the day's digest rather than buzzing alone.
+    const late = vote.occurredAt !== null && now.getTime() - Date.parse(vote.occurredAt) > LATE_FINAL_MS;
+    const busy = mine.filter((t) => late || (counts.get(t.device) ?? 1) > DIGEST_AFTER);
     const days = await digestDays(db, busy.map((t) => t.device), day);
     for (const t of mine) {
       const digest = days.get(t.device);
       const copy = digest ? digestAlert(digest) : t.alertMembers.length > 0 ? finalMembersAlert(vote, t.alertMembers) : finalBillAlert(vote);
+      const payload = fitPayload(alertPayload(copy, digest ? null : vote.id));
+      if (!payload) continue;
       out.push({
         msg: {
           deviceToken: t.apnsToken!,
           pushType: "alert",
-          payload: alertPayload(copy, digest ? null : vote.id),
+          payload,
           // The digest is one notification for the day, replaced in place as the night goes on.
           collapseId: digest ? `digest-${day}` : `final-${vote.id}`,
           expiration: nowS + 86_400,
@@ -703,7 +841,8 @@ export class PushBroadcaster implements Broadcaster {
       });
     }
 
-    // Every Live Activity running for this vote: the final, then gone 15 minutes later.
+    // Every Live Activity running for this vote: the final, then gone 15 minutes later. Its token is
+    // deleted once the end is delivered: nothing more will be sent to it.
     const { rows: activities } = await db.query<{ device: string; token: string }>(
       `select t.device_id::text as device, t.token from live_activity_tokens t join devices d on d.id = t.device_id
         where t.vote_id = $1 and d.apns_env = $2`,
@@ -711,22 +850,35 @@ export class PushBroadcaster implements Broadcaster {
     );
     const ended = await claim(db, vote.id, "activity_end", activities.map((a) => ({ device: a.device })), day, now);
     const membersOf = new Map(all.map((t) => [t.device, t.members]));
+    const forget = (device: string) => () =>
+      db.query("delete from live_activity_tokens where device_id = $1::uuid and vote_id = $2", [device, vote.id]);
     for (const a of activities) {
       if (!ended.has(a.device)) continue;
+      const payload = fitPayload(endPayload(vote, membersOf.get(a.device) ?? [], nowS));
+      if (!payload) continue;
       out.push({
-        msg: { deviceToken: a.token, pushType: "liveactivity", payload: endPayload(vote, membersOf.get(a.device) ?? [], nowS), priority: 10 },
-        onGone: () => db.query("delete from live_activity_tokens where device_id = $1::uuid and vote_id = $2", [a.device, vote.id]),
+        msg: { deviceToken: a.token, pushType: "liveactivity", payload, priority: 10 },
+        onGone: forget(a.device),
+        onSent: forget(a.device),
       });
     }
   }
 }
 
-/** Runs several broadcasters in order; pushes first, because they never throw. */
-export function composeBroadcasters(...all: Broadcaster[]): Broadcaster {
+/**
+ * Runs Realtime first — the open apps' channel, which must never wait on APNs — then the push
+ * queue in a `finally`, so a Realtime failure (retried by the next poll) cannot skip the pushes, and
+ * the pushes' own dedupe makes that retry harmless.
+ */
+export function composeBroadcasters(realtime: Broadcaster, push: Broadcaster): Broadcaster {
   return {
-    enabled: all.some((b) => b.enabled),
+    enabled: realtime.enabled || push.enabled,
     async publish(changes) {
-      for (const b of all) if (b.enabled) await b.publish(changes);
+      try {
+        if (realtime.enabled) await realtime.publish(changes);
+      } finally {
+        if (push.enabled) await push.publish(changes);
+      }
     },
   };
 }

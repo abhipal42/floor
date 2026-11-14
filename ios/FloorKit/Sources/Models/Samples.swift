@@ -288,7 +288,7 @@ public extension DeviceSubscription {
 public extension DeviceRegistration {
     static let sample = DeviceRegistration(
         apnsToken: String(repeating: "ab", count: 32), apnsEnvironment: .production, pushToStartToken: nil,
-        voteOpened: false, subscriptions: [.sample, DeviceSubscription(kind: .bill, id: "119-hr-1013", howVoted: false)]
+        voteOpened: false, liveActivities: true, subscriptions: [.sample, DeviceSubscription(kind: .bill, id: "119-hr-1013", howVoted: false)]
     )
 }
 

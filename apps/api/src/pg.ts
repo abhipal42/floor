@@ -1,4 +1,5 @@
-import { AI_DISCLAIMER } from "./app.js";
+import { createHash } from "node:crypto";
+import { AI_DISCLAIMER, DEVICE_SIGNUPS_PER_DAY } from "./app.js";
 import { billCitation, billLabel } from "./bills.js";
 import type {
   Bill,
@@ -480,21 +481,24 @@ export function pgRepositories(db: Db): {
     // An APNs token belongs to one install. A phone that reinstalled Floor makes a new key and
     // may get its old token back: the token moves to the new registration rather than failing
     // the unique constraint (or alerting twice).
-    await db.query(
+    const { rows: moved } = await db.query(
       `update devices set apns_token = case when apns_token = $2 then null else apns_token end,
                           push_to_start_token = case when push_to_start_token = $3 then null else push_to_start_token end
-        where key_hash <> $1 and (apns_token = $2 or push_to_start_token = $3)`,
+        where key_hash <> $1 and (apns_token = $2 or push_to_start_token = $3)
+        returning id`,
       [keyHash, reg.apnsToken, reg.pushToStartToken],
     );
+    // A count only: a token or key in a log line would name a phone.
+    if (moved.length) console.info(`device registration: ${moved.length} token(s) moved to a new key`);
     // One statement, so a registration and its subscription list change together. The delete
     // and the upsert touch different rows (those not in the new list, and those in it).
     await db.query(
       `with d as (
-         insert into devices (key_hash, apns_token, apns_env, push_to_start_token, vote_opened, updated_at)
-         values ($1, $2, $3, $4, $5, $6)
+         insert into devices (key_hash, apns_token, apns_env, push_to_start_token, vote_opened, live_activities, updated_at)
+         values ($1, $2, $3, $4, $5, $8, $6)
          on conflict (key_hash) do update set apns_token = excluded.apns_token, apns_env = excluded.apns_env,
            push_to_start_token = excluded.push_to_start_token, vote_opened = excluded.vote_opened,
-           updated_at = excluded.updated_at
+           live_activities = excluded.live_activities, updated_at = excluded.updated_at
          returning id
        ), x as (
          select distinct on (kind, id) kind, id, how_voted
@@ -515,13 +519,34 @@ export function pgRepositories(db: Db): {
         reg.voteOpened,
         now.toISOString(),
         JSON.stringify(reg.subscriptions.map((x) => ({ kind: x.kind, id: x.id, how_voted: x.howVoted }))),
+        reg.liveActivities,
       ],
     );
   };
 
+  /**
+   * A key this database has not seen counts against its caller's daily allowance of new
+   * registrations (`DEVICE_SIGNUPS_PER_DAY`), kept in Postgres so every serverless instance shares
+   * the count. The caller is stored as SHA-256(address, day) only.
+   */
+  const admitNew = async (keyHash: string, caller: string, now: Date): Promise<boolean> => {
+    const { rows: known } = await db.query("select 1 from devices where key_hash = $1", [keyHash]);
+    if (known.length) return true;
+    const day = now.toISOString().slice(0, 10);
+    const ipHash = createHash("sha256").update(`${caller}|${day}`).digest("hex");
+    const { rows } = await db.query<{ count: number }>(
+      `insert into device_signups (ip_hash, day, count) values ($1, $2::date, 1)
+       on conflict (ip_hash, day) do update set count = device_signups.count + 1
+       returning count`,
+      [ipHash, day],
+    );
+    return (rows[0]?.count ?? 0) <= DEVICE_SIGNUPS_PER_DAY;
+  };
+
   return {
     devices: {
-      async register(keyHash, reg, now) {
+      async register(keyHash, reg, now, caller) {
+        if (!(await admitNew(keyHash, caller, now))) return "limited";
         // Two registrations racing for one token (a reinstall registering twice at once) can both
         // pass the token move and collide on the unique constraint; the second try sees the first.
         try {
@@ -530,6 +555,7 @@ export function pgRepositories(db: Db): {
           if ((error as { code?: string }).code !== "23505") throw error;
           await registerOnce(keyHash, reg, now);
         }
+        return "ok";
       },
       async unregister(keyHash) {
         const { rows } = await db.query("delete from devices where key_hash = $1 returning id", [keyHash]);

@@ -74,7 +74,7 @@ npm run ingest -w @floor/worker -- latency 30                     # roll call po
 npm run loadtest -w @floor/api -- --duration 30 --connections 50 # vote-night load test against a LOCAL API (refuses production)
 npm run openapi -w @floor/api                                    # regenerate apps/api/openapi.json after changing routes
 npm run build -w @floor/web && npm run serve -w @floor/web       # build and serve the landing page from apps/web/dist
-swift test --package-path ios/FloorKit                           # all FloorKit tests (489 on macOS; snapshots run only on the iOS 26.2 simulator, 47 more)
+swift test --package-path ios/FloorKit                           # all FloorKit tests (498 on macOS; snapshots run only on the iOS 26.2 simulator, 47 more)
 ```
 
 `apps/api/openapi.json` is the committed contract. Re-run `npm run openapi` after any change to
@@ -123,7 +123,7 @@ Command Line Tools rather than Xcode: run it with `DEVELOPER_DIR=/Applications/X
 | `GET /v1/bills/{id}/analysis` | AI analysis of the bill's CRS summary (M4 Layer 1): purpose, provisions, affected groups, impact. `ai: true` on the response and on every line, a `disclaimer` to show with it, and per line the summary paragraph it cites (1-based, into `source.paragraphs`), a verbatim quote and the bill section. `source.stale` means the summary has changed since and a new analysis is pending. 404 until the worker has analysed the bill (the app reads that as "none" and saves it like a response). Shown at the top of the Bill screen since v0.2.27 |
 | `GET /v1/nominations/{id}` | Nominee, position, agency, received and latest action, every Senate vote on it. IDs look like `119-pn-1093-3` |
 | `GET /v1/live?since=` | Each chamber's session state as the live worker last saw it (`inSession`, `convenesAt`, `checkedAt`), and the votes that are `open` (named in the last day) or that the worker published as `final` within `since` minutes (`broadcast_at`; default 120, max 1440) and that were themselves voted in the last day, with `openedAt` / `announcedAt` / `postedAt`, and (v0.2.30) `measure` — an open vote's bill read from its `billRef`, since it is linked only once final. Sent with `Cache-Control: public, max-age=5, s-maxage=5`, so Vercel's edge answers vote-night polling. Empty — `{chambers: [], votes: []}`, not an error — on a database without the M3 migration (Postgres `42P01`/`42703` are read as "nothing live"), and until the worker runs |
-| `PUT /v1/devices` | Register this phone for alerts and Live Activities, or replace its registration (v0.2.30). Header `Authorization: Device <key>` (the phone's random 32-byte key, base64url; the API stores its SHA-256 — 401 without it). Body: `apnsToken`, `apnsEnvironment` (`sandbox`/`production`), `pushToStartToken`, `voteOpened`, and `subscriptions` — every member (Bioguide ID) and bill (`119-hr-1013`) with `howVoted` on or off, at most 1,000; topics are refused. Answers `{subscriptions, voteOpened}`. `DELETE /v1/devices` forgets the phone. `PUT /v1/devices/activities/{voteId}` (`{token}`) keeps a running Live Activity's push token, 404 for an unknown vote or an unregistered phone; `DELETE` removes it. All four: `no-store`, 30 a minute per caller together (`DEVICES_RATE_LIMIT`), 503 with no database. CORS stays GET-only, so no web page can call them. See M3 |
+| `PUT /v1/devices` | Register this phone for alerts and Live Activities, or replace its registration (v0.2.30). Header `Authorization: Device <key>` (the phone's random 32-byte key, base64url; the API stores its SHA-256 — 401 without it). Body: `apnsToken`, `apnsEnvironment` (`sandbox`/`production`), `pushToStartToken`, `voteOpened` (the push alert), `liveActivities` (silent Live Activities, on by default in the app), and `subscriptions` — every member (Bioguide ID) and bill (`119-hr-1013`) with `howVoted` on or off, at most 1,000; topics are refused. Answers `{subscriptions, voteOpened}`. `DELETE /v1/devices` forgets the phone. `PUT /v1/devices/activities/{voteId}` (`{token}`) keeps a running Live Activity's push token, 404 for an unknown vote or an unregistered phone; `DELETE` removes it. All four: `no-store`, 30 a minute per caller together (`DEVICES_RATE_LIMIT`), bodies over 64 KB refused (413), 503 with no database. A key the database has not seen counts against its caller's 10 new keys a day (`DEVICE_SIGNUPS_PER_DAY`, counted in Postgres as SHA-256(address, day) in `device_signups`, so every instance shares it): 429 past it. CORS stays GET-only, so no web page can call them. See M3 |
 | `GET /v1/topics?congress=` | The 32 CRS policy areas in a fixed order, each with its bill count, how many of those had a floor vote, and the latest action date, for one Congress (default: the one in session). Areas with no bills are listed with zeros. Cached (`TOPICS_CACHE_CONTROL`, 5 min / edge 15 min); 120 a minute per caller |
 | `GET /v1/topics/{name}/bills?filter=all\|moving\|law\|stalled&cursor=&limit=` | A topic's bills, newest action first, 25 a page (max 50), keyset-paginated: pass `nextCursor` back as `cursor`. Each row: citation, plain short `label`, full title, `stage` (null for a bill not yet fetched in detail, which counts as unsettled), `stalled`, latest action, `hasFloorVote`. The cursor carries the stored action date, so a row with a date but no action text pages correctly. `moving` = not settled and acted on in 90 days; `stalled` = not settled, no action in 90 days (computed per request); settled = law, adopted, vetoed, failed. `name` is case-insensitive (`health`, `Arts%2C%20Culture%2C%20Religion`); 404 for anything not one of the 32, 400 for a cursor it did not issue. Same cache and limit as `/v1/topics`, and one count shared with it (each request counts once) |
 | `GET /v1/search?q=` | `{members, bills, topics}` in one call. A bill number in any spelling (`hr 1013`, `H.R.1013`, `s 2`, `hjres 12`, `s.j.res.197`, `119-hr-1013`) returns exactly that bill in every Congress, newest first, with `billNumber: true`, and nothing else. Otherwise words match bills by Postgres full-text search (short title, title, CRS summary; GIN index; current Congress ranked first; 20 max), topics by name, and sitting members exactly as `/v1/members?q=` reads them — the same reader (`parseMemberQuery` in `search.ts`, then `members.search`), up to 60, Senate first, so a whole state (Texas's 40) fits; optional `chamber` narrows the members only. Topics: names holding every word, else any holding one non-stopword word ("rural health" → Health; "and" → nothing). Companion bills (the House and Senate versions of one measure) are separate results, not linked. 2–100 characters. Cached 1 min / edge 5 min; 60 a minute per caller |
@@ -143,7 +143,7 @@ Command Line Tools rather than Xcode: run it with `DEVELOPER_DIR=/Applications/X
 | `pac_contributions` | 103,564 | Per member and giving committee, 2026 cycle: direct and earmarked totals, committee designation, type and organization type. No memo text, no individual names (lesson 23) |
 | `bill_analyses` / `bill_analysis_runs` | 0 / 0 | M4 Layer 1: the public analysis, one row per bill and CRS summary stage; and the private run log (attempts, errors, cost, rejected claims; no RLS policy, service role only). Their migration is not applied to staging yet, and no analysis has been generated (no Claude key on the project); see M4 |
 | `ingest_runs` | | Every ingest run with item count and error, which feeds `/v1/status`. The live worker writes one per chamber per poll and prunes empty successful runs older than two days (keeping errors, runs that stored something, and the newest per source) |
-| `devices`, `device_subscriptions`, `live_activity_tokens`, `push_log` | 0 | Alerts and Live Activities (v0.2.30): a phone's hashed key, push tokens and "A vote opened"; the members and bills it wants alerts about; each running activity's token; and what the worker sent (dedupe and the digest). RLS on, **no policy** (service connection only). Written by `PUT /v1/devices` and the worker once `20261116000000_device_alerts.sql` is applied (not yet). The old account-based `devices` it replaces was empty |
+| `devices`, `device_subscriptions`, `live_activity_tokens`, `push_log`, `device_signups` | 0 | Alerts and Live Activities (v0.2.30): a phone's hashed key, push tokens, "A vote opened" and "Live Activities"; the members and bills it wants alerts about; each running activity's token; what the worker sent (dedupe and the digest; cast and absent members kept apart); and new keys per hashed caller per day. The worker prunes them hourly (`pruneDevices`: `push_log` after 2 days, activity tokens after 1, devices with no token after 1, devices silent for 60, signup counts after 7). RLS on, **no policy** (service connection only). Written by `PUT /v1/devices` and the worker once `20261116000000_device_alerts.sql` is applied (not yet). The old account-based `devices` it replaces was empty |
 | `floor_events`, `chamber_status`, `votes.announced_at` / `posted_at` / `broadcast_at` | 0 | M3. The migration sets `broadcast_at` on every vote already final (to its `occurred_at`), so the worker's first poll announces none of them. Written only by the live worker, after `20261114000100_live_layer.sql` is applied (not yet) |
 
 Verification query (should return zeros for the last four columns):
@@ -890,8 +890,8 @@ live `#FF453A`, muted text `#9BA1AD`.
 | Deploy files | `apps/worker/Dockerfile`, `apps/worker/fly.toml`, `/.dockerignore` | Image built and run against a throwaway Postgres on 2026-11-13: one real poll stored House roll 323 and Senate 262, then stopped cleanly on `docker stop` |
 | Realtime | `apps/worker/src/realtime.ts` | Supabase Realtime **broadcast** over REST: each change to topics `floor:votes` and `vote:<id>`, event `vote_state`, payload = id, chamber, state, question, result, the three timestamps. No-op without env |
 | APNs | `apps/worker/src/apns.ts` | Token (ES256 JWT) auth over HTTP/2, alert / background / liveactivity push types, collapse IDs, 410 → `unregistered`. Called by `push.ts` (v0.2.30). No-op without env |
-| Pushes (v0.2.30) | `apps/worker/src/push.ts` | `PushBroadcaster`, composed before Realtime in `cli.ts` (`composeBroadcasters(push, realtime)`), so it sees exactly what the live loop publishes: opens from the poll that stored them, finals from `publishFinals` (the `broadcast_at` path). **Open** → phones with "A vote opened" on whose members sit in that chamber (`members.chamber`, `term_end` not passed) or who follow the vote's bill: a push-to-start Live Activity where the phone gave a push-to-start token (its `alert` is the "vote opened" line — one buzz, not two), else the alert "A House vote opened: H.R. 1013, On Passage." / the bill's short title. **Final** → phones whose "How they voted" is on for a member with a position on the vote ("Doggett voted nay on H.R. 1013." / "It passed the House 295–128."; two alike "Doggett and Jeffries voted nay…"; four or more alike "4 of your members voted yea…"; mixed "Your members split on H.R. 1013." with each one's call first in the body; a procedural vote "…on a procedural vote." with the question in the body), or on for the bill ("A vote on H.R. 1013, which you follow." / "On Passage: it passed the House 295–128."); and every Live Activity registered for the vote gets `event: end` with the final and `dismissal-date` = now + 15 min. **Digest:** a phone's 4th final of the Eastern day and every later one replace one notification (`apns-collapse-id: digest-<day>`): "Your members cast 6 votes today." / "Doggett 2 · Cornyn 2 · Cruz 2. Tap to catch up." (cast = yea, nay, present; members in the order their first vote was alerted; bills counted as "N votes on bills you follow"); opens past the 3rd replace one another (`opened-<day>`). Outcome words come from the chamber's result first, as the app's `Vote.recordedOutcome` (rejection words before acceptance); a Speaker ballot "elected no one; Jeffries led with 212" (lesson 16). Every send is claimed in `push_log` first (`on conflict do nothing`), so a retried poll never alerts twice — at most once, not at least once. 410 clears `apns_token` / `push_to_start_token` or deletes the activity token; other refusals are logged. 20 streams in flight on one HTTP/2 session; only tokens of the sender's environment (`APNS_ENV`). Never throws. Tested on PGlite with a stub sender (`alerts.test.ts`, 18 tests) |
-| Device registration (v0.2.30) | `PUT`/`DELETE /v1/devices`, `PUT`/`DELETE /v1/devices/activities/{voteId}`; migration `20261116000000_device_alerts.sql` | No accounts: the phone makes a random 32-byte key (`DeviceKey`, kept in its own defaults, never in a URL or the App Group) and sends `Authorization: Device <key>`; the API stores only its SHA-256 (`devices.key_hash`). A registration is the whole list each time: APNs token, push-to-start token, `apnsEnvironment`, "A vote opened", and every member and followed bill with its "How they voted" switch (`device_subscriptions`; off items are kept because "A vote opened" covers them). Topics are refused (400). A token that reappears under a new key moves to it. 30 requests a minute per caller across the four routes; `Cache-Control: no-store`; 503 on a deployment without a database. The migration re-makes the old account-based `devices` (it refuses if the table has rows: it had none in the `projects/floor/.env` database on 2026-11-13, read-only check) and adds `device_subscriptions`, `live_activity_tokens` and `push_log`, all with RLS on and **no policy** |
+| Pushes (v0.2.30) | `apps/worker/src/push.ts` | `PushBroadcaster`, composed **after** Realtime in `cli.ts` (`composeBroadcasters(realtime, push)`, the pushes in a `finally`), so it sees exactly what the live loop publishes: opens from the poll that stored them, finals from `publishFinals` (the `broadcast_at` path). **It never delays the loop:** `publish` queues the changes and returns; one background drain sends them in order (`idle()` waits for it, which the worker does on shutdown). **Open** → for phones whose members sit in the vote's chamber (`members.chamber`, `term_end` not passed) or who follow its bill: with **"Live Activities"** on (the default) and a push-to-start token, a Live Activity is started **silently** (priority 5, no sound) — unless the phone already runs one for the vote (`live_activity_tokens`); with **"A vote opened"** on (off by default) the alert "A House vote opened: H.R. 1013, On Passage." / the bill's short title — carried, with its sound, by the start push when there is one (one push, not two), else a plain alert. **Final** → phones whose "How they voted" is on for a member with a position on the vote ("Doggett voted nay on H.R. 1013." / "It passed the House 295–128."; absences are facts and alert too: "Doggett did not vote on …"; two alike "Doggett and Jeffries voted nay…"; four or more alike "4 of your members voted yea…"; mixed "Your members split on H.R. 1013." with each one's call first in the body; a procedural vote "…on a procedural vote." with the question in the body), or on for the bill ("A vote on H.R. 1013, which you follow." / "On Passage: it passed the House 295–128."); and every Live Activity registered for the vote gets `event: end` with the final and `dismissal-date` = now + 15 min, after which its token is deleted. **Digest:** a phone's 4th alerted final of the Eastern day — absences included — and every later one replace one notification (`apns-collapse-id: digest-<day>`): "Your members cast 6 votes today." / "Doggett 2 · Cornyn 2 · Cruz 2. Tap to catch up." (cast = yea, nay, present; a missed vote reads "Cornyn missed 1"; a night of only absences "Your members missed 4 votes today."; members in the order their first vote was alerted; bill-only finals as "N votes on bills you follow"); a final published more than an hour after it happened (after downtime) goes **only** into the digest; opens past the 3rd replace one another (`opened-<day>`). Targets are one row per phone (members and the bill aggregated in SQL). Titles are cut to 120 characters, and a payload over APNs' 4 KB loses the bill title, else is skipped (`fitPayload`). Outcome words come from the chamber's result first, as the app's `Vote.recordedOutcome`; a Speaker ballot "elected no one; Jeffries led with 212" (lesson 16). Every send is claimed in `push_log` first (`on conflict do nothing`), so a retried poll never alerts twice — at most once, not at least once. A token APNs calls dead — 410, or 400 `BadDeviceToken` / `DeviceTokenNotForTopic` / `BadEnvironmentKeyInToken` — is cleared (or the activity token deleted); other refusals are logged. 20 streams in flight on one HTTP/2 session; only tokens of the sender's environment (`APNS_ENV`). Never throws. Hourly `pruneDevices` through `LiveDeps.maintenance`. Tested on PGlite with a stub sender (`alerts.test.ts`, 26 tests) |
+| Device registration (v0.2.30) | `PUT`/`DELETE /v1/devices`, `PUT`/`DELETE /v1/devices/activities/{voteId}`; migration `20261116000000_device_alerts.sql` | No accounts: the phone makes a random 32-byte key (`DeviceKey`, kept in its Keychain as `AfterFirstUnlockThisDeviceOnly` — a backup restored to another phone does not carry it — never in a URL or the App Group) and sends `Authorization: Device <key>`; the API stores only its SHA-256 (`devices.key_hash`). A registration is the whole list each time: APNs token, push-to-start token, `apnsEnvironment`, "A vote opened", and every member and followed bill with its "How they voted" switch (`device_subscriptions`; off items are kept because "A vote opened" covers them). Topics are refused (400). A token that reappears under a new key moves to it (logged as a count, never the token). Two registrations racing for a token retry once on `23505`. 30 requests a minute per caller across the four routes; `Cache-Control: no-store`; 503 on a deployment without a database. The migration re-makes the old account-based `devices` (it refuses if the table has rows: it had none in the `projects/floor/.env` database on 2026-11-13, read-only check) and adds `device_subscriptions`, `live_activity_tokens`, `push_log` and `device_signups`, all with RLS on and **no policy** |
 | Live Activity (v0.2.30) | FloorKit `LiveActivity`; `ios/FloorWidgets/VoteLiveActivity.swift`; `ios/Floor/LiveActivities.swift` | See "Alerts and the Live Activity (v0.2.30)" below |
 | Alerting | `apps/worker/src/alert.ts` | While a chamber sits, asks the deployed `/v1/status` at most once a minute. Three failed checks in a row (`ok: false` or no answer) POST `{text, content}` to a webhook (Slack/Discord shape); it repeats every 30 min, and three good checks in a row post "recovered". Never two posts within 30 min, so a flapping status cannot spam. No-op without env |
 | API | `GET /v1/live` | See §2. Edge-cached 5 s. Swift models `Live`, `LiveVote`, `ChamberStatus` (`Models/Live.swift`) decode it, checked by `ContractTests` and `LiveTests` on a response the real API code gave from real 2026-11-10 data. Since v0.2.30 each vote carries `measure` (an open vote's bill read from its `billRef`), and the app polls it for Live Activities while open |
@@ -902,16 +902,15 @@ live `#FF453A`, muted text `#9BA1AD`.
 the routes, the tables, the worker's sends, the app's registration, the Live Activity. What is
 left is an **APNs key** and **deploying the worker** with it:
 
-1. **Apply `supabase/migrations/20261114000100_live_layer.sql` to staging** (Supabase SQL editor; needs
-   dashboard access — Sourav), then re-check the **security advisor**: the new `chamber_status` table has
-   RLS with a `public read` policy, like the other public tables. Until then `/v1/live` answers empty
-   (`{chambers: [], votes: []}`), since its tables don't exist. (The database in `projects/floor/.env`
-   already had `chamber_status` on 2026-11-13, checked read-only — so check before applying twice.)
-   **Then apply `20261116000000_device_alerts.sql`** (v0.2.30): it re-makes `devices` without
-   accounts and adds `device_subscriptions`, `live_activity_tokens` and `push_log`. The security
-   advisor will flag those four as "RLS enabled, no policy" — that is deliberate (only the service
-   connection reads them); do not add a policy. Until it is applied the device routes answer 500 (the
-   app retries later; nothing else is affected).
+1. **`supabase/migrations/20261114000100_live_layer.sql` is already applied** to the production
+   database (the one in `projects/floor/.env`: `chamber_status` exists, checked read-only on
+   2026-11-13) — do not apply it again there; staging may still need it (check for `chamber_status`
+   first). **What remains is `20261116000000_device_alerts.sql`** (v0.2.30; not applied anywhere): it
+   re-makes `devices` without accounts and adds `device_subscriptions`, `live_activity_tokens`,
+   `push_log` and `device_signups`. Apply it in the Supabase SQL editor (dashboard access — Sourav),
+   then re-check the **security advisor**: it will flag those five as "RLS enabled, no policy" — that
+   is deliberate (only the service connection reads them); do not add a policy. Until it is applied
+   the device routes answer 500 (the app retries later; nothing else is affected).
 2. **Deploy the worker** (needs a Fly.io account; Railway works the same way from the Dockerfile):
    ```bash
    fly launch --no-deploy --copy-config --config apps/worker/fly.toml --name floor-worker
@@ -1821,37 +1820,51 @@ The server half is under M3 ("Pushes", "Device registration"); this is the phone
   FloorKit (snapshot-tested), wrapped by `VoteLiveActivity` in the widget extension. Lit in both
   appearances (`litObject()`), as the mock's displays are. `NSSupportsLiveActivities` is in the
   app's Info.plist; the App Group and `FLOOR_BUNDLE_ID` scheme is unchanged.
-- **Starting it.** Two ways, both only with "A vote opened" on (it is off by default): **by push**
-  while the app is closed (the worker's push-to-start; iOS 17.2+), and **locally** while it is open —
-  `LiveActivityCoordinator` polls `/v1/live` every 5 s (its edge cache) only while the scene is
-  active (`scenePhase`), and never in the background. A vote involves you when one of your members
-  sits in its chamber or it is on a bill you follow — the worker's rule. Updating and ending never
-  need the switch: an activity already running is finished even if you turned it off. When the vote
-  goes final the app asks `/v1/votes/{id}?members=` for your members' positions and ends the
-  activity with the final, dismissed 15 minutes after the final was seen (`postedAt`), or at once if
-  that has passed. One you swipe away is not started again that session. Each activity asks for a
-  push token (`pushType: .token`) and the app sends it to `PUT /v1/devices/activities/{voteId}`, so
-  the worker can end it after the app has gone to the background.
+- **Starting it** (product call, 2026-11-13: design A). Live Activities start **by default,
+  silently**, for votes involving your members or bills; the **"Live Activities"** switch (on by
+  default, `FollowState.liveActivities`) turns them off. **"A vote opened"** is only the push alert.
+  Two ways in: **by push** while the app is closed (the worker's push-to-start; iOS 17.2+), and
+  **locally** while it is open — `LiveActivityCoordinator` polls `/v1/live` every 5 s (its edge
+  cache) only while the scene is active (`scenePhase`), never in the background; it asks for nothing
+  when nothing could start and nothing runs, and backs off to 60 s when neither chamber sits and
+  nothing is open. A vote involves you when one of your members sits in its chamber or it is on a
+  bill you follow — the worker's rule. Updating and ending never need the switch. When the vote goes
+  final the app asks `/v1/votes/{id}?members=` for your members' positions and ends the activity,
+  dismissed 15 minutes after the final was seen (`postedAt`); if the positions cannot be fetched it
+  waits for the next poll rather than ending on "not recorded yet"; a running activity whose vote has
+  left `/v1/live` is looked up by id and ended if final. One you swipe away (the app's or the
+  worker's) is not started again that session, and a second activity for the same vote (a push that
+  raced the app) is ended at once. Members are listed by surname on both sides. Each activity asks
+  for a push token (`pushType: .token`) and the app sends it to `PUT /v1/devices/activities/{voteId}`
+  (kept and resent after the next registration if the API refused it), so the worker can end it after
+  the app has gone to the background.
 - **The Alerts screen** (`FloorKit/Sources/Alerts`), from a bell in Following's top bar. "How they
   voted": your reps ("Your rep", "Your senator", "Your delegate") on by default and members you
   follow ("Following") off, as stored since v0.2.28 (`FollowState.alerts`); "Bills you follow", each
   off by default (`FollowState.billAlerts`, new); "A vote opened · Votes involving your members",
-  off (`FollowState.voteOpened`, new). Older follow records open with both new fields off. Hidden
-  reps are not listed (they are not "your members" anywhere). A footnote says topics do not alert.
+  off (`FollowState.voteOpened`, new); "Live Activities · On your lock screen", on
+  (`FollowState.liveActivities`, new; turning it on never asks for notifications). Older follow
+  records open with the defaults. Hidden reps are not listed. Footnotes say topics do not alert, and
+  past 1,000 members and bills that alerts cover the first 1,000 (the route's cap).
 - **Permission: asked only when you turn something on** (`AlertSync.askIfNeeded`). The defaults
   never ask, so a phone whose reps are on by default but which never visited the screen shows a card
   there — "FLOOR CAN'T ALERT YOU YET" with "Allow notifications" — and, once refused, "Notifications
   are off for Floor" with "Open Settings". Permission is read again whenever the app comes forward.
-- **Registering** (`AlertSync`). Only with permission and a token: the whole registration
-  (`AlertSync.registration`) goes to `PUT /v1/devices` two seconds after the last change (a switch,
-  a follow, a token, a new district), and only if it differs from the last one that succeeded (kept
-  in the app's defaults); a failure is retried on the next change or launch. Nothing on, or
-  permission gone → `DELETE /v1/devices`, so the API keeps no list for a phone that wants no alerts.
-  The APNs token comes from `AppDelegate` (`ios/Floor/Notifications.swift`), the push-to-start token
-  from `Activity.pushToStartTokenUpdates` (`ios/Floor/LiveActivities.swift`). A Debug build registers
-  as `sandbox`, Release as `production` (`FLOOR_APNS_ENV`). A tapped alert opens its vote
-  (`link: floor://vote/<id>`), the digest opens Finals; alerts that arrive with the app open show
-  as banners.
+- **Registering** (`AlertSync`). When something is on — an alert, or Live Activities with someone or
+  something followed — and the phone can use it: notifications allowed (then with the APNs token,
+  waiting for it rather than registering without), or Live Activities enabled (then without an alert
+  token, so activities can still be started and ended by push). The whole registration
+  (`AlertSync.registration`, at most 1,000 subscriptions, members first) goes to `PUT /v1/devices`
+  two seconds after the last change (a switch, a follow, a token, a new district) if it differs from
+  the last one that succeeded — and always once per launch and once a day, so a registration the
+  server lost heals itself. Nothing on, or no way to use it → `DELETE /v1/devices`. The APNs token
+  comes from `AppDelegate` (`ios/Floor/Notifications.swift`), the push-to-start token from
+  `Activity.pushToStartTokenUpdates` (`ios/Floor/LiveActivities.swift`), sent only while Live
+  Activities are enabled. A Debug build registers as `sandbox`, Release as `production`
+  (`FLOOR_APNS_ENV`). A tapped alert opens its vote (`link: floor://vote/<id>`; a tap that launched
+  the app waits in `PushRelay` until the shell is up), the digest opens Finals; alerts that arrive
+  with the app open show as banners. The device key is in the Keychain; one kept in the app's
+  defaults by an earlier build is moved there on first launch.
 - **What an independent review of the first draft caught, fixed before merge:** a cold launch whose
   APNs token had not come back within the 2 s debounce *unregistered* the phone (a missing token now
   means "wait", never "unregister" — the delete would also have dropped every Live Activity token);
@@ -1863,17 +1876,25 @@ The server half is under M3 ("Pushes", "Device registration"); this is the phone
   re-read on coming forward); a push-started activity the user dismissed was restarted locally; the
   digest counted a final where every alerting member was absent as "a vote on bills you follow"; and
   two registrations racing for one token could 500 (retried once on `23505`).
-- **Known and left, with why:** the device key lives in the app's `UserDefaults`, so a restore to
-  a new phone from a backup carries it, and two phones would share one registration until one is
-  reinstalled — the Keychain with `ThisDeviceOnly` would fix it; an activity whose final dropped out
-  of `/v1/live`'s 2-hour window before the app came forward is left to the worker's end push or the
-  system's 8-hour limit; and the worker derives a vote's bill from `billRef` even when the bill is
+- **Second review (coordinator, before merge), all fixed here:** Realtime first and pushes queued
+  off the loop; per-device aggregation in SQL; 400 dead-token reasons cleared; token-less and silent
+  devices, old `push_log` and delivered activity tokens pruned; new keys capped per caller per day in
+  Postgres; re-registration per launch and daily; token moves logged; registration for Live
+  Activities without notification permission; titles cut and payloads fitted to 4 KB; no ending on a
+  failed positions fetch; ending activities whose vote left `/v1/live`; idle polling skipped and
+  backed off; duplicate activities ended; cold-start taps buffered; late finals digest-only; one
+  member order; the key in the Keychain; a 64 KB body limit; the 1,000-subscription cap in the app;
+  Palette and type tokens in the activity views.
+- **Known and left, with why:** the worker derives a vote's bill from `billRef` even when the bill is
   not in the catalog, where `/v1/live`'s `measure` is null, so a followed uncatalogued bill can alert
-  without starting a local activity.
-- **Tests:** `LiveActivityTests` (17: the contract fixtures, the words, the poller against a fake
-  host), `AlertsTests` (14: defaults, registration contents, sync — including that a token not back yet never unregisters —, permission flow, device key),
-  `DeviceAPITests` (4), `alerts.test.ts` (18, the worker), device routes and repository in
-  `app.test.ts` / `pg.test.ts`, the migration in `migrations.test.ts`. Snapshots (15 images): the
+  without starting a local activity. With notifications allowed but APNs never answering (the
+  simulator), the phone waits for the token and does not register.
+- **Tests:** `LiveActivityTests` (21: the contract fixtures, the words, the poller against a fake
+  host), `AlertsTests` (19: defaults, registration contents, sync — a token not back yet never
+  unregisters, Live Activities without notifications, the daily and per-launch resend, the cap —,
+  permission flow, the Keychain key and its migration), `DeviceAPITests` (4), `alerts.test.ts` (26,
+  the worker), device routes and repository in
+  `app.test.ts` / `pg.test.ts`, the migration in `migrations.test.ts`. Snapshots (15 images; v0.2.30's second pass re-recorded `alertsScreen` light and dark for the Live Activities switch and `liveActivityOpen` AX5 for scaled member lines): the
   lock screen open (light, dark, AX5) and final (light, dark), the Senate two-member open (dark), the
   Dynamic Island's expanded, compact and minimal (dark), the Alerts screen (light, dark, AX5), its
   permission card (light, dark), empty (light), and Following's bell (light, dark).
@@ -1885,7 +1906,8 @@ The server half is under M3 ("Pushes", "Device registration"); this is the phone
   - Your members past three are counted ("+2 more of your members"); the mock never has more than two.
   - Alerts has a "Bills you follow" group and a footnote about topics; the mock's screen is members
     only (bills were not followable then). "A vote opened" keeps the mock's title, with the caption
-    "Off by default · with a Live Activity", since the switch also starts one.
+    "Off by default", and a separate "Live Activities" switch (on by default) — the product call that
+    activities follow design A (silent, by default) and "A vote opened" is only the alert.
   - The permission card is not in the mock: with reps on by default and permission asked only when
     you turn something on, something has to say why nothing arrives.
   - The digest lists members in the order the night's first alert named them and counts cast votes
@@ -1942,7 +1964,7 @@ into its target's bundle from the target's `sources` folder.
 
 - **Required-reason APIs:** `UserDefaults` only. The app: **CA92.1** for its own defaults (the
   appearance choice, `@AppStorage`, the pre-widget copy of the district it migrates from, and since
-  v0.2.30 the device key and the last registration sent — `DeviceKey`, `AlertSync`) and
+  v0.2.30 the last registration sent and when — `AlertSync`; the device key itself is in the Keychain, which is not a required-reason API) and
   **1C8F.1** for the App Group suite it writes the district and members to
   (`UserDefaultsDelegationStore.shared`). The widget: **1C8F.1** only — it reads and writes that
   suite. None of

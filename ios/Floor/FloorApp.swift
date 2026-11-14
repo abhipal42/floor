@@ -2,6 +2,7 @@ import Alerts
 import APIClient
 import DesignSystem
 import Home
+import ActivityKit
 import LiveActivity
 import Models
 import Onboarding
@@ -59,6 +60,7 @@ struct FloorApp: App {
         let key = DeviceKey.stored()
         let sync = AlertSync(
             registrar: api, permissions: SystemNotificationPermissions(), key: key, environment: FloorApp.apnsEnvironment,
+            activitiesEnabled: { ActivityAuthorizationInfo().areActivitiesEnabled },
             onAllowed: { PushRelay.shared.registerForRemoteNotifications() }
         ) {
             // Read at sync time: the district can change ("Change address") while the app runs.
@@ -74,7 +76,7 @@ struct FloorApp: App {
             return .init(
                 members: state.yourMembers(reps: store.load()?.members ?? []),
                 bills: Set(state.followedBillIds),
-                voteOpened: state.voteOpened
+                liveActivities: state.liveActivities
             )
         })
         host.observe(sync: sync)

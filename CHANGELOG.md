@@ -47,7 +47,27 @@ tested end to end; nothing is pushed until an APNs key is set and the worker is 
 - `ChamberGlyph` moved from the widget extension to DesignSystem.
 - The app's entitlements carry `aps-environment`; `NSSupportsLiveActivities` in its Info.plist;
   `FLOOR_APNS_ENV` (sandbox in Debug, production in Release) says which gateway a token belongs to.
-- Snapshot references: 15 new images (8 tests); none re-recorded.
+- Snapshot references: 15 new images (8 tests); none of the earlier ones re-recorded.
+
+### Changed before merge (two reviews and two product calls)
+- **Live Activities follow design A**: on by default, started silently for votes involving your
+  members or bills, with their own "Live Activities" switch on the Alerts screen; "A vote opened"
+  is only the push alert (carried by the start push, with its sound, when both are on).
+- **Absences alert and count toward the digest** ("Cornyn missed 1"; "Your members missed 4
+  votes today.").
+- Worker: Realtime first, pushes queued off the live loop; one SQL row per phone; 400
+  `BadDeviceToken` / `DeviceTokenNotForTopic` / `BadEnvironmentKeyInToken` clear the token; hourly
+  pruning of `push_log`, delivered and old activity tokens, token-less and 60-day-silent devices;
+  titles cut to 120 characters and payloads fitted to 4 KB; finals over an hour late go only into
+  the digest; no push-to-start where the phone already runs an activity.
+- API: 10 new device keys per caller per day (`device_signups`, hashed, in Postgres), 64 KB body
+  limit, `liveActivities` in the registration, token moves logged and races retried.
+- App: re-registers once per launch and daily; registers for Live Activities without notification
+  permission; waits for a late APNs token instead of unregistering; resends refused activity tokens;
+  ends a duplicate activity, one whose vote left `/v1/live`, and never on a failed positions fetch;
+  skips or slows polling when idle; buffers a cold-start alert tap; device key in the Keychain
+  (moved from the defaults); members listed by surname as the worker does; 1,000-subscription cap.
+- Snapshots re-recorded for these: `alertsScreen` (light, dark), `liveActivityOpen` (AX5).
 
 ## 0.2.29 — 2026-11-13
 

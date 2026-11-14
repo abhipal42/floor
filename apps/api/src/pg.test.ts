@@ -3,6 +3,7 @@ import { PGlite } from "@electric-sql/pglite";
 import { loadMigrations } from "@floor/db";
 import { beforeAll, describe, expect, it } from "vitest";
 import { pgRepositories, poolerMode, poolerWarning, type Db } from "./pg.js";
+import { DEVICE_SIGNUPS_PER_DAY } from "./app.js";
 import { parseMemberQuery } from "./search.js";
 
 describe("poolerMode", () => {
@@ -996,6 +997,7 @@ describe("device repository", () => {
     apnsEnvironment: "production" as const,
     pushToStartToken: token("b"),
     voteOpened: false,
+    liveActivities: true,
     subscriptions: [
       { kind: "member" as const, id: "H000037", howVoted: true },
       { kind: "bill" as const, id: "119-hr-1", howVoted: false },
@@ -1011,7 +1013,7 @@ describe("device repository", () => {
     ).rows;
 
   it("registers a device with its whole subscription list, and replaces it on the next registration", async () => {
-    await repos.devices.register(hash("1"), reg, new Date("2026-11-13T12:00:00Z"));
+    await repos.devices.register(hash("1"), reg, new Date("2026-11-13T12:00:00Z"), "203.0.113.7");
     expect(await subs(hash("1"))).toEqual([
       { target_kind: "bill", target_id: "119-hr-1", how_voted: false },
       { target_kind: "member", target_id: "H000037", how_voted: true },
@@ -1027,6 +1029,7 @@ describe("device repository", () => {
         ],
       },
       new Date("2026-11-13T12:05:00Z"),
+      "203.0.113.7",
     );
     expect(await subs(hash("1"))).toEqual([
       { target_kind: "member", target_id: "H000037", how_voted: false },
@@ -1039,8 +1042,24 @@ describe("device repository", () => {
     expect(rows[0]).toEqual({ vote_opened: true, apns_token: token("a"), n: 1 });
   });
 
+  it("counts only new keys against a caller's daily allowance, kept hashed in Postgres", async () => {
+    const day = new Date("2026-11-20T12:00:00Z");
+    const results: string[] = [];
+    for (let i = 0; i < DEVICE_SIGNUPS_PER_DAY + 1; i++) {
+      results.push(await repos.devices.register(`${i.toString(16).padStart(2, "0")}`.repeat(32), { ...reg, apnsToken: null, pushToStartToken: null }, day, "198.51.100.9"));
+    }
+    expect(results.slice(0, DEVICE_SIGNUPS_PER_DAY).every((r) => r === "ok")).toBe(true);
+    expect(results.at(-1)).toBe("limited");
+    // A key it already has is never limited; another caller, or the next day, starts afresh.
+    expect(await repos.devices.register("00".repeat(32), { ...reg, apnsToken: null, pushToStartToken: null }, day, "198.51.100.9")).toBe("ok");
+    expect(await repos.devices.register("ee".repeat(32), { ...reg, apnsToken: null, pushToStartToken: null }, day, "198.51.100.10")).toBe("ok");
+    const { rows } = await pg.query<{ ip_hash: string }>("select ip_hash from device_signups");
+    expect(rows.every((r) => /^[0-9a-f]{64}$/.test(r.ip_hash) && !r.ip_hash.includes("198"))).toBe(true);
+    await pg.exec("delete from devices where key_hash not in (repeat('1', 64))");
+  });
+
   it("moves a token to the registration that sends it now (a reinstall makes a new key)", async () => {
-    await repos.devices.register(hash("2"), { ...reg, pushToStartToken: null }, new Date());
+    await repos.devices.register(hash("2"), { ...reg, pushToStartToken: null }, new Date(), "203.0.113.7");
     const { rows } = await pg.query<{ key_hash: string; apns_token: string | null; push_to_start_token: string | null }>(
       "select key_hash, apns_token, push_to_start_token from devices order by key_hash",
     );

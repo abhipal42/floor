@@ -50,10 +50,16 @@ public struct AlertsView: View {
                     }
                     groupHeader("A VOTE OPENED").padding(.top, 8)
                     switchRow(
-                        title: "VOTES INVOLVING YOUR MEMBERS", caption: "Off by default · with a Live Activity",
-                        on: model.voteOpened, label: "Votes involving your members",
-                        hint: "Alerts you, and shows the vote on your lock screen, when a vote involving your members or bills opens"
+                        title: "VOTES INVOLVING YOUR MEMBERS", caption: "Off by default",
+                        on: model.voteOpened, label: "A vote opened: votes involving your members",
+                        hint: "Sends an alert when a vote involving your members or bills opens"
                     ) { on in await model.setVoteOpened(on) }
+                    groupHeader("LIVE ACTIVITIES").padding(.top, 8)
+                    switchRow(
+                        title: "ON YOUR LOCK SCREEN", caption: "On by default · silent, until the vote is final",
+                        on: model.liveActivities, label: "Live Activities",
+                        hint: "Shows an open vote involving your members or bills on your lock screen and in the Dynamic Island, without a sound"
+                    ) { on in await model.setLiveActivities(on) }
                     footnote
                 }
             }
@@ -181,6 +187,9 @@ public struct AlertsView: View {
             Text("Each alert says what happened and nothing about why. A busy night collapses into one summary.")
             if model.followsTopics {
                 Text("Topics you follow don't alert: one is hundreds of bills. Their votes are in Finals.")
+            }
+            if model.overCap {
+                Text("You follow more than 1,000 members and bills; alerts cover the first 1,000.")
             }
         }
         .scaledFont(11.5)

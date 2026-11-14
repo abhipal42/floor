@@ -8,6 +8,7 @@ import {
   TOPICS_RATE_LIMIT,
   DEVICES_RATE_LIMIT,
   DEVICE_SUBSCRIPTION_MAX,
+  DEVICE_BODY_LIMIT,
   congressOn,
   deviceKeyHash,
   type DeviceRepository,
@@ -895,11 +896,14 @@ describe("device routes", () => {
   const key = "k".repeat(43);
   const auth = { authorization: `Device ${key}` };
   const keyHash = deviceKeyHash(`Device ${key}`)!;
+  const limitedKey = "L".repeat(43);
+  const limitedHash = deviceKeyHash(`Device ${limitedKey}`)!;
   const registration = {
     apnsToken: "AB".repeat(32),
     apnsEnvironment: "sandbox",
     pushToStartToken: null,
     voteOpened: false,
+    liveActivities: true,
     subscriptions: [
       { kind: "member", id: "D000399", howVoted: true },
       { kind: "bill", id: "119-hr-1013", howVoted: false },
@@ -907,7 +911,7 @@ describe("device routes", () => {
   };
   const calls: unknown[][] = [];
   const devices: DeviceRepository = {
-    register: async (...args) => void calls.push(["register", ...args]),
+    register: async (...args) => (calls.push(["register", ...args]), args[0] === limitedHash ? "limited" : "ok"),
     unregister: async (h) => (calls.push(["unregister", h]), true),
     setActivityToken: async (h, voteId, token) => {
       calls.push(["activity", h, voteId, token]);
@@ -928,7 +932,7 @@ describe("device routes", () => {
     expect(await res.json()).toEqual({ subscriptions: 2, voteOpened: false });
     expect(keyHash).toMatch(/^[0-9a-f]{64}$/);
     expect(calls).toEqual([
-      ["register", keyHash, { ...registration, apnsToken: "ab".repeat(32) }, new Date("2026-11-13T20:00:00Z")],
+      ["register", keyHash, { ...registration, apnsToken: "ab".repeat(32) }, new Date("2026-11-13T20:00:00Z"), "unknown"],
     ]);
     expect(JSON.stringify(calls)).not.toContain(key);
   });
@@ -976,6 +980,18 @@ describe("device routes", () => {
     expect(calls[0]).toEqual(["unregister", keyHash]);
     expect(calls[1]).toEqual(["activity", keyHash, "house-119-2-321", "cd".repeat(32)]);
     expect(calls.at(-1)).toEqual(["end", keyHash, "house-119-2-321"]);
+  });
+
+  it("answers 429 for a new key past the caller's daily allowance, and 413 for an oversized body", async () => {
+    const app = deviceApp();
+    expect((await put(app, registration, { authorization: `Device ${limitedKey}` })).status).toBe(429);
+    const body = JSON.stringify({ ...registration, padding: "x".repeat(DEVICE_BODY_LIMIT) });
+    const huge = await app.request("/v1/devices", {
+      method: "PUT",
+      headers: { "content-type": "application/json", "content-length": String(body.length), ...auth },
+      body,
+    });
+    expect(huge.status).toBe(413);
   });
 
   it("answers 503 where there is no database to keep a registration in", async () => {

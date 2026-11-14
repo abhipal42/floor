@@ -92,7 +92,7 @@ public struct VoteActivityHeadline: View {
                 .minimumScaleFactor(0.7)
             if let detail = VoteActivityText.detail(attributes, content) {
                 Text(detail)
-                    .font(.system(size: 12, weight: .medium))
+                    .scaledFont(12, weight: .medium)
                     .foregroundStyle(Palette.textSecondary)
                     .lineLimit(2)
                     .fixedSize(horizontal: false, vertical: true)
@@ -207,15 +207,16 @@ public struct VoteActivityMembers: View {
                 HStack(spacing: 8) {
                     VoteActivityChip(call: call)
                     Text(VoteActivityText.line(call, attributes, content, alone: content.members.count == 1, long: long))
-                        .font(.system(size: 12, weight: .medium))
+                        .scaledFont(12, weight: .medium)
                         .foregroundStyle(Palette.textSecondary)
-                        .lineLimit(1)
+                        .lineLimit(2)
                         .minimumScaleFactor(0.8)
+                        .fixedSize(horizontal: false, vertical: true)
                 }
             }
             if let more = VoteActivityText.more(content) {
                 Text(more)
-                    .font(.system(size: 11, weight: .medium))
+                    .scaledFont(11, weight: .medium)
                     .foregroundStyle(Palette.textMuted)
             }
         }
@@ -336,10 +337,11 @@ public struct VoteActivityCompactLeading: View {
             ChamberTile(size: 16)
             Text(VoteActivityText.subject(attributes, content).uppercased())
                 .font(Typography.label(12))
-                .foregroundStyle(Color.white)
+                .foregroundStyle(Palette.text)
                 .lineLimit(1)
                 .minimumScaleFactor(0.7)
         }
+        .litObject()
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(VoteActivityText.subject(attributes, content))
     }

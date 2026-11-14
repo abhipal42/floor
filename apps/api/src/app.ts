@@ -3,7 +3,8 @@ import { OpenAPIHono, createRoute, z } from "@hono/zod-openapi";
 import { cors } from "hono/cors";
 import type { DistrictMatch, Place } from "./district.js";
 import { POLICY_AREAS, matchTopics, parseBillNumber, topicNamed } from "./bills.js";
-import { rateLimit, type LimitStore } from "./limit.js";
+import { bodyLimit } from "hono/body-limit";
+import { clientKey, rateLimit, type LimitStore } from "./limit.js";
 import { parseMemberQuery, type MemberQuery } from "./search.js";
 
 /*
@@ -747,6 +748,10 @@ export const DEVICE_KEY_PATTERN = /^Device ([A-Za-z0-9_-]{43})$/;
 export const DEVICE_SUBSCRIPTION_MAX = 1000;
 /** A phone registers when its follows or tokens change, a few times a day; this only stops a loop. */
 export const DEVICES_RATE_LIMIT = { limit: 30, windowMs: 60 * 1000 };
+/** New device keys one caller may register in a day; a household's phones, not a key farm. */
+export const DEVICE_SIGNUPS_PER_DAY = 10;
+/** A registration is at most 1,000 short ids; nothing legitimate comes near this. */
+export const DEVICE_BODY_LIMIT = 64 * 1024;
 
 /** An APNs device, push-to-start or activity token: hex, as `Data` prints it. */
 const ApnsTokenSchema = z
@@ -774,7 +779,10 @@ export const DeviceRegistrationSchema = z
     apnsToken: ApnsTokenSchema.nullable().openapi({ description: "The alert token; null without notification permission" }),
     apnsEnvironment: z.enum(["sandbox", "production"]).openapi({ description: "sandbox for a Debug build" }),
     pushToStartToken: ApnsTokenSchema.nullable().openapi({ description: "ActivityKit's push-to-start token (iOS 17.2+)" }),
-    voteOpened: z.boolean().openapi({ description: "\"A vote opened\": alert, and start a Live Activity, when a vote involving these opens" }),
+    voteOpened: z.boolean().openapi({ description: "\"A vote opened\": a push alert when a vote involving these opens" }),
+    liveActivities: z.boolean().openapi({
+      description: "Start a Live Activity, silently, when a vote involving these opens (needs pushToStartToken). On by default in the app",
+    }),
     subscriptions: z.array(DeviceSubscriptionSchema).max(DEVICE_SUBSCRIPTION_MAX),
   })
   .openapi("DeviceRegistration");
@@ -790,7 +798,12 @@ export const ActivityTokenSchema = z.object({ token: ApnsTokenSchema }).openapi(
 /** Where registrations live. Postgres in production; in memory in tests. */
 export interface DeviceRepository {
   /** Creates or replaces the device's tokens and its whole subscription list. */
-  register(keyHash: string, registration: DeviceRegistration, now: Date): Promise<void>;
+  /**
+   * Creates or replaces the device's tokens and its whole subscription list. `caller` (the
+   * client's address) is counted, hashed, only when the key is new: "limited" past
+   * `DEVICE_SIGNUPS_PER_DAY` new keys from one caller in a day.
+   */
+  register(keyHash: string, registration: DeviceRegistration, now: Date, caller: string): Promise<"ok" | "limited">;
   /** Forgets the device, its subscriptions and its activity tokens. False if there was none. */
   unregister(keyHash: string): Promise<boolean>;
   /** A running Live Activity's push token, so the worker can show the final and end it. */
@@ -1252,6 +1265,11 @@ const putDeviceRoute = createRoute({
   request: { body: { content: { "application/json": { schema: DeviceRegistrationSchema } }, required: true } },
   responses: {
     200: { content: { "application/json": { schema: DeviceRegisteredSchema } }, description: "Registered" },
+    413: { content: { "application/json": { schema: ErrorSchema } }, description: `Body over ${DEVICE_BODY_LIMIT} bytes` },
+    429: {
+      content: { "application/json": { schema: ErrorSchema } },
+      description: `Over the rate limit, or over ${DEVICE_SIGNUPS_PER_DAY} new keys from one caller today`,
+    },
     ...deviceErrors,
   },
 });
@@ -1344,6 +1362,10 @@ export function createApp(deps: AppDeps) {
     // Registration and Live Activity tokens; "/v1/devices/*" matches "/v1/devices" itself too.
     ["/v1/devices/*", DEVICES_RATE_LIMIT, "devices"],
   ] as const;
+  app.use(
+    "/v1/devices/*",
+    bodyLimit({ maxSize: DEVICE_BODY_LIMIT, onError: (c) => c.json({ error: "That registration is too large." }, 413) }),
+  );
   for (const [path, limits, scope] of LIMITED) {
     app.use(
       path,
@@ -1584,8 +1606,9 @@ export function createApp(deps: AppDeps) {
 
   app.openapi(putDeviceRoute, async (c) => {
     const registration = c.req.valid("json");
-    const r = await withDevice(c, (keyHash) => devices.register(keyHash, registration, clock()));
+    const r = await withDevice(c, (keyHash) => devices.register(keyHash, registration, clock(), clientKey(c)));
     if (refused(r)) return r.status === 401 ? c.json({ error: r.refused }, 401) : c.json({ error: r.refused }, 503);
+    if (r === "limited") return c.json({ error: "Too many new registrations from this network today. Try again tomorrow." }, 429);
     return c.json({ subscriptions: registration.subscriptions.length, voteOpened: registration.voteOpened }, 200);
   });
 

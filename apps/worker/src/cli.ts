@@ -13,7 +13,7 @@ import { LiveWorker, parseLatencyDays, postingLatency, revalidatingFetch, runLiv
 import { supabaseBroadcaster } from "./realtime.js";
 import { StatusAlerter } from "./alert.js";
 import { ApnsSender, apnsConfigFromEnv } from "./apns.js";
-import { PushBroadcaster, composeBroadcasters } from "./push.js";
+import { PushBroadcaster, composeBroadcasters, pruneDevices } from "./push.js";
 
 const USAGE = `Usage:
   npm run ingest -w @floor/worker -- members
@@ -191,8 +191,9 @@ async function live(db: Db) {
   const apnsConfig = apnsConfigFromEnv(process.env);
   const apns = new ApnsSender(apnsConfig);
   const push = new PushBroadcaster({ db, apns, environment: apnsConfig?.production ? "production" : "sandbox", log });
-  // Pushes first: they never throw, so a failed Realtime broadcast (retried next poll) cannot skip them.
-  const broadcaster = composeBroadcasters(push, realtime);
+  // Realtime first, pushes queued after it in a finally: APNs never delays the loop, and a failed
+  // Realtime broadcast (retried next poll) cannot skip the pushes (their dedupe makes the retry safe).
+  const broadcaster = composeBroadcasters(realtime, push);
   const alerter = new StatusAlerter({
     webhookUrl: process.env.ALERT_WEBHOOK_URL || undefined,
     statusUrl: process.env.FLOOR_STATUS_URL || undefined,
@@ -204,6 +205,7 @@ async function live(db: Db) {
     fetchFloor: revalidatingFetch(),
     broadcaster,
     alerter,
+    maintenance: push.enabled ? async (now) => log(`pruned push tables: ${JSON.stringify(await pruneDevices(db, now))}`) : undefined,
     log,
     // congressClient keeps its URL (which carries the key) out of errors and logs (lesson 7).
     linkMeasures: key
@@ -232,7 +234,8 @@ async function live(db: Db) {
       `bill linking ${key ? "on" : "off (CONGRESS_API_KEY unset)"}`,
   );
   const ticks = await runLive(worker, stop.signal, { log });
-  // The APNs HTTP/2 session would otherwise keep the process alive after the loop has stopped.
+  // Send what is queued, then close the APNs HTTP/2 session, which would keep the process alive.
+  await push.idle();
   apns.close();
   log(`stopped after ${ticks} polls`);
 }

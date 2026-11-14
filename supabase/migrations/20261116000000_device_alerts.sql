@@ -33,8 +33,11 @@ create table devices (
   apns_env text not null default 'production' check (apns_env in ('sandbox', 'production')),
   -- ActivityKit's push-to-start token (iOS 17.2+), so the worker can start a Live Activity.
   push_to_start_token text unique check (push_to_start_token ~ '^[0-9a-f]{64,200}$'),
-  -- "A vote opened": off by default (round 9, section C).
+  -- "A vote opened": the push alert. Off by default (round 9, section C).
   vote_opened boolean not null default false,
+  -- "Live Activities": start one, silently, when a vote involving this phone's members or bills
+  -- opens (round 8, section A). On by default.
+  live_activities boolean not null default true,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
@@ -62,13 +65,16 @@ create table live_activity_tokens (
 );
 
 -- What the worker already sent, so a retried poll never sends twice and a busy night can be counted
--- for the digest. `members` are the Bioguide IDs whose position the alert reported (the digest's
--- per-member counts); `bills` the followed bills it matched.
+-- for the digest. `members` are the Bioguide IDs who cast a vote (yea, nay, present, a candidate)
+-- on it, `absent` those whose alert reported they did not vote — absences are facts and alert
+-- too, and count toward the day's digest; `bills` the followed bills it matched. Purged after two
+-- days by the worker.
 create table push_log (
   device_id uuid not null references devices (id) on delete cascade,
   vote_id text not null references votes (id) on delete cascade,
   kind text not null check (kind in ('opened', 'final', 'activity_start', 'activity_end')),
   members text[] not null default '{}',
+  absent text[] not null default '{}',
   bills text[] not null default '{}',
   -- Eastern calendar day the push belongs to, for "today" in the digest.
   day date not null,
@@ -77,7 +83,17 @@ create table push_log (
 );
 create index push_log_day on push_log (device_id, day, kind);
 
+-- New registrations per caller per day, so one address cannot mint keys without limit. The
+-- address is stored only as a SHA-256 (of the address and the day), and rows go after a week.
+create table device_signups (
+  ip_hash text not null check (ip_hash ~ '^[0-9a-f]{64}$'),
+  day date not null,
+  count integer not null default 0,
+  primary key (ip_hash, day)
+);
+
 alter table devices enable row level security;
+alter table device_signups enable row level security;
 alter table device_subscriptions enable row level security;
 alter table live_activity_tokens enable row level security;
 alter table push_log enable row level security;

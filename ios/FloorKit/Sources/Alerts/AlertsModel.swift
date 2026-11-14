@@ -73,6 +73,12 @@ public final class AlertsModel {
 
     public var voteOpened: Bool { state.voteOpened }
 
+    /// "Live Activities": on by default; silent, so turning it on never asks for notifications.
+    public var liveActivities: Bool { state.liveActivities }
+
+    /// More members and bills than one registration carries (1,000): the newest are left out.
+    public var overCap: Bool { AlertSync.overCap(state: state, reps: reps) }
+
     /// Topics are followed but never alerted on; the screen says so when you follow any.
     public var followsTopics: Bool { !state.followedTopics.isEmpty }
 
@@ -116,6 +122,12 @@ public final class AlertsModel {
     public func setVoteOpened(_ on: Bool) async {
         follows.update { $0.setVoteOpened(on) }
         await changed(on)
+    }
+
+    /// Live Activities need no notification permission, so this never asks; it only re-syncs.
+    public func setLiveActivities(_ on: Bool) async {
+        follows.update { $0.setLiveActivities(on) }
+        sync?.schedule()
     }
 
     /// The notice's button: ask now.

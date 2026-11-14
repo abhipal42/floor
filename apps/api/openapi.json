@@ -1633,7 +1633,11 @@
           },
           "voteOpened": {
             "type": "boolean",
-            "description": "\"A vote opened\": alert, and start a Live Activity, when a vote involving these opens"
+            "description": "\"A vote opened\": a push alert when a vote involving these opens"
+          },
+          "liveActivities": {
+            "type": "boolean",
+            "description": "Start a Live Activity, silently, when a vote involving these opens (needs pushToStartToken). On by default in the app"
           },
           "subscriptions": {
             "type": "array",
@@ -1648,6 +1652,7 @@
           "apnsEnvironment",
           "pushToStartToken",
           "voteOpened",
+          "liveActivities",
           "subscriptions"
         ]
       },
@@ -2499,6 +2504,26 @@
           },
           "401": {
             "description": "No `Authorization: Device <key>` header, or a malformed key",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Body over 65536 bytes",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Over the rate limit, or over 10 new keys from one caller today",
             "content": {
               "application/json": {
                 "schema": {

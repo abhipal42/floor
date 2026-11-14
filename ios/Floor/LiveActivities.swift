@@ -72,10 +72,25 @@ final class ActivityKitHost: ActivityHost {
     private func watch(_ activity: Activity<VoteActivityAttributes>) {
         guard watching.insert(activity.id).inserted else { return }
         let voteId = activity.attributes.voteId
+        // One activity per vote: a push-to-start that raced the app's own start leaves a second.
+        // The newer one goes, at once.
+        Task { await Self.endDuplicates(of: voteId) }
         Task {
             for await token in activity.pushTokenUpdates {
                 await self.send(token.hexToken, voteId: voteId)
             }
+        }
+    }
+
+    /// Ends every running activity for `voteId` but the oldest.
+    private nonisolated static func endDuplicates(of voteId: String) async {
+        let same = Activity<VoteActivityAttributes>.activities.filter {
+            $0.attributes.voteId == voteId && $0.activityState != .ended && $0.activityState != .dismissed
+        }
+        guard same.count > 1 else { return }
+        // `activities` lists oldest first; the first stays.
+        for activity in same.dropFirst() {
+            await activity.end(nil, dismissalPolicy: .immediate)
         }
     }
 

@@ -31,6 +31,7 @@ describe("migrations", () => {
       "bills",
       "campaign_finance",
       "chamber_status",
+      "device_signups",
       "device_subscriptions",
       "devices",
       "floor_events",
@@ -105,7 +106,7 @@ describe("migrations", () => {
   it("keep device registrations private: RLS on and no policy on any alert table, and no account column", async () => {
     // Push tokens and what a phone follows are read only by the API's and the worker's service
     // connection. A policy here (even a select one) would expose them through PostgREST.
-    const tables = ["devices", "device_subscriptions", "live_activity_tokens", "push_log"];
+    const tables = ["devices", "device_subscriptions", "device_signups", "live_activity_tokens", "push_log"];
     const { rows: policies } = await db.query("select tablename, policyname from pg_policies where tablename = any($1)", [tables]);
     expect(policies).toEqual([]);
     const { rows: secured } = await db.query<{ relname: string }>(
@@ -123,6 +124,7 @@ describe("migrations", () => {
       "apns_env",
       "push_to_start_token",
       "vote_opened",
+      "live_activities",
       "created_at",
       "updated_at",
     ]);

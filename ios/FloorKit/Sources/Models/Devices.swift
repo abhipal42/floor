@@ -33,18 +33,21 @@ public struct DeviceRegistration: Codable, Sendable, Hashable {
     public var apnsEnvironment: Environment
     /// ActivityKit's push-to-start token, as hex (iOS 17.2+).
     public var pushToStartToken: String?
-    /// "A vote opened".
+    /// "A vote opened": the push alert.
     public var voteOpened: Bool
+    /// "Live Activities": start one, silently, when a vote involving these opens.
+    public var liveActivities: Bool
     public var subscriptions: [DeviceSubscription]
 
     public init(
         apnsToken: String?, apnsEnvironment: Environment, pushToStartToken: String?, voteOpened: Bool,
-        subscriptions: [DeviceSubscription]
+        liveActivities: Bool, subscriptions: [DeviceSubscription]
     ) {
         self.apnsToken = apnsToken
         self.apnsEnvironment = apnsEnvironment
         self.pushToStartToken = pushToStartToken
         self.voteOpened = voteOpened
+        self.liveActivities = liveActivities
         self.subscriptions = subscriptions
     }
 
@@ -55,6 +58,7 @@ public struct DeviceRegistration: Codable, Sendable, Hashable {
         try container.encode(apnsEnvironment, forKey: .apnsEnvironment)
         try container.encode(pushToStartToken, forKey: .pushToStartToken)
         try container.encode(voteOpened, forKey: .voteOpened)
+        try container.encode(liveActivities, forKey: .liveActivities)
         try container.encode(subscriptions, forKey: .subscriptions)
     }
 }

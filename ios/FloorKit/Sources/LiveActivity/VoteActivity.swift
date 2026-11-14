@@ -108,12 +108,15 @@ public struct VoteActivityAttributes: Codable, Sendable, Hashable {
 }
 
 public extension VoteActivityAttributes.ContentState {
-    /// From a vote on `/v1/live` and your members on it, in your order. Positions only once final:
+    /// From a vote on `/v1/live` and your members on it, listed by surname. Positions only once final:
     /// an open vote's are not known, whatever `positions` says.
     init(live: LiveVote, members: [Member], positions: [MemberPosition] = []) {
         let final = live.vote.state == .final
         let byId = Dictionary(positions.map { ($0.member.bioguideId, $0) }, uniquingKeysWith: { a, _ in a })
-        let calls = members.map { member in
+        // By surname, as the worker lists them (`activityContent`), so an activity reads the same
+        // whether the app or a push drew it.
+        let sorted = members.sorted { ($0.lastName, $0.bioguideId) < ($1.lastName, $1.bioguideId) }
+        let calls = sorted.map { member in
             let called = final ? byId[member.bioguideId] : nil
             return VoteActivityAttributes.Call(
                 id: member.bioguideId, name: member.lastName, position: called?.position, choice: called?.choice

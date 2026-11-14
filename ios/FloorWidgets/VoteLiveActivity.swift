@@ -14,7 +14,7 @@ struct VoteLiveActivity: Widget {
     var body: some WidgetConfiguration {
         ActivityConfiguration(for: VoteActivityAttributes.self) { context in
             VoteActivityLockScreen(attributes: context.attributes, content: context.state)
-                .activityBackgroundTint(Color(red: 10 / 255, green: 11 / 255, blue: 14 / 255).opacity(0.82))
+                .activityBackgroundTint(Palette.liveActivity.opacity(Palette.liveActivityOpacity))
                 .activitySystemActionForegroundColor(.white)
                 .widgetURL(FloorLink.vote(id: context.attributes.voteId).url)
         } dynamicIsland: { context in

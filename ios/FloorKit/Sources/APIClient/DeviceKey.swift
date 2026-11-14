@@ -2,7 +2,7 @@ import Foundation
 import Security
 
 /// The phone's identity for alerts: 32 random bytes, made on this phone the first time it registers
-/// and kept in its own defaults. Floor has no accounts; this key is the only thing that lets a phone
+/// and kept in its Keychain (``stored(in:legacy:)``). Floor has no accounts; this key is the only thing that lets a phone
 /// change its own registration, and the API keeps only its SHA-256.
 ///
 /// It is sent as `Authorization: Device <key>` and never put in a URL, a log line, or the App Group
@@ -38,12 +38,61 @@ public struct DeviceKey: Sendable, Hashable {
             .replacingOccurrences(of: "=", with: "")
     }
 
-    /// The key kept in `defaults`, made and saved on first use.
-    public static func stored(in defaults: UserDefaults = .standard) -> DeviceKey {
-        let storageKey = "floor.deviceKey.v1"
-        if let saved = defaults.string(forKey: storageKey).flatMap(DeviceKey.init(value:)) { return saved }
-        let fresh = generate()
-        defaults.set(fresh.value, forKey: storageKey)
-        return fresh
+    static let legacyKey = "floor.deviceKey.v1"
+
+    /// The phone's key: from the Keychain (`AfterFirstUnlockThisDeviceOnly`, so a backup restored
+    /// to another phone does not carry it and two phones never share a registration); else moved
+    /// there from the app's defaults, where v0.2.30's first draft kept it; else made and saved. If
+    /// the Keychain refuses, the defaults keep it, so registration still works.
+    public static func stored(in keychain: any DeviceKeyStore = KeychainDeviceKeyStore(), legacy defaults: UserDefaults = .standard) -> DeviceKey {
+        if let saved = keychain.read().flatMap(DeviceKey.init(value:)) {
+            defaults.removeObject(forKey: legacyKey)
+            return saved
+        }
+        let key = defaults.string(forKey: legacyKey).flatMap(DeviceKey.init(value:)) ?? generate()
+        if keychain.write(key.value) {
+            defaults.removeObject(forKey: legacyKey)
+        } else {
+            defaults.set(key.value, forKey: legacyKey)
+        }
+        return key
+    }
+}
+
+/// Where the device key lives.
+public protocol DeviceKeyStore: Sendable {
+    func read() -> String?
+    /// True once saved.
+    func write(_ value: String) -> Bool
+}
+
+/// A generic password in the app's Keychain, readable after the first unlock (pushes register in
+/// the background) and never migrated to another device.
+public struct KeychainDeviceKeyStore: DeviceKeyStore {
+    let service: String
+
+    public init(service: String = "floor.deviceKey") {
+        self.service = service
+    }
+
+    private var query: [String: Any] {
+        [kSecClass as String: kSecClassGenericPassword, kSecAttrService as String: service, kSecAttrAccount as String: "device"]
+    }
+
+    public func read() -> String? {
+        var q = query
+        q[kSecReturnData as String] = true
+        q[kSecMatchLimit as String] = kSecMatchLimitOne
+        var out: AnyObject?
+        guard SecItemCopyMatching(q as CFDictionary, &out) == errSecSuccess, let data = out as? Data else { return nil }
+        return String(data: data, encoding: .utf8)
+    }
+
+    public func write(_ value: String) -> Bool {
+        SecItemDelete(query as CFDictionary)
+        var q = query
+        q[kSecValueData as String] = Data(value.utf8)
+        q[kSecAttrAccessible as String] = kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly
+        return SecItemAdd(q as CFDictionary, nil) == errSecSuccess
     }
 }

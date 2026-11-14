@@ -45,11 +45,12 @@ final class Permissions: NotificationPermissions, @unchecked Sendable {
 
 @MainActor
 func makeSync(
-    _ follows: Follows, permissions: Permissions, recorder: Recorder, defaults: UserDefaults, apns: String? = String(repeating: "ab", count: 32)
+    _ follows: Follows, permissions: Permissions, recorder: Recorder, defaults: UserDefaults, apns: String? = String(repeating: "ab", count: 32),
+    activities: Bool = false, now: @escaping () -> Date = Date.init
 ) -> AlertSync {
     let sync = AlertSync(
         registrar: recorder, permissions: permissions, key: DeviceKey.generate(), environment: .sandbox,
-        defaults: defaults, debounce: .seconds(600)
+        defaults: defaults, debounce: .seconds(600), now: now, activitiesEnabled: { activities }
     ) { (follows.state, reps) }
     sync.apnsToken = apns
     return sync
@@ -175,13 +176,63 @@ struct AlertSyncTests {
         #expect(recorder.registered.count == 1)
     }
 
+    /// Live Activities need no notification permission: with them enabled the phone registers
+    /// without an alert token, so its activities can be started and ended by push.
+    @Test func registersForLiveActivitiesWithoutNotificationPermission() async {
+        let follows = Follows(store: InMemoryFollowStore())
+        follows.update { state in for rep in reps { state.setAlerts(member: rep.bioguideId, false) } }
+        let recorder = Recorder()
+        let sync = makeSync(follows, permissions: Permissions(.denied), recorder: recorder, defaults: freshDefaults(), activities: true)
+        sync.pushToStartToken = String(repeating: "cd", count: 32)
+        await sync.sync()
+        #expect(recorder.registered.count == 1)
+        #expect(recorder.registered[0].apnsToken == nil, "no alert token without permission")
+        #expect(recorder.registered[0].liveActivities)
+        #expect(recorder.registered[0].pushToStartToken != nil)
+    }
+
+    /// Server-side loss heals: the same registration goes again on each launch and once a day.
+    @Test func resendsOnceALaunchAndAfterADay() async {
+        let follows = Follows(store: InMemoryFollowStore())
+        let recorder = Recorder()
+        let defaults = freshDefaults()
+        var clock = Date(timeIntervalSince1970: 1_800_000_000)
+        let sync = makeSync(follows, permissions: Permissions(.allowed), recorder: recorder, defaults: defaults, now: { clock })
+        await sync.sync()
+        await sync.sync()
+        #expect(recorder.registered.count == 1)
+        clock = clock.addingTimeInterval(25 * 3600)
+        await sync.sync()
+        #expect(recorder.registered.count == 2)
+        let relaunched = makeSync(follows, permissions: Permissions(.allowed), recorder: recorder, defaults: defaults, now: { clock })
+        await relaunched.sync()
+        #expect(recorder.registered.count == 3)
+    }
+
+    @Test func capsTheSubscriptionsAtTheRoutesLimit() {
+        var state = FollowState()
+        for i in 0..<1_005 {
+            state.follow(bill: BillListItem(
+                id: "119-hr-\(i)", congress: 119, type: "hr", number: i, citation: "H.R. \(i)", label: "L", title: "T",
+                policyArea: nil, stage: nil, stalled: false, latestAction: nil, hasFloorVote: false
+            ))
+        }
+        let r = AlertSync.registration(state: state, reps: reps, apnsToken: nil, pushToStartToken: nil, environment: .production)
+        #expect(r.subscriptions.count == AlertSync.subscriptionCap)
+        #expect(r.subscriptions.prefix(3).allSatisfy { $0.kind == .member })
+        #expect(AlertSync.overCap(state: state, reps: reps))
+    }
+
     @Test func unregistersWhenNothingIsOnOrPermissionIsGone() async {
         let follows = Follows(store: InMemoryFollowStore())
         let recorder = Recorder()
         let permissions = Permissions(.allowed)
         let sync = makeSync(follows, permissions: permissions, recorder: recorder, defaults: freshDefaults())
         await sync.sync()
-        follows.update { state in for rep in reps { state.setAlerts(member: rep.bioguideId, false) } }
+        follows.update { state in
+            for rep in reps { state.setAlerts(member: rep.bioguideId, false) }
+            state.setLiveActivities(false)
+        }
         await sync.sync()
         #expect(recorder.unregistered == 1)
         await sync.sync()
@@ -241,6 +292,18 @@ struct AlertsModelTests {
         await model.refresh()
         #expect(model.notice == nil)
     }
+
+    @Test func liveActivitiesAreOnByDefaultAndNeverAskForNotifications() async {
+        let follows = Follows(store: InMemoryFollowStore())
+        let permissions = Permissions(.notDetermined)
+        let sync = makeSync(follows, permissions: permissions, recorder: Recorder(), defaults: freshDefaults())
+        let model = AlertsModel(follows: follows, reps: reps, sync: sync)
+        #expect(model.liveActivities)
+        await model.setLiveActivities(false)
+        await model.setLiveActivities(true)
+        #expect(permissions.asked == 0)
+        #expect(follows.state.liveActivities)
+    }
 }
 
 @Suite("Device key")
@@ -251,8 +314,22 @@ struct DeviceKeyTests {
         #expect(a.value.count == 43)
         #expect(a.authorization.hasPrefix("Device "))
         #expect(DeviceKey(value: "short") == nil)
+        let keychain = MemoryKeyStore(), defaults = freshDefaults()
+        #expect(DeviceKey.stored(in: keychain, legacy: defaults) == DeviceKey.stored(in: keychain, legacy: defaults))
+        #expect(defaults.string(forKey: "floor.deviceKey.v1") == nil, "kept in the Keychain, not the defaults")
+    }
+
+    @Test func movesAKeyFromTheDefaultsIntoTheKeychainAndFallsBackIfItRefuses() {
+        let old = DeviceKey.generate()
         let defaults = freshDefaults()
-        #expect(DeviceKey.stored(in: defaults) == DeviceKey.stored(in: defaults))
+        defaults.set(old.value, forKey: "floor.deviceKey.v1")
+        let keychain = MemoryKeyStore()
+        #expect(DeviceKey.stored(in: keychain, legacy: defaults) == old)
+        #expect(keychain.value == old.value)
+        #expect(defaults.string(forKey: "floor.deviceKey.v1") == nil)
+        let refusing = MemoryKeyStore(refuses: true), fallback = freshDefaults()
+        let kept = DeviceKey.stored(in: refusing, legacy: fallback)
+        #expect(DeviceKey.stored(in: refusing, legacy: fallback) == kept)
     }
 
     @Test func tokensAreSentAsLowerCaseHex() {
@@ -262,7 +339,19 @@ struct DeviceKeyTests {
     @Test func aRegistrationEncodesEveryKeyTheRouteRequires() throws {
         let data = try JSONEncoder().encode(DeviceRegistration.sample)
         let object = try #require(try JSONSerialization.jsonObject(with: data) as? [String: Any])
-        #expect(Set(object.keys) == ["apnsToken", "apnsEnvironment", "pushToStartToken", "voteOpened", "subscriptions"])
+        #expect(Set(object.keys) == ["apnsToken", "apnsEnvironment", "pushToStartToken", "voteOpened", "liveActivities", "subscriptions"])
         #expect(object["pushToStartToken"] is NSNull)
+    }
+}
+
+final class MemoryKeyStore: DeviceKeyStore, @unchecked Sendable {
+    var value: String?
+    let refuses: Bool
+    init(refuses: Bool = false) { self.refuses = refuses }
+    func read() -> String? { value }
+    func write(_ value: String) -> Bool {
+        guard !refuses else { return false }
+        self.value = value
+        return true
     }
 }

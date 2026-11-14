@@ -74,19 +74,24 @@ public struct FollowState: Codable, Sendable, Hashable {
     /// The same for bills you follow, by bill id: "A vote on H.R. 1013, which you follow." Absent
     /// means off, as for a member you follow. Absent in records from before v0.2.30.
     public private(set) var billAlerts: [String: Bool]
-    /// "A vote opened": alert, and start a Live Activity, when a vote involving your members or bills
+    /// "A vote opened": a push alert when a vote involving your members or bills
     /// opens. Off by default (round 9, section C).
     public private(set) var voteOpened: Bool
+    /// "Live Activities": a vote involving your members or bills appears on the lock screen and in
+    /// the Dynamic Island, silently, while it is open. On by default (round 8, section A); separate
+    /// from "A vote opened", which is only the push alert.
+    public private(set) var liveActivities: Bool
 
     public init(
         entries: [FollowEntry] = [], hiddenReps: [String] = [], alerts: [String: Bool] = [:],
-        billAlerts: [String: Bool] = [:], voteOpened: Bool = false
+        billAlerts: [String: Bool] = [:], voteOpened: Bool = false, liveActivities: Bool = true
     ) {
         self.entries = []
         self.hiddenReps = []
         self.alerts = alerts
         self.billAlerts = billAlerts
         self.voteOpened = voteOpened
+        self.liveActivities = liveActivities
         for entry in entries where !contains(entry.kind, entry.id) { self.entries.append(entry) }
         for id in hiddenReps where !self.hiddenReps.contains(id) { self.hiddenReps.append(id) }
     }
@@ -105,7 +110,8 @@ public struct FollowState: Codable, Sendable, Hashable {
             hiddenReps: (try? container.decodeIfPresent([String].self, forKey: .hiddenReps)) ?? [],
             alerts: (try? container.decodeIfPresent([String: Bool].self, forKey: .alerts)) ?? [:],
             billAlerts: (try? container.decodeIfPresent([String: Bool].self, forKey: .billAlerts)) ?? [:],
-            voteOpened: (try? container.decodeIfPresent(Bool.self, forKey: .voteOpened)) ?? false
+            voteOpened: (try? container.decodeIfPresent(Bool.self, forKey: .voteOpened)) ?? false,
+            liveActivities: (try? container.decodeIfPresent(Bool.self, forKey: .liveActivities)) ?? true
         )
     }
 
@@ -278,6 +284,14 @@ public struct FollowState: Codable, Sendable, Hashable {
     public mutating func setAlerts(bill id: String, _ on: Bool) { billAlerts[id] = on }
 
     public mutating func setVoteOpened(_ on: Bool) { voteOpened = on }
+
+    public mutating func setLiveActivities(_ on: Bool) { liveActivities = on }
+
+    /// Anything the phone should be registered for: an alert (``anyAlertOn(members:reps:)``), or
+    /// Live Activities with something to show them for.
+    public func anythingOn(members: [Member], reps: [Member]) -> Bool {
+        anyAlertOn(members: members, reps: reps) || (liveActivities && (!members.isEmpty || !followedBillIds.isEmpty))
+    }
 
     /// Anything at all would alert: a "How they voted" switch on for one of `members` (your members,
     /// reps first) or a followed bill, or "A vote opened". What decides whether the phone registers.
