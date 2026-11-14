@@ -8,6 +8,26 @@ is a milestone and ships a retro under `docs/retros/`.
 Older series live in [`docs/changelog/`](docs/changelog) (0.1.x: [`0.1.md`](docs/changelog/0.1.md)).
 Before 0.1.0 the history is the commit log on `main`.
 
+## 0.2.31 — 2026-11-14
+
+The week ahead, vote explainers and member contact, server side. Round 11
+(<https://claude.ai/artifact/VdSGbow4qnJwYe2sV7Tb2r>), sections A, B and C; the app screens follow.
+
+### Added
+- **`schedule` ingest** (worker): the House's weekly floor list (docs.house.gov `billsthisweek`
+  XML) for this week and next, split by rule / suspension, linked to `bills`; an item the House
+  pulls keeps its row with `removed_at`. Senate: next convening from senate.gov's
+  `floor_schedule.xml` and the Daily Digest's "Program for …" from the Congressional Record.
+  Runs hourly in `ingest.yml`; `/v1/status` treats it as stale after 24 h.
+- **`GET /v1/schedule?week=`**: House items and Senate meetings for a week; `inSession` is never
+  `false`, only `true` or unknown, because an unpublished week and a recess look the same.
+- **Vote explainers**: one human-written table (`apps/api/src/votekinds.ts`) covering 58 of 62
+  question types in the data; `explainer` on every vote response, `GET /v1/vote-kinds`. Unknown
+  questions get `null`, never a guess.
+- **Member contact** on `GET /v1/members/{id}`: Capitol phone, contact form, website, office and
+  address from congress-legislators.
+- Migrations `floor_schedule` and `member_contact`, applied to production 2026-11-14.
+
 ## 0.2.30 — 2026-11-13
 
 Alerts and the Live Activity: round 8's "A · Live Activity", "B · Dynamic Island" and "C · Alerts"

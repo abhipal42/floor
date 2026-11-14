@@ -541,6 +541,7 @@ export const MAX_AGE_HOURS: Record<string, number> = {
   senate_rollcalls: 24,
   bills: 48,
   nominations: 48,
+  schedule: 24,
 };
 
 /**
