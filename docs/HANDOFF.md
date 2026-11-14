@@ -657,6 +657,13 @@ Real data broke our first assumptions several times. Each case below is now hand
     under the 0.5% pixel tolerance even when forced, so the snapshot cannot be the test for this: the
     label is now `VoteScreenView.whenLabel(_:timeZone:locale:)`, fed the environment's zone and
     unit-tested in both zones. Any view that prints a time takes the zone from the environment.
+70. **With no build step, Vercel serves the project folder as static files, ahead of the rewrite.**
+    floor-api has no build command and no `public/`, so Vercel used `apps/api/` itself as the static
+    output: `/src/app.ts` and `/scripts/function-smoke.mjs` answered 200 before `/(.*) -> /api` ever
+    ran. The repo is public, so nothing leaked, but a stray file there (a fixture, an `.env` copy)
+    would have been served. `vercel.json` now sets `outputDirectory: "public"`, which holds only
+    `robots.txt`; `.vercelignore` was not the fix, since it would also drop `src/` from the function.
+    The production smoke asserts `/src/app.ts` is 404.
 
 ---
 

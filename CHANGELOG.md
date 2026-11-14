@@ -8,6 +8,14 @@ is a milestone and ships a retro under `docs/retros/`.
 Older series live in [`docs/changelog/`](docs/changelog) (0.1.x: [`0.1.md`](docs/changelog/0.1.md)).
 Before 0.1.0 the history is the commit log on `main`.
 
+## 0.2.39 — 2026-11-14
+
+### Fixed
+- **floor-api no longer serves its own source.** With no build step, Vercel served `apps/api/` as
+  static files, so `/src/app.ts` answered 200 ahead of the rewrite to the function. `vercel.json`
+  sets `outputDirectory: "public"` (only `robots.txt`), and the production smoke now asserts
+  `/src/app.ts` is 404 (lesson 70).
+
 ## 0.2.38 — 2026-11-14
 
 ### Fixed
