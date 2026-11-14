@@ -1,0 +1,69 @@
+{
+  "id": "119-hr-5267",
+  "congress": 119,
+  "type": "hr",
+  "number": 5267,
+  "citation": "H.R. 5267",
+  "title": "American Franchise Act",
+  "shortTitle": null,
+  "label": "American Franchise Act",
+  "stage": "introduced",
+  "sponsor": {
+    "bioguideId": "H001082",
+    "firstName": "Kevin",
+    "lastName": "Hern",
+    "party": "R",
+    "state": "OK",
+    "district": 1,
+    "chamber": "house"
+  },
+  "introducedOn": "2025-09-10",
+  "originChamber": "house",
+  "policyArea": "Labor and Employment",
+  "summary": "American Franchise Act\n\nThis bill explicitly states that, for purposes of requirements under the National Labor Relations Act (NLRA) and the Fair Labor Standards Act of 1938 (FLSA), franchisors are only considered to be joint employers with their franchisees if they regularly exercise direct and immediate control over the terms and conditions of employment for a franchisee's employees (e.g., directly hiring or firing employees on a regular basis). (The NLRA provides for collective bargaining rights in the private sector. The FLSA provides for a minimum wage, overtime pay, and other standards for employment.)\n\nSpecifically, the bill provides statutory authority for a 2020 rule by the National Labor Relations Board, particularly in relation to franchisors and franchisees. Under this rule, an entity is considered a joint employer of a separate employer's employees under the NLRA only if the entity exercises substantial, direct, and immediate control over one or more essential terms or conditions of employment. Essential terms or conditions of employment are defined to mean wages, benefits, hours of work, hiring, discharge, discipline, supervision, and direction. (In 2026, the board reinstated the 2020 rule as the applicable standard.)\n\nThe bill explicitly applies this standard to franchisors and franchisees and additionally specifies conduct that does and does not meet this standard (e.g., a franchisor setting a franchisee's operating hours does not sufficiently indicate direct and immediate control over the hours of work of a franchisee's employees). The bill also applies this standard to franchisors and franchisees under the FLSA.",
+  "summaryStage": "Reported to House",
+  "latestAction": {
+    "on": "2026-09-08",
+    "text": "Placed on the Union Calendar, Calendar No. 702."
+  },
+  "cboEstimates": [
+    {
+      "url": "https://www.cbo.gov/publication/62842",
+      "title": "H.R. 5267, American Franchise Act",
+      "pubDate": "2026-10-07T17:57:00Z"
+    }
+  ],
+  "actions": [
+    {
+      "actedOn": "2026-09-08",
+      "chamber": "house",
+      "text": "Placed on the Union Calendar, Calendar No. 702."
+    },
+    {
+      "actedOn": "2026-09-08",
+      "chamber": "house",
+      "text": "Reported (Amended) by the Committee on Education and Workforce. H. Rept. 119-802."
+    },
+    {
+      "actedOn": "2026-07-21",
+      "chamber": "house",
+      "text": "Ordered to be Reported (Amended) by the Yeas and Nays: 18 - 15."
+    },
+    {
+      "actedOn": "2026-07-21",
+      "chamber": "house",
+      "text": "Committee Consideration and Mark-up Session Held"
+    },
+    {
+      "actedOn": "2025-09-10",
+      "chamber": "house",
+      "text": "Referred to the House Committee on Education and Workforce."
+    },
+    {
+      "actedOn": "2025-09-10",
+      "chamber": null,
+      "text": "Introduced in House"
+    }
+  ],
+  "votes": []
+}

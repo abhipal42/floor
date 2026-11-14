@@ -81,10 +81,21 @@ public struct FollowState: Codable, Sendable, Hashable {
     /// the Dynamic Island, silently, while it is open. On by default (round 8, section A); separate
     /// from "A vote opened", which is only the push alert.
     public private(set) var liveActivities: Bool
+    /// "Bills you follow" on the Alerts screen (round 11, section E): which steps of a followed bill
+    /// alert — scheduled, a chamber's vote, to the President, law or veto on; committee and "Through
+    /// topics too" off. Absent in records from before v0.2.33.
+    public private(set) var billSteps: BillAlerts
+    /// Unfollows, by entry ``FollowEntry/key``, with when: the tombstones that let an iCloud merge
+    /// tell "unfollowed on the other phone" from "never followed there" (``merged(with:)``).
+    public private(set) var removed: [String: Date]
+    /// When any of the choices that are not follows last changed: hidden reps, alert switches, bill
+    /// steps. An iCloud merge keeps the newer set whole (``merged(with:)``).
+    public private(set) var settingsChangedAt: Date
 
     public init(
         entries: [FollowEntry] = [], hiddenReps: [String] = [], alerts: [String: Bool] = [:],
-        billAlerts: [String: Bool] = [:], voteOpened: Bool = false, liveActivities: Bool = true
+        billAlerts: [String: Bool] = [:], voteOpened: Bool = false, liveActivities: Bool = true,
+        billSteps: BillAlerts = .defaults, removed: [String: Date] = [:], settingsChangedAt: Date = .distantPast
     ) {
         self.entries = []
         self.hiddenReps = []
@@ -92,6 +103,9 @@ public struct FollowState: Codable, Sendable, Hashable {
         self.billAlerts = billAlerts
         self.voteOpened = voteOpened
         self.liveActivities = liveActivities
+        self.billSteps = billSteps
+        self.removed = removed
+        self.settingsChangedAt = settingsChangedAt
         for entry in entries where !contains(entry.kind, entry.id) { self.entries.append(entry) }
         for id in hiddenReps where !self.hiddenReps.contains(id) { self.hiddenReps.append(id) }
     }
@@ -111,7 +125,10 @@ public struct FollowState: Codable, Sendable, Hashable {
             alerts: (try? container.decodeIfPresent([String: Bool].self, forKey: .alerts)) ?? [:],
             billAlerts: (try? container.decodeIfPresent([String: Bool].self, forKey: .billAlerts)) ?? [:],
             voteOpened: (try? container.decodeIfPresent(Bool.self, forKey: .voteOpened)) ?? false,
-            liveActivities: (try? container.decodeIfPresent(Bool.self, forKey: .liveActivities)) ?? true
+            liveActivities: (try? container.decodeIfPresent(Bool.self, forKey: .liveActivities)) ?? true,
+            billSteps: (try? container.decodeIfPresent(BillAlerts.self, forKey: .billSteps)) ?? .defaults,
+            removed: (try? container.decodeIfPresent([String: Date].self, forKey: .removed)) ?? [:],
+            settingsChangedAt: (try? container.decodeIfPresent(Date.self, forKey: .settingsChangedAt)) ?? .distantPast
         )
     }
 
@@ -136,11 +153,15 @@ public struct FollowState: Codable, Sendable, Hashable {
             if let bill { entries[index].bill = bill }
             return
         }
-        entries.insert(FollowEntry(kind: kind, id: id, followedAt: date, member: member, bill: bill), at: 0)
+        let entry = FollowEntry(kind: kind, id: id, followedAt: date, member: member, bill: bill)
+        removed[entry.key] = nil
+        entries.insert(entry, at: 0)
     }
 
-    public mutating func unfollow(_ kind: FollowKind, _ id: String) {
+    public mutating func unfollow(_ kind: FollowKind, _ id: String, at date: Date = Date()) {
+        guard contains(kind, id) else { return }
         entries.removeAll { $0.kind == kind && $0.id == id }
+        removed["\(kind.rawValue):\(id)"] = date
         if kind == .member { alerts[id] = nil }
         if kind == .bill { billAlerts[id] = nil }
     }
@@ -232,15 +253,19 @@ public struct FollowState: Codable, Sendable, Hashable {
     public func isHidden(rep id: String) -> Bool { hiddenReps.contains(id) }
 
     public mutating func setHidden(rep id: String, _ hidden: Bool) {
+        let before = hiddenReps
         hiddenReps.removeAll { $0 == id }
         if hidden { hiddenReps.append(id) }
+        if hiddenReps != before { touch() }
     }
 
     /// After "Change address": the old reps' hidden flags and alert choices would name the old
     /// district, so they go — unless you also follow that member, whose choice is then yours.
     public mutating func forgetReps(_ ids: [String]) {
+        let before = (hiddenReps, alerts)
         hiddenReps.removeAll { ids.contains($0) }
         for id in ids where !isFollowing(member: id) { alerts[id] = nil }
+        if before.0 != hiddenReps || before.1 != alerts { touch() }
     }
 
     /// Your reps (minus any you hid) then everyone you follow, without repeats: who "your members"
@@ -262,8 +287,11 @@ public struct FollowState: Codable, Sendable, Hashable {
 
     /// Your district was just found: anyone you followed who turns out to be one of its members is a
     /// rep now (pinned, hideable), so their follow entry goes. Their alert choice, if any, stays.
-    public mutating func adoptReps(_ ids: [String]) {
-        entries.removeAll { $0.kind == .member && ids.contains($0.id) }
+    public mutating func adoptReps(_ ids: [String], at date: Date = Date()) {
+        for id in ids where isFollowing(member: id) {
+            entries.removeAll { $0.kind == .member && $0.id == id }
+            removed["member:\(id)"] = date
+        }
     }
 
     public func visibleReps(_ reps: [Member]) -> [Member] {
@@ -276,16 +304,42 @@ public struct FollowState: Codable, Sendable, Hashable {
     /// own reps and off for members you follow.
     public func alertsOn(member id: String, isRep: Bool) -> Bool { alerts[id] ?? isRep }
 
-    public mutating func setAlerts(member id: String, _ on: Bool) { alerts[id] = on }
+    public mutating func setAlerts(member id: String, _ on: Bool) {
+        if alerts[id] != on { alerts[id] = on; touch() }
+    }
 
     /// Whether a vote on this bill should alert you: your choice, else off.
     public func alertsOn(bill id: String) -> Bool { billAlerts[id] ?? false }
 
-    public mutating func setAlerts(bill id: String, _ on: Bool) { billAlerts[id] = on }
+    public mutating func setAlerts(bill id: String, _ on: Bool) {
+        if billAlerts[id] != on { billAlerts[id] = on; touch() }
+    }
 
-    public mutating func setVoteOpened(_ on: Bool) { voteOpened = on }
+    public mutating func setVoteOpened(_ on: Bool) {
+        if voteOpened != on { voteOpened = on; touch() }
+    }
 
-    public mutating func setLiveActivities(_ on: Bool) { liveActivities = on }
+    public mutating func setLiveActivities(_ on: Bool) {
+        if liveActivities != on { liveActivities = on; touch() }
+    }
+
+    /// One of the "Bills you follow" switches.
+    public mutating func setBillStep(_ step: WritableKeyPath<BillAlerts, Bool>, _ on: Bool) {
+        if billSteps[keyPath: step] != on { billSteps[keyPath: step] = on; touch() }
+    }
+
+    /// Dates a change to the choices that are not follows, for the iCloud merge.
+    private mutating func touch(_ date: Date = Date()) {
+        settingsChangedAt = max(date, settingsChangedAt)
+    }
+
+    /// Whether a step switch can alert at all: it is on, and there is a followed bill (or, with
+    /// "Through topics too", a followed topic) for it to be about.
+    public var billStepsCanAlert: Bool {
+        let steps = billSteps
+        let anyStep = steps.floorScheduled || steps.chamberVote || steps.toPresident || steps.lawOrVeto || steps.committee
+        return anyStep && (!followedBillIds.isEmpty || (steps.throughTopics && !followedTopics.isEmpty))
+    }
 
     /// Anything the phone should be registered for: an alert (``anyAlertOn(members:reps:)``), or
     /// Live Activities with something to show them for.
@@ -298,8 +352,66 @@ public struct FollowState: Codable, Sendable, Hashable {
     public func anyAlertOn(members: [Member], reps: [Member]) -> Bool {
         let repIds = Set(reps.map(\.bioguideId))
         return voteOpened
+            || billStepsCanAlert
             || members.contains { alertsOn(member: $0.bioguideId, isRep: repIds.contains($0.bioguideId)) }
             || followedBillIds.contains { alertsOn(bill: $0) }
+    }
+}
+
+// MARK: - iCloud merge
+
+public extension FollowState {
+    /// Tombstones are kept this long, then dropped (``pruned(now:)``). A phone that was away from
+    /// iCloud for longer could bring an unfollowed entry back; half a year is the trade.
+    static let tombstoneLifetime: TimeInterval = 180 * 86_400
+
+    /// This phone's state merged with another copy (iCloud's): follows are a union by entry key,
+    /// each one decided last-write-wins between its follow date and any unfollow (tombstone) —
+    /// so a follow on one phone and an unfollow on the other keep whichever happened later. The
+    /// choices that are not follows (hidden reps, alert switches, bill steps) are taken whole from
+    /// whichever copy changed them more recently. Order: this copy's surviving entries as they are,
+    /// with entries only the other copy has in front, in its order (following adds to the front).
+    func merged(with other: FollowState) -> FollowState {
+        var tombstones = removed
+        for (key, date) in other.removed { tombstones[key] = max(date, tombstones[key] ?? .distantPast) }
+
+        let mine = Dictionary(entries.map { ($0.key, $0) }, uniquingKeysWith: { a, _ in a })
+        let theirs = Dictionary(other.entries.map { ($0.key, $0) }, uniquingKeysWith: { a, _ in a })
+
+        func winner(_ key: String) -> FollowEntry? {
+            let a = mine[key], b = theirs[key]
+            guard var entry = [a, b].compactMap(\.self).max(by: { $0.followedAt < $1.followedAt }) else { return nil }
+            if let tomb = tombstones[key], tomb >= entry.followedAt { return nil }
+            // A record (member or bill row) the winning copy lacks comes from the other one.
+            if entry.member == nil { entry.member = a?.member ?? b?.member }
+            if entry.bill == nil { entry.bill = a?.bill ?? b?.bill }
+            return entry
+        }
+
+        var kept: [FollowEntry] = []
+        var seen = Set<String>()
+        for entry in other.entries where mine[entry.key] == nil {
+            if let won = winner(entry.key), seen.insert(won.key).inserted { kept.append(won) }
+        }
+        for entry in entries {
+            if let won = winner(entry.key), seen.insert(won.key).inserted { kept.append(won) }
+        }
+        for key in kept.map(\.key) { tombstones[key] = nil }
+
+        let settings = other.settingsChangedAt > settingsChangedAt ? other : self
+        return FollowState(
+            entries: kept, hiddenReps: settings.hiddenReps,
+            alerts: settings.alerts, billAlerts: settings.billAlerts,
+            voteOpened: settings.voteOpened, liveActivities: settings.liveActivities, billSteps: settings.billSteps,
+            removed: tombstones, settingsChangedAt: max(settingsChangedAt, other.settingsChangedAt)
+        )
+    }
+
+    /// Tombstones older than ``tombstoneLifetime`` dropped.
+    func pruned(now: Date) -> FollowState {
+        var copy = self
+        copy.removed = removed.filter { now.timeIntervalSince($0.value) < Self.tombstoneLifetime }
+        return copy
     }
 }
 
@@ -420,6 +532,11 @@ public final class Follows {
         state = next
         store.save(next)
         onChange()
+    }
+
+    /// Takes a whole new state (an iCloud merge), saved like any change.
+    public func replace(_ next: FollowState) {
+        update { $0 = next }
     }
 
     public func isFollowing(_ member: Member) -> Bool { state.isFollowing(member: member.bioguideId) }

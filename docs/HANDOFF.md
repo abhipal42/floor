@@ -636,6 +636,20 @@ Real data broke our first assumptions several times. Each case below is now hand
     re-run or parser fix costs no request), not a store: it can be deleted at any time, and a re-run
     retries what a write lost. On CI it starts empty every run, which the daily budget of 150
     requests per chamber allows for.
+66. **An unsigned build has no team prefix, so `$(TeamIdentifierPrefix)` is empty, not ".".** The
+    iCloud key-value store's entitlement value is `$(TeamIdentifierPrefix)$(FLOOR_BUNDLE_ID)`. Read
+    from a `CODE_SIGNING_ALLOWED=NO` simulator build's Info.plist (`FloorICloudKVS`), it is just
+    `app.floor.ios` — the prefix carries its own trailing dot and vanishes whole. So "is this build
+    signed for iCloud" is `value != CFBundleIdentifier`, not "does it start with a dot", which the
+    first draft of `CloudSync.isAvailable` checked and which would have shown the switch on CI builds.
+67. **A date's time style puts a narrow no-break space before AM/PM.** `Date.FormatStyle…hour().minute()`
+    renders `3:00\u{202F}PM` on iOS 17+ / macOS 14+, so a test comparing with `"3:00 PM"` fails while
+    the two print the same. Compare after replacing U+202F, or test the parts, never a typed string.
+68. **A corner radius over half the height draws stray ticks at a pill's ends.** Speak up's chips were
+    `RoundedRectangle(cornerRadius: 14).strokeBorder` on a ~25 pt chip (and a `Capsule` before that):
+    the iOS 26.2 snapshot showed short vertical marks just outside each unselected chip's ends. A
+    10 pt radius, under half the height, drew clean. Keep a stroked pill's radius below half its
+    smallest height (mind Dynamic Type making it taller, never shorter).
 
 ---
 
@@ -1407,7 +1421,8 @@ build differs from the mocks, and why:
   that line would have to be AI-written (M4).
 - **The Bill screen shows the CRS summary**, labelled as CRS. Since v0.2.27 the AI section (M4) sits above it, and the CRS panel's heading is "CRS summary" rather than "What it does", which is now the AI section's first heading.
 - **Your three's Record / Money / Portfolio switch** landed in v0.2.21; see "The Money segment"
-  below. Portfolio is still a placeholder.
+  below. Since round 11 it is **Votes · Money · Contact**, and disclosures are Money's second half
+  (Funding · Disclosures); see "Round 11 on the phone".
 - **BOSS levels** are marked on House or Senate only when one of the bill's own votes there needed
   60 or two-thirds; Signed is always marked (veto override).
 - **"Winning side" is the outcome, not the larger side** (`sidedWithOutcome`). They differ when a
@@ -1434,9 +1449,9 @@ Code: `RepScreen/MoneyView.swift` (views), `MoneyModel` in `RepScreenModel.swift
   landing page does, not "2026 cycle"; no "NEW DATA" banner on Money (the data exists now); no back
   chevron (the switch is the way back). The header is the compact one from the Money mock in place of
   the player card; on Record the switch sits under the card, as in `AppRep`.
-- **Portfolio** shows the mock's dashed "not loaded yet" box and a line on what it will show
-  (ranges, never net worth). The data now exists behind a switch that is off (v0.3.0 item 6,
-  "Financial disclosures"); the screen stays a placeholder until the legal question is answered.
+- **Portfolio** showed the mock's dashed "not loaded yet" box. Round 11 replaced it with Money ›
+  Disclosures, which reads `/v1/members/{id}/disclosures` and shows that same box, with the API's
+  reason, while the route is off; see "Round 11 on the phone".
 - **Colours.** New tokens `teal` and `dim` (bar fills) and `ai` (text, so in `Tones.textTokens` and
   contrast-tested). The fills are `Tones.moneyBar`, and `PaletteTests` holds each pair of
   neighbours at 1.5:1 and each fill at 3:1 against the empty track, light and dark. That is why they
@@ -1804,7 +1819,8 @@ this doc. Nothing here is legal advice.
   13 refused by the parser's checks; Senate 508 listed (all matched), 464 parsed (23,935 assets,
   1,762 trades), 0 failed. The backfill ran out of disk once (`ENOSPC` while caching PDFs, lesson
   65); a re-run picked up the three it missed. **Left to do: set `DISCLOSURES_ENABLED=true` on the
-  `floor-api` Vercel project** (asked of the repo owner), and the app's Disclosures segment.
+  `floor-api` Vercel project** (asked of the repo owner), The app's Disclosures segment is built (round 11 on the phone) and shows the figures the moment
+  the route answers `enabled: true`; no app release needed.
 
 **A real sample, 2026-11-14** (both sources into an in-memory PGlite — nothing written to staging
 or production; members from congress-legislators):
@@ -2008,8 +2024,8 @@ Built to the same locked design (<https://claude.ai/artifact/8Qfr9ymPEKuYGSLjiuX
 
 ### The week ahead, vote explainers and member contact (server side)
 
-Backend only; the iOS screens are a later change on these routes. The Swift models (`Schedule.swift`,
-`VoteExplainer`, `VoteKindInfo`, `MemberContact`) are added so the contract tests keep passing.
+The server half; the iOS screens are in "Round 11 on the phone" below. The Swift models
+(`Schedule.swift`, `VoteExplainer`, `VoteKindInfo`, `MemberContact`) came with it.
 
 - **`schedule` ingest** (`apps/worker/src/schedule.ts`, hourly in `ingest.yml` before the bill
   catalog). House: this week's and next week's list from docs.house.gov, upserted by item id;
@@ -2159,10 +2175,9 @@ The server half is under M3 ("Pushes", "Device registration"); this is the phone
 ### Bill alerts and the share link (round 11, sections D and E)
 
 Built to the locked design <https://claude.ai/artifact/VdSGbow4qnJwYe2sV7Tb2r> (D "Share a bill",
-E "Alerts"). This change is the server half and the link handling; the Alerts screen's new switches
-and the Share button on the Bill screen are the app's half and are **not built yet** — the models
-(`BillAlerts`, `BillShare`, `DeviceSubscription.Kind.topic`, `FloorAPI.billShare(id:)`) are, so the
-screens only need wiring. `AlertSync.registration` still sends no topics and the default switches.
+E "Alerts"). This change is the server half and the link handling; the Alerts screen's switches and
+the Bill screen's Share button are the app's half, in "Round 11 on the phone" below, and
+`AlertSync.registration` now sends followed topics and the switches.
 
 - **Steps, recorded once** (`bill_events`, `apps/worker/src/billevents.ts` and `stage.ts`):
   - A stage moving forward in `restage` — run by the catalog's detail fetch and by the per-vote
@@ -2203,9 +2218,10 @@ screens only need wiring. `AlertSync.registration` still sends no topics and the
   the landing page's beta sign-up, `…/#get`, until there is an App Store listing), `APPLE_TEAM_ID`,
   `FLOOR_BUNDLE_ID` (default `app.floor.ios`).
 - **Universal links:** `FloorLink` reads `https://floor.app/bill/119/hr/5267` (and `www.`) as
-  `.bill(id: "119-hr-5267")`, and `floor://bill/<id>`; the shell opens it on Bills.
-  `ios/project.yml` asks for `com.apple.developer.associated-domains: applinks:$(FLOOR_APPLINKS_DOMAIN)`
-  (default `floor.app`), beside the App Group and push entitlements. **Left:** the Apple team, the
+  `.bill(id: "119-hr-5267")`, and `floor://bill/<id>`; the shell opens it on Bills. v0.2.32 asked for
+  `com.apple.developer.associated-domains: applinks:$(FLOOR_APPLINKS_DOMAIN)` in `ios/project.yml`;
+  **the v0.2.35 re-land does not carry that entitlement or the `FLOOR_APPLINKS_DOMAIN` setting**, so
+  today only `floor://` links open the app, and an https share link opens in the browser. **Left:** the Apple team, the
   Associated Domains capability on the App ID, `APPLE_TEAM_ID` on `floor-api`, and the floor.app
   domain itself (it is the design's; nothing points it at Vercel yet).
 - **Where the build differs from the mock, and why:** the lookup asks for an address, not a ZIP,
@@ -2218,6 +2234,120 @@ screens only need wiring. `AlertSync.registration` still sends no topics and the
   `FloorLinkTests` and the contract. Viewports checked for the page: 320, 375, 820 and 1440 in a
   browser (no sideways scroll, nothing overflowing; the road stacks below 480 px); 1280 and 1920
   are the same centred 720 px column as 1440.
+
+### Round 11 on the phone
+
+Built to the locked design <https://claude.ai/artifact/VdSGbow4qnJwYe2sV7Tb2r> (sections A–G), on
+the routes of v0.2.31, v0.2.34 and v0.2.35. Every screen follows the app's design system
+(`Palette`, `Typography`, the panel and row surfaces), not the mock's CSS.
+
+- **Week tab** (`Home/WeekModel.swift`, `WeekView.swift`), fourth tab between Finals and Bills.
+  `GET /v1/schedule?week=` for the Monday the app computes the way the API does (`Schedule.monday`,
+  Washington time), with ‹ › to move a week. House: "Debated under a rule" and "Fast track, needs
+  ⅔" (and "Other items" if the House lists any), each led by what you follow — the bill, or its CRS
+  topic — with a gold leading edge and a `FOLLOWING` / `FOLLOWING · LABOR` tag, then the House's own
+  order, then anything pulled (dimmed, "Off the list", not counted) (`WeekSort`). A group shows its
+  followed rows and at least five, then "+ N more". Footer: "Source: House Majority Leader, updated
+  <date>" and that listed means "may come up". `inSession` null (or no items) is the placeholder "No
+  floor schedule posted for this week" — never "recess", because the API never says so. Senate: each
+  meeting's convening time (Eastern) and the pro forma flag, the Daily Digest's program **verbatim**
+  with each measure it names made a link (`floor://bill/<id>`, handled in the view's `openURL`), the
+  named measures as rows, and the source with the Record issue; `senate` null is a placeholder with
+  the API's `senateReason`. Saved for offline like every list.
+- **Bill screen:** "On the floor this week" when this week's schedule (best-effort, a second
+  request) lists the bill and has not pulled it (`FloorListing`: "Scheduled for House consideration
+  under a rule, week of Nov 16."). **Speak up** and **Share** under the summary.
+- **Speak up** (`BillScreen/SpeakUp.swift`, `SpeakUpSheet.swift`). To: only your district's
+  representative and senators (`Delegation`), never a followed member; with no district it says why
+  and offers "Set your district" (back to onboarding). "Your view · you choose": four chips, **none
+  chosen** when it opens; the message appears once one is. `SpeakUpTemplate` is fixed text: the
+  greeting by title, where you live (the district, or the state for a senator), the bill's facts
+  (`BillFacts`: citation, its name only when it has a short title or the title names an act, and
+  the scheduled week or its stage, worded as the API's share line words them), the stance line, and
+  the two bracketed placeholders. It is a `TextEditor`; changing the stance or recipient after
+  editing swaps only that line. "Copy & open form" puts it on `UIPasteboard` and opens the office's
+  form, else (House) house.gov's find-your-representative form, else (Senate) the website. "Call
+  instead": the office phone (`tel:`) and a four-line script with the same facts and your stance
+  (or the three choices, marked "you pick"). Nothing is stored: the text lives in the sheet's
+  `@State` and goes with it. No AI anywhere in it.
+- **Share:** `ShareLink` with `GET /v1/bills/{id}/share`'s url and text; offline, `ShareFallback`
+  builds `https://floor.app/bill/<congress>/<type>/<number>` and the same sentence from the bill.
+- **Vote explainers:** "What this vote is" above the score, folding to its header, the line and its
+  rule; no `explainer` is no card. "?" opens "Kinds of vote" (`VoteKindsView`, `GET
+  /v1/vote-kinds`, saved for offline): every entry in the registry's order, with its chamber,
+  condition and rule, and a line that they are written by Floor, not AI.
+- **Member screen: Votes · Money · Contact** (`MemberSection`; "Record" is now "Votes"). Contact
+  (`RepScreen/ContactAndDisclosures.swift`) reads `contact` from the record: phone (`tel:`), "Write
+  to the office" (the same form rule as Speak up) and the website, then "Offices count calls and
+  letters from constituents. Contact details from congress-legislators, updated daily." No details
+  at all is a visible placeholder. Money is **Funding · Disclosures** (`MoneySegment`): Funding is
+  v0.2.21's segment unchanged; Disclosures reads `/v1/members/{id}/disclosures` (saved for offline;
+  an API without the route reads as off). Off: the old dashed box with the API's `reason`. On: the
+  latest annual report's assets (the first eight, then "+ N more"), each range **as filed** with
+  type, owner and account; trades of the last 12 months with "Traded … · filed … · N days", and
+  "filed N days after, past the 45-day deadline" in the nay colour when `pastDeadline` — a fact, no
+  judgement; paper and unread filings as links. **No value is ever added to another.**
+- **Alerts screen:** "Bills you follow" is now the six step switches (`FollowState.billSteps`,
+  defaults: scheduled, chamber vote, to President, law/veto on; committee and "Through topics too"
+  off, the latter captioned with your topics); the per-bill "final vote" switches moved under "Each
+  bill's final votes". `AlertSync.registration` sends `billAlerts` and one `topic` subscription per
+  followed topic (members, then bills, then topics, within the 1,000 cap). A followed bill alone now
+  registers the phone (its steps are on by default); a topic alone does only with "Through topics
+  too".
+- **iCloud sync** (`Onboarding/CloudSync.swift`): "Sync with iCloud" in a Settings group at the foot
+  of the Alerts screen — the app has no Settings screen, and this is where the district and alert
+  settings already live — with "Last synced 9:38 · 6 members, 3 bills, 2 topics". Off by default.
+  One key (`floor.sync.v1`) in `NSUbiquitousKeyValueStore` holds the `FollowState` and the
+  `Delegation` (a district and its members, never an address or a location). Merge
+  (`FollowState.merged(with:)`): follows are a union by entry key, each decided last-write-wins
+  between its follow date and an unfollow **tombstone** (`removed`, kept 180 days); the choices that
+  are not follows (hidden reps, every alert switch, bill steps) are one record, taken whole from the
+  copy that changed them last (`settingsChangedAt`); the district is last-write-wins by when it was
+  set or cleared, so "Change address" on one phone is not undone by the other. It pulls on launch,
+  on coming forward, on `didChangeExternallyNotification` and when switched on, and pushes after
+  every saved change. **Entitlement:** `com.apple.developer.ubiquity-kvstore-identifier:
+  $(FLOOR_ICLOUD_KVS)` in `ios/project.yml`, default `$(TeamIdentifierPrefix)$(FLOOR_BUNDLE_ID)`,
+  also written to Info.plist as `FloorICloudKVS`. `CloudSync.isAvailable` is false when that is
+  empty or equals the bundle id (an unsigned build: lesson 66), and the row is then the visible
+  placeholder "iCloud isn't available in this build of Floor". A team without the iCloud capability
+  sets `FLOOR_ICLOUD_KVS=` and builds unsigned. **Left:** the iCloud capability (key-value storage)
+  on the App ID, with the Apple team.
+- **Where the build differs from the mock, and why:** the Senate side shows the Digest's program
+  verbatim and the measures it names, not the mock's "Expected votes" rows (marked illustrative
+  there; the program is the source); week arrows in the header (the ingest keeps next week too);
+  pulled items stay listed, dimmed; the empty week's line does not say the House is out or when it
+  is back (the API does not say so); the bill screen has no "Alerts" button beside Following (there
+  is no route from a bill to the Alerts screen; the Follow pill stays at the top); "Write to the
+  office" rather than "Write to his office" (no pronoun data); the iCloud switch sits on the Alerts
+  screen, not a Settings screen, and its caption adds the district, which it syncs; the
+  disclosures footnote adds that homes are not reported (product rule); explainer and vote-kind
+  sources are in the monospaced face, as the mock's, but in the app's colours.
+- **Tests:** `SpeakUpTests` (the mock's message verbatim, a senator's, stances differ only in their
+  line, restancing keeps edits, stage and descriptive-title cases, the call script, the form and
+  `tel:` rules, the share fallback against the API's own link, the banner lines), `WeekTests` (groups
+  and order on the real Nov 16 list, followed-first by bill and topic, a pulled item, the unpublished
+  week, week ranges and the Washington Monday, the program's links), `CloudSyncTests` (union,
+  tombstones both ways, re-follow, settings taken whole, records kept, idempotence, pruning, old
+  records, availability, two phones converging, a cleared district), `DisclosuresTests` (off, on with
+  Doggett's real report and trades as bands, lenient decoding, trade verbs), `AlertSyncTests` (topics
+  and the switches sent; what makes the phone register), and `ContractTests` now covers
+  `Disclosures`, `DisclosureAsset`, `DisclosureTrade`, `PaperFiling` and the inline `annual`.
+  Fixtures captured 2026-11-14 from the API against the `.env` database: `schedule-2026-11-16` (15
+  House items, 1 Senate meeting), `schedule-2026-11-23` (nothing posted), `vote-kinds` (42),
+  `bill-hr5267`, `bill-share-hr5267` (url as production serves it), `member-detail-doggett`,
+  `-cornyn`, `vote-cloture-explained`, `disclosures-doggett` (with `DISCLOSURES_ENABLED=true`, 75
+  assets, 11 trades, 5 unread filings) and `disclosures-off` (production); `member-detail-cruz`
+  gained its `contact`. That database had disclosures rows on 2026-11-14, though the Data table
+  above says staging has none — the `.env` may point at production; check before relying on either.
+- **Snapshots:** `Round11SnapshotTests`, 34 images from 17 tests on the pinned iOS 26.2 simulator — Week (House in all three looks,
+  Senate, nothing posted), the vote explainer, Kinds of vote, member Contact, the bill on the floor,
+  Speak up (nothing chosen, the mock's state, no district, the call script), the Alerts screen's
+  steps, the iCloud placeholder, Disclosures on and off. Existing references re-recorded because the
+  screens changed: the bill screens (Speak up and Share), the rep screen ("Votes"), the Alerts screen
+  (the steps group, and the empty card's wording). **`repWithUnity` still passed the compare after
+  "Record" became "Votes"**: one short word in a 402 × 1400 image is under the 0.5% of pixels
+  `precision` allows. It was re-recorded by hand. A label-only change can slip through; delete the
+  reference and record it rather than trusting a green compare.
 
 ### M5: Beta hardening + App Store
 Accessibility (Dynamic Type, VoiceOver on score cards), privacy labels, a vote-night load test, App Review prep, public TestFlight.

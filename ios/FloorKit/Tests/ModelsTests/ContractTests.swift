@@ -98,6 +98,10 @@ struct ContractTests {
             "ScheduleItem": fields(ScheduleItem.sample),
             "SenateMeeting": fields(SenateMeeting.sample),
             "Schedule": fields(Schedule.sample),
+            "Disclosures": fields(Disclosures.sample),
+            "DisclosureAsset": fields(DisclosedAsset.sample),
+            "DisclosureTrade": fields(DisclosedTrade.sample),
+            "PaperFiling": fields(PaperFiling.sample),
         ]
     }
 
@@ -110,10 +114,20 @@ struct ContractTests {
         "BillListItem", "Topic", "TopicList", "TopicBills", "SearchResults",
         "DeviceSubscription", "DeviceRegistration", "DeviceRegistered", "ActivityToken", "BillAlerts", "BillShare",
         "VoteExplainer", "VoteKindInfo", "MemberContact", "ScheduleItem", "SenateMeeting", "Schedule",
+        "Disclosures", "DisclosureAsset", "DisclosureTrade", "PaperFiling",
     ])
     func modelFieldsMatchItsSchema(name: String) throws {
         let model = try #require(Self.modelFields()[name], "no model registered for \(name)")
         #expect(model == (try Self.specFields(name)), "\(name) has drifted from the contract")
+    }
+
+    /// `Disclosures.annual` is an inline object, not a named schema: checked against it here.
+    @Test func annualDisclosureMatchesItsInlineSchema() throws {
+        let schema = try #require(try Self.schemas()["Disclosures"])
+        let properties = try #require(schema["properties"] as? [String: Any])
+        let annual = try #require(properties["annual"] as? [String: Any])
+        let fields = try #require(annual["properties"] as? [String: Any])
+        #expect(Set(Mirror(reflecting: AnnualDisclosure.sample).children.compactMap(\.label)) == Set(fields.keys))
     }
 
     /// `VoteDetail` nests the vote rather than repeating its sixteen fields.
@@ -180,12 +194,8 @@ struct ContractTests {
             "Chamber", "VoteKind", "VoteState", "VoteThreshold", "Position", "BillStage", "TopicFilter",
             "ScheduleCategory",
         ]
-        // Named, not forgotten: financial disclosures are served only behind DISCLOSURES_ENABLED (off,
-        // pending the team's 5 U.S.C. section 13107 decision), and the app has no screen for them.
-        // Model them here when it does.
-        let serverOnly: Set<String> = ["Disclosures", "DisclosureAsset", "DisclosureTrade", "PaperFiling"]
         let modelled = Set(Self.modelFields().keys).subtracting(["/v1/members/{id}/votes", "/v1/status", "/v1/members", "/v1/votes"])
-        #expect(Set(try Self.schemas().keys) == modelled.union(enums).union(serverOnly),
+        #expect(Set(try Self.schemas().keys) == modelled.union(enums),
                 "the contract has a schema with no Swift model")
     }
 }

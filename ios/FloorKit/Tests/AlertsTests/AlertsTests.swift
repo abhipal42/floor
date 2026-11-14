@@ -119,10 +119,39 @@ struct AlertSyncTests {
             DeviceSubscription(kind: .member, id: "C001098", howVoted: false),
             DeviceSubscription(kind: .member, id: "J000294", howVoted: false),
             DeviceSubscription(kind: .bill, id: hr1013.id, howVoted: false),
+            // Since round 11 a followed topic is sent, for "Through topics too"; its howVoted is ignored.
+            DeviceSubscription(kind: .topic, id: "Health", howVoted: false),
         ])
         #expect(!r.voteOpened)
-        // Topics never reach the API.
-        #expect(!r.subscriptions.contains { $0.id == "Health" })
+        #expect(r.billAlerts == .defaults)
+    }
+
+    @Test func sendsTheBillStepSwitches() {
+        var state = FollowState()
+        state.follow(bill: hr1013)
+        state.setBillStep(\.committee, true)
+        state.setBillStep(\.lawOrVeto, false)
+        let r = AlertSync.registration(state: state, reps: [], apnsToken: "t", pushToStartToken: nil, environment: .production)
+        #expect(r.billAlerts == BillAlerts(
+            floorScheduled: true, chamberVote: true, toPresident: true, lawOrVeto: false, committee: true, throughTopics: false
+        ))
+    }
+
+    /// A followed bill alerts on its steps by default (the design's defaults), so following one is
+    /// enough to register; a topic alone is not, until "Through topics too" is on.
+    @Test func billStepsDecideWhetherAnythingIsOn() {
+        var state = FollowState()
+        state.follow(topic: "Health")
+        #expect(!state.anyAlertOn(members: [], reps: []))
+        state.setBillStep(\.throughTopics, true)
+        #expect(state.anyAlertOn(members: [], reps: []))
+        state.unfollow(topic: "Health")
+        state.follow(bill: hr1013)
+        #expect(state.anyAlertOn(members: [], reps: []))
+        for step: WritableKeyPath<BillAlerts, Bool> in [\.floorScheduled, \.chamberVote, \.toPresident, \.lawOrVeto] {
+            state.setBillStep(step, false)
+        }
+        #expect(!state.anyAlertOn(members: [], reps: []))
     }
 
     @Test func registersOnlyWithPermissionAndAToken() async {

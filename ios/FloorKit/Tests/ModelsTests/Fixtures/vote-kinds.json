@@ -1,0 +1,442 @@
+{
+  "kinds": [
+    {
+      "kind": "cloture",
+      "text": "A vote to end debate so the Senate can move to a final vote. On nominations it needs only a simple majority. Passing cloture isn't the final vote.",
+      "source": "Senate Rule XXII; precedents of Nov. 21, 2013 and Apr. 6, 2017",
+      "chamber": "senate",
+      "when": "The vote needed a simple majority (cloture on a nomination)",
+      "questions": [
+        "On the Cloture Motion"
+      ]
+    },
+    {
+      "kind": "cloture",
+      "text": "A vote to end debate so the Senate can move to a final vote. On a bill it needs three-fifths of senators sworn in, 60 when the Senate is full. Passing cloture doesn't pass the bill.",
+      "source": "Senate Rule XXII, paragraph 2",
+      "chamber": "senate",
+      "when": null,
+      "questions": [
+        "On the Cloture Motion"
+      ]
+    },
+    {
+      "kind": "cloture_motion_to_proceed",
+      "text": "A vote to end debate on whether to take up a bill. It needs three-fifths of senators sworn in, 60 when the Senate is full. Passing it lets the Senate start on the bill, not pass it.",
+      "source": "Senate Rule XXII, paragraph 2",
+      "chamber": "senate",
+      "when": null,
+      "questions": [
+        "On Cloture on the Motion to Proceed"
+      ]
+    },
+    {
+      "kind": "motion_to_proceed",
+      "text": "Senate: whether to start debating a bill at all.",
+      "source": "Senate Rule VIII, paragraph 2",
+      "chamber": "senate",
+      "when": null,
+      "questions": [
+        "On the Motion to Proceed"
+      ]
+    },
+    {
+      "kind": "nomination",
+      "text": "The confirmation vote. A simple majority.",
+      "source": "U.S. Constitution, Art. II, Sec. 2; Senate Rule XXXI",
+      "chamber": "senate",
+      "when": null,
+      "questions": [
+        "On the Nomination"
+      ]
+    },
+    {
+      "kind": "treaty",
+      "text": "The vote to approve a treaty. It needs two-thirds of senators present.",
+      "source": "U.S. Constitution, Art. II, Sec. 2; Senate Rule XXX",
+      "chamber": "senate",
+      "when": null,
+      "questions": [
+        "On the Resolution of Ratification"
+      ]
+    },
+    {
+      "kind": "suspension",
+      "text": "House fast track for bills with broad support. Short debate, no amendments, needs two-thirds.",
+      "source": "House Rule XV, clause 1",
+      "chamber": "house",
+      "when": null,
+      "questions": [
+        "On Motion to Suspend the Rules and Pass",
+        "On Motion to Suspend the Rules and Pass, as Amended",
+        "On Motion to Suspend the Rules and Agree",
+        "On Motion to Suspend the Rules and Agree, as Amended",
+        "On Motion to Suspend the Rules and Agree to the Resolution, as Amended",
+        "On Motion to Suspend the Rules and Agree to the Conference Report",
+        "On Motion to Suspend the Rules and Concur in the Senate Amendment",
+        "On Motion to Suspend the Rules and Concur in the Senate Amendments",
+        "On Motion to Suspend the Rules and Concur in Senate Adt to House Adt to Senate Adt"
+      ]
+    },
+    {
+      "kind": "previous_question",
+      "text": "Ends debate on a rule and blocks changes to it. Usually splits by party. Not a vote on the bill.",
+      "source": "House Rule XIX, clause 1",
+      "chamber": "house",
+      "when": "The measure is a special rule: an H.Res. providing for the consideration of a bill",
+      "questions": [
+        "On Ordering the Previous Question"
+      ]
+    },
+    {
+      "kind": "previous_question",
+      "text": "Ends debate on the resolution and blocks changes to it, bringing it straight to a vote. Not the vote on the resolution itself.",
+      "source": "House Rule XIX, clause 1",
+      "chamber": "house",
+      "when": null,
+      "questions": [
+        "On Ordering the Previous Question"
+      ]
+    },
+    {
+      "kind": "rule",
+      "text": "Sets the terms for debating a bill: time, amendments allowed. Not the bill itself.",
+      "source": "House Rule XIII, clause 6",
+      "chamber": "house",
+      "when": "The measure is a special rule: an H.Res. providing for the consideration of a bill",
+      "questions": [
+        "On Agreeing to the Resolution",
+        "On Agreeing to the Resolution, as Amended"
+      ]
+    },
+    {
+      "kind": "consideration",
+      "text": "Whether the House will take up the resolution at all.",
+      "source": "House Rule XVI, clause 3",
+      "chamber": "house",
+      "when": null,
+      "questions": [
+        "On Consideration of the Resolution"
+      ]
+    },
+    {
+      "kind": "passage",
+      "text": "The vote on the measure itself. Passing sends it to the other chamber, or to the President once both have passed it. A simple majority.",
+      "source": "U.S. Constitution, Art. I, Sec. 7",
+      "chamber": null,
+      "when": null,
+      "questions": [
+        "On Passage",
+        "On Passage of the Bill"
+      ]
+    },
+    {
+      "kind": "joint_resolution",
+      "text": "The vote on the joint resolution itself. Like a bill, once both chambers pass it, it goes to the President, unless it proposes a constitutional amendment.",
+      "source": "U.S. Constitution, Art. I, Sec. 7",
+      "chamber": "senate",
+      "when": null,
+      "questions": [
+        "On the Joint Resolution"
+      ]
+    },
+    {
+      "kind": "resolution",
+      "text": "A vote to adopt a resolution. A resolution doesn't go to the President and doesn't become law.",
+      "source": "Congress.gov legislative glossary",
+      "chamber": null,
+      "when": "The measure is not a special rule",
+      "questions": [
+        "On Agreeing to the Resolution",
+        "On Agreeing to the Resolution, as Amended",
+        "On the Resolution"
+      ]
+    },
+    {
+      "kind": "concurrent_resolution",
+      "text": "A resolution both chambers adopt, such as a budget resolution. It doesn't go to the President and isn't law.",
+      "source": "Congress.gov legislative glossary",
+      "chamber": "senate",
+      "when": null,
+      "questions": [
+        "On the Concurrent Resolution"
+      ]
+    },
+    {
+      "kind": "veto_override",
+      "text": "A vote to override a veto. It needs two-thirds of those voting, in each chamber.",
+      "source": "U.S. Constitution, Art. I, Sec. 7, cl. 2",
+      "chamber": null,
+      "when": null,
+      "questions": [
+        "Passage, Objections of the President To The Contrary Notwithstanding",
+        "On Overriding the Veto"
+      ]
+    },
+    {
+      "kind": "conference_report",
+      "text": "The vote on the final text House and Senate negotiators agreed on. It can't be amended.",
+      "source": "Senate Rule XXVIII",
+      "chamber": "senate",
+      "when": null,
+      "questions": [
+        "On the Conference Report"
+      ]
+    },
+    {
+      "kind": "amendment",
+      "text": "A vote to change the measure's text. Adopting an amendment doesn't pass the measure.",
+      "source": "House Rule XVIII, clause 5",
+      "chamber": "house",
+      "when": null,
+      "questions": [
+        "On Agreeing to the Amendment",
+        "On Agreeing to the Amendment, as Modified"
+      ]
+    },
+    {
+      "kind": "amendment",
+      "text": "A vote to change the measure's text. Adopting an amendment doesn't pass the measure.",
+      "source": "Senate Rule XV",
+      "chamber": "senate",
+      "when": null,
+      "questions": [
+        "On the Amendment"
+      ]
+    },
+    {
+      "kind": "concur",
+      "text": "Whether the House accepts the Senate's changes, so both chambers have passed the same text.",
+      "source": "House Rule XXII, clause 4",
+      "chamber": "house",
+      "when": null,
+      "questions": [
+        "On Motion to Concur in the Senate Amendment",
+        "On Motion to Concur in the Senate Amendments"
+      ]
+    },
+    {
+      "kind": "concur_with_amendment",
+      "text": "The House accepts the Senate's changes with a further change of its own, which goes back to the Senate.",
+      "source": "House Rule XXII, clause 4",
+      "chamber": "house",
+      "when": null,
+      "questions": [
+        "On Motion to Concur in the Senate Amendment with an Amendment"
+      ]
+    },
+    {
+      "kind": "go_to_conference",
+      "text": "Whether to negotiate a final version with the Senate in a conference committee.",
+      "source": "House Rule XXII, clause 1",
+      "chamber": "house",
+      "when": null,
+      "questions": [
+        "On Motion to go to Conference"
+      ]
+    },
+    {
+      "kind": "instruct_conferees",
+      "text": "Tells the House's negotiators what position to take with the Senate. The instruction isn't binding.",
+      "source": "House Rule XXII, clause 7",
+      "chamber": "house",
+      "when": null,
+      "questions": [
+        "On Motion to Instruct Conferees"
+      ]
+    },
+    {
+      "kind": "recommit",
+      "text": "The minority's last motion before passage: send the bill back to committee. Rarely passes.",
+      "source": "House Rule XIX, clause 2",
+      "chamber": "house",
+      "when": null,
+      "questions": [
+        "On Motion to Recommit"
+      ]
+    },
+    {
+      "kind": "commit",
+      "text": "The minority's motion to send the measure to a committee instead of voting on it now. Rarely passes.",
+      "source": "House Rule XIX, clause 2",
+      "chamber": "house",
+      "when": null,
+      "questions": [
+        "On Motion to Commit",
+        "On Motion to Commit with Instructions"
+      ]
+    },
+    {
+      "kind": "recommit",
+      "text": "Whether to send the measure back to committee.",
+      "source": "Senate Rule XXII, paragraph 1",
+      "chamber": "senate",
+      "when": null,
+      "questions": [
+        "On the Motion to Recommit"
+      ]
+    },
+    {
+      "kind": "refer",
+      "text": "Whether to send the measure to a committee instead of acting on it now.",
+      "source": "House Rule XVI, clause 4",
+      "chamber": "house",
+      "when": null,
+      "questions": [
+        "On Motion to Refer"
+      ]
+    },
+    {
+      "kind": "refer",
+      "text": "Whether to send the measure to a committee instead of acting on it now.",
+      "source": "Senate Rule XXII, paragraph 1",
+      "chamber": "senate",
+      "when": null,
+      "questions": [
+        "On the Motion to Refer"
+      ]
+    },
+    {
+      "kind": "table",
+      "text": "Sets the item aside, which in practice kills it.",
+      "source": "House Rule XVI, clause 4",
+      "chamber": "house",
+      "when": null,
+      "questions": [
+        "On Motion to Table",
+        "On Motion to Table the Motion to Discharge Committee"
+      ]
+    },
+    {
+      "kind": "table",
+      "text": "Sets the item aside, which in practice kills it.",
+      "source": "Senate Rule XXII, paragraph 1",
+      "chamber": "senate",
+      "when": null,
+      "questions": [
+        "On the Motion to Table"
+      ]
+    },
+    {
+      "kind": "table_reconsider",
+      "text": "Sets aside a motion to reconsider, which makes the vote just taken final.",
+      "source": "House Rule XIX, clause 3",
+      "chamber": "house",
+      "when": null,
+      "questions": [
+        "Table Motion to Reconsider"
+      ]
+    },
+    {
+      "kind": "reconsider",
+      "text": "Whether to vote again on a question already decided.",
+      "source": "House Rule XIX, clause 3",
+      "chamber": "house",
+      "when": null,
+      "questions": [
+        "On Motion to Reconsider"
+      ]
+    },
+    {
+      "kind": "reconsider",
+      "text": "Whether to vote again on a question already decided.",
+      "source": "Senate Rule XIII",
+      "chamber": "senate",
+      "when": null,
+      "questions": [
+        "On the Motion to Reconsider"
+      ]
+    },
+    {
+      "kind": "discharge",
+      "text": "Takes a measure away from a committee that hasn't acted on it, so the House can vote on it. It comes up once a majority of the House has signed a discharge petition.",
+      "source": "House Rule XV, clause 2",
+      "chamber": "house",
+      "when": null,
+      "questions": [
+        "On Motion to Discharge"
+      ]
+    },
+    {
+      "kind": "discharge",
+      "text": "Whether to take a measure away from the committee holding it so the full Senate can act on it. These votes come under laws that fast-track certain measures, such as war powers and arms sales resolutions.",
+      "source": "Expedited-procedure statutes, e.g. the War Powers Resolution (50 U.S.C. 1546a)",
+      "chamber": "senate",
+      "when": null,
+      "questions": [
+        "On the Motion to Discharge"
+      ]
+    },
+    {
+      "kind": "adjourn",
+      "text": "Whether to end the day's sitting now.",
+      "source": "House Rule XVI, clause 4",
+      "chamber": "house",
+      "when": null,
+      "questions": [
+        "On Motion to Adjourn"
+      ]
+    },
+    {
+      "kind": "adjourn",
+      "text": "Whether to end the day's sitting now.",
+      "source": "Senate Rule XXII, paragraph 1",
+      "chamber": "senate",
+      "when": null,
+      "questions": [
+        "On the Motion to Adjourn"
+      ]
+    },
+    {
+      "kind": "quorum_call",
+      "text": "A quorum call: members record that they are present. Nothing is decided.",
+      "source": "House Rule XX, clauses 5-7; U.S. Constitution, Art. I, Sec. 5",
+      "chamber": "house",
+      "when": null,
+      "questions": [
+        "Call of the House",
+        "Call by States"
+      ]
+    },
+    {
+      "kind": "attendance",
+      "text": "Directs the Sergeant at Arms to ask absent senators to come to the chamber, so there is a quorum.",
+      "source": "Senate Rule VI, paragraph 4",
+      "chamber": "senate",
+      "when": null,
+      "questions": [
+        "On the Motion for Attendance"
+      ]
+    },
+    {
+      "kind": "point_of_order",
+      "text": "Whether the Senate upholds an objection that the pending business breaks its rules or a law that binds it, such as the Budget Act.",
+      "source": "Senate Rule XX",
+      "chamber": "senate",
+      "when": null,
+      "questions": [
+        "On the Point of Order"
+      ]
+    },
+    {
+      "kind": "appeal",
+      "text": "Whether the presiding officer's ruling on the rules stands.",
+      "source": "Senate Rule XX, paragraph 1",
+      "chamber": "senate",
+      "when": null,
+      "questions": [
+        "On the Decision of the Chair"
+      ]
+    },
+    {
+      "kind": "speaker_election",
+      "text": "The House elects its Speaker by calling each member's name. Winning takes a majority of those who vote for a person by name.",
+      "source": "U.S. Constitution, Art. I, Sec. 2, cl. 5",
+      "chamber": "house",
+      "when": null,
+      "questions": [
+        "Election of the Speaker"
+      ]
+    }
+  ]
+}

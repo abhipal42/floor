@@ -204,6 +204,25 @@ public struct FloorAPI: Sendable {
         try await get("/v1/bills/\(escaped(id))")
     }
 
+    /// The week ahead: the House's list and when the Senate meets. `week` is any day of it
+    /// (`YYYY-MM-DD`); nil is this week in Washington. Saved for offline like any list.
+    public func schedule(week: String? = nil) async throws -> Schedule {
+        try await get("/v1/schedule", query: week.map { [URLQueryItem(name: "week", value: $0)] } ?? [])
+    }
+
+    /// Every kind of vote Floor explains, in the table's order: the "Kinds of vote" list.
+    public func voteKinds() async throws -> VoteKindList {
+        try await get("/v1/vote-kinds")
+    }
+
+    /// A member's financial disclosures. An API without the route yet (its 404) reads as
+    /// ``Disclosures/unavailable``, saved as such, so the tab shows its placeholder offline too.
+    public func disclosures(id: String) async throws -> Disclosures {
+        try await get("/v1/members/\(escaped(id))/disclosures", notFound: Self.disclosuresUnavailable)
+    }
+
+    static let disclosuresUnavailable = Data(#"{"enabled":false,"reason":null}"#.utf8)
+
     /// What the share sheet sends for a bill: its floor.app link and a neutral line.
     public func billShare(id: String) async throws -> BillShare {
         try await get("/v1/bills/\(escaped(id))/share")

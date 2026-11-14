@@ -28,6 +28,10 @@ public final class RepScreenModel {
     private let limit: Int
     /// The Money segment, loaded only when it is first shown.
     public let money: MoneyModel
+    /// Money's Disclosures half, loaded only when it is first shown.
+    public let disclosures: DisclosuresModel
+    /// Money's Funding · Disclosures switch, kept here so leaving the tab keeps your place.
+    public var moneySegment: MoneySegment = .funding
     /// The grid square picked on the record, oldest-first index; nil for the latest. Kept here
     /// rather than in the view, so going to Money and back does not lose your place.
     public var selectedCall: Int?
@@ -37,6 +41,13 @@ public final class RepScreenModel {
         self.api = api
         self.limit = limit
         money = MoneyModel(bioguideId: bioguideId, api: api)
+        disclosures = DisclosuresModel(bioguideId: bioguideId, api: api)
+    }
+
+    /// The office contact from the record, once it has loaded.
+    public var contact: MemberContact? {
+        if case let .loaded(record) = phase { return record.detail.contact }
+        return nil
     }
 
     /// Who this is, from whichever of the record or the money has loaded.
@@ -81,15 +92,73 @@ public final class RepScreenModel {
     }
 }
 
-/// The member screen's switch, as the AppRep and AppRepMoney mocks draw it.
+/// The member screen's switch: Votes · Money · Contact (round 11, section C). Votes is the record
+/// (it read "Record" before); disclosures moved under Money, beside funding.
 public enum MemberSection: String, CaseIterable, Sendable, Identifiable {
-    case record = "Record"
+    case record = "Votes"
     case money = "Money"
-    /// Financial disclosures. No data and no API yet (the v0.3.0 milestone), so the segment shows
-    /// a visible placeholder rather than anything that looks like figures.
-    case portfolio = "Portfolio"
+    /// Phone, the office's form and website, from congress-legislators.
+    case contact = "Contact"
 
     public var id: String { rawValue }
+}
+
+/// Money's own switch: Funding · Disclosures (round 11, section G).
+public enum MoneySegment: String, CaseIterable, Sendable, Identifiable {
+    case funding = "Funding"
+    /// Financial disclosures, as filed (`/v1/members/{id}/disclosures`).
+    case disclosures = "Disclosures"
+
+    public var id: String { rawValue }
+}
+
+/// A member's financial disclosures: `/v1/members/{id}/disclosures`, saved for offline.
+@MainActor
+@Observable
+public final class DisclosuresModel {
+    public enum Phase: Equatable {
+        case loading
+        case loaded(Disclosures)
+        case failed(String)
+    }
+
+    public private(set) var phase: Phase = .loading
+    public private(set) var saved: SavedCopy?
+    private var generation = 0
+
+    private let bioguideId: String
+    private let api: FloorAPI
+
+    public init(bioguideId: String, api: FloorAPI) {
+        self.bioguideId = bioguideId
+        self.api = api
+    }
+
+    public var needsRefresh: Bool {
+        if case .loaded = phase { return saved != nil }
+        return true
+    }
+
+    public func load() async {
+        generation += 1
+        let mine = generation
+        if case .loaded = phase {} else {
+            phase = .loading
+            saved = nil
+        }
+        do {
+            try await revalidate(api, report: { if mine == generation { saved = $0 } }) { [bioguideId] pass in
+                let found = try await pass.api.disclosures(id: bioguideId)
+                guard mine == generation else { throw CancellationError() }
+                phase = .loaded(found)
+            }
+        } catch is CancellationError {
+        } catch {
+            guard mine == generation else { return }
+            saved = nil
+            phase = .failed((error as? FloorAPIError)?.errorDescription ?? "Couldn't load the disclosures.")
+        }
+    }
 }
 
 /// A member's campaign money: `/v1/members/{id}/funding`, saved for offline like their record.

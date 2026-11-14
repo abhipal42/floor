@@ -196,7 +196,20 @@ final class FixtureServer: URLProtocol {
         "/v1/bills/119-hr-1013": "bill-hr1013",
         "/v1/topics": "topics",
         "/v1/topics/Health/bills": "topic-bills-health",
+        // Round 11: the week of Nov 16 as the House and Senate posted it, H.R. 5267 on it, the Austin
+        // members' office contacts, the vote-kinds table, and disclosures on (Doggett) and off.
+        "/v1/schedule": "schedule-2026-11-16",
+        "/v1/bills/119-hr-5267": "bill-hr5267",
+        "/v1/bills/119-hr-5267/share": "bill-share-hr5267",
+        "/v1/members/D000399": "member-detail-doggett",
+        "/v1/members/C001056": "member-detail-cornyn",
+        "/v1/vote-kinds": "vote-kinds",
+        "/v1/members/D000399/disclosures": "disclosures-doggett",
+        "/v1/members/C001056/disclosures": "disclosures-off",
         // Routes whose answer depends on the query, keyed path and query as sent.
+        "/v1/schedule?week=2026-11-16": "schedule-2026-11-16",
+        "/v1/schedule?week=2026-11-23": "schedule-2026-11-23",
+        "/v1/votes/senate-119-2-253?members=C001056,C001098": "vote-cloture-explained",
         "/v1/search?q=rural%20health": "search-rural-health",
         "/v1/search?q=hr%201013": "search-hr1013",
     ]

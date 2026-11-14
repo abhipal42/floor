@@ -186,8 +186,16 @@ public final class HomeModel {
     /// still works and nothing is sent.
     @ObservationIgnored public var alertSync: AlertSync?
 
+    /// "Sync with iCloud" on the Alerts screen. nil in previews and tests.
+    @ObservationIgnored public var cloudSync: CloudSync?
+
     public func alertsModel() -> AlertsModel {
-        AlertsModel(follows: follows, reps: reps, sync: alertSync)
+        AlertsModel(follows: follows, reps: reps, sync: alertSync, cloud: cloudSync)
+    }
+
+    /// The Week tab.
+    public func weekModel() -> WeekModel {
+        WeekModel(api: api, follows: follows)
     }
 
     /// Your district's members, as onboarding found them; empty with no district.
@@ -284,7 +292,7 @@ public final class HomeModel {
     }
 
     public func billScreen(id: String) -> BillScreenModel {
-        BillScreenModel(billId: id, api: api, members: yourMembers)
+        BillScreenModel(billId: id, api: api, members: yourMembers, delegation: delegation)
     }
 
     public func repScreen(id: String) -> RepScreenModel {

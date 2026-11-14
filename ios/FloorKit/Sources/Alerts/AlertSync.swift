@@ -102,8 +102,8 @@ public final class AlertSync {
     }
 
     /// The registration for these choices: every one of your members (reps not hidden, then
-    /// followed) and every followed bill, each with its "How they voted" switch — at most
-    /// ``subscriptionCap``, members first.
+    /// followed), every followed bill, each with its "How they voted" switch, and every followed
+    /// topic — at most ``subscriptionCap``, members first — with the "Bills you follow" switches.
     public static func registration(
         state: FollowState, reps: [Member], apnsToken: String?, pushToStartToken: String?,
         environment: DeviceRegistration.Environment
@@ -113,16 +113,20 @@ public final class AlertSync {
             DeviceSubscription(kind: .member, id: $0.bioguideId, howVoted: state.alertsOn(member: $0.bioguideId, isRep: repIds.contains($0.bioguideId)))
         }
         let bills = state.followedBillIds.map { DeviceSubscription(kind: .bill, id: $0, howVoted: state.alertsOn(bill: $0)) }
+        // Topics alert only for their bills' steps, and only with "Through topics too" on; the API
+        // ignores a topic's howVoted.
+        let topics = state.followedTopics.map { DeviceSubscription(kind: .topic, id: $0, howVoted: false) }
         return DeviceRegistration(
             apnsToken: apnsToken, apnsEnvironment: environment, pushToStartToken: pushToStartToken,
             voteOpened: state.voteOpened, liveActivities: state.liveActivities,
-            subscriptions: Array((members + bills).prefix(subscriptionCap))
+            subscriptions: Array((members + bills + topics).prefix(subscriptionCap)),
+            billAlerts: state.billSteps
         )
     }
 
-    /// More members and bills than one registration takes; the Alerts screen says so.
+    /// More members, bills and topics than one registration takes; the Alerts screen says so.
     public static func overCap(state: FollowState, reps: [Member]) -> Bool {
-        state.yourMembers(reps: reps).count + state.followedBillIds.count > subscriptionCap
+        state.yourMembers(reps: reps).count + state.followedBillIds.count + state.followedTopics.count > subscriptionCap
     }
 
     /// Reads the permission again (the app returning from Settings, say).

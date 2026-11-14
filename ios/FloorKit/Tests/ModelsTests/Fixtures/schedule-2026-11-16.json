@@ -1,0 +1,280 @@
+{
+  "week": "2026-11-16",
+  "house": {
+    "inSession": true,
+    "items": [
+      {
+        "category": "suspension",
+        "categoryText": "Items that may be considered under suspension of the rules",
+        "billId": "119-hr-7254",
+        "label": "H.R. 7254",
+        "title": "To amend the National Trails System Act to direct the Secretary of the Interior to conduct a study on the feasibility of designating the Bay Area Ridge\u2026",
+        "sourceText": "To amend the National Trails System Act to direct the Secretary of the Interior to conduct a study on the feasibility of designating the Bay Area Ridge National Scenic Trail, and for other purposes., as amended",
+        "policyArea": "Public Lands and Natural Resources",
+        "stage": "introduced",
+        "latestAction": {
+          "on": "2026-10-29",
+          "text": "Placed on the Union Calendar, Calendar No. 752."
+        },
+        "addedAt": "2026-11-11T15:29:14.330Z",
+        "removedAt": null
+      },
+      {
+        "category": "suspension",
+        "categoryText": "Items that may be considered under suspension of the rules",
+        "billId": "119-hr-7954",
+        "label": "H.R. 7954",
+        "title": "Don Young Doug LaMalfa Indian Buffalo Management Act",
+        "sourceText": "Don Young Doug LaMalfa Indian Buffalo Management Act",
+        "policyArea": "Native Americans",
+        "stage": "introduced",
+        "latestAction": {
+          "on": "2026-10-29",
+          "text": "Placed on the Union Calendar, Calendar No. 753."
+        },
+        "addedAt": "2026-11-11T15:29:34.797Z",
+        "removedAt": null
+      },
+      {
+        "category": "suspension",
+        "categoryText": "Items that may be considered under suspension of the rules",
+        "billId": "119-hr-8195",
+        "label": "H.R. 8195",
+        "title": "Responsible Cormorant Management and Control Act of 2026",
+        "sourceText": "Responsible Cormorant Management and Control Act of 2026, as amended",
+        "policyArea": "Animals",
+        "stage": "introduced",
+        "latestAction": {
+          "on": "2026-10-29",
+          "text": "Placed on the Union Calendar, Calendar No. 754."
+        },
+        "addedAt": "2026-11-11T15:29:51.280Z",
+        "removedAt": null
+      },
+      {
+        "category": "suspension",
+        "categoryText": "Items that may be considered under suspension of the rules",
+        "billId": "119-hr-8483",
+        "label": "H.R. 8483",
+        "title": "Barona Group of Capitan Grande Band of Mission Indians Land Transfer Act of 2026",
+        "sourceText": "Barona Group of Capitan Grande Band of Mission Indians Land Transfer Act of 2026, as amended",
+        "policyArea": "Native Americans",
+        "stage": "introduced",
+        "latestAction": {
+          "on": "2026-10-29",
+          "text": "Placed on the Union Calendar, Calendar No. 755."
+        },
+        "addedAt": "2026-11-11T15:30:06.250Z",
+        "removedAt": null
+      },
+      {
+        "category": "suspension",
+        "categoryText": "Items that may be considered under suspension of the rules",
+        "billId": "119-hr-9600",
+        "label": "H.R. 9600",
+        "title": "Common Sense 250 Act of 2026",
+        "sourceText": "Common Sense 250 Act of 2026",
+        "policyArea": "Public Lands and Natural Resources",
+        "stage": "introduced",
+        "latestAction": {
+          "on": "2026-10-29",
+          "text": "Placed on the Union Calendar, Calendar No. 757."
+        },
+        "addedAt": "2026-11-11T15:30:26.877Z",
+        "removedAt": null
+      },
+      {
+        "category": "suspension",
+        "categoryText": "Items that may be considered under suspension of the rules",
+        "billId": "119-hr-10136",
+        "label": "H.R. 10136",
+        "title": "Crossett Experimental Forest Act of 2026",
+        "sourceText": "Crossett Experimental Forest Act of 2026, as amended",
+        "policyArea": "Public Lands and Natural Resources",
+        "stage": "introduced",
+        "latestAction": {
+          "on": "2026-10-29",
+          "text": "Placed on the Union Calendar, Calendar No. 761."
+        },
+        "addedAt": "2026-11-11T15:30:51.567Z",
+        "removedAt": null
+      },
+      {
+        "category": "suspension",
+        "categoryText": "Items that may be considered under suspension of the rules",
+        "billId": "119-hr-9640",
+        "label": "H.R. 9640",
+        "title": "Earth MRI Reauthorization Act of 2026",
+        "sourceText": "Earth MRI Reauthorization Act of 2026, as amended",
+        "policyArea": "Energy",
+        "stage": "introduced",
+        "latestAction": {
+          "on": "2026-10-29",
+          "text": "Placed on the Union Calendar, Calendar No. 759."
+        },
+        "addedAt": "2026-11-11T15:32:22.320Z",
+        "removedAt": null
+      },
+      {
+        "category": "suspension",
+        "categoryText": "Items that may be considered under suspension of the rules",
+        "billId": "119-hr-9785",
+        "label": "H.R. 9785",
+        "title": "South Dakota Water Feasibility Studies Act",
+        "sourceText": "South Dakota Water Feasibility Studies Act, as amended",
+        "policyArea": "Water Resources Development",
+        "stage": "introduced",
+        "latestAction": {
+          "on": "2026-10-29",
+          "text": "Placed on the Union Calendar, Calendar No. 760."
+        },
+        "addedAt": "2026-11-11T15:32:35.443Z",
+        "removedAt": null
+      },
+      {
+        "category": "suspension",
+        "categoryText": "Items that may be considered under suspension of the rules",
+        "billId": "119-hr-9269",
+        "label": "H.R. 9269",
+        "title": "Renewing the African American Civil Rights Network Act",
+        "sourceText": "Renewing the African American Civil Rights Network Act, as amended",
+        "policyArea": "Civil Rights and Liberties, Minority Issues",
+        "stage": "introduced",
+        "latestAction": {
+          "on": "2026-10-29",
+          "text": "Placed on the Union Calendar, Calendar No. 756."
+        },
+        "addedAt": "2026-11-11T15:32:50.927Z",
+        "removedAt": null
+      },
+      {
+        "category": "suspension",
+        "categoryText": "Items that may be considered under suspension of the rules",
+        "billId": "119-hr-2400",
+        "label": "H.R. 2400",
+        "title": "Pit River Land Transfer Act of 2026",
+        "sourceText": "Pit River Land Transfer Act of 2026, as amended",
+        "policyArea": "Native Americans",
+        "stage": "passed_both",
+        "latestAction": {
+          "on": "2026-09-30",
+          "text": "Passed Senate with an amendment by Unanimous Consent. (consideration: CR S5297-5298)"
+        },
+        "addedAt": "2026-11-11T15:31:06.533Z",
+        "removedAt": null
+      },
+      {
+        "category": "suspension",
+        "categoryText": "Items that may be considered under suspension of the rules",
+        "billId": "119-hr-7934",
+        "label": "H.R. 7934",
+        "title": "Settlement Agreement Information Database Act of 2026",
+        "sourceText": "Settlement Agreement Information Database Act of 2026",
+        "policyArea": "Government Operations and Politics",
+        "stage": "introduced",
+        "latestAction": {
+          "on": "2026-03-18",
+          "text": "Ordered to be Reported (Amended) by the Yeas and Nays: 40 - 0."
+        },
+        "addedAt": "2026-11-11T15:31:49.617Z",
+        "removedAt": null
+      },
+      {
+        "category": "suspension",
+        "categoryText": "Items that may be considered under suspension of the rules",
+        "billId": "119-hr-5490",
+        "label": "H.R. 5490",
+        "title": "Dismantle Foreign Scam Syndicates Act",
+        "sourceText": "Dismantle Foreign Scam Syndicates Act, as amended",
+        "policyArea": "International Affairs",
+        "stage": "introduced",
+        "latestAction": {
+          "on": "2025-12-03",
+          "text": "Ordered to be Reported in the Nature of a Substitute (Amended) by the Yeas and Nays: 48 - 0."
+        },
+        "addedAt": "2026-11-11T15:33:06.850Z",
+        "removedAt": null
+      },
+      {
+        "category": "suspension",
+        "categoryText": "Items that may be considered under suspension of the rules",
+        "billId": "119-hr-4464",
+        "label": "H.R. 4464",
+        "title": "Preventive Health Savings Act",
+        "sourceText": "Preventive Health Savings Act",
+        "policyArea": "Economics and Public Finance",
+        "stage": "introduced",
+        "latestAction": {
+          "on": "2026-09-16",
+          "text": "Ordered to be Reported by the Yeas and Nays: 29 - 0."
+        },
+        "addedAt": "2026-11-11T15:34:38.710Z",
+        "removedAt": null
+      },
+      {
+        "category": "rule",
+        "categoryText": "Items that may be considered pursuant to a rule",
+        "billId": "119-hr-3495",
+        "label": "H.R. 3495",
+        "title": "Direct Seller and Real Estate Agent Harmonization Act",
+        "sourceText": "Direct Seller and Real Estate Agent Harmonization Act",
+        "policyArea": "Labor and Employment",
+        "stage": "introduced",
+        "latestAction": {
+          "on": "2026-09-08",
+          "text": "Supplemental report filed by the Committee on Education and Workforce, H. Rept. 119-494, Part II."
+        },
+        "addedAt": "2026-11-13T16:05:25.050Z",
+        "removedAt": null
+      },
+      {
+        "category": "rule",
+        "categoryText": "Items that may be considered pursuant to a rule",
+        "billId": "119-hr-5267",
+        "label": "H.R. 5267",
+        "title": "American Franchise Act",
+        "sourceText": "American Franchise Act",
+        "policyArea": "Labor and Employment",
+        "stage": "introduced",
+        "latestAction": {
+          "on": "2026-09-08",
+          "text": "Placed on the Union Calendar, Calendar No. 702."
+        },
+        "addedAt": "2026-11-13T16:10:21.193Z",
+        "removedAt": null
+      }
+    ]
+  },
+  "senate": {
+    "meetings": [
+      {
+        "date": "2026-11-16",
+        "convenesAt": "2026-11-16T20:00:00.000Z",
+        "proForma": false,
+        "heading": "3 p.m., Monday, November 16",
+        "program": "Senate will resume consideration of the nomination of Daniel Desmond Domenico, of Colorado, to be United States Circuit Judge for the Tenth Circuit, and vote on confirmation thereon at 5:30 p.m. Following disposition of the nomination of Daniel Desmond Domenico, Senate will vote on the motion to invoke cloture on Thune (for Capito) Amendment No. 6883 to H.R. 2347, Survivor Justice Tax Prevention Act (legislative vehicle for the Bipartisan American Affordability and Jobs Act).",
+        "recordIssue": "172/171"
+      }
+    ],
+    "items": [
+      {
+        "category": "other",
+        "categoryText": "Named in the Daily Digest's program for 3 p.m., Monday, November 16",
+        "billId": "119-hr-2347",
+        "label": "H.R. 2347",
+        "title": "Survivor Justice Tax Prevention Act",
+        "sourceText": "Survivor Justice Tax Prevention Act",
+        "policyArea": "Taxation",
+        "stage": "passed_house",
+        "latestAction": {
+          "on": "2026-11-11",
+          "text": "Cloture motion on the measure presented in Senate. (CR S5568)"
+        },
+        "addedAt": "2026-11-14T07:15:22.185Z",
+        "removedAt": null
+      }
+    ]
+  },
+  "senateReason": null,
+  "sourceUpdatedAt": "2026-11-13T22:02:23.730Z"
+}

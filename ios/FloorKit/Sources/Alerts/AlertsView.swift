@@ -1,5 +1,6 @@
 import DesignSystem
 import Models
+import Onboarding
 import SwiftUI
 
 /// The Alerts screen, reached from Following's top bar: round 9's "Alerts" (section C of
@@ -38,8 +39,20 @@ public struct AlertsView: View {
                             ) { on in await model.setMember(row.id, on) }
                         }
                     }
-                    if !model.bills.isEmpty {
+                    if !model.bills.isEmpty || model.followsTopics {
                         groupHeader("BILLS YOU FOLLOW").padding(.top, 8)
+                        ForEach(model.steps) { row in
+                            switchRow(
+                                title: row.title, caption: row.caption, on: row.on, display: false,
+                                label: "Bills you follow: \(row.title)",
+                                hint: row.id == "throughTopics"
+                                    ? "Bills in the topics you follow alert as if you followed them"
+                                    : "Alerts you when a bill you follow reaches this step"
+                            ) { on in await model.setStep(row.step, on) }
+                        }
+                    }
+                    if !model.bills.isEmpty {
+                        groupHeader("EACH BILL'S FINAL VOTES").padding(.top, 8)
                         ForEach(model.bills) { row in
                             switchRow(
                                 title: row.citation.uppercased(), caption: row.label ?? "Voted on", on: row.on,
@@ -61,6 +74,17 @@ public struct AlertsView: View {
                         hint: "Shows an open vote involving your members or bills on your lock screen and in the Dynamic Island, without a sound"
                     ) { on in await model.setLiveActivities(on) }
                     footnote
+                }
+                if let cloud = model.cloud {
+                    groupHeader("SETTINGS").padding(.top, 14)
+                    CloudSyncRow(cloud: cloud, switchRow: { on, set in
+                        switchRow(
+                            title: "Sync with iCloud",
+                            caption: "Your follows, alert choices and district, on your devices only. Floor never sees them.",
+                            on: on, display: false, label: "Sync with iCloud",
+                            hint: "Keeps what you follow the same on your other devices, through your own iCloud", set: set
+                        )
+                    })
                 }
             }
             .padding(.horizontal, 16)
@@ -87,21 +111,33 @@ public struct AlertsView: View {
     }
 
     /// The mock's `.mr` row with its switch: name in the display face, caption under it.
+    /// `display: false` is the mock's `.srow`: the title in the text face, for sentences rather
+    /// than names.
     private func switchRow(
-        title: String, caption: String, on: Bool, label: String, hint: String,
+        title: String, caption: String?, on: Bool, display: Bool = true, label: String, hint: String,
         set: @escaping (Bool) async -> Void
     ) -> some View {
         Toggle(isOn: Binding(get: { on }, set: { value in Task { await set(value) } })) {
             VStack(alignment: .leading, spacing: 2) {
-                Text(title)
-                    .font(Typography.display(17, weight: .blackItalic))
-                    .foregroundStyle(Palette.text)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.7)
-                Text(caption)
-                    .scaledFont(10.5, weight: .medium)
-                    .foregroundStyle(Palette.textMuted)
-                    .lineLimit(2)
+                if display {
+                    Text(title)
+                        .font(Typography.display(17, weight: .blackItalic))
+                        .foregroundStyle(Palette.text)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.7)
+                } else {
+                    Text(title)
+                        .scaledFont(12.5, weight: .semibold)
+                        .foregroundStyle(Palette.text)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                if let caption {
+                    Text(caption)
+                        .scaledFont(10.5, weight: .medium)
+                        .foregroundStyle(Palette.textMuted)
+                        .lineLimit(display ? 2 : nil)
+                        .fixedSize(horizontal: false, vertical: !display)
+                }
             }
         }
         .toggleStyle(FloorSwitch())
@@ -148,7 +184,7 @@ public struct AlertsView: View {
     private var emptyCard: some View {
         VStack(alignment: .leading, spacing: 6) {
             Text("NOTHING TO ALERT YOU ABOUT YET").font(Typography.label(12)).tracking(1.2).foregroundStyle(Palette.textMuted)
-            Text("Find your reps or follow members and bills, and their votes can alert you here.")
+            Text("Find your reps or follow members, bills and topics, and their votes and steps can alert you here.")
                 .scaledFont(13)
                 .foregroundStyle(Palette.textSecondary)
                 .fixedSize(horizontal: false, vertical: true)
@@ -185,11 +221,11 @@ public struct AlertsView: View {
     private var footnote: some View {
         VStack(alignment: .leading, spacing: 6) {
             Text("Each alert says what happened and nothing about why. A busy night collapses into one summary.")
-            if model.followsTopics {
-                Text("Topics you follow don't alert: one is hundreds of bills. Their votes are in Finals.")
+            if model.followsTopics, !model.follows.state.billSteps.throughTopics {
+                Text("Topics you follow don't alert unless Through topics too is on: one is hundreds of bills. Their votes are in Finals.")
             }
             if model.overCap {
-                Text("You follow more than 1,000 members and bills; alerts cover the first 1,000.")
+                Text("You follow more than 1,000 members, bills and topics; alerts cover the first 1,000.")
             }
         }
         .scaledFont(11.5)
@@ -197,5 +233,54 @@ public struct AlertsView: View {
         .fixedSize(horizontal: false, vertical: true)
         .padding(.horizontal, 2)
         .padding(.top, 10)
+    }
+}
+
+/// "Sync with iCloud" and its "Last synced" line (round 11, section F). In a build without the
+/// iCloud entitlement it is a visible placeholder saying so, not a switch that does nothing.
+struct CloudSyncRow<Row: View>: View {
+    let cloud: CloudSync
+    let switchRow: (Bool, @escaping (Bool) async -> Void) -> Row
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            switch cloud.status {
+            case .unavailable:
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("SYNC WITH ICLOUD").font(Typography.label(12)).tracking(1.2).foregroundStyle(Palette.textMuted)
+                    Text("iCloud isn't available in this build of Floor, so what you follow stays on this phone.")
+                        .scaledFont(12.5)
+                        .foregroundStyle(Palette.textSecondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                .padding(12)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .overlay(RoundedRectangle(cornerRadius: 12).strokeBorder(Palette.raised, style: StrokeStyle(lineWidth: 1, dash: [4, 3])))
+                .accessibilityElement(children: .combine)
+            case .off:
+                switchRow(false) { on in cloud.setEnabled(on) }
+            case let .on(lastSynced):
+                switchRow(true) { on in cloud.setEnabled(on) }
+                Text(Self.lastSyncedLine(lastSynced, summary: cloud.summary))
+                    .scaledFont(10.5, weight: .medium)
+                    .foregroundStyle(Palette.textMuted)
+                    .padding(.horizontal, 2)
+            case .tooLarge:
+                switchRow(true) { on in cloud.setEnabled(on) }
+                Text("You follow more than iCloud can hold in one record, so nothing new was synced.")
+                    .scaledFont(10.5, weight: .medium)
+                    .foregroundStyle(Palette.nay)
+                    .padding(.horizontal, 2)
+            }
+        }
+    }
+
+    /// `Last synced 9:38 · 6 members, 3 bills, 2 topics`; `Not synced yet · …`.
+    static func lastSyncedLine(_ date: Date?, summary: String) -> String {
+        guard let date else { return "Not synced yet · \(summary)" }
+        let when = Calendar.current.isDateInToday(date)
+            ? date.formatted(date: .omitted, time: .shortened)
+            : date.formatted(.dateTime.month(.abbreviated).day().hour().minute())
+        return "Last synced \(when) · \(summary)"
     }
 }

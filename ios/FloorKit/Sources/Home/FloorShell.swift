@@ -6,21 +6,24 @@ import VoteScreen
 import BillScreen
 import Alerts
 
-/// The app once you are onboarded (or skipped it): three tabs — Finals, Bills, Following — under
+/// The app once you are onboarded (or skipped it): four tabs — Finals, Week, Bills, Following — under
 /// the locked mocks' floating tab bar. Following replaced "Your three" (the locked
-/// Following mock, <https://claude.ai/artifact/C7qGitvJMSLFmCkYYQgNre>).
+/// Following mock, <https://claude.ai/artifact/C7qGitvJMSLFmCkYYQgNre>); Week is round 11's
+/// (<https://claude.ai/artifact/VdSGbow4qnJwYe2sV7Tb2r>, section A).
 ///
 /// The mocks' fourth tab, Money, is not built: it needs donor and disclosure data the API does not
 /// serve. Each tab keeps its own navigation stack, so switching tabs never loses your place.
 public struct FloorShell: View {
     public enum Tab: String, CaseIterable, Sendable {
         case finals = "Finals"
+        case week = "Week"
         case bills = "Bills"
         case following = "Following"
 
         var symbol: String {
             switch self {
             case .finals: "chart.bar.xaxis"
+            case .week: "calendar"
             case .bills: "doc.text"
             case .following: "person.2"
             }
@@ -29,7 +32,9 @@ public struct FloorShell: View {
 
     @State private var model: HomeModel
     @State private var tab: Tab = .finals
+    @State private var week: WeekModel
     @State private var finalsPath: [HomeModel.Route] = []
+    @State private var weekPath: [HomeModel.Route] = []
     @State private var billsPath: [HomeModel.Route] = []
     @State private var followingPath: [HomeModel.Route] = []
     private let onChangeAddress: () -> Void
@@ -43,6 +48,7 @@ public struct FloorShell: View {
         link: Binding<FloorLink?> = .constant(nil)
     ) {
         _model = State(initialValue: model)
+        _week = State(initialValue: model.weekModel())
         self.onChangeAddress = onChangeAddress
         self.onFindReps = onFindReps
         _link = link
@@ -59,6 +65,9 @@ public struct FloorShell: View {
                     onOpen: { finalsPath.append($0) },
                     onFindReps: onFindReps
                 )
+            }
+            stack(.week, path: $weekPath, title: "Week") {
+                WeekView(model: week) { weekPath.append(.bill(id: $0)) }
             }
             stack(.bills, path: $billsPath, title: "Bills") {
                 BillsView(model: model) { billsPath.append(.bill(id: $0)) }
@@ -139,7 +148,8 @@ public struct FloorShell: View {
         case let .bill(id):
             BillScreenView(
                 model: model.billScreen(id: id), follows: model.follows,
-                onOpenTopic: { path.wrappedValue.append(.topic(name: $0)) }
+                onOpenTopic: { path.wrappedValue.append(.topic(name: $0)) },
+                onSetDistrict: onFindReps
             ) { vote in
                 path.wrappedValue.append(.vote(id: vote.id))
             }
@@ -181,6 +191,7 @@ public struct FloorShell: View {
                         // A second tap on the current tab goes back to its top, as system tab bars do.
                         switch item {
                         case .finals: finalsPath.removeAll()
+                        case .week: weekPath.removeAll()
                         case .bills: billsPath.removeAll()
                         case .following: followingPath.removeAll()
                         }
