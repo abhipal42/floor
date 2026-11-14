@@ -3,7 +3,7 @@ import { PGlite } from "@electric-sql/pglite";
 import { loadMigrations } from "@floor/db";
 import { beforeAll, describe, expect, it } from "vitest";
 import { pgRepositories, poolerMode, poolerWarning, type Db } from "./pg.js";
-import { DEVICE_SIGNUPS_PER_DAY } from "./app.js";
+import { BILL_ALERT_DEFAULTS, DEVICE_SIGNUPS_PER_DAY } from "./app.js";
 import { parseMemberQuery } from "./search.js";
 
 describe("poolerMode", () => {
@@ -1007,6 +1007,7 @@ describe("device repository", () => {
       { kind: "member" as const, id: "H000037", howVoted: true },
       { kind: "bill" as const, id: "119-hr-1", howVoted: false },
     ],
+    billAlerts: { ...BILL_ALERT_DEFAULTS },
   };
   const subs = async (keyHash: string) =>
     (
@@ -1045,6 +1046,38 @@ describe("device repository", () => {
       [hash("1")],
     );
     expect(rows[0]).toEqual({ vote_opened: true, apns_token: token("a"), n: 1 });
+  });
+
+  it("stores the Bills you follow switches and followed topics", async () => {
+    const prefs = async () =>
+      (
+        await pg.query(
+          `select bill_scheduled, bill_chamber_vote, bill_to_president, bill_law, bill_committee, bill_through_topics
+             from devices where key_hash = $1`,
+          [hash("3")],
+        )
+      ).rows[0];
+    await repos.devices.register(hash("3"), { ...reg, apnsToken: null, pushToStartToken: null }, new Date(), "203.0.113.8");
+    expect(await prefs()).toEqual({
+      bill_scheduled: true, bill_chamber_vote: true, bill_to_president: true, bill_law: true, bill_committee: false, bill_through_topics: false,
+    });
+    await repos.devices.register(
+      hash("3"),
+      {
+        ...reg,
+        apnsToken: null,
+        pushToStartToken: null,
+        subscriptions: [{ kind: "topic", id: "Civil Rights and Liberties, Minority Issues", howVoted: false }],
+        billAlerts: { floorScheduled: false, chamberVote: true, toPresident: false, lawOrVeto: true, committee: true, throughTopics: true },
+      },
+      new Date(),
+      "203.0.113.8",
+    );
+    expect(await prefs()).toEqual({
+      bill_scheduled: false, bill_chamber_vote: true, bill_to_president: false, bill_law: true, bill_committee: true, bill_through_topics: true,
+    });
+    expect(await subs(hash("3"))).toEqual([{ target_kind: "topic", target_id: "Civil Rights and Liberties, Minority Issues", how_voted: false }]);
+    await repos.devices.unregister(hash("3"));
   });
 
   it("counts only new keys against a caller's daily allowance, kept hashed in Postgres", async () => {

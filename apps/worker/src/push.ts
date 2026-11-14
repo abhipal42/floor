@@ -23,8 +23,9 @@
  * other than a dead token is logged, not retried. A 410 clears the token (`apns_token`,
  * `push_to_start_token`) or deletes the activity token, as Apple asks.
  *
- * Topics are not alerted on: a topic is up to thousands of bills, so "a vote in Health" is a feed
- * (Finals' "Following" shows it), not a push. See docs/HANDOFF.md, M3.
+ * Topics are not alerted on here: a topic is up to thousands of bills, so "a vote in Health" is a
+ * feed (Finals' "Following" shows it), not a push. A followed topic can alert only for a bill's
+ * steps on the road to law, and only with "Through topics too" on (billevents.ts).
  *
  * With APNs unconfigured (`apnsFromEnv` with any APNS_* unset) `enabled` is false and nothing is
  * read or sent; the live worker runs exactly as before.
@@ -82,9 +83,9 @@ export function fitPayload(payload: Record<string, unknown>): Record<string, unk
   return bytes(smaller) <= PAYLOAD_MAX ? smaller : null;
 }
 
-const CHAMBER_NAME: Record<Chamber, string> = { house: "House", senate: "Senate" };
+export const CHAMBER_NAME: Record<Chamber, string> = { house: "House", senate: "Senate" };
 
-const BILL_LABEL: Record<string, string> = {
+export const BILL_LABEL: Record<string, string> = {
   hr: "H.R.",
   s: "S.",
   hres: "H.Res.",
@@ -615,6 +616,8 @@ export const PRUNE = {
   activityTokenDays: 1,
   /** The new-key allowance counts one day; a week is plenty to look back on. */
   signupDays: 7,
+  /** Sent bill events: the dedupe needs a few days, the history nobody reads. */
+  billEventDays: 30,
 } as const;
 
 /** Deletes what the push tables no longer need. Run hourly by the live worker. */
@@ -631,6 +634,8 @@ export async function pruneDevices(db: Db, now: Date): Promise<Record<string, nu
     ),
     stale: await run("delete from devices where updated_at < $1 returning 1", [at(PRUNE.staleDeviceDays)]),
     signups: await run("delete from device_signups where day < $1::date returning 1", [at(PRUNE.signupDays).slice(0, 10)]),
+    billPushLog: await run("delete from bill_push_log where sent_at < $1 returning 1", [at(PRUNE.pushLogDays)]),
+    billEvents: await run("delete from bill_events where pushed_at is not null and created_at < $1 returning 1", [at(PRUNE.billEventDays)]),
   };
 }
 
@@ -642,7 +647,7 @@ export interface PushSender {
 }
 
 /** Runs `fn` over `items`, `limit` at a time. */
-async function pool<T>(items: T[], limit: number, fn: (item: T) => Promise<void>): Promise<void> {
+export async function pool<T>(items: T[], limit: number, fn: (item: T) => Promise<void>): Promise<void> {
   let next = 0;
   const workers = Array.from({ length: Math.min(limit, items.length) }, async () => {
     while (next < items.length) await fn(items[next++]!);

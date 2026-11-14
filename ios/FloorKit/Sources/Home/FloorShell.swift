@@ -35,7 +35,7 @@ public struct FloorShell: View {
     private let onChangeAddress: () -> Void
     /// "Find my reps", with no district: back to onboarding, keeping who you follow.
     private let onFindReps: () -> Void
-    /// A link from a widget. The shell opens it on Finals and sets it back to nil.
+    /// A link from a widget, an alert or a shared page. The shell opens it and sets it back to nil.
     @Binding private var link: FloorLink?
 
     public init(
@@ -89,6 +89,10 @@ public struct FloorShell: View {
         case let .vote(id):
             tab = .finals
             finalsPath = [.vote(id: id)]
+        case let .bill(id):
+            // A bill alert or a shared link: the bill screen, on Bills, so Back returns to the list.
+            tab = .bills
+            billsPath = [.bill(id: id)]
         case .open:
             break
         }
