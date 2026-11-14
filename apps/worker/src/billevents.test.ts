@@ -158,29 +158,33 @@ describe("recording", () => {
   });
 
   it("reads the floor schedule when the table exists, and does nothing when it does not", async () => {
+    // A database without the floor schedule ingest's migration (20261117000000_floor_schedule.sql).
+    await pg.exec("alter table floor_schedule rename to floor_schedule_hidden");
     expect(await recordScheduledEvents(db, NOW)).toBe(0);
-    // The columns the floor schedule ingest's table has (20261117000000_floor_schedule.sql).
+    await pg.exec("alter table floor_schedule_hidden rename to floor_schedule");
+    expect(await recordScheduledEvents(db, NOW)).toBe(0);
     await pg.exec(`
-      create table floor_schedule (chamber text, week_of date, category text, legis_num text, bill_id text, title text,
-                                   added_at timestamptz, removed_at timestamptz, source_updated_at timestamptz);
-      insert into floor_schedule values
-        ('house', '2026-11-16', 'Suspension', 'H.R. 1013', '119-hr-1013', 'Retirement Fairness', '2026-11-11T15:00:00Z', null, null),
-        ('house', '2026-11-16', 'Suspension', 'H.R. 9', null, 'Unlinked', '2026-11-11T15:00:00Z', null, null),
-        ('house', '2026-11-16', 'Rule', 'H.R. 2', '119-hr-1013', 'Removed', '2026-11-11T15:00:00Z', '2026-11-11T16:00:00Z', null),
+      insert into floor_schedule (chamber, week_of, item_id, category, category_text, legis_num, bill_id, title, added_at, removed_at) values
+        ('house', '2026-11-16', 'a', 'suspension', 'Suspension', 'H.R. 1013', '119-hr-1013', 'Retirement Fairness', '2026-11-11T15:00:00Z', null),
+        ('house', '2026-11-16', 'b', 'suspension', 'Suspension', 'H.R. 9', null, 'Unlinked', '2026-11-11T15:00:00Z', null),
+        ('house', '2026-11-16', 'c', 'rule', 'Rule', 'H.R. 2', '119-hr-1013', 'Removed', '2026-11-11T15:00:00Z', '2026-11-11T16:00:00Z'),
         -- No add date (listed from the start of the week), for a week already over: not news.
-        ('house', '2026-11-02', 'Rule', 'H.R. 1013', '119-hr-1013', 'Old week', null, null, null);
+        ('house', '2026-11-02', 'd', 'rule', 'Rule', 'H.R. 1013', '119-hr-1013', 'Old week', null, null);
     `);
     expect(await recordScheduledEvents(db, NOW)).toBe(1);
     expect(await recordScheduledEvents(db, NOW)).toBe(0);
     // Listed with no add date for a current week: alerts once, too.
-    await pg.exec(`insert into floor_schedule values ('senate', '2026-11-09', 'other', 'H.R. 1013', '119-hr-1013', 'Senate', null, null, null)`);
+    await pg.exec(
+      `insert into floor_schedule (chamber, week_of, item_id, category, category_text, legis_num, bill_id, title)
+       values ('senate', '2026-11-09', '2026-11-09:hr1013', 'other', 'Program', 'H.R. 1013', '119-hr-1013', 'Senate')`,
+    );
     expect(await recordScheduledEvents(db, NOW)).toBe(1);
     await pg.exec("delete from bill_events where kind = 'floor_scheduled' and chamber = 'senate'");
     expect(await events(pg)).toEqual([
       {
         kind: "floor_scheduled",
         chamber: "house",
-        detail: { weekOf: "2026-11-16", category: "Suspension" },
+        detail: { weekOf: "2026-11-16", category: "suspension" },
         dedupe_key: "119-hr-1013:floor_scheduled:house:2026-11-16",
       },
     ]);
