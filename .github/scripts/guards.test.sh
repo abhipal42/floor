@@ -35,6 +35,7 @@ setup() {
   git config commit.gpgsign false
   mkdir -p src docs/retros docs/changelog tests .github/scripts .github/workflows
   cp "$HERE/guards.sh" .github/scripts/guards.sh
+  cp "$HERE/claude_rules.py" .github/scripts/claude_rules.py
   cat > .github/scripts/guards.conf <<'CONF'
 APP="."
 VERSION_FILE="./VERSION"
@@ -552,7 +553,7 @@ EXTRA+=(extra-check)
 SH
   {
     echo "jobs:"; echo "  g:"; echo "    steps:"
-    for g in scope docs tests changelog changelog-archive version-sync bump-level retro retro-debt followups pr-title retired-rules workflow-wired workflow-injection; do
+    for g in scope docs tests changelog changelog-archive version-sync bump-level retro retro-debt followups pr-title retired-rules workflow-wired workflow-injection claude-context; do
       echo "      - run: bash .github/scripts/guards.sh $g"
     done
   } > .github/workflows/guards.yml
@@ -602,6 +603,41 @@ YML
   run workflow-injection;       bad  "github.head_ref in run: fails"
   says "names it" "github.head_ref"
   lacks "a base SHA is not flagged" "bad.yml:5"
+teardown
+
+echo "claude-context"
+setup
+  run claude-context;           ok   "a small CLAUDE.md and no rules pass"
+teardown
+
+setup
+  mkdir -p .claude/rules
+  printf -- '---\npaths:\n  - "lib/**"\n---\nr\n' > .claude/rules/lib.md
+  commit "stranded glob"
+  run claude-context;           bad  "a glob that covers no tracked file fails"
+  says "names the glob" "lib/**"
+  printf -- '---\npaths:\n  - "src/**"\n---\nr\n' > .claude/rules/lib.md; commit "fix glob"
+  run claude-context;           ok   "a glob that covers src/ passes"
+teardown
+
+setup
+  head -c 9000 /dev/zero | tr '\0' a > CLAUDE.md
+  commit "huge CLAUDE.md"
+  run claude-context;           bad  "CLAUDE.md grown past the budget fails"
+teardown
+
+setup
+  head -c 9000 /dev/zero | tr '\0' a > CLAUDE.md; commit "already big"; BASE=$(git rev-parse HEAD)
+  printf 'trimmed\n' > CLAUDE.md; commit "trim"
+  run claude-context;           ok   "already over and shrinking: the ratchet passes"
+teardown
+
+setup
+  printf 'Read `docs/missing.md` first.\n' > CLAUDE.md
+  commit "dead pointer"
+  run claude-context;           bad  "a pointer to a missing file fails"
+  conf 'CLAUDE_REFS_IGNORE="docs/missing.md"'
+  run claude-context;           ok   "CLAUDE_REFS_IGNORE exempts it"
 teardown
 
 echo "retired-rules"
@@ -894,7 +930,7 @@ rm -rf "$T"
 
 # Upgrade: an old-but-unmodified install is replaced quietly; a hand edit is
 # named in a WARNING before it is thrown away — in a --dry-run too.
-TPL=$(mktemp -d); cp -R "$HERE"/. "$TPL"/
+TPL=$(mktemp -d); cp -RL "$HERE"/. "$TPL"/   # -L: claude_rules.py is a symlink into brain/
 ( cd "$TPL" && printf '1.0.0\n' > VERSION && git init -q . && git config user.email t@t \
   && git config user.name t && git config commit.gpgsign false \
   && git add -A && git commit -qm "template 1.0.0" ) >/dev/null
