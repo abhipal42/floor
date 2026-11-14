@@ -17,6 +17,11 @@ import SwiftUI
 /// on the cards.
 public struct VoteScreenView: View {
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+    /// The zone the vote's time is printed in: the device's, unless the environment sets one (the
+    /// snapshot tests pin Eastern so a runner in UTC draws the same picture). `.formatted()` alone
+    /// reads `TimeZone.current` and ignores the environment, which is what turned CI red (lesson 69).
+    @Environment(\.timeZone) private var timeZone
+    @Environment(\.locale) private var locale
     @State private var model: VoteScreenModel
     @State private var showingKinds = false
     private let onOpenMeasure: (MeasureSummary) -> Void
@@ -167,8 +172,16 @@ public struct VoteScreenView: View {
         [vote.chamber.name.uppercased(), vote.rollNumber.map { "ROLL \($0)" }].compactMap(\.self).joined(separator: " · ")
     }
 
+    /// "Sep 30 at 11:58 AM": when a vote happened, in `timeZone` (the environment's, so the device's
+    /// in the app and Eastern in the snapshot tests), never `TimeZone.current` behind its back.
+    static func whenLabel(_ date: Date, timeZone: TimeZone, locale: Locale) -> String {
+        var style = Date.FormatStyle(locale: locale, timeZone: timeZone).month(.abbreviated).day().hour().minute()
+        style.timeZone = timeZone
+        return date.formatted(style)
+    }
+
     private func when(_ vote: Vote) -> String? {
-        vote.occurredAtDate?.formatted(.dateTime.month(.abbreviated).day().hour().minute())
+        vote.occurredAtDate.map { Self.whenLabel($0, timeZone: timeZone, locale: locale) }
     }
 
     // MARK: - Scoreboard
