@@ -178,8 +178,12 @@ struct ContractTests {
             "Chamber", "VoteKind", "VoteState", "VoteThreshold", "Position", "BillStage", "TopicFilter",
             "ScheduleCategory",
         ]
+        // Named, not forgotten: financial disclosures are served only behind DISCLOSURES_ENABLED (off,
+        // pending the team's 5 U.S.C. section 13107 decision), and the app has no screen for them.
+        // Model them here when it does.
+        let serverOnly: Set<String> = ["Disclosures", "DisclosureAsset", "DisclosureTrade", "PaperFiling"]
         let modelled = Set(Self.modelFields().keys).subtracting(["/v1/members/{id}/votes", "/v1/status", "/v1/members", "/v1/votes"])
-        #expect(Set(try Self.schemas().keys) == modelled.union(enums),
+        #expect(Set(try Self.schemas().keys) == modelled.union(enums).union(serverOnly),
                 "the contract has a schema with no Swift model")
     }
 }

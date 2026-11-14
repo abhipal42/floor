@@ -34,6 +34,9 @@ describe("migrations", () => {
       "device_signups",
       "device_subscriptions",
       "devices",
+      "disclosure_assets",
+      "disclosure_filings",
+      "disclosure_transactions",
       "floor_events",
       "floor_schedule",
       "follows",
@@ -142,6 +145,19 @@ describe("migrations", () => {
       db.query("insert into device_subscriptions values ($1, 'topic', 'Health', true)", [rows[0]!.id]),
     ).rejects.toThrow();
     await db.query("delete from devices where id = $1", [rows[0]!.id]);
+  });
+
+  it("keep financial disclosures private until they are switched on: RLS on and no policy", async () => {
+    // Off in the product pending the 5 U.S.C. §13107(c) question: a policy (even a select one) would
+    // publish them through PostgREST whatever DISCLOSURES_ENABLED says.
+    const tables = ["disclosure_filings", "disclosure_assets", "disclosure_transactions"];
+    const { rows: policies } = await db.query("select tablename, policyname from pg_policies where tablename = any($1)", [tables]);
+    expect(policies).toEqual([]);
+    const { rows: secured } = await db.query<{ relname: string }>(
+      "select relname from pg_class where relname = any($1) and relrowsecurity order by 1",
+      [tables],
+    );
+    expect(secured.map((r) => r.relname)).toEqual([...tables].sort());
   });
 
   it("enable row level security on every per-user table", async () => {

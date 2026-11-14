@@ -84,6 +84,8 @@ const app = createApp({
   ...repositories,
   allowedOrigins,
   locate: (place) => locateDistrict(place, CONGRESS),
+  // Off unless set: financial disclosures wait on the §13107(c) question (HANDOFF.md).
+  disclosuresEnabled: process.env.DISCLOSURES_ENABLED === "true",
 });
 
 export default handle(app);

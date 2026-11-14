@@ -252,6 +252,100 @@ const MemberFundingSchema = z
   .object({ member: MemberSchema, funding: FundingSchema.nullable() })
   .openapi("MemberFunding", { description: "funding is null for a member FEC has no current-campaign totals for" });
 
+// ---------------------------------------------------------------------------------------------
+// Financial disclosures — OFF until the 5 U.S.C. §13107(c) question is answered (HANDOFF.md,
+// "Financial disclosures"). Values are the ranges as filed, never numbers: no field here can be
+// added into a net worth (product rule: ranges, never net worth).
+
+/** Why the route answers no data while `DISCLOSURES_ENABLED` is unset. */
+export const DISCLOSURES_OFF_REASON =
+  "Financial disclosures are not shown yet: their use is restricted by 5 U.S.C. §13107(c), and Floor has not settled how that applies.";
+
+/** The STOCK Act's outer limit for reporting a trade: 45 days after it (30 after notice of it, if sooner). */
+export const STOCK_ACT_DEADLINE_DAYS = 45;
+
+const OwnerSchema = z
+  .enum(["self", "spouse", "joint", "dependent"])
+  .nullable()
+  .openapi({ description: "Whose asset it is, as filed; dependent means a dependent child" });
+
+export const DisclosureAssetSchema = z
+  .object({
+    name: z.string().openapi({ example: "GSK plc American Depositary Shares (GSK)" }),
+    type: z.string().nullable().openapi({ example: "Stocks (including ADRs)", description: "The House code's name, or the Senate's type / subtype" }),
+    typeCode: z.string().nullable().openapi({ example: "ST", description: "The House's two-letter asset code; null for the Senate" }),
+    account: z.string().nullable().openapi({ description: "The account or holding it sits in, when the filing says" }),
+    owner: OwnerSchema,
+    value: z.string().nullable().openapi({ example: "$15,001 - $50,000", description: "The value range exactly as filed. Never a number" }),
+    incomeType: z.string().nullable(),
+    income: z.string().nullable().openapi({ example: "$201 - $1,000", description: "As filed" }),
+    description: z.string().nullable(),
+  })
+  .openapi("DisclosureAsset");
+
+export const DisclosureTradeSchema = z
+  .object({
+    type: z.enum(["buy", "sell", "exchange"]),
+    typeFiled: z.string().openapi({ example: "S (partial)", description: "As filed" }),
+    asset: z.string(),
+    ticker: z.string().nullable(),
+    assetType: z.string().nullable(),
+    owner: OwnerSchema,
+    amount: z.string().openapi({ example: "$1,001 - $15,000", description: "The amount range exactly as filed. Never a number" }),
+    transactedAt: z.string().openapi({ example: "2025-07-28" }),
+    notifiedAt: z.string().nullable().openapi({ description: "House only: when the filer learned of the trade" }),
+    filedAt: z.string().openapi({ example: "2025-09-10", description: "When the report listing it was filed" }),
+    daysToFile: z.number().int().openapi({ example: 44, description: "Days from the trade to the filing" }),
+    pastDeadline: z.boolean().openapi({
+      description: `Filed more than ${STOCK_ACT_DEADLINE_DAYS} days after the trade, the STOCK Act's outer limit. A fact about the dates, not a finding`,
+    }),
+    comment: z.string().nullable(),
+    sourceUrl: z.string(),
+  })
+  .openapi("DisclosureTrade");
+
+export const PaperFilingSchema = z
+  .object({
+    kind: z.enum(["annual", "ptr"]),
+    reportYear: z.number().int().nullable(),
+    filedAt: z.string().nullable(),
+    sourceUrl: z.string(),
+    status: z.enum(["paper", "unparsed"]).openapi({
+      description: "paper: a scanned filing Floor does not read (no OCR guesses); unparsed: an electronic filing Floor could not read",
+    }),
+  })
+  .openapi("PaperFiling");
+
+export const DisclosuresSchema = z
+  .object({
+    enabled: z.boolean(),
+    reason: z.string().optional().openapi({ description: "Why there is no data, when enabled is false" }),
+    deadlineDays: z.number().int().optional().openapi({ example: STOCK_ACT_DEADLINE_DAYS }),
+    annual: z
+      .object({
+        year: z.number().int().nullable().openapi({ example: 2025, description: "The calendar year the report covers" }),
+        filedAt: z.string().nullable(),
+        amendment: z.boolean(),
+        sourceUrl: z.string(),
+        assets: z.array(DisclosureAssetSchema),
+      })
+      .nullable()
+      .optional()
+      .openapi({ description: "The latest annual report Floor has read; null when there is none" }),
+    trades: z.array(DisclosureTradeSchema).optional().openapi({ description: "Trades in the last 12 months, newest first" }),
+    paperFilings: z.array(PaperFilingSchema).optional().openapi({
+      description: "Filings in the same window Floor holds only as a link: the annual report and trade reports a client must not present as empty",
+    }),
+  })
+  .openapi("Disclosures", { description: "No totals and no estimates: every value is a range as filed" });
+
+export type Disclosures = z.infer<typeof DisclosuresSchema>;
+
+export interface DisclosureRepository {
+  /** The member's latest annual report, a year of trades and the filings in that window held only as links. */
+  disclosures(bioguideId: string, now: Date): Promise<Required<Omit<Disclosures, "enabled" | "reason">>>;
+}
+
 /**
  * Just enough about the bill or nomination a vote was on to label it in a list.
  *
@@ -1002,6 +1096,10 @@ export interface AppDeps {
   devices?: DeviceRepository;
   /** The week ahead. Defaults to `EMPTY_SCHEDULE`. */
   schedule?: ScheduleRepository;
+  /** Financial disclosures. Read only when `disclosuresEnabled`. */
+  disclosures?: DisclosureRepository;
+  /** `DISCLOSURES_ENABLED=true`. Default off: the route answers {enabled:false, reason} and reads nothing. */
+  disclosuresEnabled?: boolean;
 }
 
 /** How many address lookups one caller gets per hour. See the note in `limit.ts`. */
@@ -1140,6 +1238,27 @@ const getMemberFundingRoute = createRoute({
   },
   responses: {
     200: { content: { "application/json": { schema: MemberFundingSchema } }, description: "The member and their campaign's money" },
+    404: { content: { "application/json": { schema: ErrorSchema } }, description: "No member with that ID" },
+  },
+});
+
+const getMemberDisclosuresRoute = createRoute({
+  method: "get",
+  path: "/v1/members/{id}/disclosures",
+  summary: "A member's financial disclosures: their latest annual report's assets and a year of trades",
+  description:
+    "Off until DISCLOSURES_ENABLED is set: until then it answers {enabled:false, reason} and no data. Values are the " +
+    "ranges as filed; there are no totals and no estimates. Scanned paper filings are listed as links, never read.",
+  request: {
+    params: z.object({
+      id: z
+        .string()
+        .regex(/^[A-Z]\d{6}$/, "Member IDs are Bioguide IDs like A000370")
+        .openapi({ param: { name: "id", in: "path" }, example: "A000055" }),
+    }),
+  },
+  responses: {
+    200: { content: { "application/json": { schema: DisclosuresSchema } }, description: "The member's disclosures, or why there are none" },
     404: { content: { "application/json": { schema: ErrorSchema } }, description: "No member with that ID" },
   },
 });
@@ -1611,6 +1730,15 @@ export function createApp(deps: AppDeps) {
     const member = await deps.members.getMember(id);
     if (!member) return c.json({ error: `No member with ID ${id}` }, 404);
     return c.json({ member, funding: await deps.members.funding(id, committees) }, 200);
+  });
+
+  app.openapi(getMemberDisclosuresRoute, async (c) => {
+    const { id } = c.req.valid("param");
+    // Off: answer before touching the database, so nothing about a member's filings is read.
+    if (!deps.disclosuresEnabled || !deps.disclosures) return c.json({ enabled: false, reason: DISCLOSURES_OFF_REASON }, 200);
+    const member = await deps.members.getMember(id);
+    if (!member) return c.json({ error: `No member with ID ${id}` }, 404);
+    return c.json({ enabled: true, ...(await deps.disclosures.disclosures(id, clock())) }, 200);
   });
 
   app.openapi(getRepsRoute, async (c) => {

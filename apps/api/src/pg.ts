@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { AI_DISCLAIMER, DEVICE_SIGNUPS_PER_DAY, NO_CONTACT } from "./app.js";
+import { AI_DISCLAIMER, DEVICE_SIGNUPS_PER_DAY, NO_CONTACT, STOCK_ACT_DEADLINE_DAYS } from "./app.js";
 import { billCitation, billLabel } from "./bills.js";
 import type {
   Bill,
@@ -9,6 +9,8 @@ import type {
   CatalogRepository,
   DeviceRegistration,
   DeviceRepository,
+  DisclosureRepository,
+  Disclosures,
   TopicFilter,
   LiveRepository,
   CandidateTotal,
@@ -504,6 +506,7 @@ export function pgRepositories(db: Db): {
   catalog: CatalogRepository;
   devices: DeviceRepository;
   schedule: ScheduleRepository;
+  disclosures: DisclosureRepository;
 } {
   const registerOnce = async (keyHash: string, reg: DeviceRegistration, now: Date) => {
     // An APNs token belongs to one install. A phone that reinstalled Floor makes a new key and
@@ -572,6 +575,7 @@ export function pgRepositories(db: Db): {
   };
 
   return {
+    disclosures: pgDisclosures(db),
     devices: {
       async register(keyHash, reg, now, caller) {
         if (!(await admitNew(keyHash, caller, now))) return "limited";
@@ -1203,6 +1207,143 @@ export function pgRepositories(db: Db): {
           sourceUpdatedAt: updated ? new Date(updated).toISOString() : null,
         };
       },
+    },
+  };
+}
+
+type Owner = "self" | "spouse" | "joint" | "dependent";
+
+/**
+ * Financial disclosures (20261117000200_disclosures.sql). Dates leave the database as text, and the
+ * days from a trade to its filing are counted there, so no driver's time zone can move one.
+ *
+ * The latest annual report is the latest one listed, whatever became of it: when that one is a scan
+ * or could not be read, `annual` is null and it is in `paperFilings`, rather than an older report
+ * standing in as "the latest".
+ */
+export function pgDisclosures(db: Db): DisclosureRepository {
+  return {
+    async disclosures(bioguideId, now) {
+      const asOf = now.toISOString().slice(0, 10);
+      const { rows: annuals } = await db.query<{
+        id: string;
+        report_year: number | null;
+        filed_on: string | null;
+        amendment: boolean;
+        source_url: string;
+        parse_status: string;
+      }>(
+        `select id, report_year, to_char(filed_on, 'YYYY-MM-DD') as filed_on, amendment, source_url, parse_status
+           from disclosure_filings
+          where member_id = $1 and kind = 'annual'
+          order by report_year desc nulls last, filed_on desc nulls last, id desc
+          limit 1`,
+        [bioguideId],
+      );
+      const latest = annuals[0];
+      let annual: Disclosures["annual"] = null;
+      if (latest?.parse_status === "parsed") {
+        const { rows: assets } = await db.query<{
+          name: string;
+          asset_type: string | null;
+          asset_type_code: string | null;
+          account: string | null;
+          owner: Owner | null;
+          value_range: string | null;
+          income_type: string | null;
+          income_range: string | null;
+          description: string | null;
+        }>(
+          `select name, asset_type, asset_type_code, account, owner, value_range, income_type, income_range, description
+             from disclosure_assets where filing_id = $1 order by position`,
+          [latest.id],
+        );
+        annual = {
+          year: latest.report_year,
+          filedAt: latest.filed_on,
+          amendment: latest.amendment,
+          sourceUrl: latest.source_url,
+          assets: assets.map((a) => ({
+            name: a.name,
+            type: a.asset_type,
+            typeCode: a.asset_type_code,
+            account: a.account,
+            owner: a.owner,
+            value: a.value_range,
+            incomeType: a.income_type,
+            income: a.income_range,
+            description: a.description,
+          })),
+        };
+      }
+      const { rows: trades } = await db.query<{
+        tx_type: "buy" | "sell" | "exchange";
+        tx_type_filed: string;
+        asset_name: string;
+        ticker: string | null;
+        asset_type: string | null;
+        owner: Owner | null;
+        amount_range: string;
+        transacted_on: string;
+        notified_on: string | null;
+        filed_on: string;
+        days: number;
+        comment: string | null;
+        source_url: string;
+      }>(
+        `select t.tx_type, t.tx_type_filed, t.asset_name, t.ticker, t.asset_type, t.owner, t.amount_range,
+                to_char(t.transacted_on, 'YYYY-MM-DD') as transacted_on, to_char(t.notified_on, 'YYYY-MM-DD') as notified_on,
+                to_char(f.filed_on, 'YYYY-MM-DD') as filed_on, (f.filed_on - t.transacted_on)::int as days,
+                t.comment, f.source_url
+           from disclosure_transactions t join disclosure_filings f on f.id = t.filing_id
+          where f.member_id = $1 and f.kind = 'ptr' and f.parse_status = 'parsed' and f.filed_on is not null
+            and t.transacted_on >= $2::date - interval '12 months'
+          order by t.transacted_on desc, f.filed_on desc, f.id, t.position`,
+        [bioguideId, asOf],
+      );
+      // Everything in the same window held only as a link: scans, documents that failed to read and
+      // ones not read yet. A client shows these as "paper filing, not parsed" rather than as nothing.
+      const { rows: paper } = await db.query<{
+        kind: "annual" | "ptr";
+        report_year: number | null;
+        filed_on: string | null;
+        source_url: string;
+        parse_status: string;
+      }>(
+        `select kind, report_year, to_char(filed_on, 'YYYY-MM-DD') as filed_on, source_url, parse_status
+           from disclosure_filings
+          where member_id = $1 and parse_status <> 'parsed'
+            and ((kind = 'ptr' and filed_on >= $2::date - interval '12 months') or id = $3)
+          order by filed_on desc nulls last, id`,
+        [bioguideId, asOf, latest?.id ?? null],
+      );
+      return {
+        deadlineDays: STOCK_ACT_DEADLINE_DAYS,
+        annual,
+        trades: trades.map((t) => ({
+          type: t.tx_type,
+          typeFiled: t.tx_type_filed,
+          asset: t.asset_name,
+          ticker: t.ticker,
+          assetType: t.asset_type,
+          owner: t.owner,
+          amount: t.amount_range,
+          transactedAt: t.transacted_on,
+          notifiedAt: t.notified_on,
+          filedAt: t.filed_on,
+          daysToFile: t.days,
+          pastDeadline: t.days > STOCK_ACT_DEADLINE_DAYS,
+          comment: t.comment,
+          sourceUrl: t.source_url,
+        })),
+        paperFilings: paper.map((p) => ({
+          kind: p.kind,
+          reportYear: p.report_year,
+          filedAt: p.filed_on,
+          sourceUrl: p.source_url,
+          status: p.parse_status === "paper" ? ("paper" as const) : ("unparsed" as const),
+        })),
+      };
     },
   };
 }

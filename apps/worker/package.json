@@ -13,6 +13,7 @@
     "@floor/shared": "^0.0.0",
     "fflate": "^0.8.2",
     "pg": "^8.13.1",
+    "unpdf": "^2.1.0",
     "zod": "^3.25.76"
   },
   "devDependencies": {
