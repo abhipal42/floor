@@ -1,0 +1,52 @@
+{
+ "bills": [
+  {
+   "congress": 119,
+   "introducedDate": "2025-01-03",
+   "latestAction": null,
+   "number": "6",
+   "originChamber": "House",
+   "originChamberCode": "H",
+   "title": "Reserved for the Speaker.",
+   "type": "HR",
+   "updateDate": "2025-01-14",
+   "updateDateIncludingText": "2025-01-14",
+   "url": "https://api.congress.gov/v3/bill/119/hr/6?format=json"
+  },
+  {
+   "congress": 119,
+   "introducedDate": "2025-01-03",
+   "latestAction": null,
+   "number": "9",
+   "originChamber": "House",
+   "originChamberCode": "H",
+   "title": "Reserved for the Speaker.",
+   "type": "HR",
+   "updateDate": "2025-01-14",
+   "updateDateIncludingText": "2025-01-14",
+   "url": "https://api.congress.gov/v3/bill/119/hr/9?format=json"
+  },
+  {
+   "congress": 119,
+   "introducedDate": "2025-01-03",
+   "latestAction": null,
+   "number": "11",
+   "originChamber": "House",
+   "originChamberCode": "H",
+   "title": "Reserved for the Minority Leader.",
+   "type": "HR",
+   "updateDate": "2025-01-14",
+   "updateDateIncludingText": "2025-01-14",
+   "url": "https://api.congress.gov/v3/bill/119/hr/11?format=json"
+  }
+ ],
+ "pagination": {
+  "count": 19964,
+  "next": "https://api.congress.gov/v3/bill/119?sort=updateDate asc&offset=3&limit=3&format=json"
+ },
+ "request": {
+  "congress": "119",
+  "contentType": "application/json",
+  "format": "json"
+ }
+}

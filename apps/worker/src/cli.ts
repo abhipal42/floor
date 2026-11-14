@@ -4,6 +4,7 @@ import { type Db } from "./db.js";
 import { ingestMembers } from "./members.js";
 import { ingestSessions, sessionsToPoll } from "./rollcalls.js";
 import { congressClient, ingestVotedBills } from "./bills.js";
+import { DEFAULT_KEY_RESERVE, DEFAULT_RATE_PER_HOUR, ingestCatalog } from "./catalog.js";
 import { ingestVotedNominations } from "./nominations.js";
 import { fecClient, ingestFecTotals, ingestPacContributions } from "./fec.js";
 import Anthropic from "@anthropic-ai/sdk";
@@ -18,6 +19,10 @@ const USAGE = `Usage:
   npm run ingest -w @floor/worker -- rollcalls <house|senate> current   (the session in progress; what the schedule runs)
   npm run ingest -w @floor/worker -- bills [limit]              (bills that stored votes refer to; needs CONGRESS_API_KEY)
   npm run ingest -w @floor/worker -- bills --refresh [limit]    (re-fetch bills already stored, to pick up changes or mapping fixes)
+  npm run ingest -w @floor/worker -- bill-catalog [--full] [--budget N] [--rate N] [--reserve N] [--congress N]
+                                         (every bill of the Congress: list, details, stage; default budget 1200 requests at
+                                          4500/h, stopping when the key has fewer than 500 left this hour; incremental
+                                          from the last listing; needs CONGRESS_API_KEY)
   npm run ingest -w @floor/worker -- nominations [limit]         (nominations that stored Senate votes refer to; needs CONGRESS_API_KEY)
   npm run ingest -w @floor/worker -- nominations --refresh [limit]
   npm run ingest -w @floor/worker -- fec-totals [limit]           (campaign totals per current member from OpenFEC; needs CONGRESS_API_KEY)
@@ -94,6 +99,30 @@ async function main() {
         refresh
           ? `Refreshed ${result.bills} bills, ${result.failed} failed`
           : `Loaded ${result.bills} bills, linked ${result.linkedVotes} votes, ${result.failed} failed`,
+      );
+    } else if (command === "bill-catalog") {
+      if (!process.env.CONGRESS_API_KEY) throw new Error("Set CONGRESS_API_KEY in .env (free key: https://api.data.gov/signup)");
+      const flag = (name: string) => {
+        const i = args.indexOf(name);
+        if (i < 0) return undefined;
+        const value = Number(args[i + 1]);
+        if (!Number.isInteger(value) || value <= 0) throw new Error(`${name} needs a positive whole number`);
+        return value;
+      };
+      const congress = flag("--congress") ?? sessionsToPoll(new Date())[0]!.congress;
+      const key = process.env.CONGRESS_API_KEY;
+      const result = await ingestCatalog(db, (budget) => congressClient(key, fetch, budget), {
+        congress,
+        full: args.includes("--full"),
+        budget: flag("--budget") ?? 1200,
+        ratePerHour: flag("--rate") ?? DEFAULT_RATE_PER_HOUR,
+        keyReserve: flag("--reserve") ?? DEFAULT_KEY_RESERVE,
+        log: (msg) => console.log(`${new Date().toISOString()} ${msg}`),
+      });
+      console.log(
+        `Congress ${congress}: listed ${result.listed} (${result.reserved} reserved, ${result.undated} undated skipped), details for ${result.fetched}, ` +
+          `${result.failed} failed, ${result.stillDue} still due, staged ${result.staged}; ` +
+          `${result.requests} requests; stopped: ${result.stoppedBy}`,
       );
     } else if (command === "fec-totals") {
       if (!process.env.CONGRESS_API_KEY) throw new Error("Set CONGRESS_API_KEY in .env (the api.data.gov key works for OpenFEC)");

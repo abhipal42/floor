@@ -12,7 +12,7 @@ options:
 # group, instead of the app and widget colliding on one id or registering ours under your team.
 settings:
   base:
-    MARKETING_VERSION: "0.2.25"
+    MARKETING_VERSION: "0.2.26"
     CURRENT_PROJECT_VERSION: "1"
     FLOOR_BUNDLE_ID: app.floor.ios
     FLOOR_APP_GROUP: group.$(FLOOR_BUNDLE_ID)

@@ -1,6 +1,7 @@
 import { OpenAPIHono, createRoute, z } from "@hono/zod-openapi";
 import { cors } from "hono/cors";
 import type { DistrictMatch, Place } from "./district.js";
+import { POLICY_AREAS, matchTopics, parseBillNumber, topicNamed } from "./bills.js";
 import { rateLimit, type LimitStore } from "./limit.js";
 
 /*
@@ -522,6 +523,179 @@ export interface StatusRepository {
   >;
 }
 
+/*
+ * Round 10: following bills and topics. A topic is one of the CRS policy areas (`POLICY_AREAS` in
+ * bills.ts); a bill's stage is derived by the worker (apps/worker/src/stage.ts) and stored, so a
+ * list never fetches actions per row.
+ */
+export const BillStageSchema = z
+  .enum(["introduced", "passed_house", "passed_senate", "passed_both", "to_president", "law", "vetoed", "failed", "adopted"])
+  .openapi("BillStage");
+
+export type BillStage = z.infer<typeof BillStageSchema>;
+
+export const BillListItemSchema = z
+  .object({
+    id: z.string().openapi({ example: "119-hr-2493" }),
+    congress: z.number().int(),
+    type: z.string().openapi({ example: "hr" }),
+    number: z.number().int(),
+    citation: z.string().openapi({ example: "H.R. 2493" }),
+    label: z.string().openapi({
+      example: "Improving Care in Rural America Reauthorization Act of 2025",
+      description: "A plain short label: the short title, or a deterministic rewrite of a long CRS title. The full title is `title`.",
+    }),
+    title: z.string(),
+    policyArea: z.string().nullable(),
+    // Nullable at its only use, so zod-openapi hoists `nullable` (and this description) onto the
+    // BillStage component; app.test.ts lists it among the components where that is correct.
+    stage: BillStageSchema.nullable().openapi({
+      description:
+        "Where the measure stands on the road to law; null until the worker has staged it. adopted = a resolution " +
+        "agreed to by every chamber it needs (it never goes to the President); failed = a chamber voted it down " +
+        "(Congress.gov's own marker); vetoed = vetoed and not overridden.",
+    }),
+    stalled: z.boolean().openapi({ description: "Not settled (law, adopted, vetoed, failed) and no action in 90 days" }),
+    latestAction: LatestActionSchema.nullable(),
+    hasFloorVote: z.boolean().openapi({ description: "At least one recorded roll call on it" }),
+  })
+  .openapi("BillListItem");
+
+export type BillListItem = z.infer<typeof BillListItemSchema>;
+
+export const TopicSchema = z
+  .object({
+    name: z.string().openapi({ example: "Health" }),
+    bills: z.number().int().openapi({ description: "Bills in this topic in the Congress" }),
+    billsWithFloorVote: z.number().int(),
+    latestActionOn: z.string().nullable().openapi({ example: "2026-09-29" }),
+  })
+  .openapi("Topic");
+
+export type Topic = z.infer<typeof TopicSchema>;
+
+export const TopicListSchema = z
+  .object({ congress: z.number().int(), topics: z.array(TopicSchema) })
+  .openapi("TopicList");
+
+export const TOPIC_FILTERS = ["all", "moving", "law", "stalled"] as const;
+export type TopicFilter = (typeof TOPIC_FILTERS)[number];
+export const TopicFilterSchema = z.enum(TOPIC_FILTERS).openapi("TopicFilter");
+
+export const TopicBillsSchema = z
+  .object({
+    congress: z.number().int(),
+    topic: TopicSchema,
+    filter: TopicFilterSchema,
+    bills: z.array(BillListItemSchema),
+    nextCursor: z.string().nullable().openapi({ description: "Pass as `cursor` for the next page; null on the last" }),
+  })
+  .openapi("TopicBills");
+
+export const SearchResultsSchema = z
+  .object({
+    query: z.string(),
+    billNumber: z
+      .boolean()
+      .openapi({ description: "The query read as a bill number (\"hr 1013\"), so `bills` holds exact matches only" }),
+    members: z.array(MemberSchema),
+    bills: z.array(BillListItemSchema),
+    topics: z.array(TopicSchema),
+  })
+  .openapi("SearchResults");
+
+export type SearchResults = z.infer<typeof SearchResultsSchema>;
+
+/** Where the last row of a page sat in (latest action desc, id desc) order. */
+export interface BillCursor {
+  on: string | null;
+  id: string;
+}
+
+/**
+ * One row of a topic page with where it sits in the page order. The position is the stored
+ * `latest_action_on`, not `latestAction.on`: a bill with an action date but no action text has
+ * `latestAction: null`, and a cursor read from that would restart the page at the undated bills.
+ */
+export interface TopicPageRow {
+  bill: BillListItem;
+  at: BillCursor;
+}
+
+export interface CatalogRepository {
+  /** Bill counts per policy area in one Congress; areas with no bills are absent. */
+  topicCounts(congress: number): Promise<Topic[]>;
+  /** One page of a topic's bills, newest action first. `after` is the decoded cursor. */
+  topicBills(
+    congress: number,
+    topic: string,
+    filter: TopicFilter,
+    after: BillCursor | null,
+    limit: number,
+    now: Date,
+  ): Promise<TopicPageRow[]>;
+  /** Bills by type and number, newest Congress first; `congress` narrows it. */
+  billsByNumber(type: string, number: number, congress: number | null, now: Date): Promise<BillListItem[]>;
+  /** Full-text match on short title, title and CRS summary, best first, current Congress favoured. */
+  searchBills(q: string, congress: number, limit: number, now: Date): Promise<BillListItem[]>;
+  /** Serving members by name, state or district (see `memberQuery` in pg.ts). */
+  searchMembers(q: string, limit: number, now: Date): Promise<Member[]>;
+}
+
+export const encodeCursor = (c: BillCursor) => Buffer.from(JSON.stringify([c.on, c.id])).toString("base64url");
+
+export function decodeCursor(raw: string): BillCursor | null {
+  try {
+    const value: unknown = JSON.parse(Buffer.from(raw, "base64url").toString("utf8"));
+    if (
+      Array.isArray(value) &&
+      value.length === 2 &&
+      (value[0] === null || (typeof value[0] === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value[0]))) &&
+      typeof value[1] === "string" &&
+      value[1].length <= 40
+    ) {
+      return { on: value[0] as string | null, id: value[1] };
+    }
+  } catch {
+    // Not base64 or not JSON: the caller answers 400.
+  }
+  return null;
+}
+
+/** Serves an empty catalog; the default when no repository is given (tests of other routes, a database-less dev server). */
+export const EMPTY_CATALOG: CatalogRepository = {
+  topicCounts: async () => [],
+  topicBills: async () => [],
+  billsByNumber: async () => [],
+  searchBills: async () => [],
+  searchMembers: async () => [],
+};
+
+/**
+ * The Congress in session on a day: the 119th from 2025-01-03 to 2027-01-03. A new Congress starts
+ * at noon on January 3 of an odd year; the day is close enough here.
+ */
+export function congressOn(now: Date): number {
+  const [year, month, day] = now
+    .toLocaleDateString("en-CA", { timeZone: "America/New_York" })
+    .split("-")
+    .map(Number) as [number, number, number];
+  const beforeStart = year % 2 === 1 && month === 1 && day < 3;
+  return Math.floor((year - (beforeStart ? 2 : 0) - 1789) / 2) + 1;
+}
+
+/** Topic lists and pages change at most hourly (the ingest schedule): let the edge answer repeats. */
+const emptyTopic = (name: string): Topic => ({ name, bills: 0, billsWithFloorVote: 0, latestActionOn: null });
+
+export const TOPICS_CACHE_CONTROL = "public, max-age=300, s-maxage=900, stale-while-revalidate=3600";
+/** Search is per query; repeats of a popular query still come from the edge. */
+export const SEARCH_CACHE_CONTROL = "public, max-age=60, s-maxage=300, stale-while-revalidate=600";
+
+/** Per caller: these read our own database, but search runs full-text queries, so it gets a tighter cap. */
+export const SEARCH_RATE_LIMIT = { limit: 60, windowMs: 60 * 1000 };
+export const TOPICS_RATE_LIMIT = { limit: 120, windowMs: 60 * 1000 };
+
+
 export interface AppDeps {
   votes: VoteRepository;
   members: MemberRepository;
@@ -529,6 +703,8 @@ export interface AppDeps {
   nominations: NominationRepository;
   status: StatusRepository;
   live: LiveRepository;
+  /** Topics, topic pages and search. Defaults to `EMPTY_CATALOG`. */
+  catalog?: CatalogRepository;
   now?: () => Date;
   /** Resolves an address or coordinates to a district (the Census geocoder in production). */
   locate: (place: Place) => Promise<DistrictMatch | null>;
@@ -779,6 +955,68 @@ const getLiveRoute = createRoute({
   },
 });
 
+const congressQuery = z.coerce.number().int().min(93).max(200).optional().openapi({
+  param: { name: "congress", in: "query" },
+  example: 119,
+  description: "Defaults to the Congress in session",
+});
+
+const getTopicsRoute = createRoute({
+  method: "get",
+  path: "/v1/topics",
+  summary: "The CRS policy areas, with how many bills each holds in a Congress",
+  description: "All 32 areas, in a fixed order, including ones with no bills yet.",
+  request: { query: z.object({ congress: congressQuery }) },
+  responses: {
+    200: { content: { "application/json": { schema: TopicListSchema } }, description: `The topics (${TOPICS_CACHE_CONTROL})` },
+  },
+});
+
+const getTopicBillsRoute = createRoute({
+  method: "get",
+  path: "/v1/topics/{name}/bills",
+  summary: "A topic's bills, newest action first, with where each stands",
+  description:
+    "filter: all; moving (not settled, acted on in the last 90 days); law; stalled (not settled, no action in 90 days). " +
+    "Settled = law, adopted, vetoed or failed. A bill not yet fetched in detail has stage null and counts as unsettled. " +
+    "Companion bills (the House and Senate versions of one measure) are separate rows and are not linked to each other.",
+  request: {
+    params: z.object({
+      name: z.string().min(1).max(80).openapi({ param: { name: "name", in: "path" }, example: "Health" }),
+    }),
+    query: z.object({
+      filter: TopicFilterSchema.default("all").openapi({ param: { name: "filter", in: "query" } }),
+      cursor: z.string().max(200).optional().openapi({ param: { name: "cursor", in: "query" } }),
+      limit: z.coerce.number().int().min(1).max(50).default(25).openapi({ param: { name: "limit", in: "query" } }),
+      congress: congressQuery,
+    }),
+  },
+  responses: {
+    200: { content: { "application/json": { schema: TopicBillsSchema } }, description: `One page (${TOPICS_CACHE_CONTROL})` },
+    400: { content: { "application/json": { schema: ErrorSchema } }, description: "A cursor this route did not issue" },
+    404: { content: { "application/json": { schema: ErrorSchema } }, description: "Not one of the policy areas" },
+  },
+});
+
+const searchRoute = createRoute({
+  method: "get",
+  path: "/v1/search",
+  summary: "Members, bills and topics in one search",
+  description:
+    "A bill number in any spelling (\"hr 1013\", \"H.R.1013\", \"s.j.res.197\") returns that bill and nothing else. " +
+    "Otherwise words match bill short titles, titles and CRS summaries (Postgres full-text), topic names, and " +
+    "serving members by name, state (\"TX\", \"Texas\") or district (\"TX-35\"). " +
+    "Companion bills (the House and Senate versions of one measure) are separate results and are not linked to each other.",
+  request: {
+    query: z.object({
+      q: z.string().trim().min(2).max(100).openapi({ param: { name: "q", in: "query" }, example: "rural health" }),
+    }),
+  },
+  responses: {
+    200: { content: { "application/json": { schema: SearchResultsSchema } }, description: `Grouped results (${SEARCH_CACHE_CONTROL})` },
+  },
+});
+
 export function createApp(deps: AppDeps) {
   const app = new OpenAPIHono({
     defaultHook: (result, c) => {
@@ -807,6 +1045,26 @@ export function createApp(deps: AppDeps) {
     "/v1/reps",
     rateLimit({ ...REPS_RATE_LIMIT, store: deps.limitStore, now: () => (deps.now ?? (() => new Date()))().getTime() }),
   );
+
+  const clock = () => (deps.now ?? (() => new Date()))();
+  const LIMITED = [
+    ["/v1/search", SEARCH_RATE_LIMIT, "search"],
+    // Hono's "/v1/topics/*" matches "/v1/topics" itself too; registering both counted it twice.
+    ["/v1/topics/*", TOPICS_RATE_LIMIT, "topics"],
+  ] as const;
+  for (const [path, limits, scope] of LIMITED) {
+    app.use(
+      path,
+      rateLimit({
+        ...limits,
+        store: deps.limitStore,
+        now: () => clock().getTime(),
+        scope,
+        message: "Too many requests. Please wait a moment and try again.",
+      }),
+    );
+  }
+  const catalog = deps.catalog ?? EMPTY_CATALOG;
 
   app.get("/health", (c) => c.json({ ok: true }));
 
@@ -930,6 +1188,63 @@ export function createApp(deps: AppDeps) {
       };
     });
     return c.json({ ok: sources.every((s) => !s.stale), sources }, 200);
+  });
+
+  app.openapi(getTopicsRoute, async (c) => {
+    const congress = c.req.valid("query").congress ?? congressOn(clock());
+    const counts = new Map((await catalog.topicCounts(congress)).map((t) => [t.name, t]));
+    const topics = POLICY_AREAS.map((name) => counts.get(name) ?? emptyTopic(name));
+    c.header("Cache-Control", TOPICS_CACHE_CONTROL);
+    return c.json({ congress, topics }, 200);
+  });
+
+  app.openapi(getTopicBillsRoute, async (c) => {
+    const { name } = c.req.valid("param");
+    const { filter, cursor, limit, congress: asked } = c.req.valid("query");
+    const topic = topicNamed(name);
+    if (!topic) return c.json({ error: `No topic named ${name}. Topics are the CRS policy areas; see /v1/topics.` }, 404);
+    const after = cursor === undefined ? null : decodeCursor(cursor);
+    if (cursor !== undefined && !after) return c.json({ error: "That cursor is not one this route issued." }, 400);
+    const now = clock();
+    const congress = asked ?? congressOn(now);
+    const [counts, rows] = await Promise.all([
+      catalog.topicCounts(congress),
+      // One extra row says whether there is another page.
+      catalog.topicBills(congress, topic, filter, after, limit + 1, now),
+    ]);
+    const page = rows.slice(0, limit);
+    const last = page.at(-1);
+    c.header("Cache-Control", TOPICS_CACHE_CONTROL);
+    return c.json(
+      {
+        congress,
+        topic: counts.find((t) => t.name === topic) ?? emptyTopic(topic),
+        filter,
+        bills: page.map((r) => r.bill),
+        nextCursor: rows.length > limit && last ? encodeCursor(last.at) : null,
+      },
+      200,
+    );
+  });
+
+  app.openapi(searchRoute, async (c) => {
+    const { q } = c.req.valid("query");
+    const now = clock();
+    const congress = congressOn(now);
+    c.header("Cache-Control", SEARCH_CACHE_CONTROL);
+    const number = parseBillNumber(q);
+    if (number) {
+      const bills = await catalog.billsByNumber(number.type, number.number, number.congress, now);
+      return c.json({ query: q, billNumber: true, members: [], bills, topics: [] }, 200);
+    }
+    const names = matchTopics(q);
+    const [members, bills, counts] = await Promise.all([
+      catalog.searchMembers(q, 10, now),
+      catalog.searchBills(q, congress, 20, now),
+      names.length > 0 ? catalog.topicCounts(congress) : Promise.resolve([]),
+    ]);
+    const topics = names.map((name) => counts.find((t) => t.name === name) ?? emptyTopic(name));
+    return c.json({ query: q, billNumber: false, members, bills, topics }, 200);
   });
 
   app.doc("/openapi.json", {

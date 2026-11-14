@@ -8,6 +8,50 @@ is a milestone and ships a retro under `docs/retros/`.
 Older series live in [`docs/changelog/`](docs/changelog) (0.1.x: [`0.1.md`](docs/changelog/0.1.md)).
 Before 0.1.0 the history is the commit log on `main`.
 
+## 0.2.26 — 2026-11-13
+
+Round 10, server side: every bill of the Congress, where each stands on the road to law, and the
+topic and search routes the Following tab will use. Design: the locked "Round 10 · Follow bills
+and topics" artifact. No UI in this release.
+
+### Added
+- **`bill-catalog` worker command** (`apps/worker/src/catalog.ts`): lists every bill of the
+  Congress from Congress.gov (`/bill/{congress}`, 250 a page, incremental from the last listing),
+  fetches details only where the list says a bill changed (bill and actions; summaries and titles
+  only when needed — about 2.35 requests a bill; every page of actions past 250), and stages every
+  fetched bill. A bill known only from the list stays unstaged (null) unless the list says it
+  became law. Changed bills are fetched ahead of never-fetched ones. Concurrency 4, paced to 4,500
+  requests an hour with retries counted, capped per run (`--budget`, default 1,200), and it stops
+  quietly on the key's hourly limit or once api.data.gov's `X-RateLimit-Remaining` for the shared
+  key falls below a reserve (`--reserve`, default 500) left for the other jobs. Logs the budget and
+  the estimated time to clear what is due. Skips the numbers the House reserves for its leadership
+  and counts rows with no `updateDate`; a re-list writes only the bills that changed, and a full
+  listing warns when the stored count disagrees with Congress.gov's.
+- **Road-to-law stage** (`apps/worker/src/stage.ts`, `bills.stage`): introduced, passed House or
+  Senate, passed both, to the President, law, vetoed, failed, and adopted for resolutions — from
+  Congress.gov's summary markers and the chambers' passage roll calls, tested on twelve real bills.
+  A failed motion to suspend the rules does not make a bill `failed` (H.R. 9238, S. 2503); motions
+  to table, refer, commit or reconsider are never passage; agreeing "with an amendment" does not
+  adopt a concurrent resolution. The per-vote bill import stages each bill after linking its votes.
+- **`GET /v1/topics`**, **`GET /v1/topics/{name}/bills`** (filters all, moving, law, stalled;
+  keyset-paginated) and **`GET /v1/search`** (a bill number in any spelling resolves exactly;
+  otherwise full-text over short titles, titles and CRS summaries, topic names, and serving members
+  by name, state or district). Rate-limited per caller and cached at the edge. "Stalled" (no action
+  in 90 days) is computed per request. Companion bills are not linked to each other.
+- **Plain short labels** for long CRS titles (`billLabel`): "Disapproving the Department of
+  Education's rule: …", "Disapproving the arms sale to Qatar" (or "arms export", "arms transfer",
+  as the title says), "Rule for H.R. 8029". Deterministic, tested on real titles.
+- **Migration `20261115000000_bill_catalog.sql`**: `bills.status` becomes `stage` (with a check),
+  plus `list_updated_on`, `details_fetched_at`, a generated full-text `search` column with a GIN
+  index, and a topic-page index. Not applied yet; see the handoff for the order.
+- **Swift models** `BillStage`, `TopicFilter`, `BillListItem`, `Topic`, `TopicList`, `TopicBills`,
+  `SearchResults`, covered by the contract tests. A stage newer than the build decodes as nil, so
+  it cannot fail a whole page.
+
+### Changed
+- The hourly ingest runs the bill catalog after Nominations (`--full` at 06 UTC).
+- `rateLimit` takes a `scope` (routes sharing a store keep separate counts) and a `message`.
+
 ## 0.2.25 — 2026-11-13
 
 Snapshot tests for the cards and screens, an accessibility pass, and the privacy manifests.

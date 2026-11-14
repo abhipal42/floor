@@ -87,3 +87,18 @@ jobs:
       - name: Nominations
         if: steps.install.outcome == 'success' && env.CONGRESS_API_KEY != '' && !cancelled()
         run: npm run ingest -w @floor/worker -- nominations
+      # Every bill of the Congress, not only voted ones (v0.2.26). Bounded: at most 1,200 Congress.gov
+      # requests a run, paced to 4,500 an hour, so with the steps above it stays inside the key's
+      # 5,000 an hour (about 16 minutes when the budget is all used). Incremental from the last
+      # listing; the 06 UTC run and manual runs re-list in full (~80 requests), which repairs anything
+      # offset paging skipped while the list shifted. Until the one-time backfill is done (~46,000
+      # requests), each run spends its whole budget on it: about 38 runs. HANDOFF has the details.
+      - name: Bill catalog
+        if: steps.install.outcome == 'success' && env.CONGRESS_API_KEY != '' && !cancelled()
+        env:
+          SCHEDULE: ${{ github.event.schedule }}
+          EVENT: ${{ github.event_name }}
+        run: |
+          full=""
+          if [ "$EVENT" = "workflow_dispatch" ] || [ "$SCHEDULE" = "17 6 * * *" ]; then full="--full"; fi
+          npm run ingest -w @floor/worker -- bill-catalog --budget 1200 $full

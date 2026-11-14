@@ -1,0 +1,172 @@
+{
+ "actions": [
+  {
+   "actionDate": "2026-11-12",
+   "sourceSystem": {
+    "name": "Senate"
+   },
+   "text": "Received in the Senate and Read twice and referred to the Committee on Banking, Housing, and Urban Affairs.",
+   "type": "IntroReferral"
+  },
+  {
+   "actionCode": "H38310",
+   "actionDate": "2026-11-11",
+   "sourceSystem": {
+    "code": 2,
+    "name": "House floor actions"
+   },
+   "text": "Motion to reconsider laid on the table Agreed to without objection.",
+   "type": "Floor"
+  },
+  {
+   "actionCode": "H37100",
+   "actionDate": "2026-11-11",
+   "sourceSystem": {
+    "code": 2,
+    "name": "House floor actions"
+   },
+   "text": "On passage Passed by the Yeas and Nays: 295 - 128 (Roll no. 321). (text of amendment in the nature of a substitute: CR H6166)",
+   "type": "Floor"
+  },
+  {
+   "actionCode": "8000",
+   "actionDate": "2026-11-11",
+   "sourceSystem": {
+    "code": 9,
+    "name": "Library of Congress"
+   },
+   "text": "Passed/agreed to in House: On passage Passed by the Yeas and Nays: 295 - 128 (Roll no. 321). (text of amendment in the nature of a substitute: CR H6166)",
+   "type": "Floor"
+  },
+  {
+   "actionCode": "H8D000",
+   "actionDate": "2026-11-11",
+   "sourceSystem": {
+    "code": 2,
+    "name": "House floor actions"
+   },
+   "text": "DEBATE - The House proceeded with one hour of debate on H.R. 1013.",
+   "type": "Floor"
+  },
+  {
+   "actionCode": "H8D000",
+   "actionDate": "2026-11-11",
+   "sourceSystem": {
+    "code": 2,
+    "name": "House floor actions"
+   },
+   "text": "Rule provides for consideration of H.R. 1013 with 1 hour of general debate. Previous question shall be considered as ordered except motion to recommit. Bill is closed to amendments.",
+   "type": "Floor"
+  },
+  {
+   "actionCode": "H30000",
+   "actionDate": "2026-11-11",
+   "sourceSystem": {
+    "code": 2,
+    "name": "House floor actions"
+   },
+   "text": "Considered under the provisions of rule H. Res. 1650. (consideration: CR H6166-6171)",
+   "type": "Floor"
+  },
+  {
+   "actionCode": "H1L220",
+   "actionDate": "2026-11-10",
+   "sourceSystem": {
+    "code": 2,
+    "name": "House floor actions"
+   },
+   "text": "Rule H. Res. 1650 passed House.",
+   "type": "Floor"
+  },
+  {
+   "actionCode": "H1L210",
+   "actionDate": "2026-11-09",
+   "sourceSystem": {
+    "code": 2,
+    "name": "House floor actions"
+   },
+   "text": "Rules Committee Resolution H. Res. 1650 Reported to House. Rule provides for consideration of H.R. 1013 with 1 hour of general debate. Previous question shall be considered as ordered except motion to recommit. Bill is closed to amendments.",
+   "type": "Floor"
+  },
+  {
+   "actionCode": "H12410",
+   "actionDate": "2025-11-28",
+   "sourceSystem": {
+    "code": 2,
+    "name": "House floor actions"
+   },
+   "text": "Placed on the Union Calendar, Calendar No. 340.",
+   "type": "Calendars"
+  },
+  {
+   "actionCode": "H12200",
+   "actionDate": "2025-11-28",
+   "sourceSystem": {
+    "code": 2,
+    "name": "House floor actions"
+   },
+   "text": "Reported (Amended) by the Committee on Financial Services. H. Rept. 119-390.",
+   "type": "Committee"
+  },
+  {
+   "actionCode": "5000",
+   "actionDate": "2025-11-28",
+   "sourceSystem": {
+    "code": 9,
+    "name": "Library of Congress"
+   },
+   "text": "Reported (Amended) by the Committee on Financial Services. H. Rept. 119-390.",
+   "type": "Committee"
+  },
+  {
+   "actionCode": "H19000",
+   "actionDate": "2025-05-20",
+   "sourceSystem": {
+    "code": 1,
+    "name": "House committee actions"
+   },
+   "text": "Ordered to be Reported (Amended) by the Yeas and Nays: 43 - 8.",
+   "type": "Committee"
+  },
+  {
+   "actionCode": "H15001",
+   "actionDate": "2025-05-20",
+   "sourceSystem": {
+    "code": 1,
+    "name": "House committee actions"
+   },
+   "text": "Committee Consideration and Mark-up Session Held",
+   "type": "Committee"
+  },
+  {
+   "actionCode": "H11100",
+   "actionDate": "2025-02-05",
+   "sourceSystem": {
+    "code": 2,
+    "name": "House floor actions"
+   },
+   "text": "Referred to the House Committee on Financial Services.",
+   "type": "IntroReferral"
+  },
+  {
+   "actionCode": "Intro-H",
+   "actionDate": "2025-02-05",
+   "sourceSystem": {
+    "code": 9,
+    "name": "Library of Congress"
+   },
+   "text": "Introduced in House",
+   "type": "IntroReferral"
+  },
+  {
+   "actionCode": "1000",
+   "actionDate": "2025-02-05",
+   "sourceSystem": {
+    "code": 9,
+    "name": "Library of Congress"
+   },
+   "text": "Introduced in House",
+   "type": "IntroReferral"
+  }
+ ]
+}

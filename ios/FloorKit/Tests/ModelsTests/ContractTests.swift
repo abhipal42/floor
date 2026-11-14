@@ -75,6 +75,11 @@ struct ContractTests {
             "Live": fields(Live.sample),
             // Flat on the wire, nested in Swift, like VoteDetail: the vote's fields plus three timestamps.
             "LiveVote": fields(Vote.sample).union(["openedAt", "announcedAt", "postedAt"]),
+            "BillListItem": fields(BillListItem.sample),
+            "Topic": fields(Topic.sample),
+            "TopicList": fields(TopicList.sample),
+            "TopicBills": fields(TopicBills.sample),
+            "SearchResults": fields(SearchResults.sample),
             // Not components: these wrap a list in the route's own inline schema.
             "/v1/members/{id}/votes": fields(MemberVotes.sample),
             "/v1/status": fields(DataStatus.sample),
@@ -87,6 +92,7 @@ struct ContractTests {
         "Reps", "LatestAction", "CboEstimate", "BillAction", "Bill", "Nomination", "SourceStatus", "Error",
         "AnalysisCitation", "AnalysisClaim", "AnalysisSource", "BillAnalysis",
         "ChamberStatus", "Live", "LiveVote",
+        "BillListItem", "Topic", "TopicList", "TopicBills", "SearchResults",
     ])
     func modelFieldsMatchItsSchema(name: String) throws {
         let model = try #require(Self.modelFields()[name], "no model registered for \(name)")
@@ -99,13 +105,18 @@ struct ContractTests {
             == ["vote", "partyTotals", "candidateTotals", "positions", "measure"])
     }
 
-    @Test(arguments: [
+    /// Typed up front: seven inline tuples are more than the type checker will infer in time.
+    static let enumCases: [(String, Set<String>)] = [
         ("Chamber", Set(Chamber.allCases.map(\.rawValue))),
         ("VoteKind", Set(VoteKind.allCases.map(\.rawValue))),
         ("VoteState", Set(VoteState.allCases.map(\.rawValue))),
         ("VoteThreshold", Set(VoteThreshold.allCases.map(\.rawValue))),
         ("Position", Set(Position.allCases.map(\.rawValue))),
-    ])
+        ("BillStage", Set(BillStage.allCases.map(\.rawValue))),
+        ("TopicFilter", Set(TopicFilter.allCases.map(\.rawValue))),
+    ]
+
+    @Test(arguments: enumCases)
     func enumCasesMatchTheSchema(name: String, cases: Set<String>) throws {
         let schema = try #require(try Self.schemas()[name], "no schema named \(name)")
         let values = try #require(schema["enum"] as? [String], "\(name) is not an enum")
@@ -147,7 +158,9 @@ struct ContractTests {
 
     /// A schema added to the API cannot quietly go unmodelled on the phone.
     @Test func everySchemaIsModelled() throws {
-        let enums: Set<String> = ["Chamber", "VoteKind", "VoteState", "VoteThreshold", "Position"]
+        let enums: Set<String> = [
+            "Chamber", "VoteKind", "VoteState", "VoteThreshold", "Position", "BillStage", "TopicFilter",
+        ]
         let modelled = Set(Self.modelFields().keys).subtracting(["/v1/members/{id}/votes", "/v1/status"])
         #expect(Set(try Self.schemas().keys) == modelled.union(enums),
                 "the contract has a schema with no Swift model")

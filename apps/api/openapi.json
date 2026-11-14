@@ -1300,6 +1300,208 @@
           "lastError",
           "stale"
         ]
+      },
+      "Topic": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "example": "Health"
+          },
+          "bills": {
+            "type": "integer",
+            "description": "Bills in this topic in the Congress"
+          },
+          "billsWithFloorVote": {
+            "type": "integer"
+          },
+          "latestActionOn": {
+            "type": "string",
+            "nullable": true,
+            "example": "2026-09-29"
+          }
+        },
+        "required": [
+          "name",
+          "bills",
+          "billsWithFloorVote",
+          "latestActionOn"
+        ]
+      },
+      "TopicList": {
+        "type": "object",
+        "properties": {
+          "congress": {
+            "type": "integer"
+          },
+          "topics": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Topic"
+            }
+          }
+        },
+        "required": [
+          "congress",
+          "topics"
+        ]
+      },
+      "TopicFilter": {
+        "type": "string",
+        "enum": [
+          "all",
+          "moving",
+          "law",
+          "stalled"
+        ]
+      },
+      "BillStage": {
+        "type": "string",
+        "nullable": true,
+        "enum": [
+          "introduced",
+          "passed_house",
+          "passed_senate",
+          "passed_both",
+          "to_president",
+          "law",
+          "vetoed",
+          "failed",
+          "adopted"
+        ],
+        "description": "Where the measure stands on the road to law; null until the worker has staged it. adopted = a resolution agreed to by every chamber it needs (it never goes to the President); failed = a chamber voted it down (Congress.gov's own marker); vetoed = vetoed and not overridden."
+      },
+      "BillListItem": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "example": "119-hr-2493"
+          },
+          "congress": {
+            "type": "integer"
+          },
+          "type": {
+            "type": "string",
+            "example": "hr"
+          },
+          "number": {
+            "type": "integer"
+          },
+          "citation": {
+            "type": "string",
+            "example": "H.R. 2493"
+          },
+          "label": {
+            "type": "string",
+            "description": "A plain short label: the short title, or a deterministic rewrite of a long CRS title. The full title is `title`.",
+            "example": "Improving Care in Rural America Reauthorization Act of 2025"
+          },
+          "title": {
+            "type": "string"
+          },
+          "policyArea": {
+            "type": "string",
+            "nullable": true
+          },
+          "stage": {
+            "$ref": "#/components/schemas/BillStage"
+          },
+          "stalled": {
+            "type": "boolean",
+            "description": "Not settled (law, adopted, vetoed, failed) and no action in 90 days"
+          },
+          "latestAction": {
+            "$ref": "#/components/schemas/LatestAction"
+          },
+          "hasFloorVote": {
+            "type": "boolean",
+            "description": "At least one recorded roll call on it"
+          }
+        },
+        "required": [
+          "id",
+          "congress",
+          "type",
+          "number",
+          "citation",
+          "label",
+          "title",
+          "policyArea",
+          "stage",
+          "stalled",
+          "latestAction",
+          "hasFloorVote"
+        ]
+      },
+      "TopicBills": {
+        "type": "object",
+        "properties": {
+          "congress": {
+            "type": "integer"
+          },
+          "topic": {
+            "$ref": "#/components/schemas/Topic"
+          },
+          "filter": {
+            "$ref": "#/components/schemas/TopicFilter"
+          },
+          "bills": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/BillListItem"
+            }
+          },
+          "nextCursor": {
+            "type": "string",
+            "nullable": true,
+            "description": "Pass as `cursor` for the next page; null on the last"
+          }
+        },
+        "required": [
+          "congress",
+          "topic",
+          "filter",
+          "bills",
+          "nextCursor"
+        ]
+      },
+      "SearchResults": {
+        "type": "object",
+        "properties": {
+          "query": {
+            "type": "string"
+          },
+          "billNumber": {
+            "type": "boolean",
+            "description": "The query read as a bill number (\"hr 1013\"), so `bills` holds exact matches only"
+          },
+          "members": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Member"
+            }
+          },
+          "bills": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/BillListItem"
+            }
+          },
+          "topics": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Topic"
+            }
+          }
+        },
+        "required": [
+          "query",
+          "billNumber",
+          "members",
+          "bills",
+          "topics"
+        ]
       }
     },
     "parameters": {}
@@ -1748,6 +1950,167 @@
                     "ok",
                     "sources"
                   ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/topics": {
+      "get": {
+        "summary": "The CRS policy areas, with how many bills each holds in a Congress",
+        "description": "All 32 areas, in a fixed order, including ones with no bills yet.",
+        "parameters": [
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 93,
+              "maximum": 200,
+              "description": "Defaults to the Congress in session",
+              "example": 119
+            },
+            "required": false,
+            "name": "congress",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The topics (public, max-age=300, s-maxage=900, stale-while-revalidate=3600)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TopicList"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/topics/{name}/bills": {
+      "get": {
+        "summary": "A topic's bills, newest action first, with where each stands",
+        "description": "filter: all; moving (not settled, acted on in the last 90 days); law; stalled (not settled, no action in 90 days). Settled = law, adopted, vetoed or failed. A bill not yet fetched in detail has stage null and counts as unsettled. Companion bills (the House and Senate versions of one measure) are separate rows and are not linked to each other.",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 80,
+              "example": "Health"
+            },
+            "required": true,
+            "name": "name",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "allOf": [
+                {
+                  "$ref": "#/components/schemas/TopicFilter"
+                },
+                {
+                  "default": "all"
+                }
+              ]
+            },
+            "required": false,
+            "name": "filter",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "maxLength": 200
+            },
+            "required": false,
+            "name": "cursor",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 50,
+              "default": 25
+            },
+            "required": false,
+            "name": "limit",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 93,
+              "maximum": 200,
+              "description": "Defaults to the Congress in session",
+              "example": 119
+            },
+            "required": false,
+            "name": "congress",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "One page (public, max-age=300, s-maxage=900, stale-while-revalidate=3600)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TopicBills"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "A cursor this route did not issue",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not one of the policy areas",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/search": {
+      "get": {
+        "summary": "Members, bills and topics in one search",
+        "description": "A bill number in any spelling (\"hr 1013\", \"H.R.1013\", \"s.j.res.197\") returns that bill and nothing else. Otherwise words match bill short titles, titles and CRS summaries (Postgres full-text), topic names, and serving members by name, state (\"TX\", \"Texas\") or district (\"TX-35\"). Companion bills (the House and Senate versions of one measure) are separate results and are not linked to each other.",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 2,
+              "maxLength": 100,
+              "example": "rural health"
+            },
+            "required": true,
+            "name": "q",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Grouped results (public, max-age=60, s-maxage=300, stale-while-revalidate=600)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SearchResults"
                 }
               }
             }

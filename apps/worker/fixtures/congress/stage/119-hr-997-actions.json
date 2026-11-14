@@ -1,0 +1,276 @@
+{
+ "actions": [
+  {
+   "actionCode": "E40000",
+   "actionDate": "2026-11-10",
+   "sourceSystem": {
+    "code": 9,
+    "name": "Library of Congress"
+   },
+   "text": "Became Public Law No: 119-139.",
+   "type": "President"
+  },
+  {
+   "actionCode": "36000",
+   "actionDate": "2026-11-10",
+   "sourceSystem": {
+    "code": 9,
+    "name": "Library of Congress"
+   },
+   "text": "Became Public Law No: 119-139.",
+   "type": "BecameLaw"
+  },
+  {
+   "actionCode": "E30000",
+   "actionDate": "2026-11-10",
+   "sourceSystem": {
+    "code": 9,
+    "name": "Library of Congress"
+   },
+   "text": "Signed by President.",
+   "type": "President"
+  },
+  {
+   "actionCode": "36000",
+   "actionDate": "2026-11-10",
+   "sourceSystem": {
+    "code": 9,
+    "name": "Library of Congress"
+   },
+   "text": "Signed by President.",
+   "type": "BecameLaw"
+  },
+  {
+   "actionCode": "E20000",
+   "actionDate": "2026-11-09",
+   "sourceSystem": {
+    "code": 2,
+    "name": "House floor actions"
+   },
+   "text": "Presented to President.",
+   "type": "Floor"
+  },
+  {
+   "actionCode": "28000",
+   "actionDate": "2026-11-09",
+   "sourceSystem": {
+    "code": 9,
+    "name": "Library of Congress"
+   },
+   "text": "Presented to President.",
+   "type": "President"
+  },
+  {
+   "actionDate": "2026-10-14",
+   "sourceSystem": {
+    "name": "Senate"
+   },
+   "text": "Message on Senate action sent to the House.",
+   "type": "Floor"
+  },
+  {
+   "actionDate": "2026-09-28",
+   "sourceSystem": {
+    "name": "Senate"
+   },
+   "text": "Passed Senate without amendment by Unanimous Consent. (consideration: CR S5123)",
+   "type": "Floor"
+  },
+  {
+   "actionCode": "17000",
+   "actionDate": "2026-09-28",
+   "sourceSystem": {
+    "code": 9,
+    "name": "Library of Congress"
+   },
+   "text": "Passed/agreed to in Senate: Passed Senate without amendment by Unanimous Consent. (consideration: CR S5123)",
+   "type": "Floor"
+  },
+  {
+   "actionDate": "2026-09-28",
+   "sourceSystem": {
+    "name": "Senate"
+   },
+   "text": "Senate Committee on Finance discharged by Unanimous Consent.",
+   "type": "Discharge"
+  },
+  {
+   "actionCode": "14500",
+   "actionDate": "2026-09-28",
+   "sourceSystem": {
+    "code": 9,
+    "name": "Library of Congress"
+   },
+   "text": "Senate Committee on Finance discharged by Unanimous Consent.",
+   "type": "Committee"
+  },
+  {
+   "actionDate": "2025-04-01",
+   "sourceSystem": {
+    "name": "Senate"
+   },
+   "text": "Received in the Senate and Read twice and referred to the Committee on Finance.",
+   "type": "IntroReferral"
+  },
+  {
+   "actionCode": "H38310",
+   "actionDate": "2025-03-31",
+   "sourceSystem": {
+    "code": 2,
+    "name": "House floor actions"
+   },
+   "text": "Motion to reconsider laid on the table Agreed to without objection.",
+   "type": "Floor"
+  },
+  {
+   "actionCode": "H37300",
+   "actionDate": "2025-03-31",
+   "sourceSystem": {
+    "code": 2,
+    "name": "House floor actions"
+   },
+   "text": "On motion to suspend the rules and pass the bill, as amended Agreed to by the Yeas and Nays: (2/3 required): 385 - 0 (Roll no. 85). (text: CR H1349-1350)",
+   "type": "Floor"
+  },
+  {
+   "actionCode": "8000",
+   "actionDate": "2025-03-31",
+   "sourceSystem": {
+    "code": 9,
+    "name": "Library of Congress"
+   },
+   "text": "Passed/agreed to in House: On motion to suspend the rules and pass the bill, as amended Agreed to by the Yeas and Nays: (2/3 required): 385 - 0 (Roll no. 85). (text: CR H1349-1350)",
+   "type": "Floor"
+  },
+  {
+   "actionCode": "H30000",
+   "actionDate": "2025-03-31",
+   "sourceSystem": {
+    "code": 2,
+    "name": "House floor actions"
+   },
+   "text": "Considered as unfinished business. (consideration: CR H1356-1357)",
+   "type": "Floor"
+  },
+  {
+   "actionCode": "H37220",
+   "actionDate": "2025-03-31",
+   "sourceSystem": {
+    "code": 2,
+    "name": "House floor actions"
+   },
+   "text": "At the conclusion of debate, the Yeas and Nays were demanded and ordered. Pursuant to the provisions of clause 8, rule XX, the Chair announced that further proceedings on the motion would be postponed.",
+   "type": "Floor"
+  },
+  {
+   "actionCode": "H8D000",
+   "actionDate": "2025-03-31",
+   "sourceSystem": {
+    "code": 2,
+    "name": "House floor actions"
+   },
+   "text": "DEBATE - The House proceeded with forty minutes of debate on H.R. 997.",
+   "type": "Floor"
+  },
+  {
+   "actionCode": "H30000",
+   "actionDate": "2025-03-31",
+   "sourceSystem": {
+    "code": 2,
+    "name": "House floor actions"
+   },
+   "text": "Considered under suspension of the rules. (consideration: CR H1349-1351)",
+   "type": "Floor"
+  },
+  {
+   "actionCode": "H30300",
+   "actionDate": "2025-03-31",
+   "sourceSystem": {
+    "code": 2,
+    "name": "House floor actions"
+   },
+   "text": "Mr. Smith (MO) moved to suspend the rules and pass the bill, as amended.",
+   "type": "Floor"
+  },
+  {
+   "actionCode": "H12410",
+   "actionDate": "2025-03-27",
+   "sourceSystem": {
+    "code": 2,
+    "name": "House floor actions"
+   },
+   "text": "Placed on the Union Calendar, Calendar No. 33.",
+   "type": "Calendars"
+  },
+  {
+   "actionCode": "H12200",
+   "actionDate": "2025-03-27",
+   "sourceSystem": {
+    "code": 2,
+    "name": "House floor actions"
+   },
+   "text": "Reported (Amended) by the Committee on Ways and Means. H. Rept. 119-46.",
+   "type": "Committee"
+  },
+  {
+   "actionCode": "5000",
+   "actionDate": "2025-03-27",
+   "sourceSystem": {
+    "code": 9,
+    "name": "Library of Congress"
+   },
+   "text": "Reported (Amended) by the Committee on Ways and Means. H. Rept. 119-46.",
+   "type": "Committee"
+  },
+  {
+   "actionCode": "H19000",
+   "actionDate": "2025-02-12",
+   "sourceSystem": {
+    "code": 1,
+    "name": "House committee actions"
+   },
+   "text": "Ordered to be Reported in the Nature of a Substitute (Amended) by the Yeas and Nays: 43 - 0.",
+   "type": "Committee"
+  },
+  {
+   "actionCode": "H15001",
+   "actionDate": "2025-02-12",
+   "sourceSystem": {
+    "code": 1,
+    "name": "House committee actions"
+   },
+   "text": "Committee Consideration and Mark-up Session Held",
+   "type": "Committee"
+  },
+  {
+   "actionCode": "H11100",
+   "actionDate": "2025-02-05",
+   "sourceSystem": {
+    "code": 2,
+    "name": "House floor actions"
+   },
+   "text": "Referred to the House Committee on Ways and Means.",
+   "type": "IntroReferral"
+  },
+  {
+   "actionCode": "Intro-H",
+   "actionDate": "2025-02-05",
+   "sourceSystem": {
+    "code": 9,
+    "name": "Library of Congress"
+   },
+   "text": "Introduced in House",
+   "type": "IntroReferral"
+  },
+  {
+   "actionCode": "1000",
+   "actionDate": "2025-02-05",
+   "sourceSystem": {
+    "code": 9,
+    "name": "Library of Congress"
+   },
+   "text": "Introduced in House",
+   "type": "IntroReferral"
+  }
+ ]
+}
