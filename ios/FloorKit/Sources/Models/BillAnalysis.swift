@@ -52,8 +52,8 @@ public struct AnalysisSource: Codable, Sendable, Hashable {
     }
 }
 
-/// `GET /v1/bills/{id}/analysis` (M4 Layer 1). No screen shows it yet: that needs a locked design.
-/// Wherever it is shown, ``disclaimer`` goes with it and every line is labelled as AI.
+/// `GET /v1/bills/{id}/analysis` (M4 Layer 1), shown at the top of the Bill screen (`AIAnalysis` in
+/// BillScreen). Wherever it is shown, ``disclaimer`` goes with it and every line is labelled as AI.
 public struct BillAnalysis: Codable, Sendable, Hashable {
     public var billId: String
     public var ai: Bool

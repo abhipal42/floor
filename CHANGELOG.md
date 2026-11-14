@@ -8,6 +8,38 @@ is a milestone and ships a retro under `docs/retros/`.
 Older series live in [`docs/changelog/`](docs/changelog) (0.1.x: [`0.1.md`](docs/changelog/0.1.md)).
 Before 0.1.0 the history is the commit log on `main`.
 
+## 0.2.27 — 2026-11-13
+
+The Bill screen's AI section (M4 Layer 1 in the app), built to section "E · AI on the bill screen" of
+the locked live/AI design (https://claude.ai/artifact/X5NwWSe1NmugSRoCKh3vBn).
+
+### Added
+- **AI section at the top of the Bill screen** (`BillScreen/AIAnalysis.swift`, `AIAnalysisView.swift`):
+  the violet AI tag, "Written by AI from the CRS summary", What it does / What it changes / Who it
+  touches / Impact from `GET /v1/bills/{id}/analysis`, a citation chip per source (`CRS ¶2`,
+  `CRS ¶5 · Sec. 101`) that opens the cited paragraph verbatim in Georgia under its stage, and the
+  response's own disclaimer. VoiceOver reads each line as "AI-written: …, cited from CRS paragraph 2".
+- **States:** skeleton only while loading; no analysis for a bill with a CRS summary hides the section;
+  no analysis and no summary shows "No summary yet"; a stale analysis says the summary has changed
+  since; a failed request shows a one-line AI card, and Try again goes straight back to the skeleton.
+  A citation whose paragraph doesn't exist or doesn't contain its quote (compared as the worker
+  normalises) is cut, and so is a blank line or a line left with no citation. A refresh that brings a
+  different analysis closes the open citation.
+- Text on the card is `textSecondary` (`textMuted` reads 4.1:1 on its light tint); each chip is a
+  44pt-tall target.
+- `FloorAPI.billAnalysis(id:)`: the API's own 404 is nil ("none") and is saved for offline like a
+  response; a 404 that isn't the API's stays an error. `Pass.isSaved` (read-only outside APIClient),
+  so a saved-pass miss is not drawn as a failure.
+- `Palette.aiInk`, text on an `ai` fill (#1A1033 dark, white light), `Tones.aiCardTint` and
+  `Swatch.mix`, so text on the tinted card is contrast-tested in both themes.
+- Tests: 21 for the section's states, citations, retry, refresh, overlapping loads and accessibility
+  labels, 4 for the API route, 3 for the palette, and 7 AI-section snapshot references (4 tests). Fixture `bill-analysis.json`: H.R. 6363's real
+  CRS summary through the worker's own `analyzeBill`, shaped as the API returns it.
+
+### Changed
+- The Bill screen's CRS panel is headed "CRS summary" when an analysis is shown above it (its old
+  "What it does" is the AI section's first heading); unchanged otherwise.
+
 ## 0.2.26 — 2026-11-13
 
 Round 10, server side: every bill of the Congress, where each stands on the road to law, and the

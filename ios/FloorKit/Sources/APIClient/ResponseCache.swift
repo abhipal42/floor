@@ -34,9 +34,13 @@ public protocol ResponseCache: Sendable {
 ///
 /// 30 days because a vote's record does not change once final, and a month covers being away from
 /// signal on a trip; past that, a "saved 5 weeks ago" screen is more misleading than an error.
-/// 200 entries because the app's screens cost one to three each (Home is six: three members' votes
-/// and three loyalty records), so 200 is every screen of a long session several times over, at
-/// tens of kilobytes a body — single-digit megabytes at the outside.
+/// 200 entries because the app's screens cost one to four each (Home is six: three members' votes
+/// and three loyalty records; a bill is the bill, its AI analysis — or the saved `null` that says it
+/// has none — and one vote per chamber), so 200 is every screen of a long session several times
+/// over, at tens of kilobytes a body — single-digit megabytes at the outside. An analysis carries
+/// its whole CRS summary as `source.paragraphs`, so it is the largest body here: tens of kilobytes,
+/// up to a few hundred for the longest summaries. A session spent only on the longest bills could
+/// reach tens of megabytes; it is still Caches, which the system may purge.
 public struct CachePolicy: Sendable, Equatable {
     public var maxAge: TimeInterval
     public var maxEntries: Int
@@ -197,6 +201,9 @@ public struct Pass: Sendable {
     public let api: FloorAPI
     /// On the network pass, the cache-only client a failed best-effort request falls back to.
     let fallback: (api: FloorAPI, record: PassRecord)?
+    /// True on the saved pass. A best-effort request that finds nothing saved is a miss there, not
+    /// a failure: the network pass that follows decides, so a screen must not draw an error for it.
+    public internal(set) var isSaved = false
 
     /// For a request the screen can live without (the bill under a vote, a loyalty ring): its value,
     /// or on the network pass its saved copy when the request fails — recorded, so the screen still
@@ -240,7 +247,7 @@ public func revalidate(
     var savedAt: Date?
     if let saved = api.savedOnly() {
         do {
-            try await load(Pass(api: saved.api, fallback: nil))
+            try await load(Pass(api: saved.api, fallback: nil, isSaved: true))
             savedAt = await saved.record.oldest
         } catch {
             // Nothing saved for this screen, or a body this version cannot read: a miss.

@@ -145,6 +145,18 @@ public struct FloorAPI: Sendable {
         try await get("/v1/bills/\(escaped(id))")
     }
 
+    /// The AI analysis of a bill's CRS summary (M4 Layer 1), or nil when the worker has not written
+    /// one — the API's 404 for this route means "none yet", not an error.
+    ///
+    /// A "none" is saved for offline like an analysis is (as the body `null`), so a bill opened
+    /// offline knows there was nothing to show rather than treating the miss as a failure.
+    public func billAnalysis(id: String) async throws -> BillAnalysis? {
+        try await get("/v1/bills/\(escaped(id))/analysis", notFound: Self.none)
+    }
+
+    /// What a route whose 404 means "none" saves and decodes in place of the error body.
+    static let none = Data("null".utf8)
+
     public func nomination(id: String) async throws -> Nomination {
         try await get("/v1/nominations/\(escaped(id))")
     }
@@ -202,8 +214,10 @@ public struct FloorAPI: Sendable {
     /// Thrown by a ``savedOnly()`` copy for a request with nothing saved.
     private struct NotSaved: Error {}
 
+    /// - Parameter notFound: for a route whose 404 means "none", the body to decode (and save) in
+    ///   its place; nil, as for every other route, makes a 404 an error.
     private func get<T: Decodable>(
-        _ path: String, query: [URLQueryItem] = [], cacheable: Bool = true
+        _ path: String, query: [URLQueryItem] = [], cacheable: Bool = true, notFound: Data? = nil
     ) async throws -> T {
         let requestURL = try url(path, query: query)
         let key = Self.cacheKey(requestURL)
@@ -235,6 +249,13 @@ public struct FloorAPI: Sendable {
         }
 
         let status = (response as? HTTPURLResponse)?.statusCode ?? 0
+        // Only the API's own 404 (`{ "error": ... }`) means "none". A 404 page from a proxy, a CDN or
+        // a misrouted base URL says nothing about the bill, so it stays an error and is not saved.
+        if status == 404, let notFound, (try? JSONDecoder().decode(APIError.self, from: data)) != nil {
+            let value: T = try decode(notFound)
+            if cacheable, let cache { await cache.save(notFound, for: key, at: now()) }
+            return value
+        }
         guard (200..<300).contains(status) else {
             // Every route answers a 4xx with `{ "error": ... }`, phrased for a person. Fall back to
             // the bare status if the body is something else, e.g. a proxy's error page.

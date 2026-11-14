@@ -109,7 +109,7 @@ Command Line Tools rather than Xcode: run it with `DEVELOPER_DIR=/Applications/X
 | `GET /v1/members/{bioguideId}/votes?limit=` | A member's recent votes with their position (and candidate, for Speaker elections) |
 | `GET /v1/votes/{id}` | One vote: totals, threshold, kind, bill link, **per-party breakdown**, and for a Speaker election **which candidate each party backed**. `?members=A000370,C001098` (up to ten) also returns those members' own positions, so the vote screen loads your delegation in one round trip. IDs look like `house-119-1-100` |
 | `GET /v1/bills/{id}` | Title, short title, CRS summary, sponsor, policy area, CBO estimates, last 30 actions, every vote on it. IDs look like `119-hr-2207` |
-| `GET /v1/bills/{id}/analysis` | AI analysis of the bill's CRS summary (M4 Layer 1): purpose, provisions, affected groups, impact. `ai: true` on the response and on every line, a `disclaimer` to show with it, and per line the summary paragraph it cites (1-based, into `source.paragraphs`), a verbatim quote and the bill section. `source.stale` means the summary has changed since and a new analysis is pending. 404 until the worker has analysed the bill; **no UI shows it yet** (needs a locked design) |
+| `GET /v1/bills/{id}/analysis` | AI analysis of the bill's CRS summary (M4 Layer 1): purpose, provisions, affected groups, impact. `ai: true` on the response and on every line, a `disclaimer` to show with it, and per line the summary paragraph it cites (1-based, into `source.paragraphs`), a verbatim quote and the bill section. `source.stale` means the summary has changed since and a new analysis is pending. 404 until the worker has analysed the bill (the app reads that as "none" and saves it like a response). Shown at the top of the Bill screen since v0.2.27 |
 | `GET /v1/nominations/{id}` | Nominee, position, agency, received and latest action, every Senate vote on it. IDs look like `119-pn-1093-3` |
 | `GET /v1/live?since=` | Each chamber's session state as the live worker last saw it (`inSession`, `convenesAt`, `checkedAt`), and the votes that are `open` (named in the last day) or that the worker published as `final` within `since` minutes (`broadcast_at`; default 120, max 1440) and that were themselves voted in the last day, with `openedAt` / `announcedAt` / `postedAt`. Sent with `Cache-Control: public, max-age=5, s-maxage=5`, so Vercel's edge answers vote-night polling. Empty — `{chambers: [], votes: []}`, not an error — on a database without the M3 migration (Postgres `42P01`/`42703` are read as "nothing live"), and until the worker runs |
 | `GET /v1/topics?congress=` | The 32 CRS policy areas in a fixed order, each with its bill count, how many of those had a floor vote, and the latest action date, for one Congress (default: the one in session). Areas with no bills are listed with zeros. Cached (`TOPICS_CACHE_CONTROL`, 5 min / edge 15 min); 120 a minute per caller |
@@ -971,9 +971,62 @@ live `#FF453A`, muted text `#9BA1AD`.
 - Richer sources: bill text from GovInfo (then `bill_versions` rows and section citations into the
   text itself), CBO estimates, committee reports; cost and supporter/opponent arguments wait on them.
 - Human review of the top 20 bills each week (`reviewed_by`), feedback buttons.
-- **The UI.** Showing AI summaries on the Bill screen or the web is a large UI change: it needs a
-  design mock locked with Ishan first (`CLAUDE.md` › Large UI changes). The Bill screen keeps showing
-  the CRS summary until then.
+- **The web.** The analysis is not on the website yet; the app has it (below).
+
+**The Bill screen's AI section: built in v0.2.27**, to section "E · AI on the bill screen" of the
+locked live/AI design <https://claude.ai/artifact/X5NwWSe1NmugSRoCKh3vBn>.
+
+- **Where and what.** At the top of the Bill screen, under the title (the app has no Overview tab,
+  so this is the mock's "top of the Overview"): the violet AI tag, "Written by AI from the CRS
+  summary", then one heading per non-empty field — What it does (`purpose`), What it changes
+  (`provisions`), Who it touches (`affectedGroups`), Impact (`impact`) — and the response's own
+  `disclaimer`, never a hard-coded one. Each line has a chip per citation (`CRS ¶2`, or
+  `CRS ¶5 · Sec. 101` when the response names the section); tapping one opens that paragraph of
+  `source.paragraphs` verbatim, in Georgia, under `CRS SUMMARY · ¶5 · PUBLIC LAW`. One open at a
+  time. VoiceOver reads a line as "AI-written: …, cited from CRS paragraph 2".
+- **States** (`BillScreenModel.AnalysisPhase`): `loading` (the skeleton, only while the request is
+  out); `loaded`; `hidden` — a 404 for a bill that **has** a CRS summary, so the screen promises
+  nothing the worker may not have written yet; `noSummary` — a 404 for a bill with no summary, the
+  mock's dashed "No summary yet" card; `failed` — the request failed with nothing saved, a one-line
+  AI card with Try again. `source.stale` adds "The CRS summary has changed since this was written."
+- **How "every AI line carries an AI label" is met.** Not with a tag on each line: the lines sit
+  inside one violet card that carries the AI tag and "Written by AI from the CRS summary", and
+  nothing that isn't AI-written goes in that card. A sighted reader can't see a line without its
+  label above it; VoiceOver, which reads lines one at a time, hears "AI-written:" at the start of
+  every line. Product rule and review agreed on this reading (PR #36).
+- **Cut, not softened.** `AIAnalysis` drops any citation whose paragraph is out of range or whose
+  quote isn't in that paragraph (compared as the worker's `normalize` does: case, whitespace runs,
+  curly quotes, en/em dashes, a leading or trailing ellipsis), any line with blank text, and any line
+  left with no citation; an analysis left with no lines counts as none.
+- **Contrast.** The card is the ground washed with `ai` at `Tones.aiCardTint` (8%) at its top. In
+  light mode `textMuted` reads only 4.1:1 there, so the card's headings, stale note, source label
+  and disclaimer use `textSecondary`; `PaletteTests.aiCardTextReadsOnItsTint` checks every text
+  token on the tint in both themes.
+- **Touch targets.** Each chip is a laid-out 44pt-tall target (the chip itself stays small and
+  centred in it), so rows of wrapped chips touch without their targets overlapping.
+- **Try again** goes straight back to the skeleton, then reloads; a refresh that brings a different
+  analysis closes any open citation (its id could now name another line's).
+- **Offline.** `FloorAPI.billAnalysis(id:)` returns nil on the route's 404 — only when the body is
+  the API's own `{ "error": … }`; a proxy's 404 page stays an error and is not saved — and saves
+  `null` under the request's key, so a bill opened offline knows there was nothing rather than
+  failing. A saved `null` gives way as soon as the network has an analysis. The
+  analysis is a best-effort request in the screen's `revalidate` pass, like your members; the saved
+  pass's miss is not a failure (`Pass.isSaved`), and a saved bill whose network pass failed before
+  reaching the analysis ends in `failed`, not an endless skeleton.
+- **Fixture.** `ModelsTests/Fixtures/bill-analysis.json` is H.R. 6363's real CRS summary (from the
+  eval set) run through the worker's own `analyzeBill` with the claim wording of
+  `analysis.test.ts`, shaped as `pg.ts` returns it — not a captured response, since staging has no
+  analyses yet.
+- **Snapshots.** `AIAnalysisSnapshotTests` draws the section on its own (citation open in light,
+  dark and AX5; stale; No summary yet; failed), recorded on the iOS 26.2 "Floor Snapshots"
+  simulator. The Bill screens' own snapshots are unchanged: their fixture server answers the
+  analysis route 404 and every captured bill has a summary, so the section is hidden there. The
+  skeleton has no reference (it animates). At AX5 the first render overflowed the card sideways —
+  the `CRS ¶5 · Sec. 101` chip was wider than the line — so chips now wrap inside themselves.
+  **Recording on a shared simulator:** twice while recording these, a run sat for 10+ minutes
+  launching `xctest` (`xpcproxy_sim` in state `U`, no test output) while other agents were using
+  "Floor Snapshots" too; a `simctl shutdown`/`boot` cleared it once. The cause wasn't pinned down.
+  Check `ps -eo pid,command | grep 'xcodebuild test'` before starting, and wait for another run.
 
 **Not built, on purpose:** Layer 2 ("What it means for you") is blocked on Sourav's open decision
 about which profile questions are acceptable (§6). Projections and market odds are not part of this
@@ -1165,7 +1218,7 @@ build differs from the mocks, and why:
   and fetching them would be one request per card.
 - **Catch-up cards show the recorded result** where the mock had a one-line bill summary, because
   that line would have to be AI-written (M4).
-- **The Bill screen shows the CRS summary**, labelled as CRS, where the AI explainer will go (M4).
+- **The Bill screen shows the CRS summary**, labelled as CRS. Since v0.2.27 the AI section (M4) sits above it, and the CRS panel's heading is "CRS summary" rather than "What it does", which is now the AI section's first heading.
 - **Your three's Record / Money / Portfolio switch** landed in v0.2.21; see "The Money segment"
   below. Portfolio is still a placeholder.
 - **BOSS levels** are marked on House or Senate only when one of the bill's own votes there needed

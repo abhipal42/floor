@@ -6,7 +6,8 @@ import SwiftUI
 /// A bill, as the locked Bill mock draws it: the title, its sponsor, six levels to law with the
 /// votes that moved it, your own members on it, and what it costs.
 ///
-/// The mock's "Floor explains · AI" card is M4 and is not built. In its place sits the CRS summary,
+/// At the top, the AI section (`AIAnalysisSection`, section E of the locked live/AI design): an
+/// analysis of the CRS summary, labelled and cited line by line. Below it the CRS summary itself,
 /// labelled as such — it is the Congressional Research Service's text, not a model's.
 public struct BillScreenView: View {
     @State private var model: BillScreenModel
@@ -46,6 +47,12 @@ public struct BillScreenView: View {
                 VStack(alignment: .leading, spacing: 18) {
                     if let saved = model.saved { SavedDataNote(saved) }
                     header(bill)
+                    AIAnalysisSection(
+                        phase: model.analysis,
+                        openCitation: model.openCitation,
+                        onToggle: { id in withAnimation(.snappy) { model.toggleCitation(id) } },
+                        onRetry: { Task { await model.retryAnalysis() } }
+                    )
                     levels(bill)
                     if let summary = bill.summary, !summary.isEmpty {
                         whatItDoes(summary, stage: bill.summaryStage)
@@ -191,7 +198,10 @@ public struct BillScreenView: View {
     private func whatItDoes(_ summary: String, stage: String?) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(alignment: .firstTextBaseline) {
-                Text("WHAT IT DOES").font(Typography.label(20)).foregroundStyle(Palette.text)
+                // With an analysis above, "What it does" is its first heading, so this one names
+                // its source instead.
+                Text(model.analysis.isShown ? "CRS SUMMARY" : "WHAT IT DOES")
+                    .font(Typography.label(20)).foregroundStyle(Palette.text)
                 Spacer()
                 if let stage {
                     Text(stage).font(.system(size: 11)).foregroundStyle(Palette.textMuted)
