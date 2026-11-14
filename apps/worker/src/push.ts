@@ -517,7 +517,7 @@ async function digestDays(db: Db, devices: string[], day: string): Promise<Map<s
          join members m on m.bioguide_id = u.member_id
         group by t.device_id, u.member_id, m.last_name
        union all
-       select device_id::text, null, null, 0, count(*)::int, null, null from today where cardinality(members) = 0 group by device_id
+       select device_id::text, null, null, 0, count(*)::int, null, null from today where cardinality(members) = 0 and cardinality(bills) > 0 group by device_id
      ) x order by device, first nulls last, ord, name`,
     [devices, day],
   );
@@ -628,9 +628,16 @@ export class PushBroadcaster implements Broadcaster {
     const counts = await sentToday(db, [...claimed], "opened", day);
     const copy = openedAlert(vote);
     const nowS = Math.floor(now.getTime() / 1000);
+    // A phone that already runs an activity for this vote (the app started it while open, and sent
+    // its token) gets the plain alert, not a second activity.
+    const { rows: running } = await db.query<{ device: string }>(
+      "select device_id::text as device from live_activity_tokens where vote_id = $1",
+      [vote.id],
+    );
+    const hasActivity = new Set(running.map((r) => r.device));
     for (const t of reachable) {
       if (!claimed.has(t.device)) continue;
-      if (t.pushToStartToken) {
+      if (t.pushToStartToken && !hasActivity.has(t.device)) {
         out.push({
           msg: { deviceToken: t.pushToStartToken, pushType: "liveactivity", payload: startPayload(vote, t.members, copy, nowS), priority: 10 },
           onGone: () => this.clearStartToken(t.device),

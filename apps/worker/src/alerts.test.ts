@@ -188,6 +188,13 @@ describe("a vote opens", () => {
     });
   });
 
+  it("sends a plain alert, not a second activity, to a phone already running one for the vote", async () => {
+    const ids = await register(pg, [{ name: "la", voteOpened: true, start: hex("e"), subs: [["member", "D000399", true]] }]);
+    await pg.query("insert into live_activity_tokens (device_id, vote_id, token) values ($1, 'house-119-2-321', $2)", [ids.la, hex("f")]);
+    await push.publish([change("open")]);
+    expect(apns.sent.map((m) => [m.deviceToken, m.pushType])).toEqual([[hex("a"), "alert"]]);
+  });
+
   it("sends each phone one opened alert however often the vote is published, and stops stacking after three a day", async () => {
     await register(pg, [{ name: "a", voteOpened: true, subs: [["member", "D000399", true]] }]);
     await push.publish([change("open")]);
@@ -314,6 +321,23 @@ describe("a vote is final", () => {
       title: "Your members cast 5 votes today.",
       body: "Doggett 2 · Cruz 2 · Cornyn 1. Tap to catch up.",
     });
+  });
+
+  it("does not count a final where nobody alerting cast a vote as a vote on a followed bill", async () => {
+    await register(pg, [{ name: "a", subs: [["member", "D000399", true]] }]);
+    await finalize(pg);
+    await push.publish([change("final")]);
+    for (const [i, roll] of [322, 323, 324].entries()) {
+      await pg.query(
+        `insert into votes (id, chamber, congress, session, roll_number, question, state, yea, nay, result)
+         values ($1, 'house', 119, 2, $2, 'On Motion to Adjourn', 'final', 220, 200, 'Agreed to')`,
+        [`house-119-2-${roll}`, roll],
+      );
+      await pg.query("insert into vote_positions values ($1, 'D000399', 'not_voting')", [`house-119-2-${roll}`]);
+      clock = new Date(NOW.getTime() + (i + 1) * 3_600_000);
+      await push.publish([change("final", `house-119-2-${roll}`)]);
+    }
+    expect(alertOf(apns.sent[3]!)).toEqual({ title: "Your members cast 1 vote today.", body: "Doggett 1. Tap to catch up." });
   });
 });
 

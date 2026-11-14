@@ -249,6 +249,17 @@ struct LiveActivityCoordinatorTests {
         #expect(host.log == ["start house-119-2-321"])
     }
 
+    @Test func doesNotRestartOneThePushStartedAndTheUserDismissed() async throws {
+        let source = StubSource(Live(chambers: [], votes: [HR1013.live(state: .open)]))
+        let host = FakeHost()
+        host.shown["house-119-2-321"] = try HR1013.open // started by push while the app was closed
+        let c = coordinator(source, host, interest: .init(members: [HR1013.doggett], bills: [], voteOpened: true))
+        await c.poll()
+        host.shown = [:]
+        await c.poll()
+        #expect(host.log.isEmpty)
+    }
+
     @Test func endsWithTheFinalAndYourMembersPositions15MinutesAfterItPosted() async throws {
         let source = StubSource(Live(chambers: [], votes: [HR1013.live(state: .open)]))
         let host = FakeHost()

@@ -72,12 +72,33 @@ final class ActivityKitHost: ActivityHost {
     private func watch(_ activity: Activity<VoteActivityAttributes>) {
         guard watching.insert(activity.id).inserted else { return }
         let voteId = activity.attributes.voteId
-        Task { [api, key] in
+        Task {
             for await token in activity.pushTokenUpdates {
-                // 404 until this phone is registered (alerts off): nothing can reach it then anyway.
-                try? await api.setActivityToken(token.hexToken, voteId: voteId, key: key)
+                await self.send(token.hexToken, voteId: voteId)
             }
         }
+    }
+
+    /// Tokens the API refused because this phone was not registered yet (alerts still off, or the
+    /// registration not sent): kept and sent again after the next registration succeeds.
+    private var unsent: [String: String] = [:]
+
+    private func send(_ token: String, voteId: String) async {
+        do {
+            try await api.setActivityToken(token, voteId: voteId, key: key)
+            unsent[voteId] = nil
+        } catch {
+            unsent[voteId] = token
+        }
+    }
+
+    /// After a registration: resend what was refused, for activities still running.
+    func resendUnsent() {
+        let live = Set(running().keys)
+        for (voteId, token) in unsent where live.contains(voteId) {
+            Task { await send(token, voteId: voteId) }
+        }
+        unsent = unsent.filter { live.contains($0.key) }
     }
 
     /// Watches every activity, including ones the worker started by push while the app was closed,
@@ -89,8 +110,21 @@ final class ActivityKitHost: ActivityHost {
         }
         Task {
             for await token in Activity<VoteActivityAttributes>.pushToStartTokenUpdates {
-                sync.pushToStartToken = token.hexToken
+                // With Live Activities off for Floor a push-to-start shows nothing — and it carries
+                // the "vote opened" alert — so the token is offered only while they are on; without
+                // it the worker sends a plain alert instead.
+                lastStartToken = token.hexToken
+                sync.pushToStartToken = enabled ? token.hexToken : nil
             }
         }
+        sync.onRegistered = { [weak self] in self?.resendUnsent() }
+    }
+
+    private var lastStartToken: String?
+
+    /// Live Activities can be turned on or off in Settings while the app is away: re-read on
+    /// coming forward.
+    func refreshEnabled(sync: AlertSync) {
+        sync.pushToStartToken = enabled ? lastStartToken : nil
     }
 }

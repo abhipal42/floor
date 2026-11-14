@@ -6,6 +6,7 @@ import type {
   BillRepository,
   BillStage,
   CatalogRepository,
+  DeviceRegistration,
   DeviceRepository,
   TopicFilter,
   LiveRepository,
@@ -475,49 +476,60 @@ export function pgRepositories(db: Db): {
   catalog: CatalogRepository;
   devices: DeviceRepository;
 } {
+  const registerOnce = async (keyHash: string, reg: DeviceRegistration, now: Date) => {
+    // An APNs token belongs to one install. A phone that reinstalled Floor makes a new key and
+    // may get its old token back: the token moves to the new registration rather than failing
+    // the unique constraint (or alerting twice).
+    await db.query(
+      `update devices set apns_token = case when apns_token = $2 then null else apns_token end,
+                          push_to_start_token = case when push_to_start_token = $3 then null else push_to_start_token end
+        where key_hash <> $1 and (apns_token = $2 or push_to_start_token = $3)`,
+      [keyHash, reg.apnsToken, reg.pushToStartToken],
+    );
+    // One statement, so a registration and its subscription list change together. The delete
+    // and the upsert touch different rows (those not in the new list, and those in it).
+    await db.query(
+      `with d as (
+         insert into devices (key_hash, apns_token, apns_env, push_to_start_token, vote_opened, updated_at)
+         values ($1, $2, $3, $4, $5, $6)
+         on conflict (key_hash) do update set apns_token = excluded.apns_token, apns_env = excluded.apns_env,
+           push_to_start_token = excluded.push_to_start_token, vote_opened = excluded.vote_opened,
+           updated_at = excluded.updated_at
+         returning id
+       ), x as (
+         select distinct on (kind, id) kind, id, how_voted
+           from jsonb_to_recordset($7::jsonb) as r(kind text, id text, how_voted boolean)
+       ), gone as (
+         delete from device_subscriptions s using d
+          where s.device_id = d.id
+            and not exists (select 1 from x where x.kind = s.target_kind and x.id = s.target_id)
+       )
+       insert into device_subscriptions (device_id, target_kind, target_id, how_voted)
+       select d.id, x.kind, x.id, x.how_voted from d, x
+       on conflict (device_id, target_kind, target_id) do update set how_voted = excluded.how_voted`,
+      [
+        keyHash,
+        reg.apnsToken,
+        reg.apnsEnvironment,
+        reg.pushToStartToken,
+        reg.voteOpened,
+        now.toISOString(),
+        JSON.stringify(reg.subscriptions.map((x) => ({ kind: x.kind, id: x.id, how_voted: x.howVoted }))),
+      ],
+    );
+  };
+
   return {
     devices: {
       async register(keyHash, reg, now) {
-        // An APNs token belongs to one install. A phone that reinstalled Floor makes a new key and
-        // may get its old token back: the token moves to the new registration rather than failing
-        // the unique constraint (or alerting twice).
-        await db.query(
-          `update devices set apns_token = case when apns_token = $2 then null else apns_token end,
-                              push_to_start_token = case when push_to_start_token = $3 then null else push_to_start_token end
-            where key_hash <> $1 and (apns_token = $2 or push_to_start_token = $3)`,
-          [keyHash, reg.apnsToken, reg.pushToStartToken],
-        );
-        // One statement, so a registration and its subscription list change together. The delete
-        // and the upsert touch different rows (those not in the new list, and those in it).
-        await db.query(
-          `with d as (
-             insert into devices (key_hash, apns_token, apns_env, push_to_start_token, vote_opened, updated_at)
-             values ($1, $2, $3, $4, $5, $6)
-             on conflict (key_hash) do update set apns_token = excluded.apns_token, apns_env = excluded.apns_env,
-               push_to_start_token = excluded.push_to_start_token, vote_opened = excluded.vote_opened,
-               updated_at = excluded.updated_at
-             returning id
-           ), x as (
-             select distinct on (kind, id) kind, id, how_voted
-               from jsonb_to_recordset($7::jsonb) as r(kind text, id text, how_voted boolean)
-           ), gone as (
-             delete from device_subscriptions s using d
-              where s.device_id = d.id
-                and not exists (select 1 from x where x.kind = s.target_kind and x.id = s.target_id)
-           )
-           insert into device_subscriptions (device_id, target_kind, target_id, how_voted)
-           select d.id, x.kind, x.id, x.how_voted from d, x
-           on conflict (device_id, target_kind, target_id) do update set how_voted = excluded.how_voted`,
-          [
-            keyHash,
-            reg.apnsToken,
-            reg.apnsEnvironment,
-            reg.pushToStartToken,
-            reg.voteOpened,
-            now.toISOString(),
-            JSON.stringify(reg.subscriptions.map((x) => ({ kind: x.kind, id: x.id, how_voted: x.howVoted }))),
-          ],
-        );
+        // Two registrations racing for one token (a reinstall registering twice at once) can both
+        // pass the token move and collide on the unique constraint; the second try sees the first.
+        try {
+          await registerOnce(keyHash, reg, now);
+        } catch (error) {
+          if ((error as { code?: string }).code !== "23505") throw error;
+          await registerOnce(keyHash, reg, now);
+        }
       },
       async unregister(keyHash) {
         const { rows } = await db.query("delete from devices where key_hash = $1 returning id", [keyHash]);

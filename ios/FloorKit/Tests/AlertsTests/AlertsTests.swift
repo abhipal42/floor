@@ -158,6 +158,23 @@ struct AlertSyncTests {
         #expect(recorder.registered.last?.voteOpened == true)
     }
 
+    /// A cold launch: the registration exists, and the APNs token has not come back yet. Waiting is
+    /// right; unregistering would delete the API's copy and every Live Activity token with it.
+    @Test func aTokenNotHereYetNeverUnregisters() async {
+        let follows = Follows(store: InMemoryFollowStore())
+        let recorder = Recorder()
+        let defaults = freshDefaults()
+        let sync = makeSync(follows, permissions: Permissions(.allowed), recorder: recorder, defaults: defaults)
+        var resent = 0
+        sync.onRegistered = { resent += 1 }
+        await sync.sync()
+        #expect(resent == 1)
+        let relaunched = makeSync(follows, permissions: Permissions(.allowed), recorder: recorder, defaults: defaults, apns: nil)
+        await relaunched.sync()
+        #expect(recorder.unregistered == 0)
+        #expect(recorder.registered.count == 1)
+    }
+
     @Test func unregistersWhenNothingIsOnOrPermissionIsGone() async {
         let follows = Follows(store: InMemoryFollowStore())
         let recorder = Recorder()

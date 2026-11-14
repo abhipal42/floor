@@ -97,6 +97,9 @@ public final class LiveActivityCoordinator {
         let interest = interest()
         let running = host.running()
         let at = now()
+        // Activities the worker started by push count as started too: one swiped away is not
+        // started again locally.
+        started.formUnion(running.keys)
 
         if interest.voteOpened, host.enabled {
             for vote in live.openVotes where running[vote.id] == nil && !started.contains(vote.id) && Self.involves(vote, interest) {

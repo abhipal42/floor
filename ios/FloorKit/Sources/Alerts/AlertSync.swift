@@ -57,6 +57,9 @@ public final class AlertSync {
     @ObservationIgnored private let source: @MainActor () -> (state: FollowState, reps: [Member])
     /// Called when permission is granted, so the app can ask APNs for a token.
     @ObservationIgnored private let onAllowed: @MainActor () -> Void
+    /// Called after a registration succeeds: the app resends Live Activity tokens the API refused
+    /// (404) while the phone was not registered yet.
+    @ObservationIgnored public var onRegistered: @MainActor () -> Void = {}
     @ObservationIgnored private var pending: Task<Void, Never>?
     @ObservationIgnored private let debounce: Duration
 
@@ -129,9 +132,12 @@ public final class AlertSync {
     public func sync() async {
         permission = await permissions.status()
         let (state, reps) = source()
-        let wanted = permission == .allowed
-            && (apnsToken != nil || pushToStartToken != nil)
-            && state.anyAlertOn(members: state.yourMembers(reps: reps), reps: reps)
+        let anyOn = state.anyAlertOn(members: state.yourMembers(reps: reps), reps: reps)
+        // Tokens live in memory and arrive a moment after launch. A missing token means "not here
+        // yet", never "unregister": that would delete the API's copy — and every Live Activity
+        // token with it — on any cold launch where APNs answered slower than the debounce.
+        if permission == .allowed, anyOn, apnsToken == nil, pushToStartToken == nil { return }
+        let wanted = permission == .allowed && anyOn
         let last = defaults.data(forKey: Self.sentKey)
         if !wanted {
             guard last != nil else { return }
@@ -150,6 +156,7 @@ public final class AlertSync {
         do {
             try await registrar.register(registration, key: key)
             defaults.set(encoded, forKey: Self.sentKey)
+            onRegistered()
         } catch {
             // Offline or refused: nothing is remembered, so the next sync sends it again.
         }

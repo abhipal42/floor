@@ -160,6 +160,7 @@ struct FloorApp: App {
         polling = nil
         guard active else { return }
         polling = Task { await liveActivities.run() }
+        activityHost.refreshEnabled(sync: alertSync)
         Task {
             await alertSync.refreshPermission()
             alertSync.schedule()
