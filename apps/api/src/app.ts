@@ -229,6 +229,11 @@ export const MeasureSummarySchema = z
       description:
         "A bill's short title where it has one, else its full title; a nomination's nominee, or the post for a military nomination that names nobody",
     }),
+    policyArea: z.string().nullable().openapi({
+      example: "Health",
+      description:
+        "A bill's CRS policy area (its topic), so a feed can say a vote is in a topic you follow; null for a nomination and for a bill CRS has not classified",
+    }),
   })
   .openapi("MeasureSummary");
 
@@ -296,7 +301,8 @@ const ErrorSchema = z.object({ error: z.string() }).openapi("Error");
 export interface VoteRepository {
   getVote(id: string): Promise<Vote | null>;
   /** The most recent final votes, newest first, optionally in one chamber and before an instant. */
-  recentVotes(chamber: Chamber | undefined, limit: number, before?: Date): Promise<RecentVote[]>;
+  /** The most recent final votes, newest first; with `topics`, only votes on bills in those policy areas. */
+  recentVotes(chamber: Chamber | undefined, limit: number, before?: Date, topics?: string[]): Promise<RecentVote[]>;
   /** Per-party counts for the vote, plus how each of `memberIds` voted. */
   voteBreakdown(
     id: string,
@@ -338,6 +344,16 @@ export const BillActionSchema = z
   })
   .openapi("BillAction");
 
+/**
+ * A bill's stage is derived by the worker (apps/worker/src/stage.ts) and stored, so a list never
+ * fetches actions per row. Declared before `BillSchema`, its first use.
+ */
+export const BillStageSchema = z
+  .enum(["introduced", "passed_house", "passed_senate", "passed_both", "to_president", "law", "vetoed", "failed", "adopted"])
+  .openapi("BillStage");
+
+export type BillStage = z.infer<typeof BillStageSchema>;
+
 export const BillSchema = z
   .object({
     id: z.string().openapi({ example: "119-hconres-14" }),
@@ -347,6 +363,13 @@ export const BillSchema = z
     citation: z.string().openapi({ example: "H.Con.Res. 14", description: "As the chamber cites it" }),
     title: z.string(),
     shortTitle: z.string().nullable(),
+    label: z.string().openapi({
+      description:
+        "The plain short label a bill list gives it (BillListItem.label), so a bill followed from its own screen reads as it does in search",
+    }),
+    stage: BillStageSchema.nullable().openapi({
+      description: "Where it stands on the road to law, as BillListItem.stage; null until the worker has staged it",
+    }),
     sponsor: MemberSchema.nullable(),
     introducedOn: z.string().nullable(),
     originChamber: ChamberSchema.nullable(),
@@ -545,14 +568,8 @@ export interface StatusRepository {
 
 /*
  * Round 10: following bills and topics. A topic is one of the CRS policy areas (`POLICY_AREAS` in
- * bills.ts); a bill's stage is derived by the worker (apps/worker/src/stage.ts) and stored, so a
- * list never fetches actions per row.
+ * bills.ts). `BillStageSchema` is declared above `BillSchema`, which carries it too.
  */
-export const BillStageSchema = z
-  .enum(["introduced", "passed_house", "passed_senate", "passed_both", "to_president", "law", "vetoed", "failed", "adopted"])
-  .openapi("BillStage");
-
-export type BillStage = z.infer<typeof BillStageSchema>;
 
 export const BillListItemSchema = z
   .object({
@@ -658,8 +675,6 @@ export interface CatalogRepository {
   billsByNumber(type: string, number: number, congress: number | null, now: Date): Promise<BillListItem[]>;
   /** Full-text match on short title, title and CRS summary, best first, current Congress favoured. */
   searchBills(q: string, congress: number, limit: number, now: Date): Promise<BillListItem[]>;
-  /** Serving members by name, state or district (see `memberQuery` in pg.ts). */
-  searchMembers(q: string, limit: number, now: Date): Promise<Member[]>;
 }
 
 export const encodeCursor = (c: BillCursor) => Buffer.from(JSON.stringify([c.on, c.id])).toString("base64url");
@@ -688,7 +703,6 @@ export const EMPTY_CATALOG: CatalogRepository = {
   topicBills: async () => [],
   billsByNumber: async () => [],
   searchBills: async () => [],
-  searchMembers: async () => [],
 };
 
 /**
@@ -901,6 +915,9 @@ const getMemberVotesRoute = createRoute({
   },
 });
 
+/** How many members a search returns: a whole state (Texas has 40) and the default of `/v1/members?q=`. */
+const MEMBER_SEARCH_LIMIT = 60;
+
 const searchMembersRoute = createRoute({
   method: "get",
   path: "/v1/members",
@@ -918,7 +935,7 @@ const searchMembersRoute = createRoute({
         .max(60)
         .openapi({ param: { name: "q", in: "query" }, example: "New York" }),
       chamber: listChamber,
-      limit: z.coerce.number().int().min(1).max(100).default(60),
+      limit: z.coerce.number().int().min(1).max(100).default(MEMBER_SEARCH_LIMIT),
     }),
   },
   responses: {
@@ -947,6 +964,15 @@ const listVotesRoute = createRoute({
           param: { name: "before", in: "query" },
           example: "2026-11-12T20:21:00.000Z",
           description: "Only votes that happened before this: pass the last vote's occurredAt for the next page",
+        }),
+      topic: z
+        .preprocess((v) => (v === undefined ? undefined : [v].flat()), z.array(z.string().max(100)).max(POLICY_AREAS.length).optional())
+        .openapi({
+          param: { name: "topic", in: "query", style: "form", explode: true },
+          example: ["Health"],
+          description:
+            "Only votes on bills in these topics (CRS policy areas, any case). Repeat it for several, since topic names " +
+            "hold commas. A name that is not one of the topics matches nothing. The Finals tab's Following feed.",
         }),
     }),
   },
@@ -1099,11 +1125,14 @@ const searchRoute = createRoute({
   description:
     "A bill number in any spelling (\"hr 1013\", \"H.R.1013\", \"s.j.res.197\") returns that bill and nothing else. " +
     "Otherwise words match bill short titles, titles and CRS summaries (Postgres full-text), topic names, and " +
-    "serving members by name, state (\"TX\", \"Texas\") or district (\"TX-35\"). " +
+    "sitting members exactly as `/v1/members?q=` reads them (the same reader, up to 60, Senate first): a name with " +
+    "accents, hyphens and apostrophes folded (\"velazquez\", \"ocasio cortez\"), a state by name or code (\"Texas\", " +
+    "\"N.Y.\"), or a seat (\"TX-35\", \"DC-1\"). `chamber` narrows the members only. " +
     "Companion bills (the House and Senate versions of one measure) are separate results and are not linked to each other.",
   request: {
     query: z.object({
       q: z.string().trim().min(2).max(100).openapi({ param: { name: "q", in: "query" }, example: "rural health" }),
+      chamber: listChamber,
     }),
   },
   responses: {
@@ -1172,8 +1201,13 @@ export function createApp(deps: AppDeps) {
   });
 
   app.openapi(listVotesRoute, async (c) => {
-    const { chamber, limit, before } = c.req.valid("query");
-    const votes = await deps.votes.recentVotes(chamber, limit, before ? new Date(before) : undefined);
+    const { chamber, limit, before, topic } = c.req.valid("query");
+    // Canonical names only. Topics asked for and none of them real is an empty answer, not every vote.
+    const topics = topic?.map(topicNamed).filter((t): t is string => t !== null);
+    const votes =
+      topics && topics.length === 0
+        ? []
+        : await deps.votes.recentVotes(chamber, limit, before ? new Date(before) : undefined, topics);
     c.header("Cache-Control", VOTES_CACHE_CONTROL);
     return c.json({ votes }, 200);
   });
@@ -1338,7 +1372,7 @@ export function createApp(deps: AppDeps) {
   });
 
   app.openapi(searchRoute, async (c) => {
-    const { q } = c.req.valid("query");
+    const { q, chamber } = c.req.valid("query");
     const now = clock();
     const congress = congressOn(now);
     c.header("Cache-Control", SEARCH_CACHE_CONTROL);
@@ -1349,7 +1383,8 @@ export function createApp(deps: AppDeps) {
     }
     const names = matchTopics(q);
     const [members, bills, counts] = await Promise.all([
-      catalog.searchMembers(q, 10, now),
+      // One member reader for the app: the Following picker's (`parseMemberQuery`, search.ts).
+      deps.members.search(parseMemberQuery(q), chamber, MEMBER_SEARCH_LIMIT),
       catalog.searchBills(q, congress, 20, now),
       names.length > 0 ? catalog.topicCounts(congress) : Promise.resolve([]),
     ]);

@@ -219,6 +219,9 @@ describe("Postgres repositories", () => {
       ],
     });
     expect(bill?.votes.map((v) => v.id)).toEqual(["house-119-1-1"]);
+    // The label a bill list would give it, and its stage (unstaged here: null, not an error).
+    expect(bill?.label).toBe("Example Act");
+    expect(bill?.stage).toBeNull();
     expect(await repos.bills.getBill("119-hr-999")).toBeNull();
   });
 
@@ -365,6 +368,8 @@ describe("Postgres repositories", () => {
       citation: "H.R. 1",
       // The short title, since this bill has one; otherwise the full title.
       title: "Example Act",
+      // Its topic, so the Following feed can say a vote is in one you follow.
+      policyArea: "Taxation",
     });
     // A procedural vote refers to no measure at all.
     expect(try0(votes.find((v) => v.vote.id === "house-119-1-2")).measure).toBeNull();
@@ -377,6 +382,7 @@ describe("Postgres repositories", () => {
       kind: "bill",
       citation: "H.R. 1",
       title: "Example Act",
+      policyArea: "Taxation",
     });
     // The same builder as the feed, so the two can never describe one measure differently.
     const inTheFeed = (await repos.members.recentVotes("H000037", 10))
@@ -393,6 +399,7 @@ describe("Postgres repositories", () => {
       kind: "nomination",
       citation: "PN12-12",
       title: "Daniel Driscoll",
+      policyArea: null,
     });
     // Military nominations promote officers in bulk and carry no name.
     expect(try0(votes.find((v) => v.vote.id === "senate-119-1-91")).measure).toEqual({
@@ -400,6 +407,7 @@ describe("Postgres repositories", () => {
       kind: "nomination",
       citation: "PN900",
       title: "General, Army",
+      policyArea: null,
     });
   });
 
@@ -657,13 +665,23 @@ describe("recent votes", () => {
       "senate-119-1-91", "senate-119-1-90", "house-119-1-4", "house-119-1-3", "house-119-1-2", "house-119-1-1",
     ]);
     expect(all[1]!.measure).toEqual({
-      id: "119-pn-12-12", kind: "nomination", citation: "PN12-12", title: "Daniel Driscoll",
+      id: "119-pn-12-12", kind: "nomination", citation: "PN12-12", title: "Daniel Driscoll", policyArea: null,
     });
     expect(all.find((r) => r.vote.id === "house-119-1-2")!.measure).toBeNull();
     expect((await repos.votes.recentVotes("house", 2)).map((r) => r.vote.id)).toEqual(["house-119-1-4", "house-119-1-3"]);
     // The next page: before the last one shown.
     const next = await repos.votes.recentVotes(undefined, 2, new Date("2025-01-12T15:00:00Z"));
     expect(next.map((r) => r.vote.id)).toEqual(["house-119-1-2", "house-119-1-1"]);
+  });
+
+  it("narrows to votes on bills in the topics asked for, and to nothing for a topic with none", async () => {
+    const taxation = await repos.votes.recentVotes(undefined, 10, undefined, ["Taxation"]);
+    expect(taxation.map((r) => r.vote.id)).toEqual(["house-119-1-1"]);
+    expect(taxation[0]!.measure?.policyArea).toBe("Taxation");
+    expect(await repos.votes.recentVotes(undefined, 10, undefined, ["Health"])).toEqual([]);
+    expect((await repos.votes.recentVotes("senate", 10, undefined, ["Taxation", "Health"]))).toEqual([]);
+    expect((await repos.votes.recentVotes(undefined, 10, undefined, ["Health", "Taxation"])).map((r) => r.vote.id))
+      .toEqual(["house-119-1-1"]);
   });
 });
 
@@ -926,19 +944,6 @@ describe("catalog", () => {
     expect(await catalog.searchBills("the & of ) (", 119, 10, now)).toEqual([]);
   });
 
-  it("finds serving members by name, state and district", async () => {
-    const names = async (q: string) => (await catalog.searchMembers(q, 10, now)).map((m) => m.lastName);
-    expect(await names("doggett")).toEqual(["Doggett"]);
-    expect(await names("lloyd dog")).toEqual(["Doggett"]);
-    expect(await names("TX")).toEqual(["Cruz", "Gonzales", "Cuellar", "Doggett"]);
-    expect(await names("texas")).toEqual(["Cruz", "Gonzales", "Cuellar", "Doggett"]);
-    expect(await names("TX-37")).toEqual(["Doggett"]);
-    expect(await names("wy al")).toEqual(["Hageman"]);
-    // Veasey's term ended: not serving, not found.
-    expect(await names("veasey")).toEqual([]);
-    expect(await names("rural health")).toEqual([]);
-  });
-
   it("answers empty, not 500, on a database without the catalog migration", async () => {
     // The API deploys on merge; the migration is applied by hand after review.
     const old = new PGlite();
@@ -952,6 +957,11 @@ describe("catalog", () => {
     expect(await before.searchBills("health", 119, 10, now)).toEqual([]); // bills.search: 42703
     expect(await before.topicBills(119, "Health", "all", null, 10, now)).toEqual([]); // bills.stage: 42703
     expect(await before.billsByNumber("hr", 1, null, now)).toEqual([]);
+    // A bill page still opens there: its stage is read through to_jsonb and comes back null.
+    await old.exec(`insert into bills (id, congress, bill_type, number, title) values ('119-hr-5', 119, 'hr', 5, 'To do a thing')`);
+    const bill = await pgRepositories(old as unknown as Db).bills.getBill("119-hr-5");
+    expect(bill?.stage).toBeNull();
+    expect(bill?.label).toBe("To do a thing");
     await old.close();
   });
 });

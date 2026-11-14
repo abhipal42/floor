@@ -50,7 +50,16 @@ describe("topics", () => {
 
   it("match a query when every word starts a word of the name", () => {
     expect(matchTopics("health")).toEqual(["Health"]);
-    expect(matchTopics("rural health")).toEqual([]);
+    // No topic holds both words, so any topic holding one: the mock's Health row for "rural health".
+    expect(matchTopics("rural health")).toEqual(["Health"]);
+    // Every word first, and only those: not every topic with "public" in it.
+    expect(matchTopics("public lands")).toEqual(["Public Lands and Natural Resources"]);
+    expect(matchTopics("public")).toEqual(["Economics and Public Finance", "Public Lands and Natural Resources", "Transportation and Public Works"]);
+    // A stopword alone matches nothing, though most names hold "and"; with a real word it is ignored.
+    expect(matchTopics("and")).toEqual([]);
+    expect(matchTopics("the act")).toEqual([]);
+    expect(matchTopics("health and")).toEqual(["Health"]);
+    expect(matchTopics("rural broadband")).toEqual([]);
     expect(matchTopics("public lands")).toEqual(["Public Lands and Natural Resources"]);
     expect(matchTopics("immig")).toEqual(["Immigration"]);
     expect(matchTopics("tax")).toEqual(["Taxation"]);

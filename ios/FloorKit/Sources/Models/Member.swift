@@ -120,12 +120,17 @@ public struct MeasureSummary: Codable, Sendable, Hashable, Identifiable {
     /// A bill's short title where it has one, else its full title; a nomination's nominee, or the
     /// post for a military nomination that names nobody.
     public var title: String
+    /// A bill's CRS policy area — its topic — so the feed can say a vote is in a topic you follow.
+    /// nil for a nomination, for a bill CRS has not classified, and in a response saved by an
+    /// earlier build (the field is new in v0.2.29).
+    public var policyArea: String?
 
-    public init(id: String, kind: Kind, citation: String, title: String) {
+    public init(id: String, kind: Kind, citation: String, title: String, policyArea: String? = nil) {
         self.id = id
         self.kind = kind
         self.citation = citation
         self.title = title
+        self.policyArea = policyArea
     }
 
     /// `H.R. 1013 · Retirement Fairness Act`, as a card headline.

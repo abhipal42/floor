@@ -199,45 +199,9 @@ const TOPIC_FILTER_SQL: Record<TopicFilter, string> = {
             and (b.latest_action_on is null or b.latest_action_on < ($NOW::timestamptz at time zone 'America/New_York')::date - 90)`,
 };
 
-const STATE_NAMES: Record<string, string> = {
-  alabama: "AL", alaska: "AK", arizona: "AZ", arkansas: "AR", california: "CA", colorado: "CO", connecticut: "CT",
-  delaware: "DE", florida: "FL", georgia: "GA", hawaii: "HI", idaho: "ID", illinois: "IL", indiana: "IN", iowa: "IA",
-  kansas: "KS", kentucky: "KY", louisiana: "LA", maine: "ME", maryland: "MD", massachusetts: "MA", michigan: "MI",
-  minnesota: "MN", mississippi: "MS", missouri: "MO", montana: "MT", nebraska: "NE", nevada: "NV",
-  "new hampshire": "NH", "new jersey": "NJ", "new mexico": "NM", "new york": "NY", "north carolina": "NC",
-  "north dakota": "ND", ohio: "OH", oklahoma: "OK", oregon: "OR", pennsylvania: "PA", "rhode island": "RI",
-  "south carolina": "SC", "south dakota": "SD", tennessee: "TN", texas: "TX", utah: "UT", vermont: "VT",
-  virginia: "VA", washington: "WA", "west virginia": "WV", wisconsin: "WI", wyoming: "WY",
-  "district of columbia": "DC", "american samoa": "AS", guam: "GU", "northern mariana islands": "MP",
-  "puerto rico": "PR", "virgin islands": "VI",
-};
-const STATE_CODES = new Set(Object.values(STATE_NAMES));
-
-/**
- * How `/v1/search` reads a query for members. The Following tab's member picker (`/v1/members?q=`)
- * has its own reader, `parseMemberQuery` in `search.ts`: substring names with accents, hyphens and
- * apostrophes folded, the territories by name, and a delegate's one seat for any number ("DC-1").
- * Both read "TX-35", "Texas" and "Doggett" alike; folding the two into one is a follow-up.
- *
- * - `TX-35`, `tx 35`, `TX35`, `TX-AL`: that state's member for the district (at-large is 0).
- * - `TX`, `Texas`, `new york`: every serving member from the state.
- * - Anything else: names. Every word must start the first or last name ("lloyd dogg").
- */
-export function memberQuery(q: string): { state: string; district: number | null } | { words: string[] } | null {
-  const text = q.trim().toLowerCase().replace(/\s+/g, " ");
-  const district = /^([a-z]{2})[\s-]?(\d{1,2}|al)$/.exec(text);
-  if (district && STATE_CODES.has(district[1]!.toUpperCase())) {
-    return { state: district[1]!.toUpperCase(), district: district[2] === "al" ? 0 : Number(district[2]) };
-  }
-  if (text.length === 2 && STATE_CODES.has(text.toUpperCase())) return { state: text.toUpperCase(), district: null };
-  if (STATE_NAMES[text]) return { state: STATE_NAMES[text]!, district: null };
-  const words = text.split(/[^\p{L}'-]+/u).filter((w) => w.length >= 2);
-  return words.length > 0 ? { words } : null;
-}
-
 /** The columns both the feed and the vote route select to describe a vote's measure. */
 const MEASURE_COLUMNS = `b.bill_type, b.number as bill_number, b.short_title as bill_short_title,
-  b.title as bill_title, n.citation as nomination_citation, n.nominee_name, n.position_title, n.organization`;
+  b.title as bill_title, b.policy_area as bill_policy_area, n.citation as nomination_citation, n.nominee_name, n.position_title, n.organization`;
 
 /** The joins that go with them. */
 const MEASURE_JOINS = `left join bills b on b.id = v.bill_id
@@ -250,6 +214,7 @@ interface MeasureRow {
   bill_number: number | null;
   bill_short_title: string | null;
   bill_title: string | null;
+  bill_policy_area: string | null;
   nomination_citation: string | null;
   nominee_name: string | null;
   position_title: string | null;
@@ -268,7 +233,13 @@ const nominationTitle = (r: {
 const toMeasure = (r: MeasureRow): MeasureSummary | null => {
   if (r.bill_id && r.bill_type && r.bill_number != null) {
     const citation = billCitation(r.bill_type, r.bill_number);
-    return { id: r.bill_id, kind: "bill", citation, title: r.bill_short_title ?? r.bill_title ?? citation };
+    return {
+      id: r.bill_id,
+      kind: "bill",
+      citation,
+      title: r.bill_short_title ?? r.bill_title ?? citation,
+      policyArea: r.bill_policy_area,
+    };
   }
   if (r.nomination_id && r.nomination_citation) {
     return {
@@ -276,6 +247,7 @@ const toMeasure = (r: MeasureRow): MeasureSummary | null => {
       kind: "nomination",
       citation: r.nomination_citation,
       title: nominationTitle(r),
+      policyArea: null,
     };
   }
   return null;
@@ -326,6 +298,7 @@ interface BillRow {
   number: number;
   title: string;
   short_title: string | null;
+  stage: BillStage | null;
   introduced_on: Date | string | null;
   origin_chamber: "house" | "senate" | null;
   policy_area: string | null;
@@ -558,33 +531,6 @@ export function pgRepositories(db: Db): {
         );
         return rows.map(toListItem);
       },
-      async searchMembers(q, limit, now) {
-        const parsed = memberQuery(q);
-        if (!parsed) return [];
-        // `SITTING` too, so an appointed senator past their nominal term end is found (lesson 52).
-        const serving = `(${SITTING} or term_end >= ($1::timestamptz at time zone 'America/New_York')::date)`;
-        const order = "order by chamber desc, state, district nulls first, last_name, first_name limit $2";
-        let rows: MemberRow[];
-        if ("state" in parsed) {
-          ({ rows } = await db.query<MemberRow>(
-            `select ${MEMBER_COLUMNS} from members m
-              where ${serving} and state = $3 and ($4::int is null or chamber = 'house' and district = $4::int)
-              ${order}`,
-            [now.toISOString(), limit, parsed.state, parsed.district],
-          ));
-        } else {
-          // Every word starts the first or the last name (or a later word of a compound last name).
-          ({ rows } = await db.query<MemberRow>(
-            `select ${MEMBER_COLUMNS} from members m
-              where ${serving} and (
-                select bool_and(lower(first_name) like w || '%' or lower(last_name) like w || '%' or lower(last_name) like '% ' || w || '%')
-                  from unnest($3::text[]) as w)
-              ${order}`,
-            [now.toISOString(), limit, parsed.words.map((w) => w.replace(/[%_\\]/g, ""))],
-          ));
-        }
-        return rows.map(toMember);
-      },
     },
     live: {
       async chambers() {
@@ -630,8 +576,10 @@ export function pgRepositories(db: Db): {
     bills: {
       async getBill(id) {
         const { rows } = await db.query<BillRow>(
+          // The stage through to_jsonb, so this route keeps working on a database without the
+          // Round 10 migration (it reads null there) rather than failing every bill page.
           `select b.id, b.congress, b.bill_type, b.number, b.title, b.short_title, b.introduced_on, b.origin_chamber,
-                  b.policy_area, b.summary, b.summary_stage, b.latest_action_on, b.latest_action_text, b.cbo_estimates,
+                  to_jsonb(b) ->> 'stage' as stage, b.policy_area, b.summary, b.summary_stage, b.latest_action_on, b.latest_action_text, b.cbo_estimates,
                   case when m.bioguide_id is null then null else jsonb_build_object(
                     'bioguide_id', m.bioguide_id, 'first_name', m.first_name, 'last_name', m.last_name,
                     'party', m.party, 'state', m.state, 'district', m.district, 'chamber', m.chamber) end as sponsor
@@ -659,6 +607,8 @@ export function pgRepositories(db: Db): {
           citation: billCitation(b.bill_type, b.number),
           title: b.title,
           shortTitle: b.short_title,
+          label: billLabel(b.title, b.short_title),
+          stage: b.stage,
           sponsor: b.sponsor ? toMember(b.sponsor) : null,
           introducedOn: day(b.introduced_on),
           originChamber: b.origin_chamber,
@@ -795,17 +745,19 @@ export function pgRepositories(db: Db): {
         const { rows } = await db.query<VoteRow>(`select ${VOTE_COLUMNS} from votes v where v.id = $1`, [id]);
         return rows[0] ? toVote(rows[0]) : null;
       },
-      async recentVotes(chamber, limit, before) {
+      async recentVotes(chamber, limit, before, topics) {
         // Final only: an open vote's tally is the floor's, not the roll call's (as on bill pages).
+        // `topics` narrows to votes on bills in those policy areas (the Following feed's topics).
         const { rows } = await db.query<VoteRow & MeasureRow>(
           `select ${VOTE_COLUMNS}, ${MEASURE_COLUMNS}
              from votes v
              ${MEASURE_JOINS}
             where v.state = 'final' and ($1::chamber is null or v.chamber = $1::chamber)
               and ($3::timestamptz is null or v.occurred_at < $3::timestamptz)
+              and ($4::text[] is null or b.policy_area = any($4::text[]))
             order by v.occurred_at desc nulls last, v.roll_number desc
             limit $2`,
-          [chamber ?? null, limit, before?.toISOString() ?? null],
+          [chamber ?? null, limit, before?.toISOString() ?? null, topics ?? null],
         );
         return rows.map((r) => ({ vote: toVote(r), measure: toMeasure(r) }));
       },

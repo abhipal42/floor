@@ -3,28 +3,47 @@ import Models
 import Onboarding
 import SwiftUI
 
-/// The Following tab, built to the locked mock (<https://claude.ai/artifact/C7qGitvJMSLFmCkYYQgNre>,
-/// section A): your reps, pinned from your district, then everyone you follow, newest first.
+/// The Following tab: a Members · Bills · Topics switch (the locked Round 10 design,
+/// <https://claude.ai/artifact/8Qfr9ymPEKuYGSLjiuXdS2>, section A) over three lists.
 ///
-/// Edit hides or shows a rep (they can't be unfollowed: they are your district), unfollows anyone
-/// else, and reorders them by dragging the handle — or, with VoiceOver, with the row's Move up and
-/// Move down actions.
+/// **Members** is the round 9 mock unchanged (<https://claude.ai/artifact/C7qGitvJMSLFmCkYYQgNre>,
+/// section A): your reps, pinned from your district, then everyone you follow, newest first. Edit
+/// hides or shows a rep (they can't be unfollowed: they are your district), unfollows anyone else,
+/// and reorders them by dragging the handle — or, with VoiceOver, with the row's Move up and Move
+/// down actions.
+///
+/// **Bills**: each followed bill's citation, stage chip, label, latest step and five-step road.
+/// **Topics**: followed topics with their counts, then the biggest others as suggestions.
 public struct FollowingView: View {
+    /// The switch at the top of the tab.
+    public enum Segment: String, CaseIterable, Sendable {
+        case members, bills, topics
+    }
+
     let model: HomeModel
     let onOpenMember: (Member) -> Void
+    let onOpenBill: (String) -> Void
+    let onOpenTopic: (String) -> Void
     let onFindReps: () -> Void
     let onChangeAddress: () -> Void
     @State private var editing = false
     @State private var adding = false
+    @State private var segment: Segment
 
     public init(
         model: HomeModel,
+        segment: Segment = .members,
         onOpenMember: @escaping (Member) -> Void,
+        onOpenBill: @escaping (String) -> Void = { _ in },
+        onOpenTopic: @escaping (String) -> Void = { _ in },
         onFindReps: @escaping () -> Void,
         onChangeAddress: @escaping () -> Void
     ) {
         self.model = model
+        _segment = State(initialValue: segment)
         self.onOpenMember = onOpenMember
+        self.onOpenBill = onOpenBill
+        self.onOpenTopic = onOpenTopic
         self.onFindReps = onFindReps
         self.onChangeAddress = onChangeAddress
     }
@@ -55,21 +74,77 @@ public struct FollowingView: View {
     public var body: some View {
         List {
             header.plainRow()
-            repsSection
-            followingSection
+            segmentSwitch.plainRow()
+            switch segment {
+            case .members:
+                repsSection
+                followingSection
+            case .bills:
+                billsSection
+            case .topics:
+                topicsSection
+            }
         }
         .listStyle(.plain)
         .scrollContentBackground(.hidden)
         .environment(\.defaultMinListRowHeight, 0)
         .background(Palette.ground)
-        .refreshable { await model.load() }
+        .refreshable {
+            await model.load()
+            if segment == .topics { await model.loadTopics() }
+        }
+        .task(id: segment) {
+            if segment == .topics, model.topicList == nil { await model.loadTopics() }
+        }
+        .onChange(of: segment) { editing = false }
         .sheet(isPresented: $adding) {
-            AddMembersView(
-                model: model.memberSearch(),
+            AddFollowsView(
+                model: model.followSearch(),
                 follows: model.follows,
-                reps: model.reps.map(\.bioguideId)
+                reps: model.reps.map(\.bioguideId),
+                onOpenBill: onOpenBill,
+                onOpenTopic: onOpenTopic
             )
         }
+    }
+
+    /// `MEMBERS · 6`, `BILLS · 3`, `TOPICS · 2`.
+    nonisolated static func segmentTitle(_ segment: Segment, count: Int) -> String {
+        "\(segment.rawValue.uppercased()) · \(count)"
+    }
+
+    private func count(_ segment: Segment) -> Int {
+        switch segment {
+        case .members: model.yourMembers.count
+        // The list's own rows, so the count is what is listed.
+        case .bills: model.followedBills.count
+        case .topics: model.followedTopics.count
+        }
+    }
+
+    private var segmentSwitch: some View {
+        HStack(spacing: 4) {
+            ForEach(Segment.allCases, id: \.self) { option in
+                let on = segment == option
+                let count = count(option)
+                Button { segment = option } label: {
+                    Text(Self.segmentTitle(option, count: count))
+                        .font(Typography.label(12))
+                        .tracking(0.6)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.7)
+                        .foregroundStyle(on ? Palette.text : Palette.textMuted)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 7)
+                        .background(on ? Palette.chip : Color.clear, in: .rect(cornerRadius: 7))
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("\(option.rawValue.capitalized), \(count) followed")
+                .accessibilityAddTraits(on ? [.isSelected] : [])
+            }
+        }
+        .padding(3)
+        .background(Palette.panel, in: .rect(cornerRadius: 9))
     }
 
     private var header: some View {
@@ -77,7 +152,7 @@ public struct FollowingView: View {
             Text("FOLLOWING").font(Typography.headline(28)).foregroundStyle(Palette.text)
                 .accessibilityAddTraits(.isHeader)
             Spacer()
-            if !editing, canEdit {
+            if !editing, canEdit, segment == .members {
                 Button("EDIT") { editing = true }
                     .font(Typography.label(15))
                     .foregroundStyle(Palette.threshold)
@@ -91,9 +166,111 @@ public struct FollowingView: View {
             .font(Typography.label(15))
             .foregroundStyle(Palette.threshold)
             .buttonStyle(.plain)
-            .accessibilityLabel(editing ? "Done editing" : "Add members")
+            .accessibilityLabel(editing ? "Done editing" : "Add members, bills or topics")
         }
         .padding(.top, 8)
+    }
+
+    // MARK: Bills
+
+    @ViewBuilder
+    private var billsSection: some View {
+        let bills = model.followedBills
+        if bills.isEmpty {
+            emptyCard(
+                title: "FOLLOW A BILL",
+                body: "Search by number (hr 1013, S. 2) or by words. Each step it takes shows here, and its votes in Finals.",
+                button: "FIND BILLS TO FOLLOW", filled: true, action: { adding = true }
+            )
+            .plainRow()
+        } else {
+            ForEach(bills) { bill in
+                Button { onOpenBill(bill.id) } label: { BillRowView(bill: bill) }
+                    .buttonStyle(.plain)
+                    .accessibilityHint("Opens the bill")
+                    .accessibilityAction(named: "Unfollow") { unfollow(bill: bill.id) }
+                    .swipeActions(edge: .trailing) {
+                        Button("Unfollow", role: .destructive) { unfollow(bill: bill.id) }
+                    }
+                    .plainRow()
+            }
+            Text(BillRoad.legend)
+                .scaledFont(10, weight: .medium)
+                .foregroundStyle(Palette.textMuted)
+                .plainRow()
+            ForEach([model.unavailableBillsNote, model.billLimitNote].compactMap(\.self), id: \.self) { note in
+                Text(note).scaledFont(12).foregroundStyle(Palette.textMuted).plainRow()
+            }
+        }
+    }
+
+    private func unfollow(bill id: String) {
+        model.follows.update { $0.unfollow(bill: id) }
+    }
+
+    /// Unfollow, never toggle: a swipe that lands twice must not follow the topic again.
+    private func unfollow(topic name: String) {
+        model.follows.update { $0.unfollow(topic: name) }
+    }
+
+    // MARK: Topics
+
+    @ViewBuilder
+    private var topicsSection: some View {
+        let followed = model.followedTopicRows
+        if followed.isEmpty {
+            emptyCard(
+                title: "FOLLOW A TOPIC",
+                body: "A topic is one of the 32 policy areas the Congressional Research Service puts every bill in. Follow one to see its bills as they move, and its votes in Finals.",
+                button: "SEARCH TOPICS", filled: false, action: { adding = true }
+            )
+            .plainRow()
+        } else {
+            ForEach(followed, id: \.name) { row in
+                Button { onOpenTopic(row.name) } label: {
+                    TopicRowView(
+                        name: row.name, detail: row.topic.map(TopicText.detail),
+                        spoken: row.topic.map(Spoken.topicRow) ?? row.name
+                    ) {
+                        Text("›").font(.system(size: 18)).foregroundStyle(Palette.textMuted).accessibilityHidden(true)
+                    }
+                }
+                .buttonStyle(.plain)
+                .accessibilityHint("Opens the topic's bills")
+                .accessibilityAction(named: "Unfollow") { unfollow(topic: row.name) }
+                .swipeActions(edge: .trailing) {
+                    Button("Unfollow", role: .destructive) { unfollow(topic: row.name) }
+                }
+                .plainRow()
+            }
+        }
+        if model.topicList == nil {
+            if let error = model.topicListError {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text(error).scaledFont(12).foregroundStyle(Palette.textSecondary)
+                    Button("Try again") { Task { await model.loadTopics() } }
+                        .font(.system(size: 15, weight: .semibold))
+                        .foregroundStyle(Palette.accent)
+                        .buttonStyle(.plain)
+                }
+                .plainRow()
+            } else {
+                ProgressView().tint(Palette.accent).frame(maxWidth: .infinity).padding(.top, 12).plainRow()
+            }
+        } else if !model.suggestedTopics.isEmpty {
+            groupHeader("SUGGESTED", trailing: nil).padding(.top, 8).plainRow()
+            ForEach(model.suggestedTopics) { topic in
+                TopicRowView(
+                    name: topic.name, detail: "\(topic.bills.formatted()) \(topic.bills == 1 ? "bill" : "bills")",
+                    spoken: Spoken.topicRow(topic), onOpen: { onOpenTopic(topic.name) }
+                ) {
+                    FollowPill(on: false, name: topic.name, hint: "Adds votes on its bills to Finals") {
+                        model.follows.toggle(topic: topic.name)
+                    }
+                }
+                .plainRow()
+            }
+        }
     }
 
     // MARK: Your reps

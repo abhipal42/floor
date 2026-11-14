@@ -88,14 +88,24 @@ export function topicNamed(name: string): string | null {
   return POLICY_AREAS.find((p) => p.toLowerCase() === key) ?? null;
 }
 
-/** Topics whose name contains every word of the query: "health" → Health; "public lands" → Public Lands…. */
+/** Words a search carries that name no topic, though "and" and "of" sit in many topic names. */
+const TOPIC_STOPWORDS = new Set(["and", "the", "for", "with", "act", "bill", "bills", "from", "into", "that", "this", "are", "not"]);
+
+/**
+ * Topics for a search. Names holding every word come first and alone ("public lands" → Public
+ * Lands…, not every topic with "public" in it); when none holds them all, any topic holding one of
+ * the words ("rural health" → Health). A word is a prefix of a name's word ("immig" → Immigration),
+ * at least three letters, and not a stopword: "and" alone matches nothing.
+ */
 export function matchTopics(q: string): string[] {
-  const words = q.toLowerCase().split(/[^a-z]+/).filter((w) => w.length >= 3);
+  const words = q
+    .toLowerCase()
+    .split(/[^a-z]+/)
+    .filter((w) => w.length >= 3 && !TOPIC_STOPWORDS.has(w));
   if (words.length === 0) return [];
-  return POLICY_AREAS.filter((p) => {
-    const area = p.toLowerCase();
-    return words.every((w) => new RegExp(`\\b${w}`).test(area));
-  });
+  const has = (area: string, w: string) => new RegExp(`\\b${w}`).test(area.toLowerCase());
+  const every = POLICY_AREAS.filter((p) => words.every((w) => has(p, w)));
+  return every.length > 0 ? every : POLICY_AREAS.filter((p) => words.some((w) => has(p, w)));
 }
 
 const LABEL_MAX = 160;

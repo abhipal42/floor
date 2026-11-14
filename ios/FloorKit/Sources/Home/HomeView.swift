@@ -36,7 +36,7 @@ public struct HomeView: View {
             VStack(alignment: .leading, spacing: 20) {
                 header
                 delegationStrip
-                if !model.yourMembers.isEmpty { scopeSwitch }
+                if model.followsAnything { scopeSwitch }
                 switch model.phase {
                 case .loading:
                     ProgressView().tint(Palette.accent).frame(maxWidth: .infinity).padding(.top, 40)
@@ -45,6 +45,9 @@ public struct HomeView: View {
                 case .loaded:
                     if let saved = model.saved { SavedDataNote(saved) }
                     if let note = model.unavailableNote {
+                        Text(note).scaledFont(12).foregroundStyle(Palette.textMuted)
+                    }
+                    if model.shownScope == .yours, let note = model.billLimitNote {
                         Text(note).scaledFont(12).foregroundStyle(Palette.textMuted)
                     }
                     if let latest = model.latestFinal {
@@ -179,15 +182,15 @@ public struct HomeView: View {
         .accessibilityLabel("Catch up, \(deck.count) finals. \(deck.filter { model.seenInDeck.contains($0.id) }.count) of \(deck.count) caught up")
     }
 
-    /// The mock's Finals switch: every recent final, or the ones your members voted on. Hidden
-    /// when you follow nobody, since then "All" is the only feed there is.
+    /// The mock's Finals switch: every recent final, or "Following" — the ones a member, bill or
+    /// topic you follow is in (Round 10; it read "Your members" before bills and topics could be
+    /// followed). Hidden when you follow nothing, since then "All" is the only feed there is.
     private var scopeSwitch: some View {
-        let count = model.yourMembers.count
-        return HStack(spacing: 4) {
+        HStack(spacing: 4) {
             ForEach(HomeModel.Scope.allCases, id: \.self) { option in
                 let on = model.shownScope == option
                 Button { model.scope = option } label: {
-                    Text(option == .all ? "ALL" : "YOUR MEMBERS · \(count)")
+                    Text(option == .all ? "ALL" : "FOLLOWING")
                         .font(Typography.label(13))
                         .tracking(0.6)
                         .foregroundStyle(on ? Palette.text : Palette.textMuted)
@@ -198,7 +201,7 @@ public struct HomeView: View {
                         .background(on ? Palette.chip : Color.clear, in: .rect(cornerRadius: 7))
                 }
                 .buttonStyle(.plain)
-                .accessibilityLabel(option == .all ? "All finals" : "Your members' finals, \(count) members")
+                .accessibilityLabel(option == .all ? "All finals" : "Finals on members, bills and topics you follow")
                 .accessibilityAddTraits(on ? [.isSelected] : [])
             }
         }
@@ -243,7 +246,8 @@ public struct HomeView: View {
                         vote: item.vote,
                         title: item.measure?.title ?? item.vote.question,
                         citation: item.measure?.citation,
-                        positions: item.memberPositions
+                        positions: item.memberPositions,
+                        matches: model.matches(item)
                     )
                 }
                 .buttonStyle(.plain)

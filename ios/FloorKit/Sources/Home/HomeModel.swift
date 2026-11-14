@@ -66,7 +66,8 @@ public struct FeedItem: Identifiable, Sendable, Hashable {
 
 
 /// Loads the recent votes of everyone you follow — your reps (unless hidden) and the members you
-/// added — merges them into one feed, and the latest finals in both chambers beside it.
+/// added — and of the bills and topics you follow, merges them into one feed (Finals' "Following"),
+/// and the latest finals in both chambers beside it.
 @MainActor
 @Observable
 public final class HomeModel {
@@ -85,7 +86,8 @@ public final class HomeModel {
         }
     }
 
-    /// Finals' first switch: every recent final, or only the ones your members voted on.
+    /// Finals' first switch: every recent final, or "Following" — the ones a member, bill or topic
+    /// you follow is in (`yours`, named before bills and topics could be followed).
     public enum Scope: String, CaseIterable, Sendable {
         case all
         case yours
@@ -106,6 +108,19 @@ public final class HomeModel {
     public internal(set) var allItems: [FeedItem] = []
     /// Each member's recent votes, newest first, by Bioguide ID: the Following tab's latest-vote chip.
     public internal(set) var records: [String: [MemberVote]] = [:]
+    /// Each followed bill as `GET /v1/bills/{id}` last gave it, by id: its votes are in the Following
+    /// feed, and its stage and latest action are the Following tab's Bills.
+    public internal(set) var billRecords: [String: Bill] = [:]
+    /// The latest finals on bills in the topics you follow (`/v1/votes?topic=…`), both chambers.
+    var topicRows: [RecentVote] = []
+    /// The topics and chamber `topicRows` was fetched for, or nil before any fetch did.
+    private var topicsLoadedFor: (topics: Set<String>, chamber: Chamber?)?
+    /// Followed bills whose record could not be loaded at all, by id.
+    public private(set) var unavailableBills: [String] = []
+    /// All 32 topics with their counts: the Following tab's Topics. Loaded when that segment shows.
+    public private(set) var topicList: TopicList?
+    /// Set when the topics could not be loaded and none were saved.
+    public private(set) var topicListError: String?
     public var filter: Filter = .all
     /// Defaults to your members when you have any; with none, "All" is the only feed there is.
     public var scope: Scope
@@ -142,7 +157,9 @@ public final class HomeModel {
         self.follows = follows
         self.api = api
         self.perMember = perMember
-        scope = follows.state.yourMembers(reps: delegation?.members ?? []).isEmpty ? .all : .yours
+        let state = follows.state
+        scope = state.yourMembers(reps: delegation?.members ?? []).isEmpty && state.followedBillIds.isEmpty
+            && state.followedTopics.isEmpty ? .all : .yours
     }
 
     /// For previews and tests: a follow list that lives only in memory.
@@ -156,6 +173,8 @@ public final class HomeModel {
         case vote(id: String)
         case bill(id: String)
         case member(id: String)
+        /// A topic's page: every bill in one CRS policy area.
+        case topic(name: String)
         /// The catch-up deck.
         case catchUp
     }
@@ -165,6 +184,79 @@ public final class HomeModel {
 
     /// Your reps (minus any you hid) then everyone you follow: who "Your members" means.
     public var yourMembers: [Member] { follows.state.yourMembers(reps: reps) }
+
+    /// The bills you follow, by id, in your order.
+    public var followedBillIds: [String] { follows.state.followedBillIds }
+
+    /// The topics you follow, in your order.
+    public var followedTopics: [String] { follows.state.followedTopics }
+
+    /// How many followed bills the feed fetches, one request each: the most recently followed.
+    /// The rest are listed from their saved rows, and their votes are not in Finals (`billLimitNote`).
+    static let billFetchLimit = 20
+
+    /// The followed bills whose records the feed fetches — the ``billFetchLimit`` most recently
+    /// followed — in your order.
+    public var fetchedBillIds: [String] {
+        let entries = follows.state.entries(.bill)
+        guard entries.count > Self.billFetchLimit else { return entries.map(\.id) }
+        let newest = Set(entries.sorted { $0.followedAt > $1.followedAt }.prefix(Self.billFetchLimit).map(\.id))
+        return entries.map(\.id).filter(newest.contains)
+    }
+
+    /// Said under the feed and the Bills list when you follow more bills than the feed fetches.
+    public var billLimitNote: String? {
+        let rest = followedBillIds.count - fetchedBillIds.count
+        guard rest > 0 else { return nil }
+        return "Finals has votes on your \(Self.billFetchLimit) most recently followed bills. "
+            + "The other \(rest) \(rest == 1 ? "is" : "are") listed as last saved."
+    }
+
+    /// Anything to put in Finals' "Following": a member, a bill or a topic.
+    public var followsAnything: Bool {
+        !yourMembers.isEmpty || !followedBillIds.isEmpty || !followedTopics.isEmpty
+    }
+
+    /// The Following tab's Bills, in your order: each bill's freshest row — from its record when it
+    /// has loaded, else as saved when you followed it. A fresh record from a response saved before
+    /// the API sent stages keeps the saved row's stage and label rather than losing them.
+    public var followedBills: [BillListItem] {
+        follows.state.entries(.bill).compactMap { entry in
+            guard let record = billRecords[entry.id] else { return entry.bill }
+            return BillListItem(bill: record, keeping: entry.bill)
+        }
+    }
+
+    /// The Following tab's followed topics, each with its counts once `/v1/topics` has answered.
+    public var followedTopicRows: [(name: String, topic: Topic?)] {
+        followedTopics.map { name in (name, topicList?.topics.first { $0.name == name }) }
+    }
+
+    /// Topics you don't follow, biggest first: the Following tab's suggestions.
+    public var suggestedTopics: [Topic] {
+        let followed = Set(followedTopics)
+        return Array((topicList?.topics ?? [])
+            .filter { !followed.contains($0.name) && $0.bills > 0 }
+            .sorted { ($0.bills, $1.name) > ($1.bills, $0.name) }
+            .prefix(Self.suggestionCount))
+    }
+
+    static let suggestionCount = 6
+
+    /// Why `item` is in the Following feed beyond its member chips: the bills and topics you follow
+    /// that it is on. One card per vote whatever matched, so a vote on a followed bill in a followed
+    /// topic, with followed members on it, is one card that says both.
+    public func matches(_ item: FeedItem) -> [FollowMatch] {
+        Self.matches(item, bills: Set(followedBillIds), topics: Set(followedTopics))
+    }
+
+    nonisolated static func matches(_ item: FeedItem, bills: Set<String>, topics: Set<String>) -> [FollowMatch] {
+        guard let measure = item.measure, measure.kind == .bill else { return [] }
+        var found: [FollowMatch] = []
+        if bills.contains(measure.id) { found.append(.bill(citation: measure.citation)) }
+        if let area = measure.policyArea, topics.contains(area) { found.append(.topic(area)) }
+        return found
+    }
 
     /// Your members as the vote route can take them for one vote: `?members=` names at most ten, so
     /// the ones the feed knows voted on it go first, then the rest of your members in order.
@@ -189,12 +281,17 @@ public final class HomeModel {
     }
 
     /// The "+ Add" sheet's search, a fresh one each time it opens.
-    public func memberSearch() -> MemberSearchModel {
-        MemberSearchModel(api: api)
+    public func followSearch() -> FollowSearchModel {
+        FollowSearchModel(api: api)
     }
 
-    /// The scope actually shown: "Your members" needs someone in it.
-    public var shownScope: Scope { yourMembers.isEmpty ? .all : scope }
+    /// A topic's page.
+    public func topicPage(name: String) -> TopicPageModel {
+        TopicPageModel(name: name, api: api)
+    }
+
+    /// The scope actually shown: "Following" needs something followed.
+    public var shownScope: Scope { followsAnything ? scope : .all }
 
     /// The feed for the scope, before the chamber filter: the board, the deck and the cards.
     public var scopedItems: [FeedItem] { shownScope == .yours ? items : allItems }
@@ -224,10 +321,13 @@ public final class HomeModel {
         return loadedFor == nil
     }
 
-    /// Changes when the set of your members or the chamber filter does, for the view's
-    /// `.task(id:)`, which runs `sync`. Order is left out: reordering only regroups (`orderKey`).
+    /// Changes when the set of your members, of the bills or topics you follow, or the chamber
+    /// filter does, for the view's `.task(id:)`, which runs `sync`. Order is left out: reordering
+    /// only regroups (`orderKey`).
     public var syncKey: String {
-        yourMembers.map(\.bioguideId).sorted().joined(separator: ",") + "|" + filter.rawValue
+        [yourMembers.map(\.bioguideId), followedBillIds, followedTopics]
+            .map { $0.sorted().joined(separator: ",") }
+            .joined(separator: "|") + "|" + filter.rawValue
     }
 
     /// Changes when the order of your members does: the cards list them in that order.
@@ -238,20 +338,27 @@ public final class HomeModel {
 
     /// Everything, from scratch: first load, pull to refresh.
     public func load() async {
-        await fetch(yourMembers, replacing: true, recent: true)
+        await fetch(yourMembers, bills: fetchedBillIds, replacing: true, recent: true, topics: true)
     }
 
-    /// Brings the feed up to date with your members and the chamber filter, fetching only what is
-    /// missing: a newly followed member's record, or the latest finals for a newly picked chamber.
-    /// Unfollowing, hiding and reordering fetch nothing; the cards are regrouped from what is held.
+    /// Brings the feed up to date with what you follow and the chamber filter, fetching only what is
+    /// missing: a newly followed member's or bill's record, the topics' votes when a topic was
+    /// added, or the latest finals for a newly picked chamber. Unfollowing, hiding and reordering
+    /// fetch nothing; the cards are regrouped from what is held.
     public func sync() async {
         guard !needsRefresh else {
             await load()
             return
         }
         let missing = yourMembers.filter { records[$0.bioguideId] == nil }
-        if !missing.isEmpty {
-            await fetch(missing, replacing: false, recent: false)
+        let missingBills = fetchedBillIds.filter { billRecords[$0] == nil }
+        // A topic added, or the chamber switched: the topics' finals are asked for by chamber.
+        let topics = Topic.canonical(followedTopics)
+        let topicsDue = !topics.isEmpty && (topicsLoadedFor.map {
+            !Set(topics).isSubset(of: $0.topics) || $0.chamber != filter.chamber
+        } ?? true)
+        if !missing.isEmpty || !missingBills.isEmpty || topicsDue {
+            await fetch(missing, bills: missingBills, replacing: false, recent: false, topics: topicsDue)
         } else {
             loadedFor = Set(yourMembers.map(\.bioguideId))
             regroup()
@@ -259,14 +366,39 @@ public final class HomeModel {
         if recentChamber != .some(filter.chamber) { await loadRecent() }
     }
 
-    /// The cards again from the records held, in your members' current order.
+    /// The cards again from the records held, in your members' current order: your members' votes,
+    /// then every vote on a bill you follow and the topics' latest finals, one card per vote.
     public func regroup() {
         let members = yourMembers
-        items = Self.merge(members.compactMap { m in records[m.bioguideId].map { (m, $0) } },
-                           order: members.map(\.bioguideId))
+        let memberItems = Self.merge(members.compactMap { m in records[m.bioguideId].map { (m, $0) } },
+                                     order: members.map(\.bioguideId))
+        let topics = Set(followedTopics)
+        let billVotes = fetchedBillIds.compactMap { billRecords[$0] }.flatMap { bill in
+            bill.votes.map { RecentVote(vote: $0, measure: bill.measure) }
+        }
+        // Rows for a topic since unfollowed stay out without a refetch.
+        let topicVotes = topicRows.filter { $0.measure?.policyArea.map(topics.contains) ?? false }
+        items = Self.combine(memberItems, with: billVotes + topicVotes)
         if recentChamber != nil { allItems = Self.annotate(recentRows, with: items) }
         let ids = Set(members.map(\.bioguideId))
         unavailable = unavailable.filter { ids.contains($0.bioguideId) }
+        let billIds = Set(followedBillIds)
+        unavailableBills = unavailableBills.filter(billIds.contains)
+    }
+
+    /// Loads the 32 topics and their counts for the Following tab's Topics, saved first then fresh.
+    public func loadTopics() async {
+        do {
+            try await revalidate(api, report: { _ in }) { pass in
+                topicList = try await pass.api.topics()
+                topicListError = nil
+            }
+        } catch is CancellationError {
+        } catch {
+            if topicList == nil {
+                topicListError = (error as? FloorAPIError)?.errorDescription ?? "Couldn't load topics."
+            }
+        }
     }
 
     /// The latest finals for the chamber picked, so "All" + Senate is the Senate's latest forty
@@ -286,10 +418,12 @@ public final class HomeModel {
         }
     }
 
-    /// Loads `members`' records — each on its own, so one that fails leaves the rest — and, with
-    /// `recent`, the latest finals. `replacing` starts the records afresh (a full load); otherwise
-    /// they are added to what is held.
-    private func fetch(_ members: [Member], replacing: Bool, recent includeRecent: Bool) async {
+    /// Loads `members`' and `bills`' records — each on its own, so one that fails leaves the rest —
+    /// with `topics` the followed topics' latest finals, and with `recent` the latest finals.
+    /// `replacing` starts the records afresh (a full load); otherwise they are added to what is held.
+    private func fetch(
+        _ members: [Member], bills: [String], replacing: Bool, recent includeRecent: Bool, topics includeTopics: Bool
+    ) async {
         generation += 1
         let mine = generation
         // A feed already on screen stays there while it refreshes, rather than flashing a spinner.
@@ -299,6 +433,9 @@ public final class HomeModel {
         }
         let everyone = yourMembers
         let chamber = filter.chamber
+        // Only the 32 are sent; a name that is not one (a hand edit, a renamed area) is no request.
+        let topics = Topic.canonical(followedTopics)
+        let anything = followsAnything
 
         do {
             // Saved feed first, then the network; see `revalidate`.
@@ -320,17 +457,58 @@ public final class HomeModel {
                         firstError = firstError ?? error
                     }
                 }
-                // Nobody's record came: that is the feed failing, with the first member's own error.
-                if loaded.isEmpty, let firstError { throw firstError }
-                // With nobody to follow, the latest finals are the whole feed and must load; beside
-                // your members' feed they are best-effort, so one failing route cannot blank it.
-                let recent: [RecentVote]? = !includeRecent ? nil : everyone.isEmpty
+                // One request per followed bill, six at a time: its votes and where it stands.
+                let billResults = try await throttledMap(bills) { id in
+                    (id, await pass.attempt { try await $0.bill(id: id) })
+                }
+                var loadedBills: [String: Bill] = [:]
+                var failedBills: [String] = []
+                for (id, result) in billResults {
+                    switch result {
+                    case let .success(bill): loadedBills[id] = bill
+                    case let .failure(error):
+                        if error is CancellationError { throw error }
+                        failedBills.append(id)
+                        firstError = firstError ?? error
+                    }
+                }
+                // Nothing you follow came: that is the feed failing, with the first one's own error.
+                if loaded.isEmpty, loadedBills.isEmpty, let firstError { throw firstError }
+                // The topics' latest finals: one request for all of them, in the chamber on screen,
+                // best-effort. nil (failed, nothing saved) keeps the rows held and leaves the topics
+                // due for the next sync.
+                let topicVotes: [RecentVote]? = !includeTopics ? nil : topics.isEmpty ? []
+                    : await pass.bestEffort {
+                        try await $0.recentVotes(chamber: chamber, limit: Self.recentLimit, topics: topics).votes
+                    }
+                // Following nothing at all, the latest finals are the whole feed and must load; beside
+                // a Following feed (members, bills or topics) they are best-effort, so one failing
+                // route cannot blank it.
+                let recent: [RecentVote]? = !includeRecent ? nil : !anything
                     ? try await pass.api.recentVotes(chamber: chamber, limit: Self.recentLimit).votes
                     : await pass.bestEffort { try await $0.recentVotes(chamber: chamber, limit: Self.recentLimit).votes }
                 guard mine == generation else { throw CancellationError() }
-                if replacing { records = [:] }
+                if replacing {
+                    records = [:]
+                    billRecords = [:]
+                }
                 records.merge(loaded, uniquingKeysWith: { _, new in new })
                 unavailable = (replacing ? [] : unavailable.filter { loaded[$0.bioguideId] == nil }) + failed
+                billRecords.merge(loadedBills, uniquingKeysWith: { _, new in new })
+                unavailableBills = (replacing ? [] : unavailableBills.filter { loadedBills[$0] == nil }) + failedBills
+                if let topicVotes {
+                    topicRows = topicVotes
+                    topicsLoadedFor = (Set(topics), chamber)
+                }
+                // The saved rows follow the bills, so the list reads right before the next fetch.
+                if !loadedBills.isEmpty {
+                    follows.update { state in
+                        for bill in loadedBills.values {
+                            let saved = state.entries(.bill).first { $0.id == bill.id }?.bill
+                            state.refresh(bill: BillListItem(bill: bill, keeping: saved))
+                        }
+                    }
+                }
                 if let recent {
                     recentRows = recent
                     recentChamber = .some(chamber)
@@ -347,8 +525,9 @@ public final class HomeModel {
         } catch {
             guard mine == generation else { return }
             if case .loaded = phase, !replacing {
-                // A newly followed member failed to load: the feed on screen stays, and says so.
+                // A newly followed member or bill failed to load: the feed on screen stays, and says so.
                 unavailable += members.filter { records[$0.bioguideId] == nil && !unavailable.contains($0) }
+                unavailableBills += bills.filter { billRecords[$0] == nil && !unavailableBills.contains($0) }
                 return
             }
             saved = nil
@@ -356,13 +535,31 @@ public final class HomeModel {
         }
     }
 
-    /// "Couldn't load Cruz's votes." / "Couldn't load 3 members' votes: Cruz, Cornyn and Jeffries."
+    /// Finals' note: the members' then the bills'.
     public var unavailableNote: String? {
+        let notes = [unavailableMembersNote, unavailableBillsNote].compactMap(\.self)
+        return notes.isEmpty ? nil : notes.joined(separator: " ")
+    }
+
+    /// "Couldn't load Cruz's votes." / "Couldn't load 3 members' votes: Cruz, Cornyn and Jeffries."
+    public var unavailableMembersNote: String? {
         let names = unavailable.map(\.lastName)
-        guard let first = names.first else { return nil }
-        if names.count == 1 { return "Couldn't load \(first)'s votes." }
-        let list = names.dropLast().joined(separator: ", ") + " and " + names.last!
-        return "Couldn't load \(names.count) members' votes: \(list)."
+        if names.count == 1 { return "Couldn't load \(names[0])'s votes." }
+        if names.count > 1 { return "Couldn't load \(names.count) members' votes: \(Self.list(names))." }
+        return nil
+    }
+
+    /// The Bills list's note: "Couldn't load H.R. 1013." / "Couldn't load 2 bills: H.R. 1013 and S. 2."
+    public var unavailableBillsNote: String? {
+        let saved = Dictionary(follows.state.followedBills.map { ($0.id, $0.citation) }, uniquingKeysWith: { a, _ in a })
+        let bills = unavailableBills.map { saved[$0] ?? $0 }
+        if bills.count == 1 { return "Couldn't load \(bills[0])." }
+        if bills.count > 1 { return "Couldn't load \(bills.count) bills: \(Self.list(bills))." }
+        return nil
+    }
+
+    private nonisolated static func list(_ names: [String]) -> String {
+        names.count == 1 ? names[0] : names.dropLast().joined(separator: ", ") + " and " + names.last!
     }
 
     /// Best-effort: a record that fails to refresh falls back to its saved ring, and the note says
@@ -386,7 +583,7 @@ public final class HomeModel {
     /// built from the feeds already loaded.
     public var bills: [FeedItem] {
         var seen = Set<String>()
-        return (yourMembers.isEmpty ? allItems : items).filter { item in
+        return (followsAnything ? items : allItems).filter { item in
             guard let measure = item.measure, measure.kind == .bill else { return false }
             return seen.insert(measure.id).inserted
         }
@@ -432,7 +629,12 @@ public final class HomeModel {
                 }
             }
         }
-        return byVote.values.sorted { lhs, rhs in
+        return newestFirst(Array(byVote.values))
+    }
+
+    /// Newest vote first; a vote with no timestamp last; ties by id, so the order is stable.
+    nonisolated static func newestFirst(_ items: [FeedItem]) -> [FeedItem] {
+        items.sorted { lhs, rhs in
             switch (lhs.vote.occurredAtDate, rhs.vote.occurredAtDate) {
             case let (l?, r?) where l != r: l > r
             case (nil, _?): false
@@ -440,6 +642,26 @@ public final class HomeModel {
             default: lhs.vote.id > rhs.vote.id
             }
         }
+    }
+
+    /// Your members' cards plus the votes on bills and in topics you follow, one card per vote: a
+    /// vote already on a member's card stays that card (its measure filled in if the card lacked
+    /// one, or lacked its topic), and any other becomes a card with no chips.
+    nonisolated static func combine(_ items: [FeedItem], with extra: [RecentVote]) -> [FeedItem] {
+        var byVote = Dictionary(items.map { ($0.vote.id, $0) }, uniquingKeysWith: { a, _ in a })
+        for row in extra {
+            if var known = byVote[row.vote.id] {
+                if known.measure == nil {
+                    known.measure = row.measure
+                } else if known.measure?.policyArea == nil, let fuller = row.measure, fuller.id == known.measure?.id {
+                    known.measure?.policyArea = fuller.policyArea
+                }
+                byVote[row.vote.id] = known
+            } else {
+                byVote[row.vote.id] = FeedItem(vote: row.vote, measure: row.measure, positions: [])
+            }
+        }
+        return newestFirst(Array(byVote.values))
     }
 
     /// The latest finals as cards, each carrying your members' positions where your feed has that

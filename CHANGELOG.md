@@ -8,6 +8,59 @@ is a milestone and ships a retro under `docs/retros/`.
 Older series live in [`docs/changelog/`](docs/changelog) (0.1.x: [`0.1.md`](docs/changelog/0.1.md)).
 Before 0.1.0 the history is the commit log on `main`.
 
+## 0.2.29 — 2026-11-13
+
+Round 10 on the phone: follow bills and topics. Built to the locked design
+<https://claude.ai/artifact/8Qfr9ymPEKuYGSLjiuXdS2>.
+
+### Added
+- **Following tab: Members · Bills · Topics.** Members is v0.2.28's list unchanged. Bills: each
+  followed bill's citation, a stage chip (`LAW`, `PASSED HOUSE`, `SENATE CALENDAR`, `IN COMMITTEE`,
+  `VOTE FAILED`…, from the stored stage and the latest action), its label, latest step and date, and
+  the five-step road. Topics: followed topics with their counts, then the six biggest others to
+  follow. Swipe (or VoiceOver's action) to unfollow.
+- **Topic page**: every bill in one CRS policy area, newest action first, All / Moving / Law /
+  Stalled, 25 a page by cursor as you scroll; Follow beside the name; loading, empty, error and a
+  saved first page offline. Each row opens the bill screen.
+- **Bill screen**: Follow bill beside the citation, and a Topic card linking to the topic's page
+  that says whether you follow it.
+- **"+ Add" is one search** over members, bills and topics (`GET /v1/search`), grouped Topics,
+  Bills, Members; a bill number in any spelling shows just that bill. Member rows keep their Follow
+  toggle; tapping a bill or topic opens it. Replaces the member-only sheet.
+- **API**: `GET /v1/votes?topic=` (repeatable; names hold commas) narrows the latest finals to bills
+  in those topics; `MeasureSummary.policyArea` on every vote's measure; `Bill.label` and
+  `Bill.stage` (read through `to_jsonb`, so a database without the catalog migration still serves
+  bills). OpenAPI regenerated; Swift models and `ContractTests` follow.
+
+### Changed
+- **Finals' "Your members" is "Following"**: a vote shows if it involves a followed member, a
+  followed bill (its own votes, one `/v1/bills/{id}` request per bill, six at a time) or a bill in a
+  followed topic (one `/v1/votes?topic=…` request for all of them). One card per vote; the card says
+  which bill and topic matched ("H.R. 1013 you follow · Health"), members stay as chips.
+- `FollowEntry` carries a followed bill's list row (`bill`), refreshed when the bill loads. Older
+  records open unchanged; no migration.
+- Snapshot references: `homeLoaded` (light, dark, AX5) re-recorded for the "Following" switch;
+  18 new images (15 tests) for the new screens.
+
+### Fixed (review of #38)
+- **Member search** in "+ Add" is v0.2.28's again: `/v1/search` reads members with
+  `/v1/members?q=`'s reader (folded names, `DC-1`, `N.Y.`, Washington as state and surname, up to
+  60 so a whole state fits) and takes `chamber`; `memberQuery` and `catalog.searchMembers` are
+  deleted. The sheet's All / Senate / House switch is back, members grouped by chamber.
+- **Topic page paging** no longer stalls after a filter change or refresh during a next page (the
+  request is cancelled), and never pages from the saved copy's cursor.
+- `VOTE FAILED` only for measure-level failures (motion to proceed, cloture on it or the measure,
+  failed of passage), not amendments or motions to commit, recommit, waive or instruct;
+  `IN COMMITTEE` not for a discharge or the Committee of the Whole.
+- Topic search: every word first, then any non-stopword word ("rural health" → Health).
+- A follow record with one unreadable entry or blob keeps the rest instead of reading as empty.
+- Finals fetches at most the 20 most recently followed bills (and says so); topic votes are asked
+  for in the chamber on screen; bills- or topics-only feeds survive `/v1/votes` failing; topics are
+  clamped to the 32 before sending, and the bill screen's Topic card shows only for those.
+- The bill screen refreshes a followed bill's saved row; Bills' count is its list; topic Unfollow
+  never re-follows; bill and member load failures are noted separately; the topic page's name shows
+  once.
+
 ## 0.2.28 — 2026-11-13
 
 Following: follow any member of Congress, not just your three. Built to the locked mock

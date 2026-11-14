@@ -14,7 +14,9 @@ built but not deployed** (v0.2.24): the live worker, vote state, `/v1/live`, rea
 alerting plumbing. Turning it on needs a Fly account and a migration applied; see the M3 section.
 **Round 10's server side is built** (v0.2.26): every bill of the Congress (not only voted ones),
 a stored road-to-law stage, and `/v1/topics`, `/v1/topics/{name}/bills` and `/v1/search`. It waits
-on a migration and a 10–16-hour backfill; see "Round 10" in §5.
+on a migration and a 10–16-hour backfill; see "Round 10" in §5. **Its phone side shipped in v0.2.29**:
+the Following tab's Members · Bills · Topics, a topic's page, one "+ Add" search, Follow bill on
+the bill screen, and Finals' "Following" (members, bills and topics); see "Round 10 on the phone".
 
 ---
 
@@ -67,7 +69,7 @@ npm run ingest -w @floor/worker -- latency 30                     # roll call po
 npm run loadtest -w @floor/api -- --duration 30 --connections 50 # vote-night load test against a LOCAL API (refuses production)
 npm run openapi -w @floor/api                                    # regenerate apps/api/openapi.json after changing routes
 npm run build -w @floor/web && npm run serve -w @floor/web       # build and serve the landing page from apps/web/dist
-swift test --package-path ios/FloorKit                           # all FloorKit tests (408): models, contract, client, screen models, snapshots
+swift test --package-path ios/FloorKit                           # all FloorKit tests (441 on macOS; snapshots run only on the iOS 26.2 simulator, 39 more)
 ```
 
 `apps/api/openapi.json` is the committed contract. Re-run `npm run openapi` after any change to
@@ -110,15 +112,15 @@ Command Line Tools rather than Xcode: run it with `DEVELOPER_DIR=/Applications/X
 | `GET /v1/members/{id}` | A member, plus how often they sided with their own party's majority |
 | `GET /v1/members/{id}/funding` | Their current campaign's money: what the campaign reported receiving (small-dollar, itemized, PAC, party, other, cash on hand) and the committees that reported giving to it, biggest direct giver first. `?committees=` (0-50, default 10). No individual donor is named |
 | `GET /v1/members/{bioguideId}/votes?limit=` | A member's recent votes with their position (and candidate, for Speaker elections) |
-| `GET /v1/votes?chamber=&limit=&before=` | The most recent **final** votes, newest first (`limit` 1–100, default 40), each with its `measure` (the same summary a member's record carries) and nobody's position: Finals' "All" (asked per chamber when one is picked), and the whole feed for someone who follows nobody. `before` (ISO time, e.g. the last vote's `occurredAt`) pages back. Edge-cached (`VOTES_CACHE_CONTROL`: 30 s, 60 s at the edge) and rate limited, 120 a minute per caller (`VOTES_RATE_LIMIT`; `/v1/votes/{id}` is not) |
+| `GET /v1/votes?chamber=&limit=&before=` | The most recent **final** votes, newest first (`limit` 1–100, default 40), each with its `measure` (the same summary a member's record carries) and nobody's position: Finals' "All" (asked per chamber when one is picked), and the whole feed for someone who follows nobody. `before` (ISO time, e.g. the last vote's `occurredAt`) pages back. `topic=` (repeatable, since topic names hold commas; any case; up to 32) keeps only votes on bills in those CRS policy areas — Finals' "Following" for the topics you follow; names that are not topics match nothing (an empty list, not every vote). Every `measure` carries `policyArea` (null for a nomination). Edge-cached (`VOTES_CACHE_CONTROL`: 30 s, 60 s at the edge) and rate limited, 120 a minute per caller (`VOTES_RATE_LIMIT`; `/v1/votes/{id}` is not) |
 | `GET /v1/votes/{id}` | One vote: totals, threshold, kind, bill link, **per-party breakdown**, and for a Speaker election **which candidate each party backed**. `?members=A000370,C001098` (up to ten) also returns those members' own positions, so the vote screen loads your delegation in one round trip. IDs look like `house-119-1-100` |
-| `GET /v1/bills/{id}` | Title, short title, CRS summary, sponsor, policy area, CBO estimates, last 30 actions, every vote on it. IDs look like `119-hr-2207` |
+| `GET /v1/bills/{id}` | Title, short title, the list `label` (as `BillListItem.label`), the road-to-law `stage` (null until staged; read through `to_jsonb(b) ->> 'stage'`, so a database without the catalog migration still serves bills), CRS summary, sponsor, policy area, CBO estimates, last 30 actions, every vote on it. IDs look like `119-hr-2207` |
 | `GET /v1/bills/{id}/analysis` | AI analysis of the bill's CRS summary (M4 Layer 1): purpose, provisions, affected groups, impact. `ai: true` on the response and on every line, a `disclaimer` to show with it, and per line the summary paragraph it cites (1-based, into `source.paragraphs`), a verbatim quote and the bill section. `source.stale` means the summary has changed since and a new analysis is pending. 404 until the worker has analysed the bill (the app reads that as "none" and saves it like a response). Shown at the top of the Bill screen since v0.2.27 |
 | `GET /v1/nominations/{id}` | Nominee, position, agency, received and latest action, every Senate vote on it. IDs look like `119-pn-1093-3` |
 | `GET /v1/live?since=` | Each chamber's session state as the live worker last saw it (`inSession`, `convenesAt`, `checkedAt`), and the votes that are `open` (named in the last day) or that the worker published as `final` within `since` minutes (`broadcast_at`; default 120, max 1440) and that were themselves voted in the last day, with `openedAt` / `announcedAt` / `postedAt`. Sent with `Cache-Control: public, max-age=5, s-maxage=5`, so Vercel's edge answers vote-night polling. Empty — `{chambers: [], votes: []}`, not an error — on a database without the M3 migration (Postgres `42P01`/`42703` are read as "nothing live"), and until the worker runs |
 | `GET /v1/topics?congress=` | The 32 CRS policy areas in a fixed order, each with its bill count, how many of those had a floor vote, and the latest action date, for one Congress (default: the one in session). Areas with no bills are listed with zeros. Cached (`TOPICS_CACHE_CONTROL`, 5 min / edge 15 min); 120 a minute per caller |
 | `GET /v1/topics/{name}/bills?filter=all\|moving\|law\|stalled&cursor=&limit=` | A topic's bills, newest action first, 25 a page (max 50), keyset-paginated: pass `nextCursor` back as `cursor`. Each row: citation, plain short `label`, full title, `stage` (null for a bill not yet fetched in detail, which counts as unsettled), `stalled`, latest action, `hasFloorVote`. The cursor carries the stored action date, so a row with a date but no action text pages correctly. `moving` = not settled and acted on in 90 days; `stalled` = not settled, no action in 90 days (computed per request); settled = law, adopted, vetoed, failed. `name` is case-insensitive (`health`, `Arts%2C%20Culture%2C%20Religion`); 404 for anything not one of the 32, 400 for a cursor it did not issue. Same cache and limit as `/v1/topics`, and one count shared with it (each request counts once) |
-| `GET /v1/search?q=` | `{members, bills, topics}` in one call. A bill number in any spelling (`hr 1013`, `H.R.1013`, `s 2`, `hjres 12`, `s.j.res.197`, `119-hr-1013`) returns exactly that bill in every Congress, newest first, with `billNumber: true`, and nothing else. Otherwise words match bills by Postgres full-text search (short title, title, CRS summary; GIN index; current Congress ranked first; 20 max), topics by name, and serving members by name, state (`TX`, `Texas`) or district (`TX-35`, `WY-AL`) via `memberQuery` in `pg.ts` (10 max). Companion bills (the House and Senate versions of one measure) are separate results, not linked. 2–100 characters. Cached 1 min / edge 5 min; 60 a minute per caller |
+| `GET /v1/search?q=` | `{members, bills, topics}` in one call. A bill number in any spelling (`hr 1013`, `H.R.1013`, `s 2`, `hjres 12`, `s.j.res.197`, `119-hr-1013`) returns exactly that bill in every Congress, newest first, with `billNumber: true`, and nothing else. Otherwise words match bills by Postgres full-text search (short title, title, CRS summary; GIN index; current Congress ranked first; 20 max), topics by name, and sitting members exactly as `/v1/members?q=` reads them — the same reader (`parseMemberQuery` in `search.ts`, then `members.search`), up to 60, Senate first, so a whole state (Texas's 40) fits; optional `chamber` narrows the members only. Topics: names holding every word, else any holding one non-stopword word ("rural health" → Health; "and" → nothing). Companion bills (the House and Senate versions of one measure) are separate results, not linked. 2–100 characters. Cached 1 min / edge 5 min; 60 a minute per caller |
 | `GET /v1/status` | Per ingest source: last successful run, `lastNewDataAt` (last successful run that stored anything — the freshness signal `stale` cannot give once ingest is scheduled, lesson 38), the error of its latest run with an outcome (null once a later run succeeds; `abandoned run` for one that never finished within an hour, lessons 35 and 38), and `stale` |
 | `GET /openapi.json` | The contract. The Swift models are hand-written against it, and `ContractTests` fail CI if they drift (see M2). |
 
@@ -494,6 +496,13 @@ Real data broke our first assumptions several times. Each case below is now hand
     `fec-totals` still uses the plain rule, so its runs skip those two until upstream updates their
     terms (their saved totals stay as they were). Two smaller things the same run showed: `Zz` is not a no-results example
     (it matches Lizzie Fletcher and Suozzi), and `jeff` puts Merkley (Jeff, Senate) before Jeffries.
+53. **On iOS 26 a toolbar item gets its own glass capsule.** The first snapshots of the topic page put
+    the Follow pill in `.toolbar` as the mock does; iOS 26 drew it on a white glass capsule, so in dark
+    mode the outlined "✓ FOLLOWING" (white text, clear fill) vanished into a blank white box, and in
+    light mode the pill sat inside a second capsule. The pills now sit in the screen beside the title.
+    `sharedBackgroundVisibility(.hidden)` would remove the glass but is iOS 26-only, and the package
+    targets 17.2. A control in a navigation bar on this OS has to be designed for the glass, not
+    dropped onto it.
 
 ---
 
@@ -732,7 +741,7 @@ The working rhythm: break each milestone into tasks. For each task, write tests 
   eye on a simulator screenshot, and the unit tests cannot reach that layer.
 
   **Snapshot tests.** `ios/FloorKit/Tests/SnapshotTests`, references in its `__Snapshots__/`.
-  - **What is covered** (53 images from 24 tests, about 13 MB): `ScoreboardCard` in ten states — passed with three
+  - **What is covered** (71 images from 39 tests, about 18 MB; Round 10's are listed under "Round 10 on the phone"): `ScoreboardCard` in ten states — passed with three
     digits a side (295–128), failed short of two-thirds, nay leading one digit against two (1–94),
     a 424–0 shutout, a 1,309-character title, a procedural vote with no citation, two senators on
     one card, a Speaker ballot that elected nobody, open, scheduled — each in **light, dark and the
@@ -1395,7 +1404,7 @@ Congress can be followed.
   and only the widget can't see it). It holds **entries** — `(kind, id, followedAt, member?)`, newest
   first, in your order — the ids of **reps you hid**, and **alert choices**. Entries are generic on
   purpose: `kind` is `member`, `bill` or `topic` (a CRS policy area), so following bills and topics,
-  the next round, needs no storage migration; only members have UI. A member entry carries the
+  the next round, needed no storage migration (bills and topics have UI since v0.2.29). A member entry carries the
   member's public record so the list, the feed and the widget can name them without a request.
   Decoding tolerates missing fields and drops duplicates; an unreadable record reads as following
   nobody. `Follows` is the observable wrapper the screens use; every change saves and reloads the
@@ -1426,7 +1435,7 @@ Congress can be followed.
   and Unfollow actions; Shown/Hidden is a switch (toggle trait, value "Shown"/"Hidden"). Empty states as the mock: no district → "Find my
   reps"; nobody followed → "Find members to follow". The loyalty and chips come from Finals' own
   load, so the tab adds no requests.
-- **Adding** (`Home/MemberSearch.swift`): "+ Add" opens a sheet searching `/v1/members?q=`, 300 ms
+- **Adding** (v0.2.28; **replaced in v0.2.29** by one search over members, bills and topics — see "Round 10 on the phone"): "+ Add" opened a sheet searching `/v1/members?q=`, 300 ms
   after the last keystroke (`.task(id:)` cancels the one in flight), with All / Senate / House,
   results grouped Senate then House with counts, a Follow / Following toggle (your own reps read
   "Your rep" instead), a no-results card naming the query, a spinner in the field and an error
@@ -1437,7 +1446,7 @@ Congress can be followed.
   final from `/v1/votes` (no member requests at all), the header chip reads "Find my reps", Following
   shows both empty states, the vote screen hides "Your members", and "Find my reps" goes back to
   onboarding keeping who you follow. Tested end to end against stubbed routes.
-- **Finals.** A first switch, "All" / "Your members · N", shown when you have members, above the
+- **Finals.** (The switch reads "Following" since v0.2.29 and takes in bills and topics; see "Round 10 on the phone".) A first switch, "All" / "Your members · N", shown when you have members, above the
   board, the deck and the cards, which all follow it; the chamber filter stays beside "YOUR FINALS".
   "Your members" is one request per member (reps and followed), **six at a time**
   (`throttledMap`, `APIClient/Throttled.swift`), through `revalidate` as before, **each on its own**
@@ -1472,10 +1481,13 @@ Congress can be followed.
   - Search's no-results example: the mock's "Zz" matches two real members (lesson 52).
   - The search sheet's empty state (before typing) says what can be searched; the mock has none.
   - No Alerts screen and no "Alerts on" button (above).
-- **Two member-text readers.** `/v1/search` (v0.2.26) reads members with `memberQuery` in `pg.ts`
-  (each word starts a name); `/v1/members?q=` uses `parseMemberQuery` in `search.ts` (substring,
-  accents and punctuation folded, territories by name, a delegate's seat for any number). They
-  landed in parallel; folding them into one reader is the next change to either.
+- **One member-text reader** (since v0.2.29). `/v1/search` (v0.2.26) first read members with its
+  own `memberQuery` in `pg.ts` (each word starts a name, no folding, 10 max); `/v1/members?q=` used
+  `parseMemberQuery` in `search.ts` (substring, accents and punctuation folded, territories by name,
+  a delegate's seat for any number). When the "+ Add" sheet moved to `/v1/search`, that difference
+  became a regression ("velazquez", "DC-1" and "N.Y." stopped finding anyone, Texas cut off at 10),
+  so `memberQuery` and `catalog.searchMembers` were deleted and both routes call
+  `members.search(parseMemberQuery(q), chamber, 60)`.
 
 ### Light mode on the landing page (v0.2.17)
 
@@ -1598,9 +1610,8 @@ these routes, and member following is being built separately.
   other purposes"; capped at 160 characters at a word. Deterministic, tested on 16 real titles and one
   constructed transfer title.
 - **Search** uses `bills.search`, a stored generated `tsvector` (short title A, title B, summary C)
-  with a GIN index, queried with `websearch_to_tsquery`. Member matching is `memberQuery` in `pg.ts`,
-  written to be shared: the member-following work's `GET /v1/members?q=` (not on `main` when this
-  landed) should call it rather than parse names again.
+  with a GIN index, queried with `websearch_to_tsquery`. Member matching was `memberQuery` in `pg.ts`;
+  since v0.2.29 it is `/v1/members?q=`'s reader (§ M2's "One member-text reader").
 - **Topics** are the 32 CRS policy areas (`POLICY_AREAS`). Congress.gov also uses "Private
   Legislation"; it is not offered as a topic. Counts are per Congress (default: the one in session,
   `congressOn`), so the design's "29 bills with a floor vote" for Health (both Congresses) reads 9 for
@@ -1608,7 +1619,7 @@ these routes, and member following is being built separately.
 - **Swift:** `BillStage`, `TopicFilter`, `BillListItem`, `Topic`, `TopicList`, `TopicBills`,
   `SearchResults` in `FloorKit/Sources/Models/Topics.swift` (samples in `TopicSamples.swift`), covered
   by `ContractTests`. `BillListItem` decodes a stage it does not know as nil, so a stage added on the
-  server cannot fail a page. No client methods or UI yet.
+  server cannot fail a page. Client methods and UI: v0.2.29, below.
 
 **Turning it on (in this order):**
 
@@ -1636,6 +1647,106 @@ these routes, and member following is being built separately.
 3. Then add `bill_catalog: 48` to `MAX_AGE_HOURS` in `apps/api/src/app.ts`, so `/v1/status` watches the
    source. It is left out until the first run, or `/v1/status` would report `ok: false` (and the alerter
    fire) from the moment this deploys.
+
+### Round 10 on the phone (v0.2.29)
+
+Built to the same locked design (<https://claude.ai/artifact/8Qfr9ymPEKuYGSLjiuXdS2>).
+
+- **Following tab** (`Home/FollowingView.swift`): a Members · Bills · Topics switch with counts.
+  Members is v0.2.28's list, untouched. **Bills** (`HomeModel.followedBills`): each followed bill's
+  row — `BillRowView` in `DesignSystem/BillRow.swift` — with citation, stage chip, label, latest
+  step and day, and the five-step road (introduced · passed one chamber · passed both · to the
+  President · law; `BillStage.roadSteps`, none drawn for unstaged, failed or adopted), the road's
+  legend under the list. **Topics**: followed topics with "N bills · M with a floor vote · latest
+  Nov 12" from `GET /v1/topics` (loaded when the segment first shows, saved for offline), then the
+  six biggest topics not followed, each with Follow. Unfollow is a swipe, or VoiceOver's
+  "Unfollow" action. Empty states for both.
+- **Stage chip wording** (`StageChip.of(stage:latestAction:)`, `Models/BillStanding.swift`, tested
+  on real action texts): settled stages name themselves (`LAW`, `ADOPTED`, `VETOED`, `FAILED`; an
+  unstaged bill whose action is "Became Public Law" is `LAW`); then the latest action's own wording
+  — `VOTE FAILED` from an allowlist of measure-level failures only (a motion to proceed to
+  consideration of the measure not agreed to; cloture on the motion to proceed or on the measure not
+  invoked; "Failed of passage", which covers a failed suspension), never an amendment (`Amdt`,
+  `SA 1234`) or a motion to table, reconsider, commit, recommit, waive or instruct — a failed motion
+  to recommit is the bill surviving. That chip is the only place a failed motion to proceed or
+  suspension shows (lesson 50); `TO THE PRESIDENT`, `PASSED BOTH`; where it sits (`SENATE CALENDAR` /
+  `HOUSE CALENDAR`, `REPORTED`, `IN COMMITTEE` — a referral, hearing or markup, not a discharge and not
+  the Committee of the Whole, which is the House floor); else the stage (`PASSED HOUSE`, `PASSED SENATE`,
+  `INTRODUCED`); nothing for an unstaged bill with no telling action. Where it sits comes before how
+  far it got, as the mock's H.R. 4541 reads `IN COMMITTEE` after passing the House: the road shows
+  the passage. So H.R. 1013 reads `IN COMMITTEE` today, not the mock's `PASSED HOUSE` — it has since
+  been referred to Senate Banking.
+- **Storage**: `FollowEntry.bill` holds a followed bill's `BillListItem` (from search, a topic page
+  or the bill screen), refreshed whenever the bill's record loads — in the feed, and when the bill
+  screen opens fresh (`Follows.refresh(record:)`) — so the list names it before, or without, a
+  request; a record from an older response keeps the saved stage and label
+  (`BillListItem(bill:keeping:)`). Topics are entries with the policy area's name as id. Older
+  records open unchanged (tested on a v0.2.28 record); an entry with no saved row still feeds
+  Finals. **Decoding is lossy**: a saved member or bill row this build cannot read is dropped and
+  its entry kept; an entry whose kind or id cannot be read is dropped alone. Before, one bad blob
+  failed the whole record and `load()` fell back to following nobody.
+- **Topic page** (`Home/TopicPage.swift`, `TopicPageModel`): the name, counts, Follow, an All /
+  Moving / Law / Stalled switch (each filter starts again from page one), and the bills, 25 a page:
+  the next page is asked for (with `nextCursor`) when the last row appears, one at a time, a repeat
+  across pages listed once, a failed page keeping the list with Try again. The next page's request
+  is a held `Task`: a filter change or refresh cancels it, so it can neither land on the new list nor
+  leave `isLoadingMore` stuck (which stopped paging for good). No next page is asked for while
+  page 1 is loading — the saved pass's cursor may be stale — and if the end was reached meanwhile it
+  is asked for once the fresh page 1 lands. The first page goes through `revalidate`, so it opens
+  saved offline; loading, empty ("No Health bills have become law
+  this Congress yet.") and error states. Rows open the bill screen.
+- **Bill screen**: with a follow list, Follow bill sits beside the citation above the title, and a
+  Topic card links to the topic's page reading "Health ✓ Following" or "Health ›" — only for one of
+  the 32 topics (`Topic.names`, checked against `/v1/topics` in `TopicsTests`); a policy area that is
+  not one has no page to open, and no card. The topic page's bar no longer repeats its name. BillScreen now
+  depends on Onboarding (for `Follows`). Without one (previews, the old snapshots) it is as before.
+- **"+ Add"** (`Home/FollowSearch.swift`, `FollowSearchModel` / `AddFollowsView`): `GET /v1/search`
+  300 ms after the last keystroke, never cached. Sections: Topics, Bills, Members — Members always
+  shown when anything matched, with "No members match …" under it as the mock does; a bill-number
+  query shows that bill alone (with its latest step); nothing anywhere is one "Nothing matches"
+  card. Each row has Follow; tapping a bill or topic closes the sheet and opens it on the tab.
+  v0.2.28's All / Senate / House switch is back under the field (it narrows the members, sent as
+  `chamber`), and members are grouped Senate then House, since a state is up to 40 rows.
+- **Finals' "Following"** (was "Your members · N"): `HomeModel` loads, beside each member's record,
+  each followed bill (`GET /v1/bills/{id}`, six at a time, each on its own: one failing is named
+  under the feed and under Bills, "Couldn't load H.R. 2493.") — at most the 20 most recently
+  followed (`billFetchLimit`); the rest are listed from their saved rows, and both lists say so — and,
+  for all followed topics at once (clamped to the 32 before sending),
+  `GET /v1/votes?topic=…&chamber=…&limit=40` (best-effort, in the chamber on screen and asked again
+  when it changes, filtered by the chamber switch on
+  screen). `combine` makes one card per vote whichever way it matched — a member's record, the
+  bill's votes, the topic — filling a member card's measure topic from the fuller copy; the card
+  prints what matched under its header ("H.R. 1013 YOU FOLLOW · FINANCE AND FINANCIAL SECTOR") and
+  VoiceOver adds "You follow H.R. 1013 and Finance and Financial Sector." Members stay chips. In
+  "All" the same line appears on any vote it applies to. **What refetches** (`syncKey` now includes
+  followed bills and topics): following a bill fetches just it; adding a topic refetches the topics'
+  one request; unfollowing either fetches nothing (the cards regroup). A topic match is bounded by
+  the latest 40 finals in your topics, which is the cost of one request.
+- **Snapshots** (`FollowSnapshotTests`, 18 images): Bills (light, dark; AX5), Topics with
+  suggestions (light, dark), nothing followed, the Health topic page (light, dark) and offline
+  failure, search by words (light, dark) and by number (light; AX5, where the pill goes under the
+  text), the bill screen with Follow and a followed topic (light, dark), and the Finals card with
+  both matches (light, dark, AX5). `homeLoaded` was re-recorded for the switch's new word (its light
+  and dark passed the 0.5% pixel threshold unchanged, so they were deleted and recorded deliberately,
+  rather than left showing "YOUR MEMBERS · 3"). Fixtures captured from the API on 2026-11-13:
+  `topics`, `topic-bills-health`, `search-rural-health`, `search-hr1013`, `bill-hr1013`.
+  The four search images show the chamber switch (re-recorded for it, nothing else changed).
+  `search-rural-health` was captured before `/v1/search` matched topics by any word, so it has no
+  Health row; the live route now returns one, as the mock shows. Bills or topics alone are a
+  Following feed even when `/v1/votes` (the "All" list) fails: that request is best-effort whenever
+  anything is followed, not only members.
+- **Where the build differs from the mock, and why:**
+  - Follow / Following on the topic page and Follow bill on the bill screen sit in the screen, beside
+    the name or citation, not in the navigation bar: on iOS 26 a toolbar item is drawn on its own glass
+    capsule, which in the first snapshots turned the pill into a blank white box in dark mode (lesson
+    53). The bill's citation moves above the title with it, as the mock's caption has it.
+  - Latest steps are Congress.gov's action text as written ("Received in the Senate and Read twice
+    and referred to …"), not the mock's rewritten summaries ("Passed the House 295–128").
+  - Topic rows say "724 bills · 9 with a floor vote · latest Nov 12" rather than only "with a floor
+    vote": the catalog now holds every bill, so both counts are real (and growing with the backfill).
+  - The bill screen's topic is its own card after the six levels, linking to the topic; the mock's
+    "Where it stands" card is not added (the six levels already say it).
+  - Members segment count is your members (reps shown plus followed), the mock's "Members · 6".
 
 ### M5: Beta hardening + App Store
 Accessibility (Dynamic Type, VoiceOver on score cards), privacy labels, a vote-night load test, App Review prep, public TestFlight.

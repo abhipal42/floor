@@ -29,7 +29,8 @@ let package = Package(
         .target(name: "Onboarding", dependencies: ["Models", "APIClient", "DesignSystem"]),
         // BillScreen for `LawLevels`: the vote screen's bill card says which of six levels it reached.
         .target(name: "VoteScreen", dependencies: ["Models", "APIClient", "DesignSystem", "BillScreen"]),
-        .target(name: "BillScreen", dependencies: ["Models", "APIClient", "DesignSystem"]),
+        // Onboarding for `Follows`: the bill screen's Follow bill button and its topic's follow state.
+        .target(name: "BillScreen", dependencies: ["Models", "APIClient", "DesignSystem", "Onboarding"]),
         // Onboarding for `Follows`: the member screen's Follow button.
         .target(name: "RepScreen", dependencies: ["Models", "APIClient", "DesignSystem", "Onboarding"]),
         .target(

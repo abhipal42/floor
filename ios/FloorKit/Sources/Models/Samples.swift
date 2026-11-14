@@ -117,7 +117,8 @@ public extension MemberFunding {
 public extension MeasureSummary {
     static let sample = MeasureSummary(
         id: "119-hconres-14", kind: .bill, citation: "H.Con.Res. 14",
-        title: "Establishing the congressional budget for fiscal year 2025"
+        title: "Establishing the congressional budget for fiscal year 2025",
+        policyArea: "Economics and Public Finance"
     )
 }
 
@@ -209,7 +210,9 @@ public extension Bill {
         policyArea: "Economics and Public Finance",
         summary: "This concurrent resolution establishes the congressional budget.",
         summaryStage: "Introduced in House", latestAction: .sample, cboEstimates: [.sample],
-        actions: [.sample], votes: [.sample]
+        actions: [.sample], votes: [.sample],
+        label: "Establishing the congressional budget for the United States Government for fiscal year 2025.",
+        stage: .passedHouse
     )
 }
 
