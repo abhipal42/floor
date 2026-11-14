@@ -142,10 +142,50 @@ public struct FloorAPI: Sendable {
 
     /// The most recent final votes in both chambers (or one), newest first, each with what it was
     /// on. The Finals tab's "All", and its whole feed when you follow nobody.
-    public func recentVotes(chamber: Chamber? = nil, limit: Int = 40) async throws -> RecentVotes {
+    ///
+    /// - Parameter topics: only votes on bills in these CRS policy areas — Finals' Following feed for
+    ///   the topics you follow. Sent as one `topic=` each, since names hold commas ("Arts, Culture,
+    ///   Religion"), in your order (so the saved copy's key stays put until the list changes).
+    ///   Names that are not one of the 32 (`Topic.names`) are dropped before sending; a list of
+    ///   nothing but those is no votes, not every vote.
+    public func recentVotes(chamber: Chamber? = nil, limit: Int = 40, topics: [String] = []) async throws -> RecentVotes {
+        let asked = topics
+        let topics = Topic.canonical(asked)
+        if !asked.isEmpty, topics.isEmpty { return RecentVotes(votes: []) }
         var items = [URLQueryItem(name: "limit", value: String(limit))]
         if let chamber { items.append(URLQueryItem(name: "chamber", value: chamber.rawValue)) }
+        items += topics.map { URLQueryItem(name: "topic", value: $0) }
         return try await get("/v1/votes", query: items)
+    }
+
+    /// The 32 topics (CRS policy areas) with their bill counts, for one Congress (default: the one
+    /// in session). Saved for offline like any list.
+    public func topics(congress: Int? = nil) async throws -> TopicList {
+        try await get("/v1/topics", query: congress.map { [URLQueryItem(name: "congress", value: String($0))] } ?? [])
+    }
+
+    /// One page of a topic's bills, newest action first. Pass the previous page's `nextCursor` as
+    /// `cursor` for the next. Every page is saved, so a topic opened offline shows what was seen.
+    public func topicBills(
+        name: String, filter: TopicFilter = .all, cursor: String? = nil, limit: Int? = nil
+    ) async throws -> TopicBills {
+        var items = [URLQueryItem(name: "filter", value: filter.rawValue)]
+        if let cursor { items.append(URLQueryItem(name: "cursor", value: cursor)) }
+        if let limit { items.append(URLQueryItem(name: "limit", value: String(limit))) }
+        return try await get("/v1/topics/\(escaped(name))/bills", query: items)
+    }
+
+    /// Members, bills and topics matching what was typed, grouped; a bill number in any spelling
+    /// ("hr 1013", "H.R.1013") is exactly that bill. The "+ Add" sheet.
+    ///
+    /// Never cached, for the reason ``searchMembers(query:chamber:limit:)`` gives.
+    ///
+    /// - Parameter chamber: narrows the members (read as `/v1/members?q=` reads them); bills and
+    ///   topics are the same either way.
+    public func search(query: String, chamber: Chamber? = nil) async throws -> SearchResults {
+        var items = [URLQueryItem(name: "q", value: query)]
+        if let chamber { items.append(URLQueryItem(name: "chamber", value: chamber.rawValue)) }
+        return try await get("/v1/search", query: items, cacheable: false)
     }
 
     /// What a member's current campaign reported receiving, and the committees that reported giving

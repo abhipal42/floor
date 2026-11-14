@@ -66,6 +66,8 @@ public struct FloorShell: View {
                 FollowingView(
                     model: model,
                     onOpenMember: { followingPath.append(.member(id: $0.bioguideId)) },
+                    onOpenBill: { followingPath.append(.bill(id: $0)) },
+                    onOpenTopic: { followingPath.append(.topic(name: $0)) },
                     onFindReps: onFindReps,
                     onChangeAddress: onChangeAddress
                 )
@@ -129,10 +131,23 @@ public struct FloorShell: View {
             )
             .navigationTitle("Vote")
         case let .bill(id):
-            BillScreenView(model: model.billScreen(id: id)) { vote in
+            BillScreenView(
+                model: model.billScreen(id: id), follows: model.follows,
+                onOpenTopic: { path.wrappedValue.append(.topic(name: $0)) }
+            ) { vote in
                 path.wrappedValue.append(.vote(id: vote.id))
             }
             .navigationTitle("Bill")
+        case let .topic(name):
+            TopicPageView(model: model.topicPage(name: name), follows: model.follows) {
+                path.wrappedValue.append(.bill(id: $0))
+            }
+            .navigationTitle(name)
+            .toolbar {
+                // The name is the page's own headline; an empty principal item keeps the bar from
+                // printing it a second time, while the navigation title still names the back link.
+                ToolbarItem(placement: .principal) { Text(verbatim: " ").accessibilityHidden(true) }
+            }
         case let .member(id):
             RepScreenView(model: model.repScreen(id: id), follows: model.follows, reps: model.reps.map(\.bioguideId)) { vote in
                 path.wrappedValue.append(.vote(id: vote.id))

@@ -73,17 +73,23 @@ const repo: VoteRepository = {
       const member = members.find((m) => m.bioguideId === id);
       return member ? [{ member, position: "yea" as const, choice: null }] : [];
     }),
-    measure: { id: "119-hconres-14", kind: "bill" as const, citation: "H.Con.Res. 14", title: "FY2025 Budget" },
+    measure: { id: "119-hconres-14", kind: "bill" as const, citation: "H.Con.Res. 14", title: "FY2025 Budget", policyArea: "Economics and Public Finance" },
   }),
-  recentVotes: async (chamber, limit, before) =>
-    [
+  recentVotes: async (chamber, limit, before, topics) => {
+    topicCalls.push(topics);
+    return [
       { vote: nominationVote, measure: null },
-      { vote: sample, measure: { id: "119-hconres-14", kind: "bill" as const, citation: "H.Con.Res. 14", title: "FY2025 Budget" } },
+      { vote: sample, measure: { id: "119-hconres-14", kind: "bill" as const, citation: "H.Con.Res. 14", title: "FY2025 Budget", policyArea: "Economics and Public Finance" } },
     ]
       .filter((r) => !chamber || r.vote.chamber === chamber)
       .filter((r) => !before || new Date(r.vote.occurredAt!) < before)
-      .slice(0, limit),
+      .filter((r) => !topics || (r.measure?.policyArea != null && topics.includes(r.measure.policyArea)))
+      .slice(0, limit);
+  },
 };
+
+/** The `topics` each call to the recent-votes repository was handed. */
+const topicCalls: (string[] | undefined)[] = [];
 
 /** Each parsed search the member repository was asked, so the route's parsing can be checked. */
 const searches: { query: MemberQuery; chamber: string | undefined; limit: number }[] = [];
@@ -148,7 +154,7 @@ const app = createApp({
             vote: sample,
             position: "yea" as const,
             choice: null,
-            measure: { id: "119-hconres-14", kind: "bill" as const, citation: "H.Con.Res. 14", title: "FY2025 Budget" },
+            measure: { id: "119-hconres-14", kind: "bill" as const, citation: "H.Con.Res. 14", title: "FY2025 Budget", policyArea: "Economics and Public Finance" },
           }].slice(0, limit)
         : [],
     getMember: async (id) => members.find((m) => m.bioguideId === id) ?? null,
@@ -194,7 +200,7 @@ const app = createApp({
       id === "119-hconres-14"
         ? {
             id, congress: 119, type: "hconres", number: 14, citation: "H.Con.Res. 14",
-            title: "Establishing the congressional budget", shortTitle: null,
+            title: "Establishing the congressional budget", shortTitle: null, label: "Establishing the congressional budget", stage: "passed_house",
             sponsor: null, introducedOn: "2025-02-18", originChamber: "house", policyArea: "Economics and Public Finance",
             summary: "This concurrent resolution establishes the budget.", summaryStage: "Introduced in House",
             latestAction: { on: "2025-05-20", text: "Star Print ordered." }, cboEstimates: [], actions: [], votes: [sample],
@@ -436,7 +442,7 @@ describe("API", () => {
         vote: sample,
         position: "yea",
         choice: null,
-        measure: { id: "119-hconres-14", kind: "bill", citation: "H.Con.Res. 14", title: "FY2025 Budget" },
+        measure: { id: "119-hconres-14", kind: "bill", citation: "H.Con.Res. 14", title: "FY2025 Budget", policyArea: "Economics and Public Finance" },
       }],
     });
   });
@@ -485,6 +491,23 @@ describe("API", () => {
     expect((await app.request(`/v1/votes/${sample.id}`)).status).toBe(200);
   });
 
+  it("narrows recent votes to topics, repeated because topic names hold commas, in their canonical spelling", async () => {
+    topicCalls.length = 0;
+    const one = await (await app.request("/v1/votes?topic=economics%20and%20public%20finance")).json();
+    expect(one.votes.map((r: { vote: Vote }) => r.vote.id)).toEqual([sample.id]);
+    expect(one.votes[0].measure.policyArea).toBe("Economics and Public Finance");
+    await app.request("/v1/votes?topic=Health&topic=Arts%2C%20Culture%2C%20Religion&topic=Nonsense");
+    expect(topicCalls).toEqual([["Economics and Public Finance"], ["Health", "Arts, Culture, Religion"]]);
+    // Only names that are not topics: nothing, not every vote, and the repository is not asked.
+    const none = await (await app.request("/v1/votes?topic=Nonsense")).json();
+    expect(none.votes).toEqual([]);
+    expect(topicCalls).toHaveLength(2);
+    // No topic at all is the plain list.
+    await app.request("/v1/votes");
+    expect(topicCalls[2]).toBeUndefined();
+    expect((await app.request(`/v1/votes?${Array.from({ length: 33 }, () => "topic=Health").join("&")}`)).status).toBe(400);
+  });
+
   it("rejects malformed member IDs and limits", async () => {
     expect((await app.request("/v1/members/doggett/votes")).status).toBe(400);
     expect((await app.request("/v1/members/D000399/votes?limit=500")).status).toBe(400);
@@ -495,6 +518,8 @@ describe("API", () => {
     expect(res.status).toBe(200);
     const bill = await res.json();
     expect(bill.policyArea).toBe("Economics and Public Finance");
+    expect(bill.label).toBe("Establishing the congressional budget");
+    expect(bill.stage).toBe("passed_house");
     expect(bill.votes).toEqual([sample]);
     expect((await app.request("/v1/bills/119-hr-404")).status).toBe(404);
     expect((await app.request("/v1/bills/HR2207")).status).toBe(400);
@@ -626,7 +651,7 @@ describe("API", () => {
     // nullable at every use they have, so carrying it on the component is correct for them:
     // LatestAction on Bill and Nomination, MeasureSummary on MemberVote (a procedural vote refers
     // to no measure), and Funding on MemberFunding, its only use, null when FEC has no totals for
-    // the member; and BillStage on BillListItem, its only use, null until the worker has staged the
+    // the member; and BillStage on BillListItem and Bill, both null until the worker has staged the
     // bill. Anything else showing up here needs checking against how it is actually used
     // before the list is widened — and if Funding ever gains a use that must not accept null, it
     // has to come off this list and out of the component, not be left here.
@@ -677,11 +702,38 @@ describe("topics and search", () => {
       calls.push(`words ${q} ${congress} ${limit}`);
       return q.includes("rural") ? [health[2]!] : [];
     },
-    searchMembers: async (q) => (q === "doggett" ? [members[0]!] : []),
+  };
+  // Texas's delegation as it sits: 2 senators and 38 House seats, 40 in all.
+  const texas: Member[] = [
+    members[1]!,
+    { bioguideId: "C001056", firstName: "John", lastName: "Cornyn", party: "R", state: "TX", district: null, chamber: "senate" },
+    ...Array.from({ length: 38 }, (_, i): Member => ({
+      bioguideId: `T${String(i + 1).padStart(6, "0")}`, firstName: "Rep", lastName: `District${i + 1}`,
+      party: "R", state: "TX", district: i + 1, chamber: "house",
+    })),
+  ];
+  const velazquez: Member = { bioguideId: "V000081", firstName: "Nydia", lastName: "Velázquez", party: "D", state: "NY", district: 7, chamber: "house" };
+  const aoc: Member = { bioguideId: "O000172", firstName: "Alexandria", lastName: "Ocasio-Cortez", party: "D", state: "NY", district: 14, chamber: "house" };
+  const norton: Member = { bioguideId: "N000147", firstName: "Eleanor", lastName: "Norton", party: "D", state: "DC", district: 0, chamber: "house" };
+  /** Each parsed search `/v1/search` handed the member repository: the same reader as `/v1/members?q=`. */
+  const memberSearches: { query: MemberQuery; chamber: string | undefined; limit: number }[] = [];
+  /** A stand-in for the SQL (tested on its own in pg.test.ts), answering the parsed shape it is given. */
+  const memberRepo = {
+    ...emptyDeps.members,
+    search: async (query: MemberQuery, chamber: "house" | "senate" | undefined, limit: number) => {
+      memberSearches.push({ query, chamber, limit });
+      const found =
+        query.kind === "state"
+          ? query.state === "TX" ? texas : query.state === "NY" ? [velazquez, aoc] : []
+          : query.kind === "seat"
+            ? query.state === "DC" ? [norton] : []
+            : ({ doggett: [members[0]!], velazquez: [velazquez], "ocasio cortez": [aoc] } as Record<string, Member[]>)[query.text] ?? [];
+      return found.filter((m) => !chamber || m.chamber === chamber).slice(0, limit);
+    },
   };
   const now = () => new Date("2026-11-13T17:00:00Z");
   const topicsApp = () =>
-    createApp({ ...emptyDeps, catalog, now, limitStore: new MemoryLimitStore(), locate: async () => null });
+    createApp({ ...emptyDeps, members: memberRepo, catalog, now, limitStore: new MemoryLimitStore(), locate: async () => null });
 
   it("lists all 32 topics, filling in the empty ones, cached at the edge", async () => {
     const res = await topicsApp().request("/v1/topics");
@@ -748,12 +800,45 @@ describe("topics and search", () => {
     const rural = await (await topicsApp().request("/v1/search?q=rural%20health")).json();
     expect(rural.billNumber).toBe(false);
     expect(rural.bills.map((b: BillListItem) => b.id)).toEqual(["119-hr-2493"]);
-    expect(rural.topics).toEqual([]);
+    // No topic holds both words, so the one holding "health".
+    expect(rural.topics.map((t: { name: string }) => t.name)).toEqual(["Health"]);
     const topic = await (await topicsApp().request("/v1/search?q=health")).json();
     expect(topic.topics).toEqual([{ name: "Health", bills: 3, billsWithFloorVote: 1, latestActionOn: "2026-09-29" }]);
     const member = await (await topicsApp().request("/v1/search?q=doggett")).json();
     expect(member.members.map((m: Member) => m.lastName)).toEqual(["Doggett"]);
     expect((await topicsApp().request("/v1/search?q=a")).status).toBe(400);
+  });
+
+  it("reads members with /v1/members?q='s reader: folded names, seats, dotted codes, whole states", async () => {
+    memberSearches.length = 0;
+    const app = topicsApp();
+    const ids = async (q: string, extra = "") =>
+      ((await (await app.request(`/v1/search?q=${encodeURIComponent(q)}${extra}`)).json()).members as Member[]).map((m) => m.bioguideId);
+    expect(await ids("velazquez")).toEqual(["V000081"]);
+    expect(await ids("ocasio cortez")).toEqual(["O000172"]);
+    expect(await ids("DC-1")).toEqual(["N000147"]);
+    expect(await ids("N.Y.")).toEqual(["V000081", "O000172"]);
+    expect(await ids("Washington")).toEqual([]);
+    const tx = await ids("Texas");
+    expect(tx).toHaveLength(40);
+    expect(tx).toEqual(texas.map((m) => m.bioguideId));
+    expect(await ids("Texas", "&chamber=senate")).toEqual(["C001098", "C001056"]);
+    expect(memberSearches).toEqual([
+      { query: { kind: "name", text: "velazquez" }, chamber: undefined, limit: 60 },
+      { query: { kind: "name", text: "ocasio cortez" }, chamber: undefined, limit: 60 },
+      // A delegate's one seat, whatever number is typed.
+      { query: { kind: "seat", state: "DC", district: 1 }, chamber: undefined, limit: 60 },
+      { query: { kind: "state", state: "NY", name: "ny" }, chamber: undefined, limit: 60 },
+      // A state and a surname at once, not the state alone.
+      { query: { kind: "state", state: "WA", name: "washington" }, chamber: undefined, limit: 60 },
+      { query: { kind: "state", state: "TX", name: "texas" }, chamber: undefined, limit: 60 },
+      { query: { kind: "state", state: "TX", name: "texas" }, chamber: "senate", limit: 60 },
+    ]);
+    // A bill number asks for no members, and a chamber that is not one is refused.
+    memberSearches.length = 0;
+    expect(await ids("hr 1013")).toEqual([]);
+    expect(memberSearches).toEqual([]);
+    expect((await app.request("/v1/search?q=texas&chamber=both")).status).toBe(400);
   });
 
   it("rate-limits search per caller, apart from the other routes' counts", async () => {

@@ -187,78 +187,145 @@ struct HomeNetworkTests {
         }
     }
 
-    @Suite("Member search")
-    struct MemberSearchTests {
-        @Test func searchesOnlyFromTwoCharacters() {
-            #expect(MemberSearchModel.normalized("") == nil)
-            #expect(MemberSearchModel.normalized(" n ") == nil)
-            #expect(MemberSearchModel.normalized("  NY ") == "NY")
-            #expect(MemberSearchModel.normalized("New York\n") == "New York")
+    /// "+ Add" since Round 10: one search over members, bills and topics (`/v1/search`).
+    @Suite("Search")
+    struct FollowSearchTests {
+        @Test func searchesOnlyFromTwoCharactersToAHundred() {
+            #expect(FollowSearchModel.normalized("") == nil)
+            #expect(FollowSearchModel.normalized(" n ") == nil)
+            #expect(FollowSearchModel.normalized("  NY ") == "NY")
+            #expect(FollowSearchModel.normalized("hr 1013\n") == "hr 1013")
+            #expect(FollowSearchModel.normalized(String(repeating: "a", count: 101)) == nil)
         }
 
-        @Test func groupsSenateBeforeHouseAndDropsEmptyGroups() {
-            let groups = MemberSearchModel.groups([jeffries, cruz, hageman])
-            #expect(groups.map(\.chamber) == [.senate, .house])
-            #expect(groups[1].members.map(\.lastName) == ["Jeffries", "Hageman"])
-            #expect(MemberSearchModel.groups([jeffries]).map(\.chamber) == [.house])
-            #expect(MemberSearchModel.groups([]).isEmpty)
+        /// Words: topics, then bills, then members — members even when none matched, so the sheet
+        /// can say so under the heading, as the mock does.
+        @Test func wordsGroupTopicsThenBillsThenMembers() throws {
+            let words = try JSONDecoder().decode(SearchResults.self, from: HomeStub.fixture("search-rural-health"))
+            #expect(!words.billNumber)
+            let sections = FollowSearchModel.sections(words)
+            #expect(sections.count == 2) // no topic matched "rural health" in staging; no member did
+            guard case let .bills(bills, billNumber) = sections[0] else { Issue.record("bills first"); return }
+            #expect(!billNumber)
+            #expect(bills.first?.citation == "H.R. 2493")
+            #expect(sections[1] == .members([]))
+
+            let withTopic = SearchResults(query: "health", billNumber: false, members: [jeffries],
+                                          bills: [.sample], topics: [.sample])
+            #expect(FollowSearchModel.sections(withTopic)
+                == [.topics([.sample]), .bills([.sample], billNumber: false), .members([jeffries])])
+        }
+
+        /// A bill number is that bill and nothing else; nothing found anywhere is no sections at all.
+        @Test func aBillNumberIsJustTheBill() throws {
+            let number = try JSONDecoder().decode(SearchResults.self, from: HomeStub.fixture("search-hr1013"))
+            #expect(number.billNumber)
+            let sections = FollowSearchModel.sections(number)
+            #expect(sections.count == 1)
+            guard case let .bills(bills, billNumber) = sections[0] else { Issue.record("one bill"); return }
+            #expect(billNumber)
+            #expect(bills.map(\.id) == ["119-hr-1013"])
+            #expect(FollowSearchModel.sections(SearchResults(query: "hr 99999", billNumber: true, members: [], bills: [], topics: [])).isEmpty)
+            #expect(FollowSearchModel.sections(SearchResults(query: "qx", billNumber: false, members: [], bills: [], topics: [])).isEmpty)
         }
 
         @MainActor
-        @Test func searchesWhatWasTypedInTheChamberPicked() async throws {
-            let api = HomeStub.api { _ in (200, try HomeStub.fixture("members-search-new-york")) }
-            let model = MemberSearchModel(api: api, debounce: .zero)
-            model.query = " New York "
-            model.chamber = .senate
+        @Test func searchesWhatWasTyped() async throws {
+            let api = HomeStub.api { _ in (200, try HomeStub.fixture("search-hr1013")) }
+            let model = FollowSearchModel(api: api, debounce: .zero)
+            model.query = " hr 1013 "
             await model.search()
-            #expect(model.searched == "New York")
-            #expect(!model.results.isEmpty)
+            #expect(model.searched == "hr 1013")
+            #expect(model.results?.billNumber == true)
+            #expect(!model.foundNothing)
             #expect(model.error == nil)
             #expect(!model.isLoading)
             let url = try #require(HomeStub.urls.last)
-            let items = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems ?? []
-            #expect(items.first { $0.name == "q" }?.value == "New York")
-            #expect(items.first { $0.name == "chamber" }?.value == "senate")
+            #expect(url.path == "/v1/search")
+            #expect(URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems?.first { $0.name == "q" }?.value == "hr 1013")
+        }
+
+        /// The All / Senate / House switch: a chamber is sent (members only), changes the task's key so
+        /// it searches again, and the members group by chamber, Senate first.
+        @MainActor
+        @Test func theChamberSwitchNarrowsTheMembers() async throws {
+            let api = HomeStub.api { _ in (200, try HomeStub.fixture("search-rural-health")) }
+            let model = FollowSearchModel(api: api, debounce: .zero)
+            model.query = "texas"
+            let both = model.key
+            await model.search()
+            var url = try #require(HomeStub.urls.last)
+            #expect(URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems?.contains { $0.name == "chamber" } == false)
+            model.chamber = .senate
+            #expect(model.key != both)
+            await model.search()
+            url = try #require(HomeStub.urls.last)
+            #expect(URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems?.first { $0.name == "chamber" }?.value == "senate")
+            let groups = FollowSearchModel.groups([jeffries, .sampleSenator, .sample])
+            #expect(groups.map(\.chamber) == [.senate, .house])
+            #expect(groups[1].members.count == 2)
+            #expect(FollowSearchModel.groups([]).isEmpty)
         }
 
         @MainActor
-        @Test func noResultsIsAnAnswerAndAFailureIsAnError() async throws {
-            let empty = MemberSearchModel(api: HomeStub.api { _ in (200, Data(#"{"members":[]}"#.utf8)) }, debounce: .zero)
+        @Test func nothingFoundIsAnAnswerAndAFailureIsAnError() async throws {
+            let empty = FollowSearchModel(
+                api: HomeStub.api { _ in (200, Data(#"{"query":"Qx","billNumber":false,"members":[],"bills":[],"topics":[]}"#.utf8)) },
+                debounce: .zero
+            )
             empty.query = "Qx"
             await empty.search()
-            #expect(empty.searched == "Qx")
-            #expect(empty.results.isEmpty)
+            #expect(empty.foundNothing)
             #expect(empty.error == nil)
 
-            let limited = MemberSearchModel(
+            let limited = FollowSearchModel(
                 api: HomeStub.api { _ in (429, Data(#"{"error":"Too many searches. Please wait a moment and try again."}"#.utf8)) },
                 debounce: .zero
             )
             limited.query = "Schumer"
             await limited.search()
             #expect(limited.error != nil)
+            #expect(!limited.foundNothing)
             #expect(!limited.isLoading)
         }
 
         @MainActor
         @Test func clearingTheFieldClearsTheList() async throws {
-            let model = MemberSearchModel(api: HomeStub.api { _ in (200, try HomeStub.fixture("members-search-new-york")) },
+            let model = FollowSearchModel(api: HomeStub.api { _ in (200, try HomeStub.fixture("search-rural-health")) },
                                           debounce: .zero)
-            model.query = "NY"
+            model.query = "rural health"
             await model.search()
-            #expect(!model.results.isEmpty)
-            model.query = "N"
+            #expect(!model.sections.isEmpty)
+            model.query = "r"
             await model.search()
-            #expect(model.results.isEmpty)
+            #expect(model.sections.isEmpty)
             #expect(model.searched == nil)
         }
 
         /// A search is never saved: what someone looked up is not worth keeping on the phone.
         @Test func searchIsNotCached() async throws {
             let cache = try SwiftDataResponseCache.inMemory()
-            let api = HomeStub.api(cache: cache) { _ in (200, try HomeStub.fixture("members-search-new-york")) }
+            let api = HomeStub.api(cache: cache) { _ in (200, try HomeStub.fixture("search-rural-health")) }
+            _ = try await api.search(query: "rural health")
             _ = try await api.searchMembers(query: "New York")
             #expect(await cache.entries().isEmpty)
+        }
+
+        /// Member rows keep v0.2.28's toggle; bills and topics get their own.
+        @MainActor
+        @Test func followTogglesForEachKind() throws {
+            let following = follows()
+            following.toggle(jeffries)
+            following.toggle(bill: .sample)
+            following.toggle(topic: "Health")
+            #expect(following.isFollowing(jeffries))
+            #expect(following.isFollowing(bill: BillListItem.sample.id))
+            #expect(following.isFollowing(topic: "Health"))
+            following.toggle(bill: .sample)
+            following.toggle(topic: "Health")
+            #expect(!following.isFollowing(bill: BillListItem.sample.id))
+            #expect(!following.isFollowing(topic: "Health"))
+            #expect(following.isFollowing(jeffries))
         }
     }
 
@@ -367,11 +434,18 @@ struct FollowingTextTests {
 /// Answers by path from a closure, and records what was asked.
 final class HomeStub: URLProtocol {
     private static let lock = NSLock()
-    nonisolated(unsafe) private static var handler: (@Sendable (String) throws -> (Int, Data))?
+    nonisolated(unsafe) private static var handler: (@Sendable (URL) throws -> (Int, Data))?
     nonisolated(unsafe) private static var seen: [URL] = []
 
     static func api(
         cache: (any ResponseCache)? = nil, _ handler: @escaping @Sendable (String) throws -> (Int, Data)
+    ) -> FloorAPI {
+        byURL(cache: cache) { try handler($0.path) }
+    }
+
+    /// Answers by the whole URL, query included: for routes whose answer depends on it (a cursor).
+    static func byURL(
+        cache: (any ResponseCache)? = nil, _ handler: @escaping @Sendable (URL) throws -> (Int, Data)
     ) -> FloorAPI {
         lock.lock()
         self.handler = handler
@@ -407,7 +481,7 @@ final class HomeStub: URLProtocol {
         let handler = Self.handler
         Self.lock.unlock()
         guard let handler, let url = request.url,
-              let (status, body) = try? handler(url.path)
+              let (status, body) = try? handler(url)
         else {
             client?.urlProtocol(self, didFailWithError: URLError(.unsupportedURL))
             return

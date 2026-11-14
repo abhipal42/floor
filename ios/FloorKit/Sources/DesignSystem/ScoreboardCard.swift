@@ -21,17 +21,31 @@ public struct ScoreboardCard: View {
     let title: String
     let citation: String?
     let positions: [MemberPosition]
+    /// The bills and topics you follow that put this vote in your Following feed, printed under the
+    /// header ("H.R. 1013 you follow · Health"). Empty draws nothing, as before Round 10.
+    let matches: [FollowMatch]
 
-    public init(vote: Vote, title: String, citation: String? = nil, positions: [MemberPosition] = []) {
+    public init(
+        vote: Vote, title: String, citation: String? = nil, positions: [MemberPosition] = [],
+        matches: [FollowMatch] = []
+    ) {
         self.vote = vote
         self.title = title
         self.citation = citation
         self.positions = positions
+        self.matches = matches
     }
 
     public var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             header
+            if !matches.isEmpty {
+                Text(matches.map(\.shown).joined(separator: " · ").uppercased())
+                    .font(Typography.label(12))
+                    .tracking(0.8)
+                    .foregroundStyle(Palette.threshold)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
             Text(title)
                 .scaledFont(15, weight: .semibold)
                 .foregroundStyle(Palette.text)
@@ -166,7 +180,8 @@ public struct ScoreboardCard: View {
     }
 
     private var accessibilityText: String {
-        Spoken.scoreboard(vote: vote, title: title, citation: citation, positions: positions, day: dayText)
+        let card = Spoken.scoreboard(vote: vote, title: title, citation: citation, positions: positions, day: dayText)
+        return [card, Spoken.followReasons(matches.map(\.spoken))].compactMap(\.self).joined(separator: " ")
     }
 }
 

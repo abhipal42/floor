@@ -1,6 +1,7 @@
 import APIClient
 import DesignSystem
 import Models
+import Onboarding
 import SwiftUI
 
 /// A bill, as the locked Bill mock draws it: the title, its sponsor, six levels to law with the
@@ -9,12 +10,26 @@ import SwiftUI
 /// At the top, the AI section (`AIAnalysisSection`, section E of the locked live/AI design): an
 /// analysis of the CRS summary, labelled and cited line by line. Below it the CRS summary itself,
 /// labelled as such — it is the Congressional Research Service's text, not a model's.
+///
+/// With a follow list (Round 10, <https://claude.ai/artifact/8Qfr9ymPEKuYGSLjiuXdS2>, section B):
+/// Follow bill in the header, the citation moves above the title, and the bill's topic is a link
+/// to the topic's page that says whether you follow it.
 public struct BillScreenView: View {
     @State private var model: BillScreenModel
+    private let follows: Follows?
+    private let onOpenTopic: ((String) -> Void)?
     private let onOpenVote: (Vote) -> Void
 
-    public init(model: BillScreenModel, onOpenVote: @escaping (Vote) -> Void) {
+    /// - Parameters:
+    ///   - follows: the follow list; nil shows no Follow button (previews and the screen alone).
+    ///   - onOpenTopic: opens a topic's page; nil leaves the topic out.
+    public init(
+        model: BillScreenModel, follows: Follows? = nil, onOpenTopic: ((String) -> Void)? = nil,
+        onOpenVote: @escaping (Vote) -> Void
+    ) {
         _model = State(initialValue: model)
+        self.follows = follows
+        self.onOpenTopic = onOpenTopic
         self.onOpenVote = onOpenVote
     }
 
@@ -23,7 +38,13 @@ public struct BillScreenView: View {
             Palette.ground.ignoresSafeArea()
             content
         }
-        .task { await model.load() }
+        .task {
+            await model.load()
+            // A bill you follow: its saved row (the Following tab's Bills) follows the fresh record.
+            if let follows, model.saved == nil, case let .loaded(bill) = model.phase {
+                follows.refresh(record: bill)
+            }
+        }
     }
 
     @ViewBuilder
@@ -46,6 +67,7 @@ public struct BillScreenView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 18) {
                     if let saved = model.saved { SavedDataNote(saved) }
+                    if let follows { followRow(bill, follows: follows) }
                     header(bill)
                     AIAnalysisSection(
                         phase: model.analysis,
@@ -54,6 +76,10 @@ public struct BillScreenView: View {
                         onRetry: { Task { await model.retryAnalysis() } }
                     )
                     levels(bill)
+                    // Only one of the 32 topics: anything else has no page to open.
+                    if let area = bill.policyArea.flatMap(Topic.canonical), let onOpenTopic {
+                        topic(area, open: onOpenTopic)
+                    }
                     if let summary = bill.summary, !summary.isEmpty {
                         whatItDoes(summary, stage: bill.summaryStage)
                     }
@@ -73,13 +99,36 @@ public struct BillScreenView: View {
                 // screen's title, which still names the back link on the next screen.
                 ToolbarItem(placement: .principal) { Text(verbatim: " ").accessibilityHidden(true) }
                 ToolbarItem(placement: .primaryAction) {
-                    Text("\(bill.citation) · \(StateName.ordinal(bill.congress)) CONGRESS".uppercased())
-                        .font(.system(size: 12))
-                        .foregroundStyle(Palette.textMuted)
-                        .fixedSize()
+                    if follows == nil {
+                        citationLine(bill)
+                            .font(.system(size: 12))
+                            .foregroundStyle(Palette.textMuted)
+                            .fixedSize()
+                    }
                 }
             }
         }
+    }
+
+    /// The citation and Follow bill, above the title. In the screen rather than the navigation bar,
+    /// where iOS 26 draws a toolbar item on its own glass capsule that the pill's colours fight.
+    private func followRow(_ bill: Bill, follows: Follows) -> some View {
+        HStack(alignment: .center, spacing: 8) {
+            citationLine(bill)
+                .font(Typography.label(12))
+                .tracking(1.2)
+                .foregroundStyle(Palette.threshold)
+                .fixedSize(horizontal: false, vertical: true)
+            Spacer(minLength: 8)
+            FollowPill(
+                on: follows.isFollowing(bill: bill.id), offTitle: "FOLLOW BILL", onTitle: "✓ FOLLOWING",
+                name: bill.citation, hint: "Adds its votes to Finals and lists it under Following"
+            ) { follows.toggle(bill: BillListItem(bill: bill)) }
+        }
+    }
+
+    private func citationLine(_ bill: Bill) -> Text {
+        Text("\(bill.citation) · \(StateName.ordinal(bill.congress)) CONGRESS".uppercased())
     }
 
     private func header(_ bill: Bill) -> some View {
@@ -193,6 +242,30 @@ public struct BillScreenView: View {
         .contentShape(.rect)
         .accessibilityElement(children: .combine)
         .accessibilityHint("Opens the vote")
+    }
+
+    /// The topic card: the bill's CRS policy area as a link to its page, saying whether you follow it.
+    private func topic(_ area: String, open: @escaping (String) -> Void) -> some View {
+        let following = follows?.isFollowing(topic: area) ?? false
+        return VStack(alignment: .leading, spacing: 8) {
+            Text("TOPIC").font(Typography.label(20)).foregroundStyle(Palette.text)
+                .accessibilityAddTraits(.isHeader)
+            Button { open(area) } label: {
+                Text(following ? "\(area) ✓ Following" : "\(area) ›")
+                    .scaledFont(12, weight: .bold)
+                    .foregroundStyle(Palette.threshold)
+                    .multilineTextAlignment(.leading)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 5)
+                    .overlay(RoundedRectangle(cornerRadius: 14).strokeBorder(Palette.threshold, lineWidth: 1))
+                    .padding(1)
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel(following ? "Topic: \(area), following" : "Topic: \(area)")
+            .accessibilityHint("Opens every bill in \(area)")
+        }
+        .panel()
     }
 
     private func whatItDoes(_ summary: String, stage: String?) -> some View {

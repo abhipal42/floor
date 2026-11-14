@@ -233,13 +233,20 @@
           "title": {
             "type": "string",
             "description": "A bill's short title where it has one, else its full title; a nomination's nominee, or the post for a military nomination that names nobody"
+          },
+          "policyArea": {
+            "type": "string",
+            "nullable": true,
+            "description": "A bill's CRS policy area (its topic), so a feed can say a vote is in a topic you follow; null for a nomination and for a bill CRS has not classified",
+            "example": "Health"
           }
         },
         "required": [
           "id",
           "kind",
           "citation",
-          "title"
+          "title",
+          "policyArea"
         ],
         "description": "null for a procedural vote that refers to no measure"
       },
@@ -709,6 +716,22 @@
           "measure"
         ]
       },
+      "BillStage": {
+        "type": "string",
+        "nullable": true,
+        "enum": [
+          "introduced",
+          "passed_house",
+          "passed_senate",
+          "passed_both",
+          "to_president",
+          "law",
+          "vetoed",
+          "failed",
+          "adopted"
+        ],
+        "description": "Where it stands on the road to law, as BillListItem.stage; null until the worker has staged it"
+      },
       "LatestAction": {
         "type": "object",
         "nullable": true,
@@ -801,6 +824,13 @@
             "type": "string",
             "nullable": true
           },
+          "label": {
+            "type": "string",
+            "description": "The plain short label a bill list gives it (BillListItem.label), so a bill followed from its own screen reads as it does in search"
+          },
+          "stage": {
+            "$ref": "#/components/schemas/BillStage"
+          },
           "sponsor": {
             "allOf": [
               {
@@ -868,6 +898,8 @@
           "citation",
           "title",
           "shortTitle",
+          "label",
+          "stage",
           "sponsor",
           "introducedOn",
           "originChamber",
@@ -1377,22 +1409,6 @@
           "stalled"
         ]
       },
-      "BillStage": {
-        "type": "string",
-        "nullable": true,
-        "enum": [
-          "introduced",
-          "passed_house",
-          "passed_senate",
-          "passed_both",
-          "to_president",
-          "law",
-          "vetoed",
-          "failed",
-          "adopted"
-        ],
-        "description": "Where the measure stands on the road to law; null until the worker has staged it. adopted = a resolution agreed to by every chamber it needs (it never goes to the President); failed = a chamber voted it down (Congress.gov's own marker); vetoed = vetoed and not overridden."
-      },
       "BillListItem": {
         "type": "object",
         "properties": {
@@ -1427,7 +1443,14 @@
             "nullable": true
           },
           "stage": {
-            "$ref": "#/components/schemas/BillStage"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/BillStage"
+              },
+              {
+                "description": "Where the measure stands on the road to law; null until the worker has staged it. adopted = a resolution agreed to by every chamber it needs (it never goes to the President); failed = a chamber voted it down (Congress.gov's own marker); vetoed = vetoed and not overridden."
+              }
+            ]
           },
           "stalled": {
             "type": "boolean",
@@ -1657,6 +1680,25 @@
             "required": false,
             "name": "before",
             "in": "query"
+          },
+          {
+            "schema": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "maxLength": 100
+              },
+              "maxItems": 32,
+              "description": "Only votes on bills in these topics (CRS policy areas, any case). Repeat it for several, since topic names hold commas. A name that is not one of the topics matches nothing. The Finals tab's Following feed.",
+              "example": [
+                "Health"
+              ]
+            },
+            "required": false,
+            "name": "topic",
+            "in": "query",
+            "style": "form",
+            "explode": true
           }
         ],
         "responses": {
@@ -2267,7 +2309,7 @@
     "/v1/search": {
       "get": {
         "summary": "Members, bills and topics in one search",
-        "description": "A bill number in any spelling (\"hr 1013\", \"H.R.1013\", \"s.j.res.197\") returns that bill and nothing else. Otherwise words match bill short titles, titles and CRS summaries (Postgres full-text), topic names, and serving members by name, state (\"TX\", \"Texas\") or district (\"TX-35\"). Companion bills (the House and Senate versions of one measure) are separate results and are not linked to each other.",
+        "description": "A bill number in any spelling (\"hr 1013\", \"H.R.1013\", \"s.j.res.197\") returns that bill and nothing else. Otherwise words match bill short titles, titles and CRS summaries (Postgres full-text), topic names, and sitting members exactly as `/v1/members?q=` reads them (the same reader, up to 60, Senate first): a name with accents, hyphens and apostrophes folded (\"velazquez\", \"ocasio cortez\"), a state by name or code (\"Texas\", \"N.Y.\"), or a seat (\"TX-35\", \"DC-1\"). `chamber` narrows the members only. Companion bills (the House and Senate versions of one measure) are separate results and are not linked to each other.",
         "parameters": [
           {
             "schema": {
@@ -2278,6 +2320,21 @@
             },
             "required": true,
             "name": "q",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "allOf": [
+                {
+                  "$ref": "#/components/schemas/Chamber"
+                },
+                {
+                  "description": "Only this chamber; omit for both"
+                }
+              ]
+            },
+            "required": false,
+            "name": "chamber",
             "in": "query"
           }
         ],

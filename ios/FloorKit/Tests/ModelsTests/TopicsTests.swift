@@ -4,6 +4,24 @@ import Testing
 
 @Suite("Topics")
 struct TopicsTests {
+    /// The app's list of the 32 is the API's: the same names in the same order as `/v1/topics` sent them.
+    @Test func theThirtyTwoAreTheAPIs() throws {
+        let url = try #require(Bundle.module.url(forResource: "Fixtures/topics", withExtension: "json"))
+        let list = try JSONDecoder().decode(TopicList.self, from: Data(contentsOf: url))
+        #expect(Topic.names.count == 32)
+        #expect(list.topics.map(\.name) == Topic.names)
+    }
+
+    /// Any case and spacing reads as the canonical name; anything else is no topic.
+    @Test func canonicalNamesAndNothingElse() {
+        #expect(Topic.canonical("health") == "Health")
+        #expect(Topic.canonical("  arts,  culture, religion ") == "Arts, Culture, Religion")
+        #expect(Topic.canonical("Healthcare") == nil)
+        #expect(Topic.canonical("Private Legislation") == nil)
+        #expect(Topic.canonical(["taxation", "Nonsense", "Taxation", "Health"]) == ["Taxation", "Health"])
+        #expect(Topic.canonical(["Nonsense"]).isEmpty)
+    }
+
     /// A page as the API sends it, with the two nullable fields null: a bill listed but not yet staged
     /// and with no action, which is what a fresh import looks like.
     @Test func decodesATopicPageWithUnstagedBills() throws {

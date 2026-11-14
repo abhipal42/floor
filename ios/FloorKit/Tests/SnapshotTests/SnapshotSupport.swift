@@ -193,6 +193,12 @@ final class FixtureServer: URLProtocol {
         "/v1/members/C001098/votes": "member-votes-cruz-40",
         "/v1/members/C001056/votes": "member-votes-cornyn-40",
         "/v1/members/D000399/votes": "member-votes-doggett-40",
+        "/v1/bills/119-hr-1013": "bill-hr1013",
+        "/v1/topics": "topics",
+        "/v1/topics/Health/bills": "topic-bills-health",
+        // Routes whose answer depends on the query, keyed path and query as sent.
+        "/v1/search?q=rural%20health": "search-rural-health",
+        "/v1/search?q=hr%201013": "search-hr1013",
     ]
 
     static var api: FloorAPI { api(FixtureServer.self) }
@@ -208,7 +214,8 @@ final class FixtureServer: URLProtocol {
 
     override func startLoading() {
         guard let url = request.url else { return }
-        let name = Self.routes[url.path]
+        let withQuery = URLComponents(url: url, resolvingAgainstBaseURL: false)?.percentEncodedQuery.map { "\(url.path)?\($0)" }
+        let name = withQuery.flatMap { Self.routes[$0] } ?? Self.routes[url.path]
         let body = name.flatMap { try? Data(contentsOf: fixtureDirectory.appendingPathComponent("\($0).json")) }
             ?? Data(#"{"error":"Not found"}"#.utf8)
         let response = HTTPURLResponse(

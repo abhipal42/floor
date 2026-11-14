@@ -123,6 +123,36 @@ public struct Topic: Codable, Sendable, Hashable, Identifiable {
     }
 }
 
+public extension Topic {
+    /// The 32 CRS policy areas, spelled and ordered as the API's `POLICY_AREAS` (apps/api/src/bills.ts).
+    /// A topic is one of these and nothing else: a bill whose `policyArea` is not here gets no topic
+    /// card, and a followed name not here is never sent.
+    static let names: [String] = [
+        "Agriculture and Food", "Animals", "Armed Forces and National Security", "Arts, Culture, Religion",
+        "Civil Rights and Liberties, Minority Issues", "Commerce", "Congress", "Crime and Law Enforcement",
+        "Economics and Public Finance", "Education", "Emergency Management", "Energy", "Environmental Protection",
+        "Families", "Finance and Financial Sector", "Foreign Trade and International Finance",
+        "Government Operations and Politics", "Health", "Housing and Community Development", "Immigration",
+        "International Affairs", "Labor and Employment", "Law", "Native Americans",
+        "Public Lands and Natural Resources", "Science, Technology, Communications", "Social Sciences and History",
+        "Social Welfare", "Sports and Recreation", "Taxation", "Transportation and Public Works",
+        "Water Resources Development",
+    ]
+
+    /// The canonical spelling of a topic, case and spacing ignored, as the API's `topicNamed`; nil
+    /// when it is not one of the 32.
+    static func canonical(_ name: String) -> String? {
+        let key = name.split(whereSeparator: \.isWhitespace).joined(separator: " ").lowercased()
+        return names.first { $0.lowercased() == key }
+    }
+
+    /// Names clamped to the 32, canonical spelling, repeats and unknown names dropped, order kept.
+    static func canonical(_ list: [String]) -> [String] {
+        var seen = Set<String>()
+        return list.compactMap(canonical).filter { seen.insert($0).inserted }
+    }
+}
+
 /// `GET /v1/topics` — all 32, in a fixed order, including empty ones.
 public struct TopicList: Codable, Sendable, Hashable {
     public var congress: Int
