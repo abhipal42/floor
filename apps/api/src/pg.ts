@@ -1,4 +1,5 @@
-import { AI_DISCLAIMER } from "./app.js";
+import { createHash } from "node:crypto";
+import { AI_DISCLAIMER, DEVICE_SIGNUPS_PER_DAY } from "./app.js";
 import { billCitation, billLabel } from "./bills.js";
 import type {
   Bill,
@@ -6,6 +7,8 @@ import type {
   BillRepository,
   BillStage,
   CatalogRepository,
+  DeviceRegistration,
+  DeviceRepository,
   TopicFilter,
   LiveRepository,
   CandidateTotal,
@@ -472,8 +475,113 @@ export function pgRepositories(db: Db): {
   status: StatusRepository;
   live: LiveRepository;
   catalog: CatalogRepository;
+  devices: DeviceRepository;
 } {
+  const registerOnce = async (keyHash: string, reg: DeviceRegistration, now: Date) => {
+    // An APNs token belongs to one install. A phone that reinstalled Floor makes a new key and
+    // may get its old token back: the token moves to the new registration rather than failing
+    // the unique constraint (or alerting twice).
+    const { rows: moved } = await db.query(
+      `update devices set apns_token = case when apns_token = $2 then null else apns_token end,
+                          push_to_start_token = case when push_to_start_token = $3 then null else push_to_start_token end
+        where key_hash <> $1 and (apns_token = $2 or push_to_start_token = $3)
+        returning id`,
+      [keyHash, reg.apnsToken, reg.pushToStartToken],
+    );
+    // A count only: a token or key in a log line would name a phone.
+    if (moved.length) console.info(`device registration: ${moved.length} token(s) moved to a new key`);
+    // One statement, so a registration and its subscription list change together. The delete
+    // and the upsert touch different rows (those not in the new list, and those in it).
+    await db.query(
+      `with d as (
+         insert into devices (key_hash, apns_token, apns_env, push_to_start_token, vote_opened, live_activities, updated_at)
+         values ($1, $2, $3, $4, $5, $8, $6)
+         on conflict (key_hash) do update set apns_token = excluded.apns_token, apns_env = excluded.apns_env,
+           push_to_start_token = excluded.push_to_start_token, vote_opened = excluded.vote_opened,
+           live_activities = excluded.live_activities, updated_at = excluded.updated_at
+         returning id
+       ), x as (
+         select distinct on (kind, id) kind, id, how_voted
+           from jsonb_to_recordset($7::jsonb) as r(kind text, id text, how_voted boolean)
+       ), gone as (
+         delete from device_subscriptions s using d
+          where s.device_id = d.id
+            and not exists (select 1 from x where x.kind = s.target_kind and x.id = s.target_id)
+       )
+       insert into device_subscriptions (device_id, target_kind, target_id, how_voted)
+       select d.id, x.kind, x.id, x.how_voted from d, x
+       on conflict (device_id, target_kind, target_id) do update set how_voted = excluded.how_voted`,
+      [
+        keyHash,
+        reg.apnsToken,
+        reg.apnsEnvironment,
+        reg.pushToStartToken,
+        reg.voteOpened,
+        now.toISOString(),
+        JSON.stringify(reg.subscriptions.map((x) => ({ kind: x.kind, id: x.id, how_voted: x.howVoted }))),
+        reg.liveActivities,
+      ],
+    );
+  };
+
+  /**
+   * A key this database has not seen counts against its caller's daily allowance of new
+   * registrations (`DEVICE_SIGNUPS_PER_DAY`), kept in Postgres so every serverless instance shares
+   * the count. The caller is stored as SHA-256(address, day) only.
+   */
+  const admitNew = async (keyHash: string, caller: string, now: Date): Promise<boolean> => {
+    const { rows: known } = await db.query("select 1 from devices where key_hash = $1", [keyHash]);
+    if (known.length) return true;
+    const day = now.toISOString().slice(0, 10);
+    const ipHash = createHash("sha256").update(`${caller}|${day}`).digest("hex");
+    const { rows } = await db.query<{ count: number }>(
+      `insert into device_signups (ip_hash, day, count) values ($1, $2::date, 1)
+       on conflict (ip_hash, day) do update set count = device_signups.count + 1
+       returning count`,
+      [ipHash, day],
+    );
+    return (rows[0]?.count ?? 0) <= DEVICE_SIGNUPS_PER_DAY;
+  };
+
   return {
+    devices: {
+      async register(keyHash, reg, now, caller) {
+        if (!(await admitNew(keyHash, caller, now))) return "limited";
+        // Two registrations racing for one token (a reinstall registering twice at once) can both
+        // pass the token move and collide on the unique constraint; the second try sees the first.
+        try {
+          await registerOnce(keyHash, reg, now);
+        } catch (error) {
+          if ((error as { code?: string }).code !== "23505") throw error;
+          await registerOnce(keyHash, reg, now);
+        }
+        return "ok";
+      },
+      async unregister(keyHash) {
+        const { rows } = await db.query("delete from devices where key_hash = $1 returning id", [keyHash]);
+        return rows.length > 0;
+      },
+      async setActivityToken(keyHash, voteId, token, now) {
+        const { rows } = await db.query<{ device: string | null; vote: string | null }>(
+          `select (select id from devices where key_hash = $1)::text as device, (select id from votes where id = $2) as vote`,
+          [keyHash, voteId],
+        );
+        if (!rows[0]?.device) return "no_device";
+        if (!rows[0].vote) return "no_vote";
+        await db.query(
+          `insert into live_activity_tokens (device_id, vote_id, token, updated_at) values ($1, $2, $3, $4)
+           on conflict (device_id, vote_id) do update set token = excluded.token, updated_at = excluded.updated_at`,
+          [rows[0].device, voteId, token, now.toISOString()],
+        );
+        return "ok";
+      },
+      async removeActivityToken(keyHash, voteId) {
+        await db.query(
+          `delete from live_activity_tokens t using devices d where d.id = t.device_id and d.key_hash = $1 and t.vote_id = $2`,
+          [keyHash, voteId],
+        );
+      },
+    },
     catalog: {
       async topicCounts(congress) {
         const { rows } = await db.query<{ name: string; bills: number; voted: number; latest: Date | string | null }>(
@@ -554,9 +662,20 @@ export function pgRepositories(db: Db): {
         // Final: published by the live worker since `finalAfter` (`broadcast_at`, which every final
         // vote gets however it was stored), and itself from the last day, so a backfilled old vote
         // the worker marked without announcing is not "just final".
-        const { rows } = await liveQuery(db)<VoteRow & { opened_at: Date | null; announced_at: Date | null; posted_at: Date | null }>(
-          `select ${VOTE_COLUMNS}, v.opened_at, v.announced_at, v.posted_at
+        const { rows } = await liveQuery(db)<
+          VoteRow & MeasureRow & { measure_bill_id: string | null; opened_at: Date | null; announced_at: Date | null; posted_at: Date | null }
+        >(
+          // An open vote is linked to its bill only after it is final (the worker's bill linking), so
+          // the bill is also found from the roll call's own reference, "H R 1013" or "H.R. 1013".
+          `select ${VOTE_COLUMNS}, ${MEASURE_COLUMNS}, b.id as measure_bill_id, v.opened_at, v.announced_at, v.posted_at
              from votes v
+             left join lateral (
+               select v.congress || '-' || m[1] || '-' || m[2] as id
+                 from regexp_match(regexp_replace(lower(coalesce(v.bill_ref, '')), '[^a-z0-9]', '', 'g'),
+                                   '^(hr|s|hres|sres|hjres|sjres|hconres|sconres)([0-9]+)$') as m
+             ) ref on true
+             left join bills b on b.id = coalesce(v.bill_id, ref.id)
+             left join nominations n on n.id = v.nomination_id
             where (v.state = 'open' and v.announced_at > $2::timestamptz - interval '1 day')
                or (v.state = 'final' and v.broadcast_at > $1
                    and coalesce(v.occurred_at, v.broadcast_at) > $2::timestamptz - interval '1 day')
@@ -570,6 +689,7 @@ export function pgRepositories(db: Db): {
           openedAt: iso(r.opened_at),
           announcedAt: iso(r.announced_at),
           postedAt: iso(r.posted_at),
+          measure: toMeasure({ ...r, bill_id: r.measure_bill_id }),
         }));
       },
     },

@@ -74,7 +74,11 @@ struct ContractTests {
             "ChamberStatus": fields(ChamberStatus.sample),
             "Live": fields(Live.sample),
             // Flat on the wire, nested in Swift, like VoteDetail: the vote's fields plus three timestamps.
-            "LiveVote": fields(Vote.sample).union(["openedAt", "announcedAt", "postedAt"]),
+            "LiveVote": fields(Vote.sample).union(["openedAt", "announcedAt", "postedAt", "measure"]),
+            "DeviceSubscription": fields(DeviceSubscription.sample),
+            "DeviceRegistration": fields(DeviceRegistration.sample),
+            "DeviceRegistered": fields(DeviceRegistered.sample),
+            "ActivityToken": fields(ActivityToken.sample),
             "BillListItem": fields(BillListItem.sample),
             "Topic": fields(Topic.sample),
             "TopicList": fields(TopicList.sample),
@@ -96,6 +100,7 @@ struct ContractTests {
         "AnalysisCitation", "AnalysisClaim", "AnalysisSource", "BillAnalysis",
         "ChamberStatus", "Live", "LiveVote", "RecentVote",
         "BillListItem", "Topic", "TopicList", "TopicBills", "SearchResults",
+        "DeviceSubscription", "DeviceRegistration", "DeviceRegistered", "ActivityToken",
     ])
     func modelFieldsMatchItsSchema(name: String) throws {
         let model = try #require(Self.modelFields()[name], "no model registered for \(name)")

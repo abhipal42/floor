@@ -1,9 +1,6 @@
 import Foundation
 
 /// One chamber as the live worker last saw it (`GET /v1/live`).
-///
-/// Models only: no screen uses these yet. The live UI (Live Activities, widgets, the open-vote card)
-/// waits for a locked design.
 public struct ChamberStatus: Codable, Sendable, Hashable, Identifiable {
     public var chamber: Chamber
     /// Sitting now, or within 15 minutes of convening.
@@ -26,11 +23,12 @@ public struct ChamberStatus: Codable, Sendable, Hashable, Identifiable {
     }
 }
 
-/// A vote with the live layer's timestamps. Flat on the wire (the vote's fields beside these three),
+/// A vote with the live layer's timestamps. Flat on the wire (the vote's fields beside these),
 /// nested here, like ``VoteDetail``.
 ///
 /// `state == .open` means a floor source has named the roll call and its official XML has not posted
 /// yet — not that members are still voting: neither chamber publishes that (HANDOFF lesson 41).
+/// The Live Activity (`LiveActivity` module) reads these while the app is open.
 public struct LiveVote: Codable, Sendable, Hashable, Identifiable {
     public var vote: Vote
     /// The floor's own time for the vote, ISO 8601. House only.
@@ -39,18 +37,23 @@ public struct LiveVote: Codable, Sendable, Hashable, Identifiable {
     public var announcedAt: String?
     /// When the worker first saw its roll call XML while polling live; nil if it was backfilled.
     public var postedAt: String?
+    /// What is being voted on. An open vote is not linked to its bill yet, so the API reads it from
+    /// the roll call's own reference; nil for a procedural vote or a bill not in the catalog. Absent
+    /// in responses from before v0.2.30, which decode with nil.
+    public var measure: MeasureSummary?
 
     public var id: String { vote.id }
 
     private enum CodingKeys: String, CodingKey {
-        case openedAt, announcedAt, postedAt
+        case openedAt, announcedAt, postedAt, measure
     }
 
-    public init(vote: Vote, openedAt: String?, announcedAt: String?, postedAt: String?) {
+    public init(vote: Vote, openedAt: String?, announcedAt: String?, postedAt: String?, measure: MeasureSummary? = nil) {
         self.vote = vote
         self.openedAt = openedAt
         self.announcedAt = announcedAt
         self.postedAt = postedAt
+        self.measure = measure
     }
 
     public init(from decoder: Decoder) throws {
@@ -59,6 +62,7 @@ public struct LiveVote: Codable, Sendable, Hashable, Identifiable {
         openedAt = try container.decodeIfPresent(String.self, forKey: .openedAt)
         announcedAt = try container.decodeIfPresent(String.self, forKey: .announcedAt)
         postedAt = try container.decodeIfPresent(String.self, forKey: .postedAt)
+        measure = try container.decodeIfPresent(MeasureSummary.self, forKey: .measure)
     }
 
     public func encode(to encoder: Encoder) throws {
@@ -67,6 +71,12 @@ public struct LiveVote: Codable, Sendable, Hashable, Identifiable {
         try container.encode(openedAt, forKey: .openedAt)
         try container.encode(announcedAt, forKey: .announcedAt)
         try container.encode(postedAt, forKey: .postedAt)
+        try container.encode(measure, forKey: .measure)
+    }
+
+    /// The bill this vote is on: linked, or read by the API from the roll call's reference.
+    public var billId: String? {
+        vote.billId ?? (measure?.kind == .bill ? measure?.id : nil)
     }
 }
 

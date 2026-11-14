@@ -3,6 +3,7 @@ import { PGlite } from "@electric-sql/pglite";
 import { loadMigrations } from "@floor/db";
 import { beforeAll, describe, expect, it } from "vitest";
 import { pgRepositories, poolerMode, poolerWarning, type Db } from "./pg.js";
+import { DEVICE_SIGNUPS_PER_DAY } from "./app.js";
 import { parseMemberQuery } from "./search.js";
 
 describe("poolerMode", () => {
@@ -963,5 +964,128 @@ describe("catalog", () => {
     expect(bill?.stage).toBeNull();
     expect(bill?.label).toBe("To do a thing");
     await old.close();
+  });
+});
+
+describe("live votes name their measure", () => {
+  it("finds an open vote's bill from its roll call reference, before the vote is linked", async () => {
+    await pg.exec(`
+      insert into votes (id, chamber, congress, session, roll_number, question, state, bill_ref, opened_at, announced_at)
+        values ('house-119-3-7900', 'house', 119, 3, 7900, 'On Passage', 'open', 'H R 1', '2026-12-01T19:43:00Z', '2026-12-01T19:43:30Z'),
+               ('house-119-3-7901', 'house', 119, 3, 7901, 'On Motion to Adjourn', 'open', 'QUORUM', '2026-12-01T19:44:00Z', '2026-12-01T19:44:30Z');
+    `);
+    const votes = await repos.live.liveVotes(new Date("2026-12-01T19:00:00Z"), new Date("2026-12-01T19:45:00Z"));
+    const byId = Object.fromEntries(votes.map((v) => [v.id, v]));
+    expect(byId["house-119-3-7900"]!.billId).toBeNull();
+    expect(byId["house-119-3-7900"]!.measure).toEqual({
+      id: "119-hr-1",
+      kind: "bill",
+      citation: "H.R. 1",
+      title: "Example Act",
+      policyArea: "Taxation",
+    });
+    expect(byId["house-119-3-7901"]!.measure).toBeNull();
+    await pg.exec("delete from votes where id in ('house-119-3-7900', 'house-119-3-7901')");
+  });
+});
+
+describe("device repository", () => {
+  const hash = (c: string) => c.repeat(64);
+  const token = (c: string) => c.repeat(64);
+  const reg = {
+    apnsToken: token("a"),
+    apnsEnvironment: "production" as const,
+    pushToStartToken: token("b"),
+    voteOpened: false,
+    liveActivities: true,
+    subscriptions: [
+      { kind: "member" as const, id: "H000037", howVoted: true },
+      { kind: "bill" as const, id: "119-hr-1", howVoted: false },
+    ],
+  };
+  const subs = async (keyHash: string) =>
+    (
+      await pg.query<{ target_kind: string; target_id: string; how_voted: boolean }>(
+        `select s.target_kind, s.target_id, s.how_voted from device_subscriptions s join devices d on d.id = s.device_id
+          where d.key_hash = $1 order by 1, 2`,
+        [keyHash],
+      )
+    ).rows;
+
+  it("registers a device with its whole subscription list, and replaces it on the next registration", async () => {
+    await repos.devices.register(hash("1"), reg, new Date("2026-11-13T12:00:00Z"), "203.0.113.7");
+    expect(await subs(hash("1"))).toEqual([
+      { target_kind: "bill", target_id: "119-hr-1", how_voted: false },
+      { target_kind: "member", target_id: "H000037", how_voted: true },
+    ]);
+    await repos.devices.register(
+      hash("1"),
+      {
+        ...reg,
+        voteOpened: true,
+        subscriptions: [
+          { kind: "member", id: "H000037", howVoted: false },
+          { kind: "member", id: "S000001", howVoted: true },
+        ],
+      },
+      new Date("2026-11-13T12:05:00Z"),
+      "203.0.113.7",
+    );
+    expect(await subs(hash("1"))).toEqual([
+      { target_kind: "member", target_id: "H000037", how_voted: false },
+      { target_kind: "member", target_id: "S000001", how_voted: true },
+    ]);
+    const { rows } = await pg.query<{ vote_opened: boolean; apns_token: string; n: number }>(
+      "select vote_opened, apns_token, (select count(*)::int from devices) as n from devices where key_hash = $1",
+      [hash("1")],
+    );
+    expect(rows[0]).toEqual({ vote_opened: true, apns_token: token("a"), n: 1 });
+  });
+
+  it("counts only new keys against a caller's daily allowance, kept hashed in Postgres", async () => {
+    const day = new Date("2026-11-20T12:00:00Z");
+    const results: string[] = [];
+    for (let i = 0; i < DEVICE_SIGNUPS_PER_DAY + 1; i++) {
+      results.push(await repos.devices.register(`${i.toString(16).padStart(2, "0")}`.repeat(32), { ...reg, apnsToken: null, pushToStartToken: null }, day, "198.51.100.9"));
+    }
+    expect(results.slice(0, DEVICE_SIGNUPS_PER_DAY).every((r) => r === "ok")).toBe(true);
+    expect(results.at(-1)).toBe("limited");
+    // A key it already has is never limited; another caller, or the next day, starts afresh.
+    expect(await repos.devices.register("00".repeat(32), { ...reg, apnsToken: null, pushToStartToken: null }, day, "198.51.100.9")).toBe("ok");
+    expect(await repos.devices.register("ee".repeat(32), { ...reg, apnsToken: null, pushToStartToken: null }, day, "198.51.100.10")).toBe("ok");
+    const { rows } = await pg.query<{ ip_hash: string }>("select ip_hash from device_signups");
+    expect(rows.every((r) => /^[0-9a-f]{64}$/.test(r.ip_hash) && !r.ip_hash.includes("198"))).toBe(true);
+    await pg.exec("delete from devices where key_hash not in (repeat('1', 64))");
+  });
+
+  it("moves a token to the registration that sends it now (a reinstall makes a new key)", async () => {
+    await repos.devices.register(hash("2"), { ...reg, pushToStartToken: null }, new Date(), "203.0.113.7");
+    const { rows } = await pg.query<{ key_hash: string; apns_token: string | null; push_to_start_token: string | null }>(
+      "select key_hash, apns_token, push_to_start_token from devices order by key_hash",
+    );
+    expect(rows).toEqual([
+      { key_hash: hash("1"), apns_token: null, push_to_start_token: token("b") },
+      { key_hash: hash("2"), apns_token: token("a"), push_to_start_token: null },
+    ]);
+  });
+
+  it("keeps a Live Activity's token per vote, refuses an unknown device or vote, and forgets everything on unregister", async () => {
+    await pg.exec(`insert into votes (id, chamber, congress, session, roll_number, question, state)
+                   values ('house-119-3-950', 'house', 119, 3, 950, 'On Passage', 'open')`);
+    expect(await repos.devices.setActivityToken(hash("9"), "house-119-3-950", token("c"), new Date())).toBe("no_device");
+    expect(await repos.devices.setActivityToken(hash("1"), "house-119-3-999", token("c"), new Date())).toBe("no_vote");
+    expect(await repos.devices.setActivityToken(hash("1"), "house-119-3-950", token("c"), new Date())).toBe("ok");
+    expect(await repos.devices.setActivityToken(hash("1"), "house-119-3-950", token("d"), new Date())).toBe("ok");
+    const tokens = async () => (await pg.query<{ token: string }>("select token from live_activity_tokens")).rows;
+    expect(await tokens()).toEqual([{ token: token("d") }]);
+    await repos.devices.removeActivityToken(hash("1"), "house-119-3-950");
+    expect(await tokens()).toEqual([]);
+    await repos.devices.setActivityToken(hash("1"), "house-119-3-950", token("c"), new Date());
+    expect(await repos.devices.unregister(hash("1"))).toBe(true);
+    expect(await repos.devices.unregister(hash("1"))).toBe(false);
+    expect(await tokens()).toEqual([]);
+    expect(await subs(hash("1"))).toEqual([]);
+    await repos.devices.unregister(hash("2"));
+    await pg.exec("delete from votes where id = 'house-119-3-950'");
   });
 });

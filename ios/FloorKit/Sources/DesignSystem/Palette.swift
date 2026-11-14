@@ -234,6 +234,11 @@ public enum Palette {
     public static let turf = Color(hex: 0x0E1A14)
     public static let turfAlt = Color(hex: 0x0B1611)
     public static let turfBorder = Color(hex: 0x1E2A23)
+    /// The Live Activity's lock-screen panel (round 8's `rgba(10,11,14,.82)`), drawn at
+    /// ``liveActivityOpacity`` over the wallpaper; and the Dynamic Island's black.
+    public static let liveActivity = Color(hex: 0x0A0B0E)
+    public static let liveActivityOpacity = 0.82
+    public static let island = Color(hex: 0x000000)
     /// The silver frame around a player card.
     public static let silver = [Color(hex: 0xE5E7EB), Color(hex: 0x6B7280), Color(hex: 0xC4C9D2)]
     /// Text on silver, which is light in both appearances.

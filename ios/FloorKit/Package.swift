@@ -14,6 +14,8 @@ let package = Package(
         .library(name: "Home", targets: ["Home"]),
         .library(name: "DesignSystem", targets: ["DesignSystem"]),
         .library(name: "WidgetFeed", targets: ["WidgetFeed"]),
+        .library(name: "LiveActivity", targets: ["LiveActivity"]),
+        .library(name: "Alerts", targets: ["Alerts"]),
     ],
     dependencies: [
         // Image snapshots for SnapshotTests only; no app target links it. Why a dependency rather
@@ -33,13 +35,21 @@ let package = Package(
         .target(name: "BillScreen", dependencies: ["Models", "APIClient", "DesignSystem", "Onboarding"]),
         // Onboarding for `Follows`: the member screen's Follow button.
         .target(name: "RepScreen", dependencies: ["Models", "APIClient", "DesignSystem", "Onboarding"]),
+        // Alerts for `AlertsView`, reached from Following's top bar.
         .target(
             name: "Home",
             dependencies: [
                 "Models", "APIClient", "DesignSystem", "Onboarding", "VoteScreen", "BillScreen",
-                "RepScreen",
+                "RepScreen", "Alerts",
             ]
         ),
+        // The Live Activity (round 8, sections A-B): its ActivityKit attributes — a wire contract with
+        // apps/worker/src/push.ts — its words, its views, and the foreground poller. The widget
+        // extension draws it; ActivityKit itself is only touched in the app and the extension.
+        .target(name: "LiveActivity", dependencies: ["Models", "APIClient", "DesignSystem"]),
+        // The Alerts screen and the sync that registers this phone with the API (round 8 section C,
+        // round 9 "Alerts").
+        .target(name: "Alerts", dependencies: ["Models", "APIClient", "DesignSystem", "Onboarding"]),
         // What the home-screen widgets show, and how they fetch it. No views: those live in the
         // widget extension (`ios/FloorWidgets`), so this stays testable on macOS.
         .target(name: "WidgetFeed", dependencies: ["Models", "APIClient", "Onboarding"]),
@@ -61,6 +71,10 @@ let package = Package(
         .testTarget(name: "DesignSystemTests", dependencies: ["DesignSystem"]),
         // Reads ModelsTests' captured responses from the source tree, as APIClientTests does.
         .testTarget(name: "WidgetFeedTests", dependencies: ["WidgetFeed"]),
+        // Reads ModelsTests' captured responses, including the live-activity-*.json contract the
+        // worker's tests check too.
+        .testTarget(name: "LiveActivityTests", dependencies: ["LiveActivity"]),
+        .testTarget(name: "AlertsTests", dependencies: ["Alerts"]),
         // Image references of the cards and screens, recorded on one pinned simulator (iPhone 17
         // Pro, iOS 26.2) and skipped anywhere else — including `swift test` on macOS. Reads
         // ModelsTests' captured responses from the source tree, as the other targets do.
@@ -68,7 +82,7 @@ let package = Package(
             name: "SnapshotTests",
             dependencies: [
                 "Models", "APIClient", "DesignSystem", "Onboarding", "VoteScreen", "BillScreen",
-                "RepScreen", "Home",
+                "RepScreen", "Home", "Alerts", "LiveActivity",
                 .product(name: "SnapshotTesting", package: "swift-snapshot-testing"),
             ],
             exclude: ["__Snapshots__"]

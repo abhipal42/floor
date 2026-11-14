@@ -60,6 +60,24 @@
 				<string>NSPrivacyCollectedDataTypePurposeAppFunctionality</string>
 			</array>
 		</dict>
+		<!-- Device ID (since v0.2.30): with alerts on, the phone registers with Floor's API — its
+		     APNs and Live Activity push tokens, and a random key it made itself (the API keeps the
+		     key's SHA-256), stored so a vote can reach this phone. Device-level identifiers, kept
+		     beyond the request, so collected. Not linked: no account, name or contact detail sits
+		     beside them. Only once you turn an alert on and allow notifications; turning every alert
+		     off deletes the registration. -->
+		<dict>
+			<key>NSPrivacyCollectedDataType</key>
+			<string>NSPrivacyCollectedDataTypeDeviceID</string>
+			<key>NSPrivacyCollectedDataTypeLinked</key>
+			<false/>
+			<key>NSPrivacyCollectedDataTypeTracking</key>
+			<false/>
+			<key>NSPrivacyCollectedDataTypePurposes</key>
+			<array>
+				<string>NSPrivacyCollectedDataTypePurposeAppFunctionality</string>
+			</array>
+		</dict>
 	</array>
 
 	<!-- Required-reason APIs. UserDefaults only, for two reasons: the app's own defaults hold the

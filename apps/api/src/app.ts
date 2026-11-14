@@ -1,8 +1,10 @@
+import { createHash } from "node:crypto";
 import { OpenAPIHono, createRoute, z } from "@hono/zod-openapi";
 import { cors } from "hono/cors";
 import type { DistrictMatch, Place } from "./district.js";
 import { POLICY_AREAS, matchTopics, parseBillNumber, topicNamed } from "./bills.js";
-import { rateLimit, type LimitStore } from "./limit.js";
+import { bodyLimit } from "hono/body-limit";
+import { clientKey, rateLimit, type LimitStore } from "./limit.js";
 import { parseMemberQuery, type MemberQuery } from "./search.js";
 
 /*
@@ -533,6 +535,11 @@ export const LiveVoteSchema = z
       .string()
       .nullable()
       .openapi({ description: "When the worker first saw the roll call XML, polling live; null if it was backfilled" }),
+    measure: MeasureSummarySchema.nullable().openapi({
+      description:
+        "What is being voted on. An open vote is not linked to its bill yet, so this is read from the roll call's " +
+        "bill reference (`billRef`) when the bill is in the catalog; null for a procedural vote or an unknown bill",
+    }),
   })
   .openapi("LiveVote");
 
@@ -729,6 +736,104 @@ export const SEARCH_CACHE_CONTROL = "public, max-age=60, s-maxage=300, stale-whi
 export const SEARCH_RATE_LIMIT = { limit: 60, windowMs: 60 * 1000 };
 export const TOPICS_RATE_LIMIT = { limit: 120, windowMs: 60 * 1000 };
 
+/*
+ * Alerts and Live Activities (round 8, sections A-C). No accounts: a phone makes a random 32-byte
+ * key, sends it as `Authorization: Device <key>` (base64url, 43 characters), and the API keeps only
+ * its SHA-256 — so a registration can be changed only by the phone that made it, and the key is
+ * never in a URL a request log would keep.
+ */
+export const DEVICE_KEY_PATTERN = /^Device ([A-Za-z0-9_-]{43})$/;
+
+/** Every member (541) and a generous number of bills. */
+export const DEVICE_SUBSCRIPTION_MAX = 1000;
+/** A phone registers when its follows or tokens change, a few times a day; this only stops a loop. */
+export const DEVICES_RATE_LIMIT = { limit: 30, windowMs: 60 * 1000 };
+/** New device keys one caller may register in a day; a household's phones, not a key farm. */
+export const DEVICE_SIGNUPS_PER_DAY = 10;
+/** A registration is at most 1,000 short ids; nothing legitimate comes near this. */
+export const DEVICE_BODY_LIMIT = 64 * 1024;
+
+/** An APNs device, push-to-start or activity token: hex, as `Data` prints it. */
+const ApnsTokenSchema = z
+  .string()
+  .regex(/^[0-9a-fA-F]{64,200}$/, "An APNs token is 64-200 hex characters")
+  .transform((t) => t.toLowerCase());
+
+export const DeviceSubscriptionSchema = z
+  .object({
+    kind: z.enum(["member", "bill"]),
+    id: z.string().openapi({ example: "D000399", description: "A Bioguide ID, or a Floor bill id (`119-hr-1013`)" }),
+    howVoted: z.boolean().openapi({
+      description:
+        "Alert when the vote is final: how a member voted, or that a followed bill was voted on. " +
+        "Off items are still listed, because \"A vote opened\" covers votes involving any of them",
+    }),
+  })
+  .refine((s) => (s.kind === "member" ? /^[A-Z]\d{6}$/.test(s.id) : /^\d{2,3}-[a-z]{1,7}-\d{1,5}$/.test(s.id)), {
+    message: "A member is a Bioguide ID (D000399); a bill is a Floor bill id (119-hr-1013)",
+  })
+  .openapi("DeviceSubscription");
+
+export const DeviceRegistrationSchema = z
+  .object({
+    apnsToken: ApnsTokenSchema.nullable().openapi({ description: "The alert token; null without notification permission" }),
+    apnsEnvironment: z.enum(["sandbox", "production"]).openapi({ description: "sandbox for a Debug build" }),
+    pushToStartToken: ApnsTokenSchema.nullable().openapi({ description: "ActivityKit's push-to-start token (iOS 17.2+)" }),
+    voteOpened: z.boolean().openapi({ description: "\"A vote opened\": a push alert when a vote involving these opens" }),
+    liveActivities: z.boolean().openapi({
+      description: "Start a Live Activity, silently, when a vote involving these opens (needs pushToStartToken). On by default in the app",
+    }),
+    subscriptions: z.array(DeviceSubscriptionSchema).max(DEVICE_SUBSCRIPTION_MAX),
+  })
+  .openapi("DeviceRegistration");
+
+export type DeviceRegistration = z.infer<typeof DeviceRegistrationSchema>;
+
+export const DeviceRegisteredSchema = z
+  .object({ subscriptions: z.number().int(), voteOpened: z.boolean() })
+  .openapi("DeviceRegistered");
+
+export const ActivityTokenSchema = z.object({ token: ApnsTokenSchema }).openapi("ActivityToken");
+
+/** Where registrations live. Postgres in production; in memory in tests. */
+export interface DeviceRepository {
+  /** Creates or replaces the device's tokens and its whole subscription list. */
+  /**
+   * Creates or replaces the device's tokens and its whole subscription list. `caller` (the
+   * client's address) is counted, hashed, only when the key is new: "limited" past
+   * `DEVICE_SIGNUPS_PER_DAY` new keys from one caller in a day.
+   */
+  register(keyHash: string, registration: DeviceRegistration, now: Date, caller: string): Promise<"ok" | "limited">;
+  /** Forgets the device, its subscriptions and its activity tokens. False if there was none. */
+  unregister(keyHash: string): Promise<boolean>;
+  /** A running Live Activity's push token, so the worker can show the final and end it. */
+  setActivityToken(keyHash: string, voteId: string, token: string, now: Date): Promise<"ok" | "no_device" | "no_vote">;
+  removeActivityToken(keyHash: string, voteId: string): Promise<void>;
+}
+
+/** Answers every registration with 503: a deployment without a database cannot keep one. */
+export const NO_DEVICES: DeviceRepository = {
+  register: async () => {
+    throw new DevicesUnavailable();
+  },
+  unregister: async () => {
+    throw new DevicesUnavailable();
+  },
+  setActivityToken: async () => {
+    throw new DevicesUnavailable();
+  },
+  removeActivityToken: async () => {
+    throw new DevicesUnavailable();
+  },
+};
+
+export class DevicesUnavailable extends Error {
+  constructor() {
+    super("Device registration is unavailable on this deployment");
+  }
+}
+
+
 
 export interface AppDeps {
   votes: VoteRepository;
@@ -750,6 +855,8 @@ export interface AppDeps {
   allowedOrigins?: string[];
   /** Swapped in tests, and for a shared store once there is more than one instance. */
   limitStore?: LimitStore;
+  /** Alert and Live Activity registrations. Defaults to `NO_DEVICES` (503). */
+  devices?: DeviceRepository;
 }
 
 /** How many address lookups one caller gets per hour. See the note in `limit.ts`. */
@@ -1140,6 +1247,79 @@ const searchRoute = createRoute({
   },
 });
 
+const deviceSecurity = [{ deviceKey: [] }];
+const deviceErrors = {
+  401: { content: { "application/json": { schema: ErrorSchema } }, description: "No `Authorization: Device <key>` header, or a malformed key" },
+  503: { content: { "application/json": { schema: ErrorSchema } }, description: "This deployment has no database to keep registrations in" },
+};
+
+const putDeviceRoute = createRoute({
+  method: "put",
+  path: "/v1/devices",
+  summary: "Register this phone for alerts and Live Activities, or replace its registration",
+  description:
+    "The whole registration each time: tokens, \"A vote opened\", and every member and bill with its \"How they voted\" " +
+    "switch. Identified by the `Authorization: Device <key>` header (a random 32-byte key, base64url); no account, " +
+    `no address. Rate limited, ${DEVICES_RATE_LIMIT.limit} a minute per caller, shared with the other device routes.`,
+  security: deviceSecurity,
+  request: { body: { content: { "application/json": { schema: DeviceRegistrationSchema } }, required: true } },
+  responses: {
+    200: { content: { "application/json": { schema: DeviceRegisteredSchema } }, description: "Registered" },
+    413: { content: { "application/json": { schema: ErrorSchema } }, description: `Body over ${DEVICE_BODY_LIMIT} bytes` },
+    429: {
+      content: { "application/json": { schema: ErrorSchema } },
+      description: `Over the rate limit, or over ${DEVICE_SIGNUPS_PER_DAY} new keys from one caller today`,
+    },
+    ...deviceErrors,
+  },
+});
+
+const deleteDeviceRoute = createRoute({
+  method: "delete",
+  path: "/v1/devices",
+  summary: "Forget this phone: its tokens, subscriptions and Live Activity tokens",
+  security: deviceSecurity,
+  responses: { 204: { description: "Forgotten (or never registered)" }, ...deviceErrors },
+});
+
+const activityParams = z.object({
+  voteId: z
+    .string()
+    .regex(/^(house|senate)-\d{2,3}-\d-\d{1,5}$/)
+    .openapi({ param: { name: "voteId", in: "path" }, example: "house-119-2-321" }),
+});
+
+const putActivityRoute = createRoute({
+  method: "put",
+  path: "/v1/devices/activities/{voteId}",
+  summary: "The push token of this phone's Live Activity for a vote, so the final can reach it",
+  security: deviceSecurity,
+  request: {
+    params: activityParams,
+    body: { content: { "application/json": { schema: ActivityTokenSchema } }, required: true },
+  },
+  responses: {
+    204: { description: "Saved" },
+    404: { content: { "application/json": { schema: ErrorSchema } }, description: "No such vote, or this phone is not registered" },
+    ...deviceErrors,
+  },
+});
+
+const deleteActivityRoute = createRoute({
+  method: "delete",
+  path: "/v1/devices/activities/{voteId}",
+  summary: "This phone's Live Activity for a vote ended",
+  security: deviceSecurity,
+  request: { params: activityParams },
+  responses: { 204: { description: "Removed (or never saved)" }, ...deviceErrors },
+});
+
+/** The hex SHA-256 of the caller's device key, or null when the header is missing or malformed. */
+export function deviceKeyHash(header: string | undefined): string | null {
+  const key = header ? DEVICE_KEY_PATTERN.exec(header.trim())?.[1] : undefined;
+  return key ? createHash("sha256").update(key).digest("hex") : null;
+}
+
 export function createApp(deps: AppDeps) {
   const app = new OpenAPIHono({
     defaultHook: (result, c) => {
@@ -1149,9 +1329,10 @@ export function createApp(deps: AppDeps) {
     },
   });
 
-  // Reads only, and every route is a GET. Credentials are never involved, so there is nothing for
-  // a cross-origin caller to steal by being allowed to read a response; the allow-list exists so a
-  // browser client has to be named rather than assumed.
+  // Every route but the device ones is a GET read, and those are for the app, which is not a
+  // browser: CORS allows GET only, so no web page can register or unregister a phone. Credentials
+  // are never involved, so there is nothing for a cross-origin caller to steal by being allowed to
+  // read a response; the allow-list exists so a browser client has to be named rather than assumed.
   const origins = deps.allowedOrigins ?? [];
   app.use(
     "/v1/*",
@@ -1178,7 +1359,13 @@ export function createApp(deps: AppDeps) {
     ["/v1/topics/*", TOPICS_RATE_LIMIT, "topics"],
     // Exactly "/v1/votes": the list. A vote by id is not limited.
     ["/v1/votes", VOTES_RATE_LIMIT, "votes"],
+    // Registration and Live Activity tokens; "/v1/devices/*" matches "/v1/devices" itself too.
+    ["/v1/devices/*", DEVICES_RATE_LIMIT, "devices"],
   ] as const;
+  app.use(
+    "/v1/devices/*",
+    bodyLimit({ maxSize: DEVICE_BODY_LIMIT, onError: (c) => c.json({ error: "That registration is too large." }, 413) }),
+  );
   for (const [path, limits, scope] of LIMITED) {
     app.use(
       path,
@@ -1390,6 +1577,62 @@ export function createApp(deps: AppDeps) {
     ]);
     const topics = names.map((name) => counts.find((t) => t.name === name) ?? emptyTopic(name));
     return c.json({ query: q, billNumber: false, members, bills, topics }, 200);
+  });
+
+  // Alerts and Live Activities. Never cached: each answer is about one phone.
+  const devices = deps.devices ?? NO_DEVICES;
+  app.openAPIRegistry.registerComponent("securitySchemes", "deviceKey", {
+    type: "apiKey",
+    in: "header",
+    name: "Authorization",
+    description: "`Device <key>`: the phone's own random 32-byte key, base64url (43 characters)",
+  });
+  type Refused = { refused: string; status: 401 | 503 };
+  const withDevice = async <T>(
+    c: { req: { header(name: string): string | undefined }; header(name: string, value: string): void },
+    fn: (keyHash: string) => Promise<T>,
+  ): Promise<T | Refused> => {
+    c.header("Cache-Control", "no-store");
+    const keyHash = deviceKeyHash(c.req.header("authorization"));
+    if (!keyHash) return { refused: "Send Authorization: Device <key>, a random 32-byte key in base64url.", status: 401 };
+    try {
+      return await fn(keyHash);
+    } catch (error) {
+      if (error instanceof DevicesUnavailable) return { refused: error.message, status: 503 };
+      throw error;
+    }
+  };
+  const refused = (r: unknown): r is Refused => typeof r === "object" && r !== null && "refused" in r;
+
+  app.openapi(putDeviceRoute, async (c) => {
+    const registration = c.req.valid("json");
+    const r = await withDevice(c, (keyHash) => devices.register(keyHash, registration, clock(), clientKey(c)));
+    if (refused(r)) return r.status === 401 ? c.json({ error: r.refused }, 401) : c.json({ error: r.refused }, 503);
+    if (r === "limited") return c.json({ error: "Too many new registrations from this network today. Try again tomorrow." }, 429);
+    return c.json({ subscriptions: registration.subscriptions.length, voteOpened: registration.voteOpened }, 200);
+  });
+
+  app.openapi(deleteDeviceRoute, async (c) => {
+    const r = await withDevice(c, (keyHash) => devices.unregister(keyHash));
+    if (refused(r)) return r.status === 401 ? c.json({ error: r.refused }, 401) : c.json({ error: r.refused }, 503);
+    return c.body(null, 204);
+  });
+
+  app.openapi(putActivityRoute, async (c) => {
+    const { voteId } = c.req.valid("param");
+    const { token } = c.req.valid("json");
+    const r = await withDevice(c, (keyHash) => devices.setActivityToken(keyHash, voteId, token, clock()));
+    if (refused(r)) return r.status === 401 ? c.json({ error: r.refused }, 401) : c.json({ error: r.refused }, 503);
+    if (r === "no_device") return c.json({ error: "This phone is not registered; PUT /v1/devices first." }, 404);
+    if (r === "no_vote") return c.json({ error: `No vote with ID ${voteId}` }, 404);
+    return c.body(null, 204);
+  });
+
+  app.openapi(deleteActivityRoute, async (c) => {
+    const { voteId } = c.req.valid("param");
+    const r = await withDevice(c, (keyHash) => devices.removeActivityToken(keyHash, voteId));
+    if (refused(r)) return r.status === 401 ? c.json({ error: r.refused }, 401) : c.json({ error: r.refused }, 503);
+    return c.body(null, 204);
   });
 
   app.doc("/openapi.json", {

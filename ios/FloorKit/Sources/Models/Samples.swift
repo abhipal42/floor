@@ -279,3 +279,23 @@ public extension LiveVote {
 public extension Live {
     static let sample = Live(chambers: [.sample], votes: [.sample])
 }
+
+public extension DeviceSubscription {
+    /// Your rep, alerts on (the default for a rep).
+    static let sample = DeviceSubscription(kind: .member, id: "D000399", howVoted: true)
+}
+
+public extension DeviceRegistration {
+    static let sample = DeviceRegistration(
+        apnsToken: String(repeating: "ab", count: 32), apnsEnvironment: .production, pushToStartToken: nil,
+        voteOpened: false, liveActivities: true, subscriptions: [.sample, DeviceSubscription(kind: .bill, id: "119-hr-1013", howVoted: false)]
+    )
+}
+
+public extension DeviceRegistered {
+    static let sample = DeviceRegistered(subscriptions: 2, voteOpened: false)
+}
+
+public extension ActivityToken {
+    static let sample = ActivityToken(token: String(repeating: "cd", count: 32))
+}

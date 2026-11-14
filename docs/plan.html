@@ -277,8 +277,8 @@ flowchart LR
     <div class="card">
       <h3>Structure</h3>
       <ul>
-        <li>Swift packages (one <code>FloorKit</code> package, one library per area): <code>Models</code> (checked against the OpenAPI contract), <code>APIClient</code>, <code>DesignSystem</code> (scoreboard cards, crests, bars), and one per feature — built: <code>Onboarding</code>, <code>Home</code>, <code>VoteScreen</code>, <code>BillScreen</code>, <code>RepScreen</code>, <code>WidgetFeed</code>; still to come: <code>Realtime</code>, <code>Alerts</code>. Extensions read the saved delegation through the App Group <code>group.app.floor.ios</code>.</li>
-        <li>Widgets (v0.2.23): two home-screen widgets in the <code>FloorWidgets</code> extension — small, the latest final involving your members; medium, each member's most recent vote. They fetch the same <code>/v1/members/{id}/votes</code> route every 30 minutes and open the vote in the app through <code>floor://vote/&lt;id&gt;</code>. Live Activities and push are still M3.</li>
+        <li>Swift packages (one <code>FloorKit</code> package, one library per area): <code>Models</code> (checked against the OpenAPI contract), <code>APIClient</code>, <code>DesignSystem</code> (scoreboard cards, crests, bars), and one per feature — built: <code>Onboarding</code>, <code>Home</code>, <code>VoteScreen</code>, <code>BillScreen</code>, <code>RepScreen</code>, <code>WidgetFeed</code>, <code>LiveActivity</code>, <code>Alerts</code> (v0.2.30); still to come: <code>Realtime</code>. Extensions read the saved delegation through the App Group <code>group.app.floor.ios</code>.</li>
+        <li>Widgets (v0.2.23): two home-screen widgets in the <code>FloorWidgets</code> extension — small, the latest final involving your members; medium, each member's most recent vote. They fetch the same <code>/v1/members/{id}/votes</code> route every 30 minutes and open the vote in the app through <code>floor://vote/&lt;id&gt;</code>. Since v0.2.30 the same extension draws the Live Activity and Dynamic Island; alerts and Live Activity pushes are built and wait on an APNs key and the deployed worker (M3).</li>
         <li>The widget and Live Activity extensions share <code>Models</code> and <code>DesignSystem</code> through an App Group.</li>
         <li>Notification categories: vote opened, rep voted, bill passed or failed, scheduled vote reminder.</li>
         <li>Navigation (v0.2.3): three tabs (Finals, Bills, Your three), each with its own stack. Since v0.2.28 the third is <strong>Following</strong>: your district's members pinned, plus any member of Congress you follow, kept on the phone with no account. Display type is Barlow Condensed (OFL, bundled); colours stay in <code>Palette</code>. The screens follow the locked phone mocks in the design canvas.</li>
@@ -305,7 +305,8 @@ flowchart LR
       <tr><td>statements</td><td>member_id, bill_id, stance, quote, url, ts</td><td>"Leans Yea", with citation</td></tr>
       <tr><td>projections</td><td>vote_id, ts, p_pass, projected_yea, projected_nay, model_version</td><td>Shown as "% projected"</td></tr>
       <tr><td>bill_analysis / impact_rules</td><td>bill_version_id, json, citations, model, reviewed_by</td><td>Layer 1 AI output</td></tr>
-      <tr><td>profiles / follows / devices</td><td>user_id, district, county, opt-in attributes; followed bills and reps; APNs and Live Activity tokens</td><td>Row-level security on user_id</td></tr>
+      <tr><td>profiles / follows</td><td>user_id, district, county, opt-in attributes; followed bills and reps (unused: follows stay on the phone)</td><td>Row-level security on user_id</td></tr>
+      <tr><td>devices / device_subscriptions / live_activity_tokens / push_log</td><td>No accounts (v0.2.30): a hashed per-phone key, APNs and Live Activity tokens, the members and bills it wants alerts about, what was sent</td><td>Row-level security on, no policy (service connection only)</td></tr>
     </tbody>
   </table></div>
 </section>

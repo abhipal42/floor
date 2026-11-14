@@ -513,6 +513,8 @@ export interface LiveDeps {
   log?: (msg: string) => void;
   /** Links bills and nominations for newly final votes; called at most every 5 minutes, only after new votes. */
   linkMeasures?: () => Promise<void>;
+  /** Hourly housekeeping beside the ingest-run prune: the push tables (`pruneDevices`). */
+  maintenance?: (now: Date) => Promise<unknown>;
 }
 
 export interface TickResult {
@@ -753,6 +755,7 @@ export class LiveWorker {
     if (t - this.lastPrune >= 3_600_000) {
       this.lastPrune = t;
       await step("prune ingest runs", () => pruneIngestRuns(db));
+      if (this.deps.maintenance) await step("prune devices", () => this.deps.maintenance!(now));
     }
 
     if (t - this.lastSweep >= SWEEP_EVERY_MS) {

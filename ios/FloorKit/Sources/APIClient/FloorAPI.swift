@@ -227,6 +227,40 @@ public struct FloorAPI: Sendable {
         try await get("/v1/status", cacheable: false)
     }
 
+    /// What is on the floor now: each chamber's session and the votes open or just final.
+    ///
+    /// Never cached: the Live Activity polls it every few seconds while the app is open, and a saved
+    /// answer would show a vote as open after it closed. The edge caches it for 5 s instead.
+    public func live(since minutes: Int = 120) async throws -> Live {
+        try await get("/v1/live", query: [URLQueryItem(name: "since", value: String(minutes))], cacheable: false)
+    }
+
+    // MARK: - Alerts and Live Activities
+
+    /// Registers this phone for alerts (or replaces its registration). `key` is the phone's own
+    /// random key (``DeviceKey``); it goes in the `Authorization` header, never in the URL.
+    @discardableResult
+    public func registerDevice(_ registration: DeviceRegistration, key: DeviceKey) async throws -> DeviceRegistered {
+        let data = try await send("PUT", "/v1/devices", key: key, body: try JSONEncoder().encode(registration))
+        return try decode(data)
+    }
+
+    /// Forgets this phone: tokens, subscriptions and Live Activity tokens.
+    public func unregisterDevice(key: DeviceKey) async throws {
+        _ = try await send("DELETE", "/v1/devices", key: key, body: nil)
+    }
+
+    /// A running Live Activity's push token, so the final can reach it while the app is closed.
+    public func setActivityToken(_ token: String, voteId: String, key: DeviceKey) async throws {
+        let body = try JSONEncoder().encode(ActivityToken(token: token))
+        _ = try await send("PUT", "/v1/devices/activities/\(escaped(voteId))", key: key, body: body)
+    }
+
+    /// The Live Activity for this vote ended.
+    public func removeActivityToken(voteId: String, key: DeviceKey) async throws {
+        _ = try await send("DELETE", "/v1/devices/activities/\(escaped(voteId))", key: key, body: nil)
+    }
+
     // MARK: - Plumbing
 
     /// One path segment, percent-encoded. `/` is escaped too, so an id can never add a segment
@@ -325,6 +359,36 @@ public struct FloorAPI: Sendable {
         let value: T = try decode(data)
         if cacheable, let cache { await cache.save(data, for: key, at: now()) }
         return value
+    }
+
+    /// A write: never cached, never answered from saved responses (a ``savedOnly()`` copy refuses).
+    private func send(_ method: String, _ path: String, key: DeviceKey, body: Data?) async throws -> Data {
+        guard record == nil else { throw NotSaved() }
+        var request = URLRequest(url: try url(path, query: []))
+        request.cachePolicy = .reloadIgnoringLocalCacheData
+        request.httpMethod = method
+        request.setValue("application/json", forHTTPHeaderField: "Accept")
+        request.setValue(key.authorization, forHTTPHeaderField: "Authorization")
+        if let body {
+            request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+            request.httpBody = body
+        }
+        let data: Data
+        let response: URLResponse
+        do {
+            (data, response) = try await session.data(for: request)
+        } catch {
+            if Task.isCancelled || (error as? URLError)?.code == .cancelled || error is CancellationError {
+                throw CancellationError()
+            }
+            throw FloorAPIError.transport(error)
+        }
+        let status = (response as? HTTPURLResponse)?.statusCode ?? 0
+        guard (200..<300).contains(status) else {
+            let message = try? JSONDecoder().decode(APIError.self, from: data).error
+            throw FloorAPIError.http(status: status, message: message)
+        }
+        return data
     }
 
     private func decode<T: Decodable>(_ data: Data) throws -> T {

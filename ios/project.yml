@@ -12,7 +12,7 @@ options:
 # group, instead of the app and widget colliding on one id or registering ours under your team.
 settings:
   base:
-    MARKETING_VERSION: "0.2.29"
+    MARKETING_VERSION: "0.2.30"
     CURRENT_PROJECT_VERSION: "1"
     FLOOR_BUNDLE_ID: app.floor.ios
     FLOOR_APP_GROUP: group.$(FLOOR_BUNDLE_ID)
@@ -43,7 +43,11 @@ targets:
         product: DesignSystem
       - package: FloorKit
         product: WidgetFeed
-      # The home-screen widgets, embedded in the app.
+      - package: FloorKit
+        product: LiveActivity
+      - package: FloorKit
+        product: Alerts
+      # The home-screen widgets and the Live Activity, embedded in the app.
       - target: FloorWidgets
     # The App Group the widget reads the saved delegation from (district and members only; see
     # `UserDefaultsDelegationStore.shared`). The same setting is in FloorWidgets' entitlements.
@@ -51,6 +55,10 @@ targets:
       path: Floor/Floor.entitlements
       properties:
         com.apple.security.application-groups: [$(FLOOR_APP_GROUP)]
+        # Alerts and Live Activity pushes (docs/HANDOFF.md, M3). `development` here; Xcode's
+        # archive-and-export rewrites it to `production` for TestFlight and the App Store. The App
+        # ID needs the Push Notifications capability, so a personal team must be a paid one.
+        aps-environment: development
     # A generated Info.plist rather than GENERATE_INFOPLIST_FILE, because the API's base URL has to
     # be a build setting: a Debug build talks to the dev server, a Release build to the deployment.
     info:
@@ -71,6 +79,10 @@ targets:
             CFBundleURLSchemes: [floor]
         # Onboarding's "Use my location": when-in-use only, one fix, never stored.
         NSLocationWhenInUseUsageDescription: Floor finds your congressional district from where you are, then forgets the location.
+        # The Live Activity (round 8, sections A-B), drawn by the widget extension.
+        NSSupportsLiveActivities: true
+        # Which APNs gateway this build's tokens belong to, sent with the registration.
+        FloorAPNSEnvironment: $(FLOOR_APNS_ENV)
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: $(FLOOR_BUNDLE_ID)
@@ -78,8 +90,10 @@ targets:
       configs:
         debug:
           FLOOR_API_BASE_URL: http://localhost:8787
+          FLOOR_APNS_ENV: sandbox
         release:
           FLOOR_API_BASE_URL: https://floor-api.vercel.app
+          FLOOR_APNS_ENV: production
   FloorWidgets:
     type: app-extension
     platform: iOS
@@ -95,6 +109,8 @@ targets:
         product: DesignSystem
       - package: FloorKit
         product: WidgetFeed
+      - package: FloorKit
+        product: LiveActivity
       - sdk: WidgetKit.framework
       - sdk: SwiftUI.framework
     entitlements:

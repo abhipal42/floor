@@ -6,7 +6,7 @@ import { pgRepositories, type Db } from "./pg.js";
 
 const CONGRESS = Number(process.env.CONGRESS ?? 119);
 
-function repositories(): Pick<AppDeps, "votes" | "members" | "bills" | "nominations" | "status" | "live"> {
+function repositories(): Pick<AppDeps, "votes" | "members" | "bills" | "nominations" | "status" | "live" | "devices"> {
   if (!process.env.DATABASE_URL) {
     console.warn("DATABASE_URL is not set: serving empty data");
     return {
