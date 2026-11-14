@@ -99,6 +99,15 @@ jobs:
       # listing; the 06 UTC run and manual runs re-list in full (~80 requests), which repairs anything
       # offset paging skipped while the list shifted. Until the one-time backfill is done (~46,000
       # requests), each run spends its whole budget on it: about 38 runs. HANDOFF has the details.
+      # Financial disclosures (House Clerk, Senate eFD), once a day in the 06 UTC run and on manual
+      # runs. Only new filings cost requests; 150 a chamber, 1.5 s apart. Floor's §13107 basis (free to
+      # the public, never paid, no ads beside this data) is in HANDOFF, "Financial disclosures".
+      - name: House disclosures
+        if: steps.install.outcome == 'success' && (github.event_name == 'workflow_dispatch' || github.event.schedule == '17 6 * * *') && !cancelled()
+        run: npm run ingest -w @floor/worker -- disclosures house --budget 150
+      - name: Senate disclosures
+        if: steps.install.outcome == 'success' && (github.event_name == 'workflow_dispatch' || github.event.schedule == '17 6 * * *') && !cancelled()
+        run: npm run ingest -w @floor/worker -- disclosures senate --budget 150
       - name: Bill catalog
         if: steps.install.outcome == 'success' && env.CONGRESS_API_KEY != '' && !cancelled()
         env:

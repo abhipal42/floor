@@ -105,7 +105,22 @@ export function shareKicker(bill: Bill, week: FloorWeek | null, now: Date): stri
 }
 
 /** The bill's name, when it has a short one worth saying: "the American Franchise Act". */
-const named = (bill: Bill) => (bill.shortTitle ? `, the ${bill.shortTitle.replace(/^the\s+/i, "")},` : "");
+/**
+ * The name the text calls a bill by: its short title, or else its official title when that reads as a
+ * name ("American Franchise Act") rather than a purpose clause ("To amend the National Trails System
+ * Act…"), which most bills without a short title have and which reads badly mid-sentence.
+ */
+export function billName(bill: Pick<Bill, "shortTitle" | "title">): string | null {
+  if (bill.shortTitle) return bill.shortTitle;
+  const t = bill.title?.trim();
+  if (!t || /^(to|a bill|a resolution|a joint resolution|a concurrent resolution|providing|expressing|recognizing|supporting|condemning|designating|authorizing|directing|requesting|relating)\b/i.test(t) || t.length > 90) return null;
+  return t;
+}
+
+const named = (bill: Bill) => {
+  const name = billName(bill);
+  return name ? `, the ${name.replace(/^the\s+/i, "")},` : "";
+};
 
 const STAGE_CLAUSE: Record<BillStage, (b: Bill) => string> = {
   introduced: (b) => `was introduced in the ${b.originChamber ? CHAMBER[b.originChamber] : "Congress"}`,

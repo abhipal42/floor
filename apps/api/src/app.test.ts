@@ -598,6 +598,8 @@ describe("API", () => {
         { source: "bills", lastSuccessAt: null, lastNewDataAt: null, lastError: null, stale: true },
         { source: "nominations", lastSuccessAt: null, lastNewDataAt: null, lastError: null, stale: true },
         { source: "schedule", lastSuccessAt: null, lastNewDataAt: null, lastError: null, stale: true },
+        { source: "house_disclosures", lastSuccessAt: null, lastNewDataAt: null, lastError: null, stale: true },
+        { source: "senate_disclosures", lastSuccessAt: null, lastNewDataAt: null, lastError: null, stale: true },
       ],
     });
   });
@@ -630,7 +632,7 @@ describe("API", () => {
     expect(res.status).toBe(200);
     const body = await res.json();
     expect(body.ok).toBe(false);
-    expect(body.sources).toHaveLength(6);
+    expect(body.sources).toHaveLength(8);
     expect(body.sources.every((s: { stale: boolean }) => s.stale)).toBe(true);
     expect(body.sources[0].lastError).toMatch(/ENOTFOUND/);
   });

@@ -55,6 +55,18 @@ describe("the share line and link", () => {
     expect(shareText({ ...bill, shortTitle: null, stage: "law" }, null)).toBe("H.R. 5267 became law. What it does and where it stands:");
   });
 
+  it("names a bill by its official title when that title is a name, as many bills without a short title are", () => {
+    expect(shareText({ ...bill, shortTitle: null, title: "American Franchise Act" }, week)).toBe(
+      "H.R. 5267, the American Franchise Act, is up for a House vote the week of Nov 16. What it does and how our members vote:",
+    );
+    expect(shareText({ ...bill, shortTitle: null, title: "To amend the National Trails System Act, and for other purposes." }, week)).toBe(
+      "H.R. 5267 is up for a House vote the week of Nov 16. What it does and how our members vote:",
+    );
+    expect(shareText({ ...bill, shortTitle: null, title: "Providing for consideration of the bill (H.R. 5267)" }, null)).toBe(
+      "H.R. 5267 was introduced in the House. What it does and where it stands:",
+    );
+  });
+
   it("kicks off with the floor week, else the stage", () => {
     expect(shareKicker(bill, week, NOW)).toBe("H.R. 5267 · ON THE FLOOR THE WEEK OF NOV 16");
     expect(shareKicker(bill, week, new Date("2026-11-17T15:00:00Z"))).toBe("H.R. 5267 · ON THE FLOOR THIS WEEK");
