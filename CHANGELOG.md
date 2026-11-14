@@ -8,6 +8,14 @@ is a milestone and ships a retro under `docs/retros/`.
 Older series live in [`docs/changelog/`](docs/changelog) (0.1.x: [`0.1.md`](docs/changelog/0.1.md)).
 Before 0.1.0 the history is the commit log on `main`.
 
+## 0.2.33 — 2026-11-14
+
+### Reverted
+- **0.2.32 (#41), bill-step alerts and the share page**: once deployed, every route on
+  `floor-api` returned `FUNCTION_INVOCATION_FAILED`. This takes the code back out so the API
+  serves again; it returns with a fix. Migration `20261117000150_bill_alerts.sql` stays applied:
+  it only adds columns with defaults and two new tables, which nothing here reads.
+
 ## 0.2.31 — 2026-11-14
 
 The week ahead, vote explainers and member contact, server side. Round 11
