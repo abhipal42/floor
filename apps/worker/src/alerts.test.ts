@@ -578,7 +578,7 @@ describe("housekeeping", () => {
     );
     await pg.query("insert into live_activity_tokens (device_id, vote_id, token, updated_at) values ($1, 'house-119-2-321', $2, '2026-11-11T20:00:00Z')", [ids.fresh, hex("f")]);
     await pg.query("insert into device_signups values ($1, '2026-11-01', 3), ($2, '2026-11-20', 1)", ["a".repeat(64), "b".repeat(64)]);
-    expect(await pruneDevices(pg as unknown as Db, now)).toEqual({ pushLog: 1, activityTokens: 1, tokenless: 1, stale: 1, signups: 1 });
+    expect(await pruneDevices(pg as unknown as Db, now)).toEqual({ pushLog: 1, activityTokens: 1, tokenless: 1, stale: 1, signups: 1, billPushLog: 0, billEvents: 0 });
     const { rows } = await pg.query<{ id: string }>("select id::text from devices");
     expect(rows.map((r) => r.id)).toEqual([ids.fresh]);
   });

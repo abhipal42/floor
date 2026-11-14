@@ -7,6 +7,7 @@ import { bodyLimit } from "hono/body-limit";
 import { clientKey, rateLimit, type LimitStore } from "./limit.js";
 import { parseMemberQuery, type MemberQuery } from "./search.js";
 import { CONDITIONS, VOTE_KINDS } from "./votekinds.js";
+import { mountShare, shareKicker, shareText, shareUrl, type FloorWeek, type ShareOptions } from "./share.js";
 
 /*
  * The enums below are registered as their own components so the OpenAPI document refers to each by
@@ -936,6 +937,10 @@ export const ScheduleSchema = z
   })
   .openapi("Schedule");
 
+/**
+ * The floor schedule (`floor_schedule`, `senate_meetings`): the week ahead for `GET /v1/schedule`,
+ * and the week one bill is on a chamber's floor for the share link and text (share.ts).
+ */
 export interface ScheduleRepository {
   /** What is stored for the week of `weekOf` (a Monday). */
   week(weekOf: string): Promise<{
@@ -944,10 +949,13 @@ export interface ScheduleRepository {
     senateItems: ScheduleItem[];
     sourceUpdatedAt: string | null;
   }>;
+  /** The week a bill is on a chamber's floor schedule; absent (or the table missing) means "not scheduled". */
+  floorWeek(billId: string, now: Date): Promise<FloorWeek | null>;
 }
 
 export const EMPTY_SCHEDULE: ScheduleRepository = {
   week: async () => ({ house: [], senateMeetings: [], senateItems: [], sourceUpdatedAt: null }),
+  floorWeek: async () => null,
 };
 
 /** Changes at most hourly (the ingest); the edge answers repeats. */
@@ -998,18 +1006,49 @@ const ApnsTokenSchema = z
 
 export const DeviceSubscriptionSchema = z
   .object({
-    kind: z.enum(["member", "bill"]),
-    id: z.string().openapi({ example: "D000399", description: "A Bioguide ID, or a Floor bill id (`119-hr-1013`)" }),
+    kind: z.enum(["member", "bill", "topic"]),
+    id: z.string().openapi({
+      example: "D000399",
+      description: "A Bioguide ID, a Floor bill id (`119-hr-1013`), or a topic's canonical name (`Health`, as /v1/topics names it)",
+    }),
     howVoted: z.boolean().openapi({
       description:
         "Alert when the vote is final: how a member voted, or that a followed bill was voted on. " +
-        "Off items are still listed, because \"A vote opened\" covers votes involving any of them",
+        "Off items are still listed, because \"A vote opened\" covers votes involving any of them. Ignored for a topic",
     }),
   })
-  .refine((s) => (s.kind === "member" ? /^[A-Z]\d{6}$/.test(s.id) : /^\d{2,3}-[a-z]{1,7}-\d{1,5}$/.test(s.id)), {
-    message: "A member is a Bioguide ID (D000399); a bill is a Floor bill id (119-hr-1013)",
-  })
+  .refine(
+    (s) =>
+      s.kind === "member" ? /^[A-Z]\d{6}$/.test(s.id) : s.kind === "bill" ? /^\d{2,3}-[a-z]{1,7}-\d{1,5}$/.test(s.id) : topicNamed(s.id) === s.id,
+    { message: "A member is a Bioguide ID (D000399); a bill is a Floor bill id (119-hr-1013); a topic is a policy area's exact name (Health)" },
+  )
   .openapi("DeviceSubscription");
+
+/**
+ * The "Bills you follow" switches (round 11, section E), one per step on the road to law, with the
+ * locked design's defaults. Omitted from a registration means all defaults.
+ */
+export const BILL_ALERT_DEFAULTS = {
+  floorScheduled: true,
+  chamberVote: true,
+  toPresident: true,
+  lawOrVeto: true,
+  committee: false,
+  throughTopics: false,
+} as const;
+
+export const BillAlertsSchema = z
+  .object({
+    floorScheduled: z.boolean().openapi({ description: "\"Scheduled for the floor\": on a chamber's weekly floor schedule. Default on" }),
+    chamberVote: z.boolean().openapi({ description: "\"Passes or fails a chamber, with the score\". Default on" }),
+    toPresident: z.boolean().openapi({ description: "\"Sent to the President\". Default on" }),
+    lawOrVeto: z.boolean().openapi({ description: "\"Becomes law or is vetoed\". Default on" }),
+    committee: z.boolean().openapi({ description: "\"Committee action\": hearings, markups, reported. Default off" }),
+    throughTopics: z.boolean().openapi({ description: "\"Through topics too\": bills in a followed topic alert as if followed. Default off" }),
+  })
+  .openapi("BillAlerts");
+
+export type BillAlerts = z.infer<typeof BillAlertsSchema>;
 
 export const DeviceRegistrationSchema = z
   .object({
@@ -1021,13 +1060,16 @@ export const DeviceRegistrationSchema = z
       description: "Start a Live Activity, silently, when a vote involving these opens (needs pushToStartToken). On by default in the app",
     }),
     subscriptions: z.array(DeviceSubscriptionSchema).max(DEVICE_SUBSCRIPTION_MAX),
+    billAlerts: BillAlertsSchema.default(BILL_ALERT_DEFAULTS).openapi({
+      description: "The \"Bills you follow\" switches. Omitted means the defaults",
+    }),
   })
   .openapi("DeviceRegistration");
 
 export type DeviceRegistration = z.infer<typeof DeviceRegistrationSchema>;
 
 export const DeviceRegisteredSchema = z
-  .object({ subscriptions: z.number().int(), voteOpened: z.boolean() })
+  .object({ subscriptions: z.number().int(), voteOpened: z.boolean(), billAlerts: BillAlertsSchema })
   .openapi("DeviceRegistered");
 
 export const ActivityTokenSchema = z.object({ token: ApnsTokenSchema }).openapi("ActivityToken");
@@ -1094,12 +1136,14 @@ export interface AppDeps {
   limitStore?: LimitStore;
   /** Alert and Live Activity registrations. Defaults to `NO_DEVICES` (503). */
   devices?: DeviceRepository;
-  /** The week ahead. Defaults to `EMPTY_SCHEDULE`. */
+  /** The floor schedule: the week ahead, and "on the floor this week" for share.ts. Defaults to `EMPTY_SCHEDULE`. */
   schedule?: ScheduleRepository;
   /** Financial disclosures. Read only when `disclosuresEnabled`. */
   disclosures?: DisclosureRepository;
   /** `DISCLOSURES_ENABLED=true`. Default off: the route answers {enabled:false, reason} and reads nothing. */
   disclosuresEnabled?: boolean;
+  /** The share page's links and the universal-link association (share.ts). */
+  share?: ShareOptions;
 }
 
 /** How many address lookups one caller gets per hour. See the note in `limit.ts`. */
@@ -1373,6 +1417,35 @@ const getBillRoute = createRoute({
   },
 });
 
+export const BillShareSchema = z
+  .object({
+    url: z.string().openapi({ example: "https://floor.app/bill/119/hr/5267", description: "The page to share; opens in the app where it is installed" }),
+    text: z.string().openapi({
+      example: "H.R. 5267, the American Franchise Act, is up for a House vote the week of Nov 16. What it does and how our members vote:",
+      description: "The share sheet's line, to send with url. Neutral: what happened or is next, never a side",
+    }),
+    kicker: z.string().openapi({ example: "H.R. 5267 · ON THE FLOOR THIS WEEK", description: "The preview card's kicker" }),
+  })
+  .openapi("BillShare");
+
+const getBillShareRoute = createRoute({
+  method: "get",
+  path: "/v1/bills/{id}/share",
+  summary: "What the app's share sheet sends for a bill: the link and a neutral line",
+  request: {
+    params: z.object({
+      id: z
+        .string()
+        .regex(/^\d{2,3}-(hr|hres|hjres|hconres|s|sres|sjres|sconres)-\d+$/, "Bill IDs look like 119-hr-2207")
+        .openapi({ param: { name: "id", in: "path" }, example: "119-hr-5267" }),
+    }),
+  },
+  responses: {
+    200: { content: { "application/json": { schema: BillShareSchema } }, description: "The link and its line" },
+    404: { content: { "application/json": { schema: ErrorSchema } }, description: "No bill with that ID" },
+  },
+});
+
 const getBillAnalysisRoute = createRoute({
   method: "get",
   path: "/v1/bills/{id}/analysis",
@@ -1565,8 +1638,9 @@ const putDeviceRoute = createRoute({
   path: "/v1/devices",
   summary: "Register this phone for alerts and Live Activities, or replace its registration",
   description:
-    "The whole registration each time: tokens, \"A vote opened\", and every member and bill with its \"How they voted\" " +
-    "switch. Identified by the `Authorization: Device <key>` header (a random 32-byte key, base64url); no account, " +
+    "The whole registration each time: tokens, \"A vote opened\", every member and bill with its \"How they voted\" " +
+    "switch, every followed topic, and the \"Bills you follow\" switches (`billAlerts`). Identified by the " +
+    "`Authorization: Device <key>` header (a random 32-byte key, base64url); no account, " +
     `no address. Rate limited, ${DEVICES_RATE_LIMIT.limit} a minute per caller, shared with the other device routes.`,
   security: deviceSecurity,
   request: { body: { content: { "application/json": { schema: DeviceRegistrationSchema } }, required: true } },
@@ -1786,6 +1860,17 @@ export function createApp(deps: AppDeps) {
     return c.json(bill, 200);
   });
 
+  const schedule = deps.schedule ?? EMPTY_SCHEDULE;
+  app.openapi(getBillShareRoute, async (c) => {
+    const { id } = c.req.valid("param");
+    const bill = await deps.bills.getBill(id);
+    if (!bill) return c.json({ error: `No bill with ID ${id}` }, 404);
+    const now = clock();
+    const week = await schedule.floorWeek(id, now);
+    c.header("Cache-Control", "public, max-age=300, s-maxage=900");
+    return c.json({ url: shareUrl(bill, deps.share?.base), text: shareText(bill, week), kicker: shareKicker(bill, week, now) }, 200);
+  });
+
   app.openapi(getBillAnalysisRoute, async (c) => {
     const { id } = c.req.valid("param");
     const analysis = await deps.bills.getAnalysis(id);
@@ -1793,7 +1878,6 @@ export function createApp(deps: AppDeps) {
     return c.json(analysis, 200);
   });
 
-  const schedule = deps.schedule ?? EMPTY_SCHEDULE;
   app.openapi(getScheduleRoute, async (c) => {
     const week = scheduleWeek(c.req.valid("query").week, clock());
     const stored = await schedule.week(week);
@@ -1965,7 +2049,10 @@ export function createApp(deps: AppDeps) {
     const r = await withDevice(c, (keyHash) => devices.register(keyHash, registration, clock(), clientKey(c)));
     if (refused(r)) return r.status === 401 ? c.json({ error: r.refused }, 401) : c.json({ error: r.refused }, 503);
     if (r === "limited") return c.json({ error: "Too many new registrations from this network today. Try again tomorrow." }, 429);
-    return c.json({ subscriptions: registration.subscriptions.length, voteOpened: registration.voteOpened }, 200);
+    return c.json(
+      { subscriptions: registration.subscriptions.length, voteOpened: registration.voteOpened, billAlerts: registration.billAlerts },
+      200,
+    );
   });
 
   app.openapi(deleteDeviceRoute, async (c) => {
@@ -1990,6 +2077,10 @@ export function createApp(deps: AppDeps) {
     if (refused(r)) return r.status === 401 ? c.json({ error: r.refused }, 401) : c.json({ error: r.refused }, 503);
     return c.body(null, 204);
   });
+
+  // The share page, its preview card and the universal-link association (share.ts). Plain HTML and
+  // PNG, so outside the OpenAPI document.
+  mountShare(app, { bills: deps.bills, schedule, now: clock, options: deps.share ?? {} });
 
   app.doc("/openapi.json", {
     openapi: "3.0.0",

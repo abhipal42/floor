@@ -27,3 +27,5 @@ ios/Floor/Floor.entitlements
 ios/FloorWidgets/FloorWidgets.entitlements
 # Downloaded source documents (financial disclosures), re-fetchable.
 .cache/
+# Vercel CLI link and `vercel build` output (apps/api/scripts/function-smoke.mjs).
+.vercel/

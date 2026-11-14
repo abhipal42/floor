@@ -7,6 +7,7 @@ import {
   TOPICS_CACHE_CONTROL,
   TOPICS_RATE_LIMIT,
   DEVICES_RATE_LIMIT,
+  BILL_ALERT_DEFAULTS,
   DEVICE_SUBSCRIPTION_MAX,
   DEVICE_BODY_LIMIT,
   congressOn,
@@ -946,10 +947,17 @@ describe("device routes", () => {
     const res = await put(deviceApp(), registration);
     expect(res.status).toBe(200);
     expect(res.headers.get("cache-control")).toBe("no-store");
-    expect(await res.json()).toEqual({ subscriptions: 2, voteOpened: false });
+    expect(await res.json()).toEqual({ subscriptions: 2, voteOpened: false, billAlerts: BILL_ALERT_DEFAULTS });
     expect(keyHash).toMatch(/^[0-9a-f]{64}$/);
+    // Omitted "Bills you follow" switches are the locked design's defaults.
     expect(calls).toEqual([
-      ["register", keyHash, { ...registration, apnsToken: "ab".repeat(32) }, new Date("2026-11-13T20:00:00Z"), "unknown"],
+      [
+        "register",
+        keyHash,
+        { ...registration, apnsToken: "ab".repeat(32), billAlerts: BILL_ALERT_DEFAULTS },
+        new Date("2026-11-13T20:00:00Z"),
+        "unknown",
+      ],
     ]);
     expect(JSON.stringify(calls)).not.toContain(key);
   });
@@ -963,11 +971,24 @@ describe("device routes", () => {
     expect((await app.request("/v1/devices", { method: "DELETE" })).status).toBe(401);
   });
 
-  it("refuses a malformed token, a topic subscription, a bad id, or too many subscriptions", async () => {
+  it("takes followed topics and the Bills you follow switches", async () => {
+    calls.length = 0;
+    const billAlerts = { floorScheduled: false, chamberVote: true, toPresident: true, lawOrVeto: true, committee: true, throughTopics: true };
+    const body = { ...registration, subscriptions: [{ kind: "topic", id: "Health", howVoted: false }], billAlerts };
+    const res = await put(deviceApp(), body);
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ subscriptions: 1, voteOpened: false, billAlerts });
+    expect((calls[0]![2] as { billAlerts: unknown }).billAlerts).toEqual(billAlerts);
+  });
+
+  it("refuses a malformed token, an unknown topic, a bad id, incomplete switches, or too many subscriptions", async () => {
     const app = deviceApp();
     const bad = [
       { ...registration, apnsToken: "not-hex" },
-      { ...registration, subscriptions: [{ kind: "topic", id: "Health", howVoted: true }] },
+      // Topics by their exact canonical name only: what the worker matches against bills.policy_area.
+      { ...registration, subscriptions: [{ kind: "topic", id: "health", howVoted: false }] },
+      { ...registration, subscriptions: [{ kind: "topic", id: "Cryptocurrency", howVoted: false }] },
+      { ...registration, billAlerts: { floorScheduled: true } },
       { ...registration, subscriptions: [{ kind: "member", id: "doggett", howVoted: true }] },
       { ...registration, subscriptions: [{ kind: "bill", id: "H.R. 1013", howVoted: true }] },
       {
@@ -1068,6 +1089,7 @@ describe("the week ahead and vote kinds", () => {
         sourceUpdatedAt: "2026-11-13T22:02:23.000Z",
       };
     },
+    floorWeek: async () => null,
   };
   // Saturday 2026-11-14 in Washington.
   const app = createApp({
