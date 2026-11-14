@@ -1,7 +1,14 @@
 import { PGlite } from "@electric-sql/pglite";
 import { loadMigrations } from "@floor/db";
 import { beforeAll, describe, expect, it } from "vitest";
-import { DISCLOSURES_OFF_REASON, createApp, type AppDeps, type DisclosureRepository, type Member } from "./app.js";
+import {
+  DISCLOSURES_OFF_REASON,
+  NO_CONTACT,
+  createApp,
+  type AppDeps,
+  type DisclosureRepository,
+  type Member,
+} from "./app.js";
 import { pgDisclosures, type Db } from "./pg.js";
 
 const member: Member = {
@@ -16,7 +23,16 @@ const member: Member = {
 
 function deps(over: Partial<AppDeps>): AppDeps {
   return {
-    votes: { getVote: async () => null, recentVotes: async () => [], voteBreakdown: async () => ({ partyTotals: [], candidateTotals: [], positions: [], measure: null }) },
+    votes: {
+      getVote: async () => null,
+      recentVotes: async () => [],
+      voteBreakdown: async () => ({
+        partyTotals: [],
+        candidateTotals: [],
+        positions: [],
+        measure: null,
+      }),
+    },
     members: {
       membersFor: async () => [],
       recentVotes: async () => [],
@@ -24,6 +40,7 @@ function deps(over: Partial<AppDeps>): AppDeps {
       search: async () => [],
       partyLoyalty: async () => ({ votes: 0, withParty: 0, againstParty: 0 }),
       funding: async () => null,
+      contact: async () => NO_CONTACT,
     },
     bills: { getBill: async () => null, getAnalysis: async () => null },
     nominations: { getNomination: async () => null },
@@ -45,26 +62,45 @@ describe("GET /v1/members/{id}/disclosures", () => {
 
   it("is off by default: says why, carries no data and reads nothing", async () => {
     calls.length = 0;
-    const res = await createApp(deps({ disclosures: repo })).request("/v1/members/A000055/disclosures");
+    const res = await createApp(deps({ disclosures: repo })).request(
+      "/v1/members/A000055/disclosures",
+    );
     expect(res.status).toBe(200);
-    expect(await res.json()).toEqual({ enabled: false, reason: DISCLOSURES_OFF_REASON });
+    expect(await res.json()).toEqual({
+      enabled: false,
+      reason: DISCLOSURES_OFF_REASON,
+    });
     expect(calls).toEqual([]);
   });
 
   it("stays off with the flag set but no repository", async () => {
-    const res = await createApp(deps({ disclosuresEnabled: true })).request("/v1/members/A000055/disclosures");
+    const res = await createApp(deps({ disclosuresEnabled: true })).request(
+      "/v1/members/A000055/disclosures",
+    );
     expect((await res.json()).enabled).toBe(false);
   });
 
   it("serves the repository's answer once enabled, and 404s an unknown member", async () => {
-    const app = createApp(deps({ disclosures: repo, disclosuresEnabled: true }));
+    const app = createApp(
+      deps({ disclosures: repo, disclosuresEnabled: true }),
+    );
     const res = await app.request("/v1/members/A000055/disclosures");
-    expect(await res.json()).toEqual({ enabled: true, deadlineDays: 45, annual: null, trades: [], paperFilings: [] });
-    expect((await app.request("/v1/members/Z999999/disclosures")).status).toBe(404);
+    expect(await res.json()).toEqual({
+      enabled: true,
+      deadlineDays: 45,
+      annual: null,
+      trades: [],
+      paperFilings: [],
+    });
+    expect((await app.request("/v1/members/Z999999/disclosures")).status).toBe(
+      404,
+    );
   });
 
   it("is in the OpenAPI document", async () => {
-    const doc = await (await createApp(deps({})).request("/openapi.json")).json();
+    const doc = await (
+      await createApp(deps({})).request("/openapi.json")
+    ).json();
     expect(doc.paths["/v1/members/{id}/disclosures"]).toBeDefined();
     expect(doc.components.schemas.Disclosures.properties.trades).toBeDefined();
   });
@@ -109,7 +145,12 @@ describe("pgDisclosures", () => {
 
   it("serves the latest annual report's assets in filing order, ranges as filed", async () => {
     const d = await repo.disclosures("A000055", now);
-    expect(d.annual).toMatchObject({ year: 2025, filedAt: "2026-08-13", amendment: false, sourceUrl: "https://x/2.pdf" });
+    expect(d.annual).toMatchObject({
+      year: 2025,
+      filedAt: "2026-08-13",
+      amendment: false,
+      sourceUrl: "https://x/2.pdf",
+    });
     expect(d.annual?.assets.map((a) => [a.name, a.value, a.typeCode])).toEqual([
       ["abrdn Healthcare Investors (HQH)", "$15,001 - $50,000", "ST"],
       ["Bank Independent - ***0165D", "$15,001 - $50,000", "BA"],
@@ -117,14 +158,41 @@ describe("pgDisclosures", () => {
   });
 
   it("serves a year of trades with the days to file against the 45-day limit", async () => {
-    const d = await repo.disclosures("A000055", new Date("2026-07-01T00:00:00Z"));
+    const d = await repo.disclosures(
+      "A000055",
+      new Date("2026-07-01T00:00:00Z"),
+    );
     // "Late Trade" (2025-01-02) and "Too Old" (2025-05-01) are more than 12 months before 2026-07-01.
-    expect(d.trades.map((t) => [t.asset, t.transactedAt, t.filedAt, t.daysToFile, t.pastDeadline])).toEqual([
-      ["GSK plc American Depositary Shares (GSK)", "2025-07-28", "2025-09-10", 44, false],
+    expect(
+      d.trades.map((t) => [
+        t.asset,
+        t.transactedAt,
+        t.filedAt,
+        t.daysToFile,
+        t.pastDeadline,
+      ]),
+    ).toEqual([
+      [
+        "GSK plc American Depositary Shares (GSK)",
+        "2025-07-28",
+        "2025-09-10",
+        44,
+        false,
+      ],
     ]);
-    expect(d.trades[0]).toMatchObject({ type: "sell", typeFiled: "S", notifiedAt: "2025-08-11", owner: "self" });
-    const later = await repo.disclosures("A000055", new Date("2025-09-30T00:00:00Z"));
-    expect(later.trades.map((t) => [t.asset, t.daysToFile, t.pastDeadline])).toEqual([
+    expect(d.trades[0]).toMatchObject({
+      type: "sell",
+      typeFiled: "S",
+      notifiedAt: "2025-08-11",
+      owner: "self",
+    });
+    const later = await repo.disclosures(
+      "A000055",
+      new Date("2025-09-30T00:00:00Z"),
+    );
+    expect(
+      later.trades.map((t) => [t.asset, t.daysToFile, t.pastDeadline]),
+    ).toEqual([
       ["GSK plc American Depositary Shares (GSK)", 44, false],
       ["Too Old", 31, false],
       ["Late Trade", 251, true],
@@ -133,16 +201,37 @@ describe("pgDisclosures", () => {
 
   it("lists scans in the window as paper filings", async () => {
     const d = await repo.disclosures("A000055", now);
-    expect(d.paperFilings).toEqual([{ kind: "ptr", reportYear: null, filedAt: "2026-02-01", sourceUrl: "https://x/5.pdf", status: "paper" }]);
+    expect(d.paperFilings).toEqual([
+      {
+        kind: "ptr",
+        reportYear: null,
+        filedAt: "2026-02-01",
+        sourceUrl: "https://x/5.pdf",
+        status: "paper",
+      },
+    ]);
   });
 
   it("does not stand an older report in for a latest one that is a scan", async () => {
     const d = await repo.disclosures("P000001", now);
     expect(d.annual).toBeNull();
-    expect(d.paperFilings).toEqual([{ kind: "annual", reportYear: 2025, filedAt: "2026-05-15", sourceUrl: "https://x/7.pdf", status: "paper" }]);
+    expect(d.paperFilings).toEqual([
+      {
+        kind: "annual",
+        reportYear: 2025,
+        filedAt: "2026-05-15",
+        sourceUrl: "https://x/7.pdf",
+        status: "paper",
+      },
+    ]);
   });
 
   it("answers empty for a member with no filings", async () => {
-    expect(await repo.disclosures("Z000000", now)).toEqual({ deadlineDays: 45, annual: null, trades: [], paperFilings: [] });
+    expect(await repo.disclosures("Z000000", now)).toEqual({
+      deadlineDays: 45,
+      annual: null,
+      trades: [],
+      paperFilings: [],
+    });
   });
 });

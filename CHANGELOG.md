@@ -8,6 +8,25 @@ is a milestone and ships a retro under `docs/retros/`.
 Older series live in [`docs/changelog/`](docs/changelog) (0.1.x: [`0.1.md`](docs/changelog/0.1.md)).
 Before 0.1.0 the history is the commit log on `main`.
 
+## 0.2.34 — 2026-11-14
+
+Financial disclosures for both chambers: imported, and served only behind a flag that is off.
+
+### Added
+- **Financial disclosures import**: House (Clerk) annual reports and periodic transaction reports, and
+  Senate (eFD) annual reports and PTRs, read into `disclosure_filings`, `disclosure_assets` and
+  `disclosure_transactions` (`20261117000200_disclosures.sql`; RLS on, no policy, so nothing is
+  readable through PostgREST). Values are stored as filed text. A filing that cannot be checked is
+  marked unparsed rather than guessed. On the sample, 237 of the 241 electronic House filings parse
+  and 164 of 164 Senate filings do.
+- **Worker `disclosures house|senate`** (`--year`, `--budget`).
+- **`GET /v1/members/{id}/disclosures`**, gated by `DISCLOSURES_ENABLED`. Default off: it answers
+  `{enabled: false, reason}` and reads nothing.
+
+### Not done
+- Not scheduled and not backfilled. Both wait on the team's decision on 5 U.S.C. §13107 (use of
+  disclosure reports). The migration is not applied to staging.
+
 ## 0.2.33 — 2026-11-14
 
 ### Reverted

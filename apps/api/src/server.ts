@@ -6,14 +6,29 @@ import { pgRepositories, type Db } from "./pg.js";
 
 const CONGRESS = Number(process.env.CONGRESS ?? 119);
 
-function repositories(): Pick<AppDeps, "votes" | "members" | "bills" | "nominations" | "status" | "live" | "devices" | "disclosures"> {
+function repositories(): Pick<
+  AppDeps,
+  | "votes"
+  | "members"
+  | "bills"
+  | "nominations"
+  | "status"
+  | "live"
+  | "devices"
+  | "disclosures"
+> {
   if (!process.env.DATABASE_URL) {
     console.warn("DATABASE_URL is not set: serving empty data");
     return {
       votes: {
         getVote: async () => null,
         recentVotes: async () => [],
-        voteBreakdown: async () => ({ partyTotals: [], candidateTotals: [], positions: [], measure: null }),
+        voteBreakdown: async () => ({
+          partyTotals: [],
+          candidateTotals: [],
+          positions: [],
+          measure: null,
+        }),
       },
       members: {
         membersFor: async () => [],
@@ -30,7 +45,10 @@ function repositories(): Pick<AppDeps, "votes" | "members" | "bills" | "nominati
       live: { chambers: async () => [], liveVotes: async () => [] },
     };
   }
-  const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL, max: 5 });
+  const pool = new pg.Pool({
+    connectionString: process.env.DATABASE_URL,
+    max: 5,
+  });
   return pgRepositories(pool as unknown as Db);
 }
 
@@ -51,5 +69,7 @@ const app = createApp({
 const port = Number(process.env.PORT ?? 8787);
 
 serve({ fetch: app.fetch, port }, (info) => {
-  console.log(`Floor API on http://localhost:${info.port} (OpenAPI at /openapi.json)`);
+  console.log(
+    `Floor API on http://localhost:${info.port} (OpenAPI at /openapi.json)`,
+  );
 });
