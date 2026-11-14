@@ -725,6 +725,273 @@
         ],
         "description": "funding is null for a member FEC has no current-campaign totals for"
       },
+      "DisclosureAsset": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "example": "GSK plc American Depositary Shares (GSK)"
+          },
+          "type": {
+            "type": "string",
+            "nullable": true,
+            "description": "The House code's name, or the Senate's type / subtype",
+            "example": "Stocks (including ADRs)"
+          },
+          "typeCode": {
+            "type": "string",
+            "nullable": true,
+            "description": "The House's two-letter asset code; null for the Senate",
+            "example": "ST"
+          },
+          "account": {
+            "type": "string",
+            "nullable": true,
+            "description": "The account or holding it sits in, when the filing says"
+          },
+          "owner": {
+            "type": "string",
+            "nullable": true,
+            "enum": [
+              "self",
+              "spouse",
+              "joint",
+              "dependent"
+            ],
+            "description": "Whose asset it is, as filed; dependent means a dependent child"
+          },
+          "value": {
+            "type": "string",
+            "nullable": true,
+            "description": "The value range exactly as filed. Never a number",
+            "example": "$15,001 - $50,000"
+          },
+          "incomeType": {
+            "type": "string",
+            "nullable": true
+          },
+          "income": {
+            "type": "string",
+            "nullable": true,
+            "description": "As filed",
+            "example": "$201 - $1,000"
+          },
+          "description": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "required": [
+          "name",
+          "type",
+          "typeCode",
+          "account",
+          "owner",
+          "value",
+          "incomeType",
+          "income",
+          "description"
+        ]
+      },
+      "DisclosureTrade": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "buy",
+              "sell",
+              "exchange"
+            ]
+          },
+          "typeFiled": {
+            "type": "string",
+            "description": "As filed",
+            "example": "S (partial)"
+          },
+          "asset": {
+            "type": "string"
+          },
+          "ticker": {
+            "type": "string",
+            "nullable": true
+          },
+          "assetType": {
+            "type": "string",
+            "nullable": true
+          },
+          "owner": {
+            "type": "string",
+            "nullable": true,
+            "enum": [
+              "self",
+              "spouse",
+              "joint",
+              "dependent"
+            ],
+            "description": "Whose asset it is, as filed; dependent means a dependent child"
+          },
+          "amount": {
+            "type": "string",
+            "description": "The amount range exactly as filed. Never a number",
+            "example": "$1,001 - $15,000"
+          },
+          "transactedAt": {
+            "type": "string",
+            "example": "2025-07-28"
+          },
+          "notifiedAt": {
+            "type": "string",
+            "nullable": true,
+            "description": "House only: when the filer learned of the trade"
+          },
+          "filedAt": {
+            "type": "string",
+            "description": "When the report listing it was filed",
+            "example": "2025-09-10"
+          },
+          "daysToFile": {
+            "type": "integer",
+            "description": "Days from the trade to the filing",
+            "example": 44
+          },
+          "pastDeadline": {
+            "type": "boolean",
+            "description": "Filed more than 45 days after the trade, the STOCK Act's outer limit. A fact about the dates, not a finding"
+          },
+          "comment": {
+            "type": "string",
+            "nullable": true
+          },
+          "sourceUrl": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "type",
+          "typeFiled",
+          "asset",
+          "ticker",
+          "assetType",
+          "owner",
+          "amount",
+          "transactedAt",
+          "notifiedAt",
+          "filedAt",
+          "daysToFile",
+          "pastDeadline",
+          "comment",
+          "sourceUrl"
+        ]
+      },
+      "PaperFiling": {
+        "type": "object",
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "annual",
+              "ptr"
+            ]
+          },
+          "reportYear": {
+            "type": "integer",
+            "nullable": true
+          },
+          "filedAt": {
+            "type": "string",
+            "nullable": true
+          },
+          "sourceUrl": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "paper",
+              "unparsed"
+            ],
+            "description": "paper: a scanned filing Floor does not read (no OCR guesses); unparsed: an electronic filing Floor could not read"
+          }
+        },
+        "required": [
+          "kind",
+          "reportYear",
+          "filedAt",
+          "sourceUrl",
+          "status"
+        ]
+      },
+      "Disclosures": {
+        "type": "object",
+        "properties": {
+          "enabled": {
+            "type": "boolean"
+          },
+          "reason": {
+            "type": "string",
+            "description": "Why there is no data, when enabled is false"
+          },
+          "deadlineDays": {
+            "type": "integer",
+            "example": 45
+          },
+          "annual": {
+            "type": "object",
+            "nullable": true,
+            "properties": {
+              "year": {
+                "type": "integer",
+                "nullable": true,
+                "description": "The calendar year the report covers",
+                "example": 2025
+              },
+              "filedAt": {
+                "type": "string",
+                "nullable": true
+              },
+              "amendment": {
+                "type": "boolean"
+              },
+              "sourceUrl": {
+                "type": "string"
+              },
+              "assets": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/DisclosureAsset"
+                }
+              }
+            },
+            "required": [
+              "year",
+              "filedAt",
+              "amendment",
+              "sourceUrl",
+              "assets"
+            ],
+            "description": "The latest annual report Floor has read; null when there is none"
+          },
+          "trades": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DisclosureTrade"
+            },
+            "description": "Trades in the last 12 months, newest first"
+          },
+          "paperFilings": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PaperFiling"
+            },
+            "description": "Filings in the same window Floor holds only as a link: the annual report and trade reports a client must not present as empty"
+          }
+        },
+        "required": [
+          "enabled"
+        ],
+        "description": "No totals and no estimates: every value is a range as filed"
+      },
       "District": {
         "type": "object",
         "properties": {
@@ -2284,6 +2551,46 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/MemberFunding"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No member with that ID",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/members/{id}/disclosures": {
+      "get": {
+        "summary": "A member's financial disclosures: their latest annual report's assets and a year of trades",
+        "description": "Off until DISCLOSURES_ENABLED is set: until then it answers {enabled:false, reason} and no data. Values are the ranges as filed; there are no totals and no estimates. Scanned paper filings are listed as links, never read.",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^[A-Z]\\d{6}$",
+              "example": "A000055"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The member's disclosures, or why there are none",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Disclosures"
                 }
               }
             }

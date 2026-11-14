@@ -15,6 +15,7 @@ import { supabaseBroadcaster } from "./realtime.js";
 import { StatusAlerter } from "./alert.js";
 import { ApnsSender, apnsConfigFromEnv } from "./apns.js";
 import { PushBroadcaster, composeBroadcasters, pruneDevices } from "./push.js";
+import { disclosureSource, ingestDisclosures, parseDisclosureArgs } from "./disclosures.js";
 
 const USAGE = `Usage:
   npm run ingest -w @floor/worker -- members
@@ -33,6 +34,10 @@ const USAGE = `Usage:
   npm run ingest -w @floor/worker -- analyze [limit]              (AI analysis of bills whose CRS summary has none or changed; default 25; needs ANTHROPIC_API_KEY)
   npm run ingest -w @floor/worker -- schedule                     (the week ahead: the House's weekly list for this week and next, the
                                          Senate's next convening, and with CONGRESS_API_KEY its Daily Digest program)
+  npm run ingest -w @floor/worker -- disclosures <house|senate> [--year N] [--budget N]
+                                         (financial disclosures: annual reports' assets and PTR trades; default the last
+                                          three years' indexes and 150 requests, one every 1.5 s; documents cached under
+                                          apps/worker/.cache/. Served only when the API has DISCLOSURES_ENABLED=true)
   npm run ingest -w @floor/worker -- live                         (always-on: floor events, vote state, roll calls; until SIGTERM)
   npm run ingest -w @floor/worker -- latency [days]               (posting latency the live worker measured; default 30 days)
 
@@ -175,6 +180,17 @@ async function main() {
       } finally {
         conn.release();
       }
+    } else if (command === "disclosures") {
+      const opts = parseDisclosureArgs(args, new Date());
+      const result = await ingestDisclosures(db, await disclosureSource(opts), {
+        log: (msg) => console.log(`${new Date().toISOString()} ${msg}`),
+      });
+      if (result.unmatched.length) console.log(`Unmatched filers (stored with no member): ${result.unmatched.join("; ")}`);
+      console.log(
+        `${opts.chamber}: listed ${result.listed} filings (${result.matched} matched to a member); parsed ${result.parsed} ` +
+          `(${result.assets} assets, ${result.trades} trades), ${result.paper} paper, ${result.failed} failed, ` +
+          `${result.stillDue} still due; ${result.requests} requests`,
+      );
     } else if (command === "nominations") {
       if (!process.env.CONGRESS_API_KEY) throw new Error("Set CONGRESS_API_KEY in .env (free key: https://api.data.gov/signup)");
       const refresh = args.includes("--refresh");

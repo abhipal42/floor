@@ -68,6 +68,8 @@ npm run ingest -w @floor/worker -- nominations                    # load nominat
 npm run ingest -w @floor/worker -- schedule                       # the week ahead: House list this week + next, Senate convening and Digest program
 npm run ingest -w @floor/worker -- fec-totals                     # campaign totals for every current member (OpenFEC, ~10 min)
 npm run ingest -w @floor/worker -- fec-pacs 2026                  # committee-to-candidate totals from the FEC bulk files (~30 s)
+npm run ingest -w @floor/worker -- disclosures house --budget 150   # financial disclosures (House Clerk PDFs); not scheduled, served only with DISCLOSURES_ENABLED=true
+npm run ingest -w @floor/worker -- disclosures senate --budget 150  # the same from Senate eFD (accepts its §13107 agreement); see "Financial disclosures"
 npm run ingest -w @floor/worker -- analyze 25                     # AI analysis (M4 Layer 1) of up to 25 bills that need one; costs money
 npm run eval:analysis -w @floor/worker -- --out /tmp/eval.json    # the ~50-bill analysis eval; prints "Not run" without ANTHROPIC_API_KEY
 npm run ingest -w @floor/worker -- live                           # the always-on live worker (M3); Ctrl-C stops it after the poll in flight
@@ -98,8 +100,8 @@ Command Line Tools rather than Xcode: run it with `DEVELOPER_DIR=/Applications/X
 |---|---|---|
 | `packages/shared` | Types + roll call parsers (House Clerk XML, Senate LIS XML) + floor-event parsers (House floor summary, Senate schedule, floor page and vote menu), week-ahead parsers (House weekly list, Senate session days, Daily Digest program) and Eastern-time helpers | `src/rollcall.ts`, `src/floor.ts`, `src/schedule.ts`, fixtures in `fixtures/` (real government files) |
 | `packages/db` | Migration loader used by tests | `src/migrations.test.ts` |
-| `supabase/migrations` | Postgres schema (applied to staging in filename order) | 15 migrations; `20261113000100_ingest_failed.sql` (lesson 38), `20261114000000_bill_analyses_ai.sql` (M4), `20261114000100_live_layer.sql` (M3), `20261115000000_bill_catalog.sql` (Round 10), `20261116000000_device_alerts.sql` (M3 alerts, v0.2.30), `20261117000000_floor_schedule.sql` and `20261117000100_member_contact.sql` (the week ahead) are **not yet applied** to staging |
-| `apps/worker` | Ingest CLI: members, roll calls, bills, nominations, campaign finance, AI bill analysis; the always-on live worker (M3) | `src/cli.ts`, `rollcalls.ts`, `bills.ts`, `catalog.ts` (every bill of the Congress), `schedule.ts` (the week ahead), `stage.ts` (road-to-law stage), `nominations.ts`, `members.ts`, `fec.ts`, `analysis.ts` (M4 Layer 1), `analysis-eval.ts`, `db.ts`; live: `live.ts`, `realtime.ts`, `apns.ts`, `push.ts` (alerts and Live Activity pushes), `alert.ts`, `Dockerfile`, `fly.toml` |
+| `supabase/migrations` | Postgres schema (applied to staging in filename order) | 16 migrations; `20261117000200_disclosures.sql` (financial disclosures) is **not yet applied**; `20261113000100_ingest_failed.sql` (lesson 38), `20261114000000_bill_analyses_ai.sql` (M4), `20261114000100_live_layer.sql` (M3), `20261115000000_bill_catalog.sql` (Round 10), `20261116000000_device_alerts.sql` (M3 alerts, v0.2.30), `20261117000000_floor_schedule.sql` and `20261117000100_member_contact.sql` (the week ahead) are **not yet applied** to staging |
+| `apps/worker` | Ingest CLI: members, roll calls, bills, nominations, campaign finance, AI bill analysis; the always-on live worker (M3) | `src/cli.ts`, `rollcalls.ts`, `bills.ts`, `catalog.ts` (every bill of the Congress), `schedule.ts` (the week ahead), `disclosures.ts` + `disclosures-house.ts` + `disclosures-senate.ts` (financial disclosures), `stage.ts` (road-to-law stage), `nominations.ts`, `members.ts`, `fec.ts`, `analysis.ts` (M4 Layer 1), `analysis-eval.ts`, `db.ts`; live: `live.ts`, `realtime.ts`, `apns.ts`, `push.ts` (alerts and Live Activity pushes), `alert.ts`, `Dockerfile`, `fly.toml` |
 | `apps/api` | Hono REST API with OpenAPI at `/openapi.json` | `src/app.ts` (routes + schemas), `pg.ts` (Postgres), `votekinds.ts` (the vote explainer table), `bills.ts` (citations, short labels, bill-number parsing, the 32 topics), `district.ts` (Census) |
 | `apps/web` | Landing page (v0.2.0): static HTML/CSS/TypeScript built with `tsc`, no framework | `src/data.ts` (every figure, with source and date), `src/logic.ts` (pure helpers), `src/main.ts` (rendering), `public/` |
 | `ios/` | SwiftUI app (XcodeGen, `project.yml`), `FloorKit` package: `Models`, `APIClient`, `DesignSystem`, `Onboarding`, `Home`, `VoteScreen`, `BillScreen`, `RepScreen`, `WidgetFeed`, `LiveActivity`, `Alerts`; `FloorWidgets/` (the WidgetKit extension: widgets and the Live Activity) | `FloorKit/Sources/Models/` (one file per area, `Samples.swift` for previews), `FloorKit/Tests/ModelsTests/ContractTests.swift`, `DesignSystem/ScoreboardCard.swift`, `DesignSystem/Components.swift`, `DesignSystem/Fonts/` (Barlow Condensed, OFL), `Home/FloorShell.swift` (tabs), `Home/CatchUp.swift`, `Models/VoteOutcome.swift`, `BillScreen/LawLevels.swift`, `APIClient/ResponseCache.swift` (offline cache), `DesignSystem/SavedDataNote.swift` |
@@ -117,6 +119,7 @@ Command Line Tools rather than Xcode: run it with `DEVELOPER_DIR=/Applications/X
 | `GET /v1/members?q=&chamber=&limit=` | Search **sitting** members (see `SITTING`, lesson 52): `q` is a name (`Schumer`, `velazquez`, `ocasio cortez` — accents, hyphens and apostrophes folded on both sides, from one table `FOLDS` in `search.ts` that the SQL `translate()` is built from, so ø, ł, ı and đ fold too), a state by name or code (`New York`, `NY`, `N.Y.`, `D.C.`, `Virgin Islands`), or a House seat (`NY-8`, `N.Y.-8`, `WY-AL`; a delegate jurisdiction's one seat for any number, `DC-1`). A state is **also searched as a name** and the two merged, the state's own members first ("Washington" is a state and a surname; "Al" is a code and starts names). Parsed in `search.ts` (`parseMemberQuery`), so the SQL is one of three fixed shapes. Senate before House; a name search puts surnames that start with it first; a state's House members by district. `q` 2–60 characters, `limit` 1–100 (default 60: California is 54). **Rate limited**: 120 per caller per minute (`MEMBER_SEARCH_RATE_LIMIT`), keyed apart from `/v1/reps` so the two never share a count; `/v1/members/{id}` and below are not limited |
 | `GET /v1/members/{id}` | A member, how often they sided with their own party's majority, and `contact`: `{phone, contactForm, website, office, address}` from congress-legislators' current term, each null when upstream has none. Most House members have no `contactForm` (lesson 59): the app falls back to the House's "Write Your Representative" form. All null on a database without `20261117000100_member_contact.sql` |
 | `GET /v1/members/{id}/funding` | Their current campaign's money: what the campaign reported receiving (small-dollar, itemized, PAC, party, other, cash on hand) and the committees that reported giving to it, biggest direct giver first. `?committees=` (0-50, default 10). No individual donor is named |
+| `GET /v1/members/{id}/disclosures` | **Off** (v0.3.0 item 6): answers `{enabled: false, reason}` and reads nothing until the API has `DISCLOSURES_ENABLED=true`. On: `{enabled, deadlineDays: 45, annual: {year, filedAt, amendment, sourceUrl, assets[]} \| null, trades[], paperFilings[]}` — the latest annual report's assets (name, type, account, owner, value range **as filed**), trades of the last 12 months (buy/sell/exchange, asset, amount range as filed, transaction, notification and filing dates, `daysToFile`, `pastDeadline` against the STOCK Act's 45 days), and every filing in that window held only as a link (`paper` scan or `unparsed`). No totals, no estimates. See "Financial disclosures" |
 | `GET /v1/members/{bioguideId}/votes?limit=` | A member's recent votes with their position (and candidate, for Speaker elections) |
 | `GET /v1/votes?chamber=&limit=&before=` | The most recent **final** votes, newest first (`limit` 1–100, default 40), each with its `measure` (the same summary a member's record carries) and nobody's position: Finals' "All" (asked per chamber when one is picked), and the whole feed for someone who follows nobody. `before` (ISO time, e.g. the last vote's `occurredAt`) pages back. `topic=` (repeatable, since topic names hold commas; any case; up to 32) keeps only votes on bills in those CRS policy areas — Finals' "Following" for the topics you follow; names that are not topics match nothing (an empty list, not every vote). Every `measure` carries `policyArea` (null for a nomination). Edge-cached (`VOTES_CACHE_CONTROL`: 30 s, 60 s at the edge) and rate limited, 120 a minute per caller (`VOTES_RATE_LIMIT`; `/v1/votes/{id}` is not) |
 | `GET /v1/votes/{id}` | One vote (like every vote the API returns, with `explainer`: `{kind, text, source}`, the hand-written line for its question from `votekinds.ts`, or null for a question with no line, lesson 58): totals, threshold, kind, bill link, **per-party breakdown**, and for a Speaker election **which candidate each party backed**. `?members=A000370,C001098` (up to ten) also returns those members' own positions, so the vote screen loads your delegation in one round trip. IDs look like `house-119-1-100` |
@@ -146,6 +149,7 @@ Command Line Tools rather than Xcode: run it with `DEVELOPER_DIR=/Applications/X
 | `pac_contributions` | 103,564 | Per member and giving committee, 2026 cycle: direct and earmarked totals, committee designation, type and organization type. No memo text, no individual names (lesson 23) |
 | `bill_analyses` / `bill_analysis_runs` | 0 / 0 | M4 Layer 1: the public analysis, one row per bill and CRS summary stage; and the private run log (attempts, errors, cost, rejected claims; no RLS policy, service role only). Their migration is not applied to staging yet, and no analysis has been generated (no Claude key on the project); see M4 |
 | `floor_schedule` / `senate_meetings` | 0 / 0 | The week ahead, written by the `schedule` ingest once `20261117000000_floor_schedule.sql` is applied (not yet). `floor_schedule`: one row per House list item per week (the Clerk's `floor-item id`) and per measure a Senate program names (`2026-11-16:hr2347`), never deleted — `removed_at` marks a pulled item; `bill_id` is re-resolved against `bills` each run. `senate_meetings`: one row per meeting day, the convening from senate.gov and the Digest's heading and program. Public read, like `bills`. A run on 2026-11-14 found 15 House items for the week of 11-16 (13 under suspension, 2 under a rule) and the Senate at 3 p.m. on 11-16, program naming H.R. 2347 |
+| `disclosure_filings` / `disclosure_assets` / `disclosure_transactions` | 0 | Financial disclosures (v0.3.0 item 6): every House and Senate filing listed (with its member, or none when the filer is not matched), its parse state, and the assets and trades read from it, values as filed text. RLS on, **no policy**, so PostgREST shows nothing whatever the API flag says. `20261117000200_disclosures.sql` is **not applied**; nothing has been ingested into staging |
 | `ingest_runs` | | Every ingest run with item count and error, which feeds `/v1/status`. The live worker writes one per chamber per poll and prunes empty successful runs older than two days (keeping errors, runs that stored something, and the newest per source) |
 | `devices`, `device_subscriptions`, `live_activity_tokens`, `push_log`, `device_signups` | 0 | Alerts and Live Activities (v0.2.30): a phone's hashed key, push tokens, "A vote opened" and "Live Activities"; the members and bills it wants alerts about; each running activity's token; what the worker sent (dedupe and the digest; cast and absent members kept apart); and new keys per hashed caller per day. The worker prunes them hourly (`pruneDevices`: `push_log` after 2 days, activity tokens after 1, devices with no token after 1, devices silent for 60, signup counts after 7). RLS on, **no policy** (service connection only). Written by `PUT /v1/devices` and the worker once `20261116000000_device_alerts.sql` is applied (not yet). The old account-based `devices` it replaces was empty |
 | `floor_events`, `chamber_status`, `votes.announced_at` / `posted_at` / `broadcast_at` | 0 | M3. The migration sets `broadcast_at` on every vote already final (to its `occurred_at`), so the worker's first poll announces none of them. Written only by the live worker, after `20261114000100_live_layer.sql` is applied (not yet) |
@@ -571,6 +575,22 @@ Real data broke our first assumptions several times. Each case below is now hand
     stored null rather than filled with a guess; the app links the House's own "Write Your
     Representative" form instead. `fax` and `rss_url` are not stored (`ids.rss_url` already has the
     feed).
+60. **The House disclosure index repeats rows, and splits surnames its own way.** 2025FD.txt lists
+    some documents two or three times verbatim (Ansari's annual report, DocID 10078188, twice), and
+    one upsert cannot touch a row twice ("ON CONFLICT DO UPDATE command cannot affect row a second
+    time"): rows are kept by DocID. It files compound and married names under a different surname
+    than congress-legislators ("Delaney, April McClain", "Arenholz, Ashley Hinson", "Amata,
+    Aumua"), so at the filer's own seat a surname may be any *word* of the other name. A substring
+    test was tried first and matched a candidate named Arias to Rep. Maria Salazar at FL-27
+    ("m-aria-s-alazar"); `matchHouseFiler` compares whole words, and that case is a test.
+61. **A parse that cannot be checked must refuse, not guess.** The first House sample would have
+    stored 12 annual reports with rows run together, had a guard (`splitAssetName`: a second `[XX]`
+    code inside a name) not refused them. The guard exposed two causes: a footnote ("* Investment
+    Vehicle details available at the bottom of this form…") read as an asset name, and the
+    "Account ⇒ Holding" notation, whose arrow is its own text run. Both are handled now; the four
+    filings the check still refuses are served as `unparsed`, not as wrong ranges. Likewise eFD
+    writes "Child" for a dependent child on PTRs and "Dependent Child" on annual reports — an
+    unknown owner fails the filing rather than defaulting to "self".
 
 ---
 
@@ -1370,7 +1390,8 @@ Code: `RepScreen/MoneyView.swift` (views), `MoneyModel` in `RepScreenModel.swift
   chevron (the switch is the way back). The header is the compact one from the Money mock in place of
   the player card; on Record the switch sits under the card, as in `AppRep`.
 - **Portfolio** shows the mock's dashed "not loaded yet" box and a line on what it will show
-  (ranges, never net worth). No disclosure ingest exists; that is v0.3.0 item 6.
+  (ranges, never net worth). The data now exists behind a switch that is off (v0.3.0 item 6,
+  "Financial disclosures"); the screen stays a placeholder until the legal question is answered.
 - **Colours.** New tokens `teal` and `dim` (bar fills) and `ai` (text, so in `Tones.textTokens` and
   contrast-tested). The fills are `Tones.moneyBar`, and `PaletteTests` holds each pair of
   neighbours at 1.5:1 and each fill at 3:1 against the empty track, light and dark. That is why they
@@ -1653,10 +1674,100 @@ steps ship as 0.2.x PATCH releases; 0.3.0 closes the milestone with its retro.
 5. **Donor context** from Senate LDA lobbying filings (what each PAC's organization lobbies on),
    matched to the member's votes by topic. The plain-English "who they are" lines are AI-written and
    wait for M4's label-and-cite pipeline.
-6. **Financial disclosures: spike first.** House filings are PDFs (some scanned); Senate eFD has no
-   bulk index. 5 U.S.C. §13107 bars using these reports for commercial purposes other than news
-   media, so the spike reports both what parses reliably and the open legal question before any
-   build.
+6. **Financial disclosures: imported, stored and served — and OFF.** Built on `feat/disclosures`
+   (not yet released): worker `disclosures house|senate`, three tables, and
+   `/v1/members/{id}/disclosures`, which answers `{enabled: false, reason}` until the API has
+   `DISCLOSURES_ENABLED=true`. **Nothing is shown in the product until the team answers the
+   §13107(c) question below.** Not in the scheduled workflow. Details in the next section.
+
+### Financial disclosures (v0.3.0 item 6)
+
+**The open legal question — owner: the team, before `DISCLOSURES_ENABLED` is ever set.**
+5 U.S.C. §13107(c)(1) (formerly 5 U.S.C. app. §105(c), Ethics in Government Act): "It shall be
+unlawful for any person to obtain or use a report — (A) for any unlawful purpose; (B) for any
+commercial purpose, other than by news and communications media for dissemination to the general
+public; (C) for determining or establishing the credit rating of any individual; or (D) for use,
+directly or indirectly, in the solicitation of money for any political, charitable, or other
+purpose." (c)(2): the Attorney General may sue, for a civil penalty of up to $10,000, on top of other
+remedies. §13107(b)(2) also conditions access on a written application stating the requester's
+name, occupation, address, on whose behalf, and awareness of the prohibitions (online, the Senate
+stands in for it with an agreement and the House with a notice). The questions to answer: whether
+Floor, as an app (free or not, with or without ads or a paid tier), is "news and communications
+media for dissemination to the general public"; whether a later paid tier changes that; and how
+(D) bears on anything near fundraising. Showing a member's trades beside their votes is the use the
+STOCK Act was written for, and news outlets and nonprofits do it — but that is for counsel, not
+this doc. Nothing here is legal advice.
+
+**What each source's own terms say (read 2026-11-14):**
+
+| Source | Terms |
+|---|---|
+| House Clerk, `disclosures-clerk.house.gov` | The search page (`/FinancialDisclosure/ViewSearch`) prints the §105(c)(1) prohibitions (unlawful purpose; commercial purpose other than news media for dissemination to the general public; credit rating; solicitation) and says personal information not required to be disclosed has been redacted under 2 U.S.C. §104e(b)(3). There is **no click-through**: the yearly index zips and the PDFs are plain downloads. `robots.txt` is a 404 (nothing disallowed). house.gov's Terms of Use: government-produced material is not copyrighted; traffic is monitored; "unauthorized use, tampering with or modification of this system" may violate federal law |
+| Senate eFD, `efdsearch.senate.gov` | Searching **requires** ticking "I understand the prohibitions on obtaining and use of financial disclosure reports" under the full §105(c) text, including the $10,000 civil penalty. Reports from 2012 on; a senator's are kept six years after they leave, a candidate's one year. `robots.txt` serves an HTML "Page Not Found" (no rules). The worker accepts the agreement once per run — the same click a person makes; whether Floor's use is within it is exactly the open question |
+
+**Sources and how they are read** (`apps/worker/src/disclosures*.ts`):
+
+- **House.** `financial-pdfs/<YEAR>FD.zip` holds the year's index (TXT and XML: name, FilingType,
+  StateDst, Year, FilingDate, DocID). We read types P (PTR), O (annual) and A (amendment); the rest
+  are candidate notices, extensions, terminations. PDFs: `ptr-pdfs/<YEAR>/<DocID>.pdf` and
+  `financial-pdfs/<YEAR>/<DocID>.pdf`. Electronic filings come from one template and are read from
+  pdf.js text positions (`unpdf`): columns from the header labels' x positions, rows anchored on the
+  date (PTR) or the value cell (Schedule A). A PDF with no text layer is a scan, stored as `paper`
+  with its link. Defaults: the last three years' indexes (the newest annual report can be two
+  indexes back in early spring) and PTRs filed in the last 13 months.
+- **Senate.** GET `/search/home/` (CSRF form), POST `prohibition_agreement=1`, then POST
+  `/search/report/data/` with `X-CSRFToken` for report types 7 (annual) and 11 (PTR), filer type 1
+  (senators). Electronic reports are HTML: the PTR "Transactions" table and the annual "Part 3.
+  Assets" (a row numbered `98.1` sits inside row 98, which becomes its `account`). Paper reports are
+  marked in the search link (`/search/view/paper/…`) and are **never fetched**. A paper link opens
+  only for someone who has accepted the agreement in that browser.
+- **Politeness:** one request at a time per source, 1.5 s apart, a run budget (`--budget`, default
+  150 requests), the generic UA `Mozilla/5.0 (compatible; floor-ingest/0.1)`, and every download
+  cached under `apps/worker/.cache/disclosures/` (gitignored; `DISCLOSURES_CACHE_DIR` overrides), so a
+  re-run or a parser fix costs no request. Documents are read newest filing first; what the budget
+  leaves stays `pending` for the next run. Each run is an `ingest_runs` row (`house_disclosures`,
+  `senate_disclosures`), not in `MAX_AGE_HOURS` since nothing schedules it.
+- **Matching filers to members.** House: the filing's seat (StateDst) plus surname; off the seat,
+  surname *and* first name must pick out one House member of the state. Senate (eFD gives no state):
+  a unique surname among senators, else surname plus a compatible first name. Anything else is
+  stored with `member_id` null and named in the run's output — never guessed (lesson 60).
+- **Stored as filed.** Values and amounts are the range text ("$15,001 - $50,000", "None",
+  "Undetermined", "Over $1,000,000 and held independently by spouse or dependent child"); nothing is
+  turned into a number, so nothing can add up to a net worth. House asset codes map to their names
+  from fd.house.gov's full list (`HOUSE_ASSET_TYPES`, all 48). Homes: a personal residence with no
+  rental income is not reportable, so the filings already leave homes out — say that on screen.
+- **What is not read, on purpose:** the House PTR "Cap. Gains > $200?" box (drawn, never text in
+  125 sampled PTRs — `null`, not a guess); annual Schedule B transactions and the other schedules
+  (income, liabilities, positions, gifts, travel) and Senate Parts 1–2 and 4–10; any OCR.
+- **The route** (`pgDisclosures` in `apps/api/src/pg.ts`): `annual` is the latest annual report
+  listed *whatever became of it* — when that one is a scan or unread, `annual` is null and it is in
+  `paperFilings`, rather than an older report standing in as "latest". `trades` are those with a
+  transaction date in the 12 months before now; `daysToFile` = filing date − transaction date
+  (counted in SQL); `pastDeadline` = more than 45. `paperFilings` lists the window's scans
+  (`paper`) and electronic filings not read yet or refused (`unparsed`). An amendment is treated as
+  replacing the report (the latest filing wins); that both chambers' e-filed amendments are complete
+  reports is an assumption, checked on Aderholt-sized samples only.
+- **To turn on (after the legal answer):** apply `20261117000200_disclosures.sql`, run both
+  ingests until `stillDue` is 0 (about 1,700 House and 500 Senate filings listed today, ~2,200
+  requests, under an hour at 1.5 s), then set `DISCLOSURES_ENABLED=true` on the `floor-api` Vercel
+  project. Scheduling it, and the app's Disclosures segment, are separate changes.
+
+**A real sample, 2026-11-14** (both sources into an in-memory PGlite — nothing written to staging
+or production; members from congress-legislators):
+
+| | House | Senate |
+|---|---|---|
+| Filings listed | 1,701 (P/O/A in the 2024–26 indexes) | 508 (annual since 2024-01-01, PTRs for 13 months) |
+| Matched to a member | 1,514; 149 filers unmatched (candidates' amendments; spot-checked). All 444 filer–member pairings audited by name | 508 of 508 (the first 100 filer–senator pairings read by eye, all right) |
+| Documents looked at | 263 | 208 (164 fetched + 44 paper from the link) |
+| Electronic, parsed | **237 of 241 = 98.3%** (137 annual, 100 PTR) | **164 of 164 = 100%** (94 annual, 70 PTR) |
+| Paper (scans; stored as links) | 22 of 263 = 8.4% | 44 of 208 = 21% (30 annual, 14 PTR) |
+| Refused (`failed`, served as `unparsed`) | 4 — three with an asset code typed inside a name, one whose owner column ran rows together; each refused by a check rather than stored wrong | 0 |
+| Rows read | 8,447 assets, 889 trades | 7,704 assets, 1,364 trades |
+
+Every House value read was one of the printed bands. 332 Senate assets have no value because eFD
+prints `--` for an entity whose value is reported in its sub-rows. Two House PTR amounts are exact
+sums ("$710.52"), as filed, and are kept as filed.
 
 ### Round 10: follow bills and topics — the server side (v0.2.26)
 
@@ -1855,7 +1966,7 @@ Backend only; the iOS screens are a later change on these routes. The Swift mode
   step goes red, while the others still store.
 - **Explainers** (`apps/api/src/votekinds.ts`): computed per vote in `toVote` from the question, the
   chamber, the threshold and `on_rule` (selected with every vote; for an open vote read from the bill
-  its reference names). Never AI, never a guess (lesson 58).
+  its reference names). Never AI, never a guess (lesson 61).
 - **Contact**: `members.ts` maps the latest term's `phone`, `contact_form`, `url` (as `website`),
   `office` and `address`; `/v1/members/{id}` returns them.
 

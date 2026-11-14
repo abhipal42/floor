@@ -6,7 +6,7 @@ import { pgRepositories, type Db } from "./pg.js";
 
 const CONGRESS = Number(process.env.CONGRESS ?? 119);
 
-function repositories(): Pick<AppDeps, "votes" | "members" | "bills" | "nominations" | "status" | "live" | "devices"> {
+function repositories(): Pick<AppDeps, "votes" | "members" | "bills" | "nominations" | "status" | "live" | "devices" | "disclosures"> {
   if (!process.env.DATABASE_URL) {
     console.warn("DATABASE_URL is not set: serving empty data");
     return {
@@ -45,6 +45,8 @@ const app = createApp({
   ...repositories(),
   locate: (place) => locateDistrict(place, CONGRESS),
   allowedOrigins,
+  // Off unless set: financial disclosures wait on the §13107(c) question (HANDOFF.md).
+  disclosuresEnabled: process.env.DISCLOSURES_ENABLED === "true",
 });
 const port = Number(process.env.PORT ?? 8787);
 

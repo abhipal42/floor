@@ -25,3 +25,5 @@ skills-lock.json
 ios/FloorWidgets/Info.plist
 ios/Floor/Floor.entitlements
 ios/FloorWidgets/FloorWidgets.entitlements
+# Downloaded source documents (financial disclosures), re-fetchable.
+.cache/

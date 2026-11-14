@@ -1,0 +1,34 @@
+Prefix	Last	First	Suffix	FilingType	StateDst	Year	FilingDate	DocID
+	Aaron	Richard		D	MI04	2025	3/24/2025	40003749
+Hon.	Aderholt	Robert B.		O	AL04	2025	8/13/2026	10078366
+Hon.	Aderholt	Robert B.		P	AL04	2025	9/10/2025	20032062
+Hon.	Aderholt	Robert B.		X	AL04	2025	5/15/2026	30028015
+	Allen	Keith		C	TX34	2025	6/9/2025	10070478
+	Allen	Mary Theresa		C	IN08	2025	9/27/2025	9115683
+	Allen	Mary Theresa		X	IN08	2025	9/3/2025	30025405
+Hon.	Allen	Richard W.		O	GA12	2025	8/11/2026	10074380
+Hon.	Allen	Richard W.		P	GA12	2025	1/16/2025	20026537
+Hon.	Allen	Richard W.		P	GA12	2025	2/20/2025	20026727
+Hon.	Allen	Richard W.		P	GA12	2025	3/12/2025	20027927
+Hon.	Allen	Richard W.		P	GA12	2025	5/15/2025	20030316
+Hon.	Allen	Richard W.		P	GA12	2025	6/18/2025	20030502
+Hon.	Allen	Richard W.		P	GA12	2025	7/15/2025	20030608
+Hon.	Allen	Richard W.		P	GA12	2025	8/11/2025	20030850
+Hon.	Allen	Richard W.		P	GA12	2025	9/12/2025	20032052
+Hon.	Allen	Richard W.		P	GA12	2025	10/7/2025	20032204
+Hon.	Allen	Richard W.		P	GA12	2025	11/13/2025	20033415
+Hon.	Allen	Richard W.		P	GA12	2025	12/9/2025	20033589
+Hon.	Allen	Richard W.		X	GA12	2025	2/17/2026	30026667
+Hon.	Ansari	Yassamin		O	AZ03	2025	8/13/2026	10078188
+Hon.	Ansari	Yassamin		O	AZ03	2025	8/13/2026	10078188
+Hon.	Ansari	Yassamin		X	AZ03	2025	5/14/2026	30027933
+Dr.	Gies	Aaron		C	NY23	2025	2/13/2026	10072778
+Dr.	Gies	Aaron		X	NY23	2025	11/10/2025	30025515
+Dr.	Hill	Aaron		C	NV04	2025	5/7/2025	10067416
+Mr.	Redkey	David Wayne		A	AZ01	2025	8/16/2025	10072225
+Mr.	Redkey	David Wayne		A	AZ01	2025	8/16/2025	10072226
+Mr.	Redkey	David Wayne		A	AZ01	2025	8/16/2025	10072227
+Mr.	Redkey	David Wayne		A	AZ01	2025	8/16/2025	10072228
+Mr.	Redkey	David Wayne		C	AZ01	2025	8/16/2025	10072224
+Mr.	Redkey	David Wayne		C	AZ01	2025	8/16/2025	10072224
+Mr.	Redkey	David Wayne		C	AZ01	2025	8/16/2025	10072224
