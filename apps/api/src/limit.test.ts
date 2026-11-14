@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { createApp, MEMBER_SEARCH_RATE_LIMIT, REPS_RATE_LIMIT, VOTES_RATE_LIMIT, type AppDeps } from "./app.js";
+import { createApp, NO_CONTACT, MEMBER_SEARCH_RATE_LIMIT, REPS_RATE_LIMIT, VOTES_RATE_LIMIT, type AppDeps } from "./app.js";
 import { MemoryLimitStore } from "./limit.js";
 
 /** Repositories that answer nothing; these tests only exercise the middleware. */
@@ -16,6 +16,7 @@ const empty: Omit<AppDeps, "locate"> = {
     search: async () => [],
     partyLoyalty: async () => ({ votes: 0, withParty: 0, againstParty: 0 }),
     funding: async () => null,
+    contact: async () => NO_CONTACT,
   },
   bills: { getBill: async () => null, getAnalysis: async () => null },
   nominations: { getNomination: async () => null },

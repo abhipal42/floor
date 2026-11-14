@@ -134,6 +134,31 @@
           "total"
         ]
       },
+      "VoteExplainer": {
+        "type": "object",
+        "nullable": true,
+        "properties": {
+          "kind": {
+            "type": "string",
+            "example": "cloture"
+          },
+          "text": {
+            "type": "string",
+            "example": "A vote to end debate so the Senate can move to a final vote. On a bill it needs three-fifths of senators sworn in, 60 when the Senate is full. Passing cloture doesn't pass the bill."
+          },
+          "source": {
+            "type": "string",
+            "description": "The rule or law the line rests on",
+            "example": "Senate Rule XXII, paragraph 2"
+          }
+        },
+        "required": [
+          "kind",
+          "text",
+          "source"
+        ],
+        "description": "What this kind of vote is, in a line; null for a question Floor has no line for (never a guess)"
+      },
       "Vote": {
         "type": "object",
         "properties": {
@@ -197,6 +222,9 @@
           "result": {
             "type": "string",
             "nullable": true
+          },
+          "explainer": {
+            "$ref": "#/components/schemas/VoteExplainer"
           }
         },
         "required": [
@@ -215,7 +243,8 @@
           "threshold",
           "totals",
           "candidates",
-          "result"
+          "result",
+          "explainer"
         ]
       },
       "MeasureSummary": {
@@ -418,6 +447,9 @@
             "type": "string",
             "nullable": true
           },
+          "explainer": {
+            "$ref": "#/components/schemas/VoteExplainer"
+          },
           "partyTotals": {
             "type": "array",
             "items": {
@@ -467,6 +499,7 @@
           "totals",
           "candidates",
           "result",
+          "explainer",
           "partyTotals",
           "candidateTotals",
           "positions",
@@ -493,6 +526,46 @@
           "againstParty"
         ]
       },
+      "MemberContact": {
+        "type": "object",
+        "properties": {
+          "phone": {
+            "type": "string",
+            "nullable": true,
+            "description": "The Washington office",
+            "example": "202-225-1510"
+          },
+          "contactForm": {
+            "type": "string",
+            "nullable": true,
+            "description": "The office's own web form. Null for most House members, whose offices list none: use the House's \"Write Your Representative\" form (https://www.house.gov/representatives/find-your-representative) instead",
+            "example": "https://www.sanders.senate.gov/contact/"
+          },
+          "website": {
+            "type": "string",
+            "nullable": true,
+            "example": "https://adams.house.gov"
+          },
+          "office": {
+            "type": "string",
+            "nullable": true,
+            "example": "2436 Rayburn House Office Building"
+          },
+          "address": {
+            "type": "string",
+            "nullable": true,
+            "description": "Mailing address",
+            "example": "2436 Rayburn House Office Building Washington DC 20515-3312"
+          }
+        },
+        "required": [
+          "phone",
+          "contactForm",
+          "website",
+          "office",
+          "address"
+        ]
+      },
       "MemberDetail": {
         "type": "object",
         "properties": {
@@ -501,11 +574,15 @@
           },
           "partyLoyalty": {
             "$ref": "#/components/schemas/PartyLoyalty"
+          },
+          "contact": {
+            "$ref": "#/components/schemas/MemberContact"
           }
         },
         "required": [
           "member",
-          "partyLoyalty"
+          "partyLoyalty",
+          "contact"
         ]
       },
       "PacCheck": {
@@ -1092,6 +1169,238 @@
           "purpose"
         ]
       },
+      "ScheduleCategory": {
+        "type": "string",
+        "enum": [
+          "rule",
+          "suspension",
+          "other"
+        ],
+        "description": "rule = to be considered under a special rule; suspension = under suspension of the rules (two-thirds); other = anything else, including every Senate item"
+      },
+      "ScheduleItem": {
+        "type": "object",
+        "properties": {
+          "category": {
+            "$ref": "#/components/schemas/ScheduleCategory"
+          },
+          "categoryText": {
+            "type": "string",
+            "example": "Items that may be considered under suspension of the rules"
+          },
+          "billId": {
+            "type": "string",
+            "nullable": true,
+            "description": "null for a resolution not yet numbered, or a bill not in Floor's catalog yet",
+            "example": "119-hr-5267"
+          },
+          "label": {
+            "type": "string",
+            "description": "The citation; as the source prints it when the bill is unknown",
+            "example": "H.R. 5267"
+          },
+          "title": {
+            "type": "string",
+            "description": "The bill's plain label (BillListItem.label) when known, else the source's own text"
+          },
+          "sourceText": {
+            "type": "string",
+            "description": "What the source printed for the item, e.g. a suspension's title with \", as amended\""
+          },
+          "policyArea": {
+            "type": "string",
+            "nullable": true
+          },
+          "stage": {
+            "$ref": "#/components/schemas/BillStage"
+          },
+          "latestAction": {
+            "$ref": "#/components/schemas/LatestAction"
+          },
+          "addedAt": {
+            "type": "string",
+            "nullable": true
+          },
+          "removedAt": {
+            "type": "string",
+            "nullable": true,
+            "description": "Set once the item was taken off the week's list; it is kept so it can be shown as pulled"
+          }
+        },
+        "required": [
+          "category",
+          "categoryText",
+          "billId",
+          "label",
+          "title",
+          "sourceText",
+          "policyArea",
+          "stage",
+          "latestAction",
+          "addedAt",
+          "removedAt"
+        ]
+      },
+      "SenateMeeting": {
+        "type": "object",
+        "properties": {
+          "date": {
+            "type": "string",
+            "example": "2026-11-16"
+          },
+          "convenesAt": {
+            "type": "string",
+            "nullable": true,
+            "description": "From senate.gov's session-day file",
+            "example": "2026-11-16T20:00:00.000Z"
+          },
+          "proForma": {
+            "type": "boolean",
+            "description": "A pro forma session: the Senate meets for seconds and does no business"
+          },
+          "heading": {
+            "type": "string",
+            "nullable": true,
+            "description": "The Daily Digest's own heading",
+            "example": "3 p.m., Monday, November 16"
+          },
+          "program": {
+            "type": "string",
+            "nullable": true,
+            "description": "The Daily Digest's \"Program for\" text, verbatim but for whitespace. Null until the Congressional Record for the day before is out, usually the next morning"
+          },
+          "recordIssue": {
+            "type": "string",
+            "nullable": true,
+            "description": "The Congressional Record volume/issue the program is from",
+            "example": "172/171"
+          }
+        },
+        "required": [
+          "date",
+          "convenesAt",
+          "proForma",
+          "heading",
+          "program",
+          "recordIssue"
+        ]
+      },
+      "Schedule": {
+        "type": "object",
+        "properties": {
+          "week": {
+            "type": "string",
+            "description": "The Monday",
+            "example": "2026-11-16"
+          },
+          "house": {
+            "type": "object",
+            "properties": {
+              "inSession": {
+                "type": "boolean",
+                "nullable": true,
+                "description": "true when the House has published a schedule for the week; null when it has not (not yet, or a week it is out). The House publishes none for a district work period, but an unpublished week is not reported as one"
+              },
+              "items": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/ScheduleItem"
+                }
+              }
+            },
+            "required": [
+              "inSession",
+              "items"
+            ]
+          },
+          "senate": {
+            "type": "object",
+            "nullable": true,
+            "properties": {
+              "meetings": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/SenateMeeting"
+                }
+              },
+              "items": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/ScheduleItem"
+                },
+                "description": "Measures the meetings' programs name"
+              }
+            },
+            "required": [
+              "meetings",
+              "items"
+            ]
+          },
+          "senateReason": {
+            "type": "string",
+            "nullable": true,
+            "description": "Why `senate` is null"
+          },
+          "sourceUpdatedAt": {
+            "type": "string",
+            "nullable": true,
+            "description": "When a source last edited anything shown for this week"
+          }
+        },
+        "required": [
+          "week",
+          "house",
+          "senate",
+          "senateReason",
+          "sourceUpdatedAt"
+        ]
+      },
+      "VoteKindInfo": {
+        "type": "object",
+        "properties": {
+          "kind": {
+            "type": "string",
+            "example": "suspension"
+          },
+          "text": {
+            "type": "string"
+          },
+          "source": {
+            "type": "string"
+          },
+          "chamber": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Chamber"
+              },
+              {
+                "nullable": true,
+                "description": "Only this chamber's votes; null for both"
+              }
+            ]
+          },
+          "when": {
+            "type": "string",
+            "nullable": true,
+            "description": "Only when this holds; null for always"
+          },
+          "questions": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "The roll call questions it explains, matched ignoring case and spacing"
+          }
+        },
+        "required": [
+          "kind",
+          "text",
+          "source",
+          "chamber",
+          "when",
+          "questions"
+        ]
+      },
       "Nomination": {
         "type": "object",
         "properties": {
@@ -1269,6 +1578,9 @@
             "type": "string",
             "nullable": true
           },
+          "explainer": {
+            "$ref": "#/components/schemas/VoteExplainer"
+          },
           "openedAt": {
             "type": "string",
             "nullable": true,
@@ -1312,6 +1624,7 @@
           "totals",
           "candidates",
           "result",
+          "explainer",
           "openedAt",
           "announcedAt",
           "postedAt",
@@ -2186,6 +2499,76 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/schedule": {
+      "get": {
+        "summary": "The week ahead: what the House has listed and when the Senate meets",
+        "description": "House: the Majority Leader's weekly list as the Clerk publishes it (docs.house.gov/floor), pulled items included with removedAt. Senate: its next convening (senate.gov) and the Daily Digest's program for that day, once the Congressional Record is out; the Senate publishes no weekly list. Listed is not scheduled: items move.",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+              "description": "Any day of the week; defaults to this week in Washington",
+              "example": "2026-11-16"
+            },
+            "required": false,
+            "name": "week",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The week (public, max-age=300, s-maxage=900, stale-while-revalidate=3600)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Schedule"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Not a date",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/vote-kinds": {
+      "get": {
+        "summary": "Every kind of vote Floor explains, with its line and the rule it rests on",
+        "description": "The table behind `explainer` on votes. The first entry whose question, chamber and condition match a vote is its explainer; a question in no entry has none.",
+        "responses": {
+          "200": {
+            "description": "The table, in match order (public, max-age=300, s-maxage=900, stale-while-revalidate=3600)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "kinds": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/VoteKindInfo"
+                      }
+                    }
+                  },
+                  "required": [
+                    "kinds"
+                  ]
                 }
               }
             }

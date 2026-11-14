@@ -33,6 +33,41 @@ public struct Candidate: Codable, Sendable, Hashable, Identifiable {
 /// A vote as the API returns it inside a bill, a nomination or a member's record.
 ///
 /// `GET /v1/votes/{id}` returns the richer ``VoteDetail``.
+/// One line on what a kind of vote is ("A vote to end debate ..."), written by hand, with its rule.
+public struct VoteExplainer: Codable, Sendable, Hashable {
+    public var kind: String
+    public var text: String
+    /// The rule or law the line rests on, e.g. `Senate Rule XXII, paragraph 2`.
+    public var source: String
+
+    public init(kind: String, text: String, source: String) {
+        self.kind = kind
+        self.text = text
+        self.source = source
+    }
+}
+
+/// A row of `GET /v1/vote-kinds`: the table the explainers come from.
+public struct VoteKindInfo: Codable, Sendable, Hashable {
+    public var kind: String
+    public var text: String
+    public var source: String
+    /// nil when it applies to both chambers.
+    public var chamber: Chamber?
+    /// The condition it applies under, in words; nil for always.
+    public var when: String?
+    public var questions: [String]
+
+    public init(kind: String, text: String, source: String, chamber: Chamber?, when: String?, questions: [String]) {
+        self.kind = kind
+        self.text = text
+        self.source = source
+        self.chamber = chamber
+        self.when = when
+        self.questions = questions
+    }
+}
+
 public struct Vote: Codable, Sendable, Hashable, Identifiable {
     public var id: String
     public var kind: VoteKind
@@ -56,12 +91,15 @@ public struct Vote: Codable, Sendable, Hashable, Identifiable {
     /// election it is the name of the candidate who led *that ballot*, which is not the same as
     /// having been elected: see ``electedSpeaker``.
     public var result: String?
+    /// What this kind of vote is, in a line, with the rule it rests on. nil for a question the API
+    /// has no line for, and in a response saved by an earlier build.
+    public var explainer: VoteExplainer?
 
     public init(
         id: String, kind: VoteKind, chamber: Chamber, congress: Int, session: Int, rollNumber: Int?,
         question: String, billId: String?, nominationId: String?, billRef: String?, occurredAt: String?,
         state: VoteState, threshold: VoteThreshold, totals: VoteTotals, candidates: [Candidate],
-        result: String?
+        result: String?, explainer: VoteExplainer? = nil
     ) {
         self.id = id
         self.kind = kind
@@ -79,6 +117,7 @@ public struct Vote: Codable, Sendable, Hashable, Identifiable {
         self.totals = totals
         self.candidates = candidates
         self.result = result
+        self.explainer = explainer
     }
 
     /// Votes needed to pass given who has voted so far.

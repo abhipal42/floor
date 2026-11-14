@@ -12,8 +12,12 @@ import {
   congressOn,
   deviceKeyHash,
   type DeviceRepository,
+  type ScheduleRepository,
+  SCHEDULE_CACHE_CONTROL,
+  scheduleWeek,
   decodeCursor,
   createApp,
+  NO_CONTACT,
   type BillListItem,
   type CatalogRepository,
   type ChamberStatus,
@@ -23,6 +27,7 @@ import {
   type VoteRepository,
 } from "./app.js";
 import { MemoryLimitStore } from "./limit.js";
+import { explainVote } from "./votekinds.js";
 import type { MemberQuery } from "./search.js";
 
 const sample: Vote = {
@@ -42,6 +47,7 @@ const sample: Vote = {
   threshold: "majority",
   totals: { yea: 216, nay: 214, present: 0, notVoting: 3 },
   result: "Passed",
+  explainer: explainVote({ question: "On Motion to Concur in the Senate Amendment", chamber: "house", threshold: "majority", onRule: false }),
 };
 
 /** A Senate vote on a nomination rather than a bill, so `nominationId` is set and `billId` is not. */
@@ -57,6 +63,7 @@ const nominationVote: Vote = {
   billRef: "PN1093-3",
   totals: { yea: 52, nay: 45, present: 0, notVoting: 3 },
   result: "Nomination Confirmed",
+  explainer: explainVote({ question: "On the Nomination", chamber: "senate", threshold: "majority", onRule: false }),
 };
 
 const members: Member[] = [
@@ -118,6 +125,7 @@ const openVote: LiveVote = {
   state: "open",
   totals: { yea: 215, nay: 209, present: 0, notVoting: 0 },
   result: "Agreed to",
+  explainer: explainVote({ question: "On agreeing to the resolution", chamber: "house", threshold: "majority", onRule: true }),
   openedAt: "2026-11-10T23:20:53.000Z",
   announcedAt: "2026-11-10T23:33:00.000Z",
   postedAt: null,
@@ -142,6 +150,7 @@ const emptyDeps = {
     search: async () => [],
     partyLoyalty: async () => ({ votes: 0, withParty: 0, againstParty: 0 }),
     funding: async () => null,
+    contact: async () => NO_CONTACT,
   },
   bills: { getBill: async () => null, getAnalysis: async () => null },
   nominations: { getNomination: async () => null },
@@ -172,6 +181,10 @@ const app = createApp({
       loyaltyCalls.push(`${id}/${party}`);
       return { votes: 120, withParty: 111, againstParty: 9 };
     },
+    contact: async (id) =>
+      id === "D000399"
+        ? { phone: "202-225-4865", contactForm: null, website: "https://doggett.house.gov", office: "2307 Rayburn House Office Building", address: null }
+        : NO_CONTACT,
     funding: async (id, limit) => {
       fundingCalls.push(`${id}/${limit}`);
       if (id !== "D000399") return null;
@@ -312,6 +325,8 @@ describe("API", () => {
     expect(await res.json()).toEqual({
       member: members[0],
       partyLoyalty: { votes: 120, withParty: 111, againstParty: 9 },
+      // No contact form: the House's own "Write Your Representative" form is the app's fallback.
+      contact: { phone: "202-225-4865", contactForm: null, website: "https://doggett.house.gov", office: "2307 Rayburn House Office Building", address: null },
     });
     // The party used for the comparison comes from the member row, not from the client.
     expect(loyaltyCalls).toContain("D000399/D");
@@ -581,6 +596,7 @@ describe("API", () => {
         { source: "senate_rollcalls", lastSuccessAt: "2026-11-09T00:00:00.000Z", lastNewDataAt: null, lastError: "HTTP 503", stale: true },
         { source: "bills", lastSuccessAt: null, lastNewDataAt: null, lastError: null, stale: true },
         { source: "nominations", lastSuccessAt: null, lastNewDataAt: null, lastError: null, stale: true },
+        { source: "schedule", lastSuccessAt: null, lastNewDataAt: null, lastError: null, stale: true },
       ],
     });
   });
@@ -597,6 +613,7 @@ describe("API", () => {
         search: async () => [],
         partyLoyalty: async () => ({ votes: 0, withParty: 0, againstParty: 0 }),
         funding: async () => null,
+        contact: async () => NO_CONTACT,
       },
       bills: { getBill: async () => null, getAnalysis: async () => null },
       nominations: { getNomination: async () => null },
@@ -612,7 +629,7 @@ describe("API", () => {
     expect(res.status).toBe(200);
     const body = await res.json();
     expect(body.ok).toBe(false);
-    expect(body.sources).toHaveLength(5);
+    expect(body.sources).toHaveLength(6);
     expect(body.sources.every((s: { stale: boolean }) => s.stale)).toBe(true);
     expect(body.sources[0].lastError).toMatch(/ENOTFOUND/);
   });
@@ -657,8 +674,8 @@ describe("API", () => {
     // nullable at every use they have, so carrying it on the component is correct for them:
     // LatestAction on Bill and Nomination, MeasureSummary on MemberVote (a procedural vote refers
     // to no measure), and Funding on MemberFunding, its only use, null when FEC has no totals for
-    // the member; and BillStage on BillListItem and Bill, both null until the worker has staged the
-    // bill. Anything else showing up here needs checking against how it is actually used
+    // the member; BillStage on BillListItem and Bill, both null until the worker has staged the
+    // bill; and VoteExplainer on Vote, null for a question with no written line. Anything else showing up here needs checking against how it is actually used
     // before the list is widened — and if Funding ever gains a use that must not accept null, it
     // has to come off this list and out of the component, not be left here.
     const doc = await (await app.request("/openapi.json")).json();
@@ -666,7 +683,7 @@ describe("API", () => {
     const hoisted = Object.entries(schemas)
       .filter(([, schema]) => schema.nullable)
       .map(([name]) => name);
-    expect(hoisted.sort()).toEqual(["BillStage", "Funding", "LatestAction", "MeasureSummary"]);
+    expect(hoisted.sort()).toEqual(["BillStage", "Funding", "LatestAction", "MeasureSummary", "VoteExplainer"]);
   });
 });
 
@@ -1012,5 +1029,114 @@ describe("device routes", () => {
     expect(Object.keys(doc.paths)).toEqual(expect.arrayContaining(["/v1/devices", "/v1/devices/activities/{voteId}"]));
     expect(doc.components.securitySchemes.deviceKey).toMatchObject({ type: "apiKey", in: "header", name: "Authorization" });
     expect(doc.components.schemas.LiveVote.properties.measure).toBeDefined();
+  });
+});
+
+describe("the week ahead and vote kinds", () => {
+  const weeks: string[] = [];
+  const stored: ScheduleRepository = {
+    week: async (weekOf) => {
+      weeks.push(weekOf);
+      if (weekOf !== "2026-11-16") return { house: [], senateMeetings: [], senateItems: [], sourceUpdatedAt: null };
+      return {
+        house: [
+          {
+            category: "rule",
+            categoryText: "Items that may be considered pursuant to a rule",
+            billId: "119-hr-5267",
+            label: "H.R. 5267",
+            title: "Example Defense Act",
+            sourceText: "Example Defense Act",
+            policyArea: "Armed Forces and National Security",
+            stage: "introduced",
+            latestAction: { on: "2026-11-10", text: "Rules Committee Resolution H. Res. 1650 Reported to House." },
+            addedAt: "2026-11-11T15:31:00.000Z",
+            removedAt: null,
+          },
+        ],
+        senateMeetings: [
+          {
+            date: "2026-11-16",
+            convenesAt: "2026-11-16T20:00:00.000Z",
+            proForma: false,
+            heading: "3 p.m., Monday, November 16",
+            program: "Senate will resume consideration of the nomination ...",
+            recordIssue: "172/171",
+          },
+        ],
+        senateItems: [],
+        sourceUpdatedAt: "2026-11-13T22:02:23.000Z",
+      };
+    },
+  };
+  // Saturday 2026-11-14 in Washington.
+  const app = createApp({
+    ...emptyDeps,
+    schedule: stored,
+    now: () => new Date("2026-11-14T17:00:00Z"),
+    limitStore: new MemoryLimitStore(),
+    locate: async () => null,
+  });
+
+  it("finds the Monday of any day's week, in Washington", () => {
+    expect(scheduleWeek(undefined, new Date("2026-11-14T17:00:00Z"))).toBe("2026-11-09");
+    expect(scheduleWeek(undefined, new Date("2026-11-16T03:00:00Z"))).toBe("2026-11-09"); // Sunday night in Washington
+    expect(scheduleWeek("2026-11-19", new Date())).toBe("2026-11-16");
+    expect(scheduleWeek("2026-11-16", new Date())).toBe("2026-11-16");
+    expect(scheduleWeek("2027-01-03", new Date())).toBe("2026-12-28");
+  });
+
+  it("serves a week: the House's items and the Senate's meetings, edge-cached", async () => {
+    const res = await app.request("/v1/schedule?week=2026-11-18");
+    expect(res.status).toBe(200);
+    expect(res.headers.get("cache-control")).toBe(SCHEDULE_CACHE_CONTROL);
+    const body = await res.json();
+    expect(weeks.at(-1)).toBe("2026-11-16");
+    expect(body).toMatchObject({
+      week: "2026-11-16",
+      house: { inSession: true, items: [{ billId: "119-hr-5267", label: "H.R. 5267", category: "rule" }] },
+      senate: { meetings: [{ date: "2026-11-16", proForma: false }], items: [] },
+      senateReason: null,
+      sourceUpdatedAt: "2026-11-13T22:02:23.000Z",
+    });
+  });
+
+  it("defaults to this week, and says why the Senate is null rather than inventing a week", async () => {
+    const body = await (await app.request("/v1/schedule")).json();
+    expect(body).toMatchObject({ week: "2026-11-09", house: { inSession: null, items: [] }, senate: null, sourceUpdatedAt: null });
+    expect(body.senateReason).toMatch(/has not named a Senate meeting/);
+  });
+
+  it("refuses a week that is not a date", async () => {
+    expect((await app.request("/v1/schedule?week=next")).status).toBe(400);
+    expect((await app.request("/v1/schedule?week=2026-13-40")).status).toBe(400);
+  });
+
+  it("answers an empty week when no schedule repository is wired", async () => {
+    const bare = createApp({ ...emptyDeps, limitStore: new MemoryLimitStore(), locate: async () => null });
+    expect((await (await bare.request("/v1/schedule?week=2026-11-16")).json()).house).toEqual({ inSession: null, items: [] });
+  });
+
+  it("serves the vote-kinds table in match order, conditions spelled out", async () => {
+    const body = await (await app.request("/v1/vote-kinds")).json();
+    const cloture = body.kinds.filter((k: { kind: string }) => k.kind === "cloture");
+    expect(cloture).toHaveLength(2);
+    expect(cloture[0]).toMatchObject({ chamber: "senate", when: expect.stringMatching(/simple majority/) });
+    expect(cloture[1]).toMatchObject({ when: null, source: "Senate Rule XXII, paragraph 2", questions: ["On the Cloture Motion"] });
+    expect(body.kinds.find((k: { kind: string }) => k.kind === "suspension").questions).toContain("On Motion to Suspend the Rules and Pass");
+  });
+
+  it("puts each vote's explainer on vote responses", async () => {
+    const vote = await (await app.request("/v1/votes/house-119-1-100")).json();
+    expect(vote.explainer).toMatchObject({ kind: "concur", source: "House Rule XXII, clause 4" });
+    const list = await (await app.request("/v1/votes")).json();
+    expect(list.votes[0].vote.explainer).toMatchObject({ kind: "nomination", text: "The confirmation vote. A simple majority." });
+  });
+
+  it("documents the new routes and the contact on a member", async () => {
+    const doc = await (await app.request("/openapi.json")).json();
+    expect(Object.keys(doc.paths)).toEqual(expect.arrayContaining(["/v1/schedule", "/v1/vote-kinds"]));
+    expect(doc.components.schemas.MemberDetail.required).toContain("contact");
+    expect(doc.components.schemas.Vote.required).toContain("explainer");
   });
 });

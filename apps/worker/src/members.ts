@@ -12,6 +12,12 @@ export interface MemberRow {
   term_start: string;
   term_end: string;
   ids: Record<string, unknown>;
+  /** How to reach the office, from the latest term; null where upstream has none (see the migration). */
+  phone: string | null;
+  contact_form: string | null;
+  website: string | null;
+  office: string | null;
+  address: string | null;
 }
 
 /** Shape of an entry in congress-legislators' legislators-*.json files (fields we use). */
@@ -27,6 +33,12 @@ export interface LegislatorEntry {
     party?: string;
     url?: string;
     rss_url?: string;
+    phone?: string;
+    contact_form?: string;
+    office?: string;
+    address?: string;
+    /** Not stored: nobody reaches an office by fax. */
+    fax?: string;
   }[];
 }
 
@@ -86,6 +98,11 @@ export function toMemberRows(entries: LegislatorEntry[], servedSince = "2022-11-
       term_start: term.start,
       term_end: term.end,
       ids,
+      phone: term.phone?.trim() || null,
+      contact_form: term.contact_form?.trim() || null,
+      website: term.url?.trim() || null,
+      office: term.office?.trim() || null,
+      address: term.address?.trim() || null,
     });
   }
   return rows;

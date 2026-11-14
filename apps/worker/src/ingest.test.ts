@@ -61,6 +61,25 @@ describe("members", () => {
     expect(rows.find((r) => r.bioguide_id === "N000147")?.district).toBe(0); // DC delegate, at-large
   });
 
+  it("keeps each office's contact details from the latest term, null where upstream has none", async () => {
+    const rows = toMemberRows(legislators);
+    expect(rows.find((r) => r.bioguide_id === "C000127")).toMatchObject({
+      phone: "202-224-3441",
+      contact_form: "https://www.cantwell.senate.gov/public/index.cfm/email-maria",
+      website: "https://www.cantwell.senate.gov",
+      office: "511 Hart Senate Office Building",
+      address: "511 Hart Senate Office Building Washington DC 20510",
+    });
+    // Most House members have no contact form upstream; the app falls back to the House's own form.
+    expect(rows.find((r) => r.bioguide_id === "A000370")).toMatchObject({
+      phone: "202-225-1510", contact_form: null, website: "https://adams.house.gov",
+    });
+    const { rows: stored } = await pg.query<{ phone: string; contact_form: string | null; office: string }>(
+      "select phone, contact_form, office from members where bioguide_id = 'A000370'",
+    );
+    expect(stored[0]).toEqual({ phone: "202-225-1510", contact_form: null, office: "2436 Rayburn House Office Building" });
+  });
+
   it("corrects a party that congress-legislators has wrong, without touching real independents", () => {
     const rows = toMemberRows(legislators);
     // The fixture holds Kiley's real upstream entry: 118th term "Republican", 119th "Independent".

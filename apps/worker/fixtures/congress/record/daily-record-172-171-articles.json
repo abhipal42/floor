@@ -1,0 +1,109 @@
+{
+ "articles": [
+  {
+   "name": "Daily Digest",
+   "sectionArticles": [
+    {
+     "endPage": "D1020",
+     "startPage": "D1019",
+     "text": [
+      {
+       "type": "Formatted Text",
+       "url": "https://www.congress.gov/119/crec/2026/11/12/172/171/modified/CREC-2026-11-12-pt1-PgD1019-5.htm"
+      },
+      {
+       "type": "PDF",
+       "url": "https://www.congress.gov/119/crec/2026/11/12/172/171/CREC-2026-11-12-pt1-PgD1019-5.pdf"
+      }
+     ],
+     "title": "Daily Digest/Next Meeting of the SENATE + Next Meeting of the HOUSE OF REPRESENTATIVES + Other End Matter; Congressional Record Vol. 172, No. 171"
+    },
+    {
+     "endPage": "D1019",
+     "startPage": "D1019",
+     "text": [
+      {
+       "type": "Formatted Text",
+       "url": "https://www.congress.gov/119/crec/2026/11/12/172/171/modified/CREC-2026-11-12-pt1-PgD1019-4.htm"
+      },
+      {
+       "type": "PDF",
+       "url": "https://www.congress.gov/119/crec/2026/11/12/172/171/CREC-2026-11-12-pt1-PgD1019-4.pdf"
+      }
+     ],
+     "title": "Daily Digest/COMMITTEE MEETINGS FOR 2026-11-13; Congressional Record Vol. 172, No. 171"
+    },
+    {
+     "endPage": "D1019",
+     "startPage": "D1019",
+     "text": [
+      {
+       "type": "Formatted Text",
+       "url": "https://www.congress.gov/119/crec/2026/11/12/172/171/modified/CREC-2026-11-12-pt1-PgD1019-3.htm"
+      },
+      {
+       "type": "PDF",
+       "url": "https://www.congress.gov/119/crec/2026/11/12/172/171/CREC-2026-11-12-pt1-PgD1019-3.pdf"
+      }
+     ],
+     "title": "Daily Digest/House Committee Meetings; Congressional Record Vol. 172, No. 171"
+    },
+    {
+     "endPage": "D1019",
+     "startPage": "D1019",
+     "text": [
+      {
+       "type": "Formatted Text",
+       "url": "https://www.congress.gov/119/crec/2026/11/12/172/171/modified/CREC-2026-11-12-pt1-PgD1019-2.htm"
+      },
+      {
+       "type": "PDF",
+       "url": "https://www.congress.gov/119/crec/2026/11/12/172/171/CREC-2026-11-12-pt1-PgD1019-2.pdf"
+      }
+     ],
+     "title": "Daily Digest/House of Representatives; Congressional Record Vol. 172, No. 171"
+    },
+    {
+     "endPage": "D1019",
+     "startPage": "D1019",
+     "text": [
+      {
+       "type": "Formatted Text",
+       "url": "https://www.congress.gov/119/crec/2026/11/12/172/171/modified/CREC-2026-11-12-pt1-PgD1019.htm"
+      },
+      {
+       "type": "PDF",
+       "url": "https://www.congress.gov/119/crec/2026/11/12/172/171/CREC-2026-11-12-pt1-PgD1019.pdf"
+      }
+     ],
+     "title": "Daily Digest/Senate Committee Meetings; Congressional Record Vol. 172, No. 171"
+    },
+    {
+     "endPage": "D1019",
+     "startPage": "D1017",
+     "text": [
+      {
+       "type": "Formatted Text",
+       "url": "https://www.congress.gov/119/crec/2026/11/12/172/171/modified/CREC-2026-11-12-pt1-PgD1017.htm"
+      },
+      {
+       "type": "PDF",
+       "url": "https://www.congress.gov/119/crec/2026/11/12/172/171/CREC-2026-11-12-pt1-PgD1017.pdf"
+      }
+     ],
+     "title": "Daily Digest/Senate; Congressional Record Vol. 172, No. 171"
+    }
+   ]
+  }
+ ],
+ "pagination": {
+  "count": 254,
+  "next": "https://api.congress.gov/v3/daily-congressional-record/172/171/articles?offset=250&limit=250&format=json"
+ },
+ "request": {
+  "contentType": "application/json",
+  "format": "json",
+  "issueNumber": "171",
+  "volumeNumber": "172"
+ }
+}

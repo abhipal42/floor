@@ -6,6 +6,7 @@ import { POLICY_AREAS, matchTopics, parseBillNumber, topicNamed } from "./bills.
 import { bodyLimit } from "hono/body-limit";
 import { clientKey, rateLimit, type LimitStore } from "./limit.js";
 import { parseMemberQuery, type MemberQuery } from "./search.js";
+import { CONDITIONS, VOTE_KINDS } from "./votekinds.js";
 
 /*
  * The enums below are registered as their own components so the OpenAPI document refers to each by
@@ -67,6 +68,17 @@ export const DistrictSchema = z
   })
   .openapi("District");
 
+export const VoteExplainerSchema = z
+  .object({
+    kind: z.string().openapi({ example: "cloture" }),
+    text: z.string().openapi({
+      example:
+        "A vote to end debate so the Senate can move to a final vote. On a bill it needs three-fifths of senators sworn in, 60 when the Senate is full. Passing cloture doesn't pass the bill.",
+    }),
+    source: z.string().openapi({ example: "Senate Rule XXII, paragraph 2", description: "The rule or law the line rests on" }),
+  })
+  .openapi("VoteExplainer", { description: "Written by hand, not AI. See GET /v1/vote-kinds for the whole table." });
+
 export const VoteSchema = z
   .object({
     id: z.string().openapi({ example: "house-119-1-100" }),
@@ -85,6 +97,9 @@ export const VoteSchema = z
     totals: VoteTotalsSchema,
     candidates: z.array(CandidateSchema),
     result: z.string().nullable(),
+    explainer: VoteExplainerSchema.nullable().openapi({
+      description: "What this kind of vote is, in a line; null for a question Floor has no line for (never a guess)",
+    }),
   })
   .openapi("Vote");
 
@@ -150,8 +165,29 @@ export const PartyLoyaltySchema = z
 
 export type PartyLoyalty = z.infer<typeof PartyLoyaltySchema>;
 
+/** How to reach a member's office, from congress-legislators' current term. Every field may be missing upstream. */
+export const MemberContactSchema = z
+  .object({
+    phone: z.string().nullable().openapi({ example: "202-225-1510", description: "The Washington office" }),
+    contactForm: z.string().nullable().openapi({
+      example: "https://www.sanders.senate.gov/contact/",
+      description:
+        "The office's own web form. Null for most House members, whose offices list none: use the House's " +
+        "\"Write Your Representative\" form (https://www.house.gov/representatives/find-your-representative) instead",
+    }),
+    website: z.string().nullable().openapi({ example: "https://adams.house.gov" }),
+    office: z.string().nullable().openapi({ example: "2436 Rayburn House Office Building" }),
+    address: z.string().nullable().openapi({ example: "2436 Rayburn House Office Building Washington DC 20515-3312", description: "Mailing address" }),
+  })
+  .openapi("MemberContact");
+
+export type MemberContact = z.infer<typeof MemberContactSchema>;
+
+/** A member we hold no contact details for. */
+export const NO_CONTACT: MemberContact = { phone: null, contactForm: null, website: null, office: null, address: null };
+
 const MemberDetailSchema = z
-  .object({ member: MemberSchema, partyLoyalty: PartyLoyaltySchema })
+  .object({ member: MemberSchema, partyLoyalty: PartyLoyaltySchema, contact: MemberContactSchema })
   .openapi("MemberDetail");
 
 /**
@@ -336,6 +372,8 @@ export interface MemberRepository {
    * `committees` is capped at `limit` rows, biggest direct giver first.
    */
   funding(bioguideId: string, limit: number): Promise<Funding | null>;
+  /** How to reach their office; every field null when we hold none. */
+  contact(bioguideId: string): Promise<MemberContact>;
 }
 
 export const BillActionSchema = z
@@ -503,6 +541,7 @@ export const MAX_AGE_HOURS: Record<string, number> = {
   senate_rollcalls: 24,
   bills: 48,
   nominations: 48,
+  schedule: 24,
 };
 
 /**
@@ -737,6 +776,110 @@ export const SEARCH_RATE_LIMIT = { limit: 60, windowMs: 60 * 1000 };
 export const TOPICS_RATE_LIMIT = { limit: 120, windowMs: 60 * 1000 };
 
 /*
+ * The week ahead (`GET /v1/schedule`). The House publishes a weekly list of what may come up; the
+ * Senate publishes when it next convenes and, the morning after, the Daily Digest's program for
+ * that day (docs/HANDOFF.md §3). Neither is a promise: items are added and pulled through the week.
+ */
+export const ScheduleCategorySchema = z
+  .enum(["rule", "suspension", "other"])
+  .openapi("ScheduleCategory", {
+    description:
+      "rule = to be considered under a special rule; suspension = under suspension of the rules (two-thirds); " +
+      "other = anything else, including every Senate item",
+  });
+
+export const ScheduleItemSchema = z
+  .object({
+    category: ScheduleCategorySchema,
+    categoryText: z.string().openapi({ example: "Items that may be considered under suspension of the rules" }),
+    billId: z.string().nullable().openapi({ example: "119-hr-5267", description: "null for a resolution not yet numbered, or a bill not in Floor's catalog yet" }),
+    label: z.string().openapi({ example: "H.R. 5267", description: "The citation; as the source prints it when the bill is unknown" }),
+    title: z.string().openapi({ description: "The bill's plain label (BillListItem.label) when known, else the source's own text" }),
+    sourceText: z.string().openapi({ description: "What the source printed for the item, e.g. a suspension's title with \", as amended\"" }),
+    policyArea: z.string().nullable(),
+    stage: BillStageSchema.nullable(),
+    latestAction: LatestActionSchema.nullable(),
+    addedAt: z.string().nullable(),
+    removedAt: z.string().nullable().openapi({ description: "Set once the item was taken off the week's list; it is kept so it can be shown as pulled" }),
+  })
+  .openapi("ScheduleItem");
+
+export type ScheduleItem = z.infer<typeof ScheduleItemSchema>;
+
+export const SenateMeetingSchema = z
+  .object({
+    date: z.string().openapi({ example: "2026-11-16" }),
+    convenesAt: z.string().nullable().openapi({ example: "2026-11-16T20:00:00.000Z", description: "From senate.gov's session-day file" }),
+    proForma: z.boolean().openapi({ description: "A pro forma session: the Senate meets for seconds and does no business" }),
+    heading: z.string().nullable().openapi({ example: "3 p.m., Monday, November 16", description: "The Daily Digest's own heading" }),
+    program: z.string().nullable().openapi({
+      description:
+        "The Daily Digest's \"Program for\" text, verbatim but for whitespace. Null until the Congressional Record " +
+        "for the day before is out, usually the next morning",
+    }),
+    recordIssue: z.string().nullable().openapi({ example: "172/171", description: "The Congressional Record volume/issue the program is from" }),
+  })
+  .openapi("SenateMeeting");
+
+export type SenateMeeting = z.infer<typeof SenateMeetingSchema>;
+
+export const ScheduleSchema = z
+  .object({
+    week: z.string().openapi({ example: "2026-11-16", description: "The Monday" }),
+    house: z.object({
+      inSession: z.boolean().nullable().openapi({
+        description:
+          "true when the House has published a schedule for the week; null when it has not (not yet, or a week it is " +
+          "out). The House publishes none for a district work period, but an unpublished week is not reported as one",
+      }),
+      items: z.array(ScheduleItemSchema),
+    }),
+    senate: z
+      .object({ meetings: z.array(SenateMeetingSchema), items: z.array(ScheduleItemSchema).openapi({ description: "Measures the meetings' programs name" }) })
+      .nullable(),
+    senateReason: z.string().nullable().openapi({ description: "Why `senate` is null" }),
+    sourceUpdatedAt: z.string().nullable().openapi({ description: "When a source last edited anything shown for this week" }),
+  })
+  .openapi("Schedule");
+
+export interface ScheduleRepository {
+  /** What is stored for the week of `weekOf` (a Monday). */
+  week(weekOf: string): Promise<{
+    house: ScheduleItem[];
+    senateMeetings: SenateMeeting[];
+    senateItems: ScheduleItem[];
+    sourceUpdatedAt: string | null;
+  }>;
+}
+
+export const EMPTY_SCHEDULE: ScheduleRepository = {
+  week: async () => ({ house: [], senateMeetings: [], senateItems: [], sourceUpdatedAt: null }),
+};
+
+/** Changes at most hourly (the ingest); the edge answers repeats. */
+export const SCHEDULE_CACHE_CONTROL = "public, max-age=300, s-maxage=900, stale-while-revalidate=3600";
+export const SCHEDULE_RATE_LIMIT = { limit: 120, windowMs: 60 * 1000 };
+
+/** The Monday of the week a day falls in ("YYYY-MM-DD"), or of the week `now` is in, in Washington. */
+export function scheduleWeek(day: string | undefined, now: Date): string {
+  const d = new Date(`${day ?? now.toLocaleDateString("en-CA", { timeZone: "America/New_York" })}T12:00:00Z`);
+  d.setUTCDate(d.getUTCDate() - ((d.getUTCDay() + 6) % 7));
+  return d.toISOString().slice(0, 10);
+}
+
+/** `GET /v1/vote-kinds`: the explainer registry (votekinds.ts). */
+export const VoteKindInfoSchema = z
+  .object({
+    kind: z.string().openapi({ example: "suspension" }),
+    text: z.string(),
+    source: z.string(),
+    chamber: ChamberSchema.nullable().openapi({ description: "Only this chamber's votes; null for both" }),
+    when: z.string().nullable().openapi({ description: "Only when this holds; null for always" }),
+    questions: z.array(z.string()).openapi({ description: "The roll call questions it explains, matched ignoring case and spacing" }),
+  })
+  .openapi("VoteKindInfo");
+
+/*
  * Alerts and Live Activities (round 8, sections A-C). No accounts: a phone makes a random 32-byte
  * key, sends it as `Authorization: Device <key>` (base64url, 43 characters), and the API keeps only
  * its SHA-256 — so a registration can be changed only by the phone that made it, and the key is
@@ -857,6 +1000,8 @@ export interface AppDeps {
   limitStore?: LimitStore;
   /** Alert and Live Activity registrations. Defaults to `NO_DEVICES` (503). */
   devices?: DeviceRepository;
+  /** The week ahead. Defaults to `EMPTY_SCHEDULE`. */
+  schedule?: ScheduleRepository;
 }
 
 /** How many address lookups one caller gets per hour. See the note in `limit.ts`. */
@@ -1131,6 +1276,49 @@ const getBillAnalysisRoute = createRoute({
   },
 });
 
+const getScheduleRoute = createRoute({
+  method: "get",
+  path: "/v1/schedule",
+  summary: "The week ahead: what the House has listed and when the Senate meets",
+  description:
+    "House: the Majority Leader's weekly list as the Clerk publishes it (docs.house.gov/floor), pulled items included " +
+    "with removedAt. Senate: its next convening (senate.gov) and the Daily Digest's program for that day, once the " +
+    "Congressional Record is out; the Senate publishes no weekly list. Listed is not scheduled: items move.",
+  request: {
+    query: z.object({
+      week: z
+        .string()
+        .regex(/^\d{4}-\d{2}-\d{2}$/, "week is a date, YYYY-MM-DD")
+        .refine((d) => !Number.isNaN(Date.parse(`${d}T12:00:00Z`)), "week is not a real date")
+        .optional()
+        .openapi({
+          param: { name: "week", in: "query" },
+          example: "2026-11-16",
+          description: "Any day of the week; defaults to this week in Washington",
+        }),
+    }),
+  },
+  responses: {
+    200: { content: { "application/json": { schema: ScheduleSchema } }, description: `The week (${SCHEDULE_CACHE_CONTROL})` },
+    400: { content: { "application/json": { schema: ErrorSchema } }, description: "Not a date" },
+  },
+});
+
+const getVoteKindsRoute = createRoute({
+  method: "get",
+  path: "/v1/vote-kinds",
+  summary: "Every kind of vote Floor explains, with its line and the rule it rests on",
+  description:
+    "The table behind `explainer` on votes. The first entry whose question, chamber and condition match a vote is " +
+    "its explainer; a question in no entry has none.",
+  responses: {
+    200: {
+      content: { "application/json": { schema: z.object({ kinds: z.array(VoteKindInfoSchema) }) } },
+      description: `The table, in match order (${TOPICS_CACHE_CONTROL})`,
+    },
+  },
+});
+
 const getNominationRoute = createRoute({
   method: "get",
   path: "/v1/nominations/{id}",
@@ -1359,6 +1547,7 @@ export function createApp(deps: AppDeps) {
     ["/v1/topics/*", TOPICS_RATE_LIMIT, "topics"],
     // Exactly "/v1/votes": the list. A vote by id is not limited.
     ["/v1/votes", VOTES_RATE_LIMIT, "votes"],
+    ["/v1/schedule", SCHEDULE_RATE_LIMIT, "schedule"],
     // Registration and Live Activity tokens; "/v1/devices/*" matches "/v1/devices" itself too.
     ["/v1/devices/*", DEVICES_RATE_LIMIT, "devices"],
   ] as const;
@@ -1412,7 +1601,8 @@ export function createApp(deps: AppDeps) {
     const { id } = c.req.valid("param");
     const member = await deps.members.getMember(id);
     if (!member) return c.json({ error: `No member with ID ${id}` }, 404);
-    return c.json({ member, partyLoyalty: await deps.members.partyLoyalty(id, member.party) }, 200);
+    const [partyLoyalty, contact] = await Promise.all([deps.members.partyLoyalty(id, member.party), deps.members.contact(id)]);
+    return c.json({ member, partyLoyalty, contact }, 200);
   });
 
   app.openapi(getMemberFundingRoute, async (c) => {
@@ -1473,6 +1663,44 @@ export function createApp(deps: AppDeps) {
     const analysis = await deps.bills.getAnalysis(id);
     if (!analysis) return c.json({ error: `No AI analysis for bill ${id} yet` }, 404);
     return c.json(analysis, 200);
+  });
+
+  const schedule = deps.schedule ?? EMPTY_SCHEDULE;
+  app.openapi(getScheduleRoute, async (c) => {
+    const week = scheduleWeek(c.req.valid("query").week, clock());
+    const stored = await schedule.week(week);
+    c.header("Cache-Control", SCHEDULE_CACHE_CONTROL);
+    const senate = stored.senateMeetings.length > 0 ? { meetings: stored.senateMeetings, items: stored.senateItems } : null;
+    return c.json(
+      {
+        week,
+        house: { inSession: stored.house.length > 0 ? true : null, items: stored.house },
+        senate,
+        senateReason: senate
+          ? null
+          : "senate.gov has not named a Senate meeting in this week. It publishes only the next convening, " +
+            "once the Senate adjourns, so later weeks are unknown until then.",
+        sourceUpdatedAt: stored.sourceUpdatedAt,
+      },
+      200,
+    );
+  });
+
+  app.openapi(getVoteKindsRoute, (c) => {
+    c.header("Cache-Control", TOPICS_CACHE_CONTROL);
+    return c.json(
+      {
+        kinds: VOTE_KINDS.map((k) => ({
+          kind: k.kind,
+          text: k.text,
+          source: k.source,
+          chamber: k.chamber,
+          when: k.when ? CONDITIONS[k.when] : null,
+          questions: k.questions,
+        })),
+      },
+      200,
+    );
   });
 
   app.openapi(getNominationRoute, async (c) => {

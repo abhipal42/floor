@@ -90,6 +90,12 @@ struct ContractTests {
             "/v1/members": fields(MemberSearch.sample),
             "/v1/votes": fields(RecentVotes.sample),
             "RecentVote": fields(RecentVote.sample),
+            "VoteExplainer": fields(VoteExplainer.sample),
+            "VoteKindInfo": fields(VoteKindInfo.sample),
+            "MemberContact": fields(MemberContact.sample),
+            "ScheduleItem": fields(ScheduleItem.sample),
+            "SenateMeeting": fields(SenateMeeting.sample),
+            "Schedule": fields(Schedule.sample),
         ]
     }
 
@@ -101,6 +107,7 @@ struct ContractTests {
         "ChamberStatus", "Live", "LiveVote", "RecentVote",
         "BillListItem", "Topic", "TopicList", "TopicBills", "SearchResults",
         "DeviceSubscription", "DeviceRegistration", "DeviceRegistered", "ActivityToken",
+        "VoteExplainer", "VoteKindInfo", "MemberContact", "ScheduleItem", "SenateMeeting", "Schedule",
     ])
     func modelFieldsMatchItsSchema(name: String) throws {
         let model = try #require(Self.modelFields()[name], "no model registered for \(name)")
@@ -122,6 +129,7 @@ struct ContractTests {
         ("Position", Set(Position.allCases.map(\.rawValue))),
         ("BillStage", Set(BillStage.allCases.map(\.rawValue))),
         ("TopicFilter", Set(TopicFilter.allCases.map(\.rawValue))),
+        ("ScheduleCategory", Set(ScheduleCategory.allCases.map(\.rawValue))),
     ]
 
     @Test(arguments: enumCases)
@@ -168,6 +176,7 @@ struct ContractTests {
     @Test func everySchemaIsModelled() throws {
         let enums: Set<String> = [
             "Chamber", "VoteKind", "VoteState", "VoteThreshold", "Position", "BillStage", "TopicFilter",
+            "ScheduleCategory",
         ]
         let modelled = Set(Self.modelFields().keys).subtracting(["/v1/members/{id}/votes", "/v1/status", "/v1/members", "/v1/votes"])
         #expect(Set(try Self.schemas().keys) == modelled.union(enums),

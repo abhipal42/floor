@@ -19,3 +19,4 @@ export function votesNeeded(threshold: Threshold, voting: number, sworn = 100): 
       return Math.ceil((sworn * 3) / 5);
   }
 }
+export * from "./schedule.js";

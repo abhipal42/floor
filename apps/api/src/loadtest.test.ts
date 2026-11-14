@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { createApp } from "./app.js";
+import { createApp, NO_CONTACT } from "./app.js";
 import {
   DEFAULT_IDS,
   assertSafeTarget,
@@ -76,6 +76,7 @@ describe("runLoad", () => {
       search: async () => [],
       partyLoyalty: async () => ({ votes: 0, withParty: 0, againstParty: 0 }),
       funding: async () => null,
+      contact: async () => NO_CONTACT,
     },
     bills: { getBill: async () => null, getAnalysis: async () => null },
     nominations: { getNomination: async () => null },

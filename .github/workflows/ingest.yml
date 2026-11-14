@@ -87,6 +87,12 @@ jobs:
       - name: Nominations
         if: steps.install.outcome == 'success' && env.CONGRESS_API_KEY != '' && !cancelled()
         run: npm run ingest -w @floor/worker -- nominations
+      # The week ahead: the House's weekly floor list for this week and next, the Senate's next
+      # convening (senate.gov), and its Daily Digest program (Congress.gov + govinfo; 2 requests on the
+      # key). Before the bill catalog, so the catalog's budget cannot starve it.
+      - name: Schedule
+        if: steps.install.outcome == 'success' && !cancelled()
+        run: npm run ingest -w @floor/worker -- schedule
       # Every bill of the Congress, not only voted ones (v0.2.26). Bounded: at most 1,200 Congress.gov
       # requests a run, paced to 4,500 an hour, so with the steps above it stays inside the key's
       # 5,000 an hour (about 16 minutes when the budget is all used). Incremental from the last

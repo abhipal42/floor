@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { AI_DISCLAIMER, DEVICE_SIGNUPS_PER_DAY } from "./app.js";
+import { AI_DISCLAIMER, DEVICE_SIGNUPS_PER_DAY, NO_CONTACT } from "./app.js";
 import { billCitation, billLabel } from "./bills.js";
 import type {
   Bill,
@@ -21,11 +21,14 @@ import type {
   NominationRepository,
   PartyLoyalty,
   PartyTotals,
+  ScheduleItem,
+  ScheduleRepository,
   StatusRepository,
   Vote,
   VoteRepository,
 } from "./app.js";
 import { DELEGATE_JURISDICTIONS, FOLDS, type MemberQuery } from "./search.js";
+import { RULE_TITLE, RULE_TITLE_SQL, explainVote } from "./votekinds.js";
 
 /**
  * Which kind of Supabase connection a `DATABASE_URL` is, from its port and host.
@@ -110,6 +113,28 @@ interface VoteRow {
   not_voting: number;
   result: string | null;
   occurred_at: Date | null;
+  /** The vote's measure is a special rule (`RULE_TITLE_SQL`), for its explainer. */
+  on_rule: boolean;
+}
+
+interface ScheduleRow {
+  chamber: "house" | "senate";
+  category: ScheduleItem["category"];
+  category_text: string;
+  legis_num: string;
+  bill_id: string | null;
+  source_text: string;
+  added_at: Date | null;
+  removed_at: Date | null;
+  source_updated_at: Date | null;
+  bill_type: string | null;
+  number: number | null;
+  title: string | null;
+  short_title: string | null;
+  policy_area: string | null;
+  stage: BillStage | null;
+  latest_action_on: Date | string | null;
+  latest_action_text: string | null;
 }
 
 interface MemberRow {
@@ -139,6 +164,7 @@ const toVote = (r: VoteRow): Vote => ({
   threshold: r.threshold,
   totals: { yea: r.yea, nay: r.nay, present: r.present, notVoting: r.not_voting },
   result: r.result,
+  explainer: explainVote({ question: r.question, chamber: r.chamber, threshold: r.threshold, onRule: r.on_rule }),
 });
 
 const toMember = (r: MemberRow): Member => ({
@@ -269,7 +295,8 @@ type PositionRow = MemberRow & { position: MemberVote["position"]; choice: strin
 
 const VOTE_COLUMNS = `v.id, v.kind, v.candidates, v.chamber, v.congress, v.session, v.roll_number, v.bill_id,
   v.nomination_id, v.bill_ref, v.question, v.state, v.threshold, v.yea, v.nay, v.present, v.not_voting, v.result,
-  v.occurred_at`;
+  v.occurred_at,
+  exists (select 1 from bills rb where rb.id = v.bill_id and rb.bill_type = 'hres' and rb.title ~* ${RULE_TITLE_SQL}) as on_rule`;
 
 /** bill_analyses.analysis as the worker writes it (apps/worker/src/analysis.ts `Analysis`). */
 interface StoredClaim {
@@ -476,6 +503,7 @@ export function pgRepositories(db: Db): {
   live: LiveRepository;
   catalog: CatalogRepository;
   devices: DeviceRepository;
+  schedule: ScheduleRepository;
 } {
   const registerOnce = async (keyHash: string, reg: DeviceRegistration, now: Date) => {
     // An APNs token belongs to one install. A phone that reinstalled Floor makes a new key and
@@ -685,7 +713,8 @@ export function pgRepositories(db: Db): {
         );
         const iso = (d: Date | null) => (d ? new Date(d).toISOString() : null);
         return rows.map((r) => ({
-          ...toVote(r),
+          // An open vote is not linked yet, so its rule-ness is read from the bill its reference names.
+          ...toVote({ ...r, on_rule: r.on_rule || (r.bill_type === "hres" && RULE_TITLE.test(r.bill_title ?? "")) }),
           openedAt: iso(r.opened_at),
           announcedAt: iso(r.announced_at),
           postedAt: iso(r.posted_at),
@@ -1036,6 +1065,21 @@ export function pgRepositories(db: Db): {
         return loyalty;
       },
 
+      async contact(bioguideId) {
+        // Through liveQuery: before migration 20261117000100 the columns do not exist, and the member
+        // page answers with no contact details rather than a 500.
+        const { rows } = await liveQuery(db)<{
+          phone: string | null;
+          contact_form: string | null;
+          website: string | null;
+          office: string | null;
+          address: string | null;
+        }>("select phone, contact_form, website, office, address from members where bioguide_id = $1", [bioguideId]);
+        const r = rows[0];
+        return r
+          ? { phone: r.phone, contactForm: r.contact_form, website: r.website, office: r.office, address: r.address }
+          : NO_CONTACT;
+      },
       async funding(bioguideId, limit) {
         const { rows } = await db.query<FundingRow>(
           `select cycle, coverage_start, coverage_end, receipts, individual_unitemized, individual_itemized,
@@ -1091,6 +1135,72 @@ export function pgRepositories(db: Db): {
             direct: Number(c.direct_amount),
             earmarked: Number(c.earmarked_amount),
           })),
+        };
+      },
+    },
+    schedule: {
+      async week(weekOf) {
+        // Through liveQuery: before migration 20261117000000 the tables do not exist, and the week
+        // reads as nothing published rather than a 500.
+        const q = liveQuery(db);
+        const [{ rows: items }, { rows: meetings }] = await Promise.all([
+          q<ScheduleRow>(
+            `select fs.chamber, fs.category, fs.category_text, fs.legis_num, fs.bill_id, fs.title as source_text,
+                    fs.added_at, fs.removed_at, fs.source_updated_at,
+                    b.bill_type, b.number, b.title, b.short_title, b.policy_area, b.stage,
+                    b.latest_action_on, b.latest_action_text
+               from floor_schedule fs left join bills b on b.id = fs.bill_id
+              where fs.week_of = $1::date
+              order by fs.chamber, case fs.category when 'suspension' then 0 when 'rule' then 1 else 2 end,
+                       fs.sort_order, fs.item_id`,
+            [weekOf],
+          ),
+          q<{
+            meeting_date: Date | string;
+            convenes_at: Date | null;
+            pro_forma: boolean;
+            digest_heading: string | null;
+            program: string | null;
+            record_issue: string | null;
+            source_updated_at: Date | null;
+          }>(
+            `select meeting_date::text as meeting_date, convenes_at, pro_forma, digest_heading, program, record_issue, source_updated_at
+               from senate_meetings
+              where meeting_date between $1::date and $1::date + 6
+              order by meeting_date`,
+            [weekOf],
+          ),
+        ]);
+        const iso = (d: Date | null) => (d ? new Date(d).toISOString() : null);
+        const toItem = (r: ScheduleRow): ScheduleItem => ({
+          category: r.category,
+          categoryText: r.category_text,
+          billId: r.bill_id,
+          label: r.bill_type && r.number !== null ? billCitation(r.bill_type, r.number) : r.legis_num,
+          title: r.title ? billLabel(r.title, r.short_title) : r.source_text,
+          sourceText: r.source_text,
+          policyArea: r.policy_area,
+          stage: r.stage,
+          latestAction:
+            r.latest_action_on && r.latest_action_text ? { on: day(r.latest_action_on)!, text: r.latest_action_text } : null,
+          addedAt: iso(r.added_at),
+          removedAt: iso(r.removed_at),
+        });
+        const updated = [...items, ...meetings]
+          .map((r) => (r.source_updated_at ? new Date(r.source_updated_at).getTime() : 0))
+          .reduce((a, b) => Math.max(a, b), 0);
+        return {
+          house: items.filter((r) => r.chamber === "house").map(toItem),
+          senateItems: items.filter((r) => r.chamber === "senate").map(toItem),
+          senateMeetings: meetings.map((m) => ({
+            date: day(m.meeting_date)!,
+            convenesAt: iso(m.convenes_at),
+            proForma: m.pro_forma,
+            heading: m.digest_heading,
+            program: m.program,
+            recordIssue: m.record_issue,
+          })),
+          sourceUpdatedAt: updated ? new Date(updated).toISOString() : null,
         };
       },
     },
