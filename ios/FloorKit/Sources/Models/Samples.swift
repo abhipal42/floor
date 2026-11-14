@@ -296,18 +296,6 @@ public extension DeviceRegistered {
     static let sample = DeviceRegistered(subscriptions: 2, voteOpened: false)
 }
 
-public extension BillAlerts {
-    static let sample = BillAlerts.defaults
-}
-
-public extension BillShare {
-    static let sample = BillShare(
-        url: "https://floor.app/bill/119/hr/5267",
-        text: "H.R. 5267, the American Franchise Act, is up for a House vote the week of Nov 16. What it does and how our members vote:",
-        kicker: "H.R. 5267 · ON THE FLOOR THIS WEEK"
-    )
-}
-
 public extension ActivityToken {
     static let sample = ActivityToken(token: String(repeating: "cd", count: 32))
 }

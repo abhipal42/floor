@@ -34,32 +34,11 @@ struct FloorLinkTests {
 
     @Test func rejectsLinksThatAreNotOurs() throws {
         for string in [
-            "https://floor.app/vote/house-119-2-321", "floor://vote", "floor://vote/", "floor://bill/119-pn-1013",
+            "https://floor.app/vote/house-119-2-321", "floor://vote", "floor://vote/", "floor://bill/119-hr-1013",
             "floor://vote/a/b", "floor://vote/house-119-2-321/", "floor://vote//house-119-2-321",
         ] {
             #expect(FloorLink(url: try #require(URL(string: string))) == nil, "\(string)")
         }
-    }
-
-    @Test func aBillLinkRoundTrips() throws {
-        let link = FloorLink.bill(id: "119-hr-1013")
-        #expect(link.url.absoluteString == "floor://bill/119-hr-1013")
-        #expect(FloorLink(url: link.url) == link)
-        #expect(FloorLink(url: FloorLink.bill(id: "119-sconres-7").url) == .bill(id: "119-sconres-7"))
-    }
-
-    /// The share page's link opens the bill screen when iOS hands it to the app.
-    @Test func theShareLinkOpensTheBill() throws {
-        #expect(FloorLink(url: try #require(URL(string: "https://floor.app/bill/119/hr/5267"))) == .bill(id: "119-hr-5267"))
-        #expect(FloorLink(url: try #require(URL(string: "https://www.floor.app/bill/119/s/2"))) == .bill(id: "119-s-2"))
-        for string in [
-            "https://floor.app/bill/119/hr/5267/card.png", "https://floor.app/bill/119/HR/5267", "https://floor.app/bill/119/hr",
-            "https://evil.example/bill/119/hr/5267", "http://floor.app/bill/119/hr/5267", "https://floor.app/bill/119/hr/05267",
-            "https://floor.app/bill/119/hr/5267%2F..", "floor://bill/119-hr-", "floor://bill/1-hr-1", "floor://bill/119-hr-1/x",
-        ] {
-            #expect(FloorLink(url: try #require(URL(string: string))) == nil, "\(string)")
-        }
-        #expect(FloorLink(url: FloorLink.bill(id: "../status").url) == nil)
     }
 
     @Test func theSchemeIsCaseInsensitive() throws {

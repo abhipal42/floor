@@ -149,101 +149,12 @@ export function listStage(type: string, latestActionText: string | null): Stage 
 export const STAGEABLE = `(b.details_fetched_at is not null
   or (b.bill_type in ('hr', 's', 'hjres', 'sjres') and b.latest_action_text ~* '^\\s*became (public|private) law no'))`;
 
-// MARK: - Stage events (bill alerts)
-
-/** What `bill_events.kind` records. `floor_scheduled` and `committee` come from billevents.ts. */
-export type BillEventKind = "floor_scheduled" | "chamber_passed" | "chamber_failed" | "to_president" | "law" | "vetoed" | "committee";
-
-/**
- * A step is news only while it is recent: a stage that changes because a fix to `deriveStage`
- * re-read a year-old bill, or a bill whose details were never fetched until now, is a correction,
- * not something to buzz a phone about. Recent means the bill's latest action, or a roll call on
- * it, is within this many days.
- */
-export const EVENT_FRESH_DAYS = 14;
-
-type Chamber = "house" | "senate";
-
-/** The chambers a stage says the measure has passed (or agreed to). */
-function passedChambers(stage: Stage | null, type: string, origin: Chamber): Set<Chamber> {
-  switch (stage) {
-    case "passed_house":
-      return new Set(["house"]);
-    case "passed_senate":
-      return new Set(["senate"]);
-    case "passed_both":
-    case "to_president":
-    case "law":
-    case "vetoed":
-      return new Set(["house", "senate"]);
-    case "adopted":
-      return isSimpleResolution(type) ? new Set([origin]) : new Set(["house", "senate"]);
-    default:
-      return new Set();
-  }
-}
-
-/**
- * The steps a stage change is, for alerts. Only forward moves count, and only from a stage the
- * bill already had: a first staging (`was` null) is the backfill, not news. A jump straight to the
- * President, law or a veto is that one step, not the chamber passages it implies — one alert, not
- * three. A failure is in the origin chamber unless the bill had already passed it.
- */
-export function stageEvents(input: {
-  type: string;
-  originChamber: Chamber | null;
-  was: Stage | null;
-  stage: Stage | null;
-}): { kind: BillEventKind; chamber: Chamber | null }[] {
-  const { was, stage, type } = input;
-  if (was === null || stage === null || was === stage) return [];
-  const origin = input.originChamber ?? (type.startsWith("s") ? "senate" : "house");
-  if (stage === "law") return [{ kind: "law", chamber: null }];
-  if (stage === "vetoed") return was === "law" ? [] : [{ kind: "vetoed", chamber: null }];
-  if (stage === "to_president") return ["law", "vetoed"].includes(was) ? [] : [{ kind: "to_president", chamber: null }];
-  if (SETTLED.includes(was) && was !== "failed") return [];
-  if (stage === "failed") {
-    const passed = passedChambers(was, type, origin);
-    return [{ kind: "chamber_failed", chamber: passed.has(origin) ? (origin === "house" ? "senate" : "house") : origin }];
-  }
-  if (was === "to_president") return [];
-  const before = passedChambers(was, type, origin);
-  return [...passedChambers(stage, type, origin)]
-    .filter((c) => !before.has(c))
-    .sort()
-    .map((chamber) => ({ kind: "chamber_passed" as const, chamber }));
-}
-
-interface StagedVote {
-  id: string;
-  chamber: Chamber;
-  question: string;
-  result: string | null;
-  yea: number;
-  nay: number;
-  occurred_at: string | null;
-}
-
-/**
- * The roll call that settled a chamber step, for "with the score": the latest passage vote in that
- * chamber for a pass, the latest vote that did not carry for a failure. Null when the step came
- * from the actions alone (a voice vote, unanimous consent).
- */
-export function scoreFor(kind: BillEventKind, chamber: Chamber | null, votes: StagedVote[]): StagedVote | null {
-  if (!chamber || (kind !== "chamber_passed" && kind !== "chamber_failed")) return null;
-  const mine = votes
-    .filter((v) => v.chamber === chamber && (kind === "chamber_passed" ? isPassageVote(v) : !carried(v.result)))
-    .sort((a, b) => String(b.occurred_at ?? "").localeCompare(String(a.occurred_at ?? "")));
-  return mine[0] ?? null;
-}
-
 /**
  * Re-derives and stores the stage of these bills: from their stored actions (only the ones
  * `deriveStage` keys on) and final votes once their details are fetched, otherwise from the list's
- * latest action (`listStage`, usually null). Returns how many changed. Each recent forward move is
- * recorded in `bill_events` (`stageEvents`) for the bill alerts; the live worker sends them.
+ * latest action (`listStage`, usually null). Returns how many changed.
  */
-export async function restage(db: Db, ids: string[], now: Date = new Date()): Promise<number> {
+export async function restage(db: Db, ids: string[]): Promise<number> {
   if (ids.length === 0) return 0;
   const { rows } = await db.query<{
     id: string;
@@ -252,18 +163,15 @@ export async function restage(db: Db, ids: string[], now: Date = new Date()): Pr
     stage: Stage | null;
     fetched: boolean;
     latest_action_text: string | null;
-    latest_action_on: string | null;
     actions: { text: string }[];
-    votes: StagedVote[];
+    votes: { chamber: "house" | "senate"; question: string; result: string | null }[];
   }>(
     `select b.id, b.bill_type, b.origin_chamber, b.stage, b.details_fetched_at is not null as fetched, b.latest_action_text,
-            to_char(b.latest_action_on, 'YYYY-MM-DD') as latest_action_on,
             coalesce((select jsonb_agg(jsonb_build_object('text', a.text)) from actions a
                        where a.bill_id = b.id
                          and a.text ~* '^(passed/agreed|failed of passage|became (public|private) law|signed by president|presented to president|vetoed by president|pocket veto|resolving differences)'),
                      '[]'::jsonb) as actions,
-            coalesce((select jsonb_agg(jsonb_build_object('id', v.id, 'chamber', v.chamber, 'question', v.question, 'result', v.result,
-                                                          'yea', v.yea, 'nay', v.nay, 'occurred_at', v.occurred_at))
+            coalesce((select jsonb_agg(jsonb_build_object('chamber', v.chamber, 'question', v.question, 'result', v.result))
                         from votes v where v.bill_id = b.id and v.state = 'final'),
                      '[]'::jsonb) as votes
        from bills b where b.id = any($1::text[])`,
@@ -271,49 +179,21 @@ export async function restage(db: Db, ids: string[], now: Date = new Date()): Pr
   );
   const changed = rows
     .map((r) => ({
-      row: r,
       id: r.id,
       stage: r.fetched
         ? deriveStage({ type: r.bill_type, originChamber: r.origin_chamber, actions: r.actions, votes: r.votes })
         : listStage(r.bill_type, r.latest_action_text),
       was: r.stage,
     }))
-    .filter((r) => r.stage !== r.was);
+    .filter((r) => r.stage !== r.was)
+    .map(({ id, stage }) => ({ id, stage }));
   if (changed.length > 0) {
     await withRetry(() =>
       db.query(
         `update bills b set stage = x.stage from jsonb_to_recordset($1::jsonb) as x(id text, stage text) where b.id = x.id`,
-        [JSON.stringify(changed.map(({ id, stage }) => ({ id, stage })))],
+        [JSON.stringify(changed)],
       ),
     );
-    const since = now.getTime() - EVENT_FRESH_DAYS * 86_400_000;
-    const events = changed.flatMap(({ row, id, stage, was }) => {
-      const recent =
-        (row.latest_action_on !== null && Date.parse(`${row.latest_action_on}T23:59:59Z`) >= since) ||
-        row.votes.some((v) => v.occurred_at !== null && Date.parse(v.occurred_at) >= since);
-      if (!recent) return [];
-      return stageEvents({ type: row.bill_type, originChamber: row.origin_chamber, was, stage }).map((e) => {
-        const score = scoreFor(e.kind, e.chamber, row.votes);
-        return {
-          bill_id: id,
-          kind: e.kind,
-          chamber: e.chamber,
-          detail: score ? { voteId: score.id, yea: score.yea, nay: score.nay } : {},
-          dedupe_key: `${id}:${e.kind}:${e.chamber ?? "-"}`,
-        };
-      });
-    });
-    if (events.length > 0) {
-      await withRetry(() =>
-        db.query(
-          `insert into bill_events (bill_id, kind, chamber, detail, dedupe_key, created_at)
-           select bill_id, kind, chamber::chamber, detail, dedupe_key, $2::timestamptz
-             from jsonb_to_recordset($1::jsonb) as x(bill_id text, kind text, chamber text, detail jsonb, dedupe_key text)
-           on conflict (dedupe_key) do nothing`,
-          [JSON.stringify(events), now.toISOString()],
-        ),
-      );
-    }
   }
   return changed.length;
 }

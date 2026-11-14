@@ -78,8 +78,6 @@ struct ContractTests {
             "DeviceSubscription": fields(DeviceSubscription.sample),
             "DeviceRegistration": fields(DeviceRegistration.sample),
             "DeviceRegistered": fields(DeviceRegistered.sample),
-            "BillAlerts": fields(BillAlerts.sample),
-            "BillShare": fields(BillShare.sample),
             "ActivityToken": fields(ActivityToken.sample),
             "BillListItem": fields(BillListItem.sample),
             "Topic": fields(Topic.sample),
@@ -108,7 +106,7 @@ struct ContractTests {
         "AnalysisCitation", "AnalysisClaim", "AnalysisSource", "BillAnalysis",
         "ChamberStatus", "Live", "LiveVote", "RecentVote",
         "BillListItem", "Topic", "TopicList", "TopicBills", "SearchResults",
-        "DeviceSubscription", "DeviceRegistration", "DeviceRegistered", "ActivityToken", "BillAlerts", "BillShare",
+        "DeviceSubscription", "DeviceRegistration", "DeviceRegistered", "ActivityToken",
         "VoteExplainer", "VoteKindInfo", "MemberContact", "ScheduleItem", "SenateMeeting", "Schedule",
     ])
     func modelFieldsMatchItsSchema(name: String) throws {

@@ -6,7 +6,7 @@ import { pgRepositories, type Db } from "./pg.js";
 
 const CONGRESS = Number(process.env.CONGRESS ?? 119);
 
-function repositories(): Pick<AppDeps, "votes" | "members" | "bills" | "nominations" | "status" | "live" | "devices" | "schedule"> {
+function repositories(): Pick<AppDeps, "votes" | "members" | "bills" | "nominations" | "status" | "live" | "devices"> {
   if (!process.env.DATABASE_URL) {
     console.warn("DATABASE_URL is not set: serving empty data");
     return {
@@ -41,14 +41,12 @@ const allowedOrigins = (process.env.ALLOWED_ORIGINS ?? "http://localhost:8790")
   .map((o) => o.trim())
   .filter(Boolean);
 
-const port = Number(process.env.PORT ?? 8787);
 const app = createApp({
   ...repositories(),
   locate: (place) => locateDistrict(place, CONGRESS),
   allowedOrigins,
-  // Share pages served here link to, and look members up on, this server.
-  share: { base: `http://localhost:${port}`, apiBase: `http://localhost:${port}` },
 });
+const port = Number(process.env.PORT ?? 8787);
 
 serve({ fetch: app.fetch, port }, (info) => {
   console.log(`Floor API on http://localhost:${info.port} (OpenAPI at /openapi.json)`);

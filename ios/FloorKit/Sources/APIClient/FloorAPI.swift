@@ -204,11 +204,6 @@ public struct FloorAPI: Sendable {
         try await get("/v1/bills/\(escaped(id))")
     }
 
-    /// What the share sheet sends for a bill: its floor.app link and a neutral line.
-    public func billShare(id: String) async throws -> BillShare {
-        try await get("/v1/bills/\(escaped(id))/share")
-    }
-
     /// The AI analysis of a bill's CRS summary (M4 Layer 1), or nil when the worker has not written
     /// one — the API's 404 for this route means "none yet", not an error.
     ///

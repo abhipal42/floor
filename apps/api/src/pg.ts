@@ -522,15 +522,11 @@ export function pgRepositories(db: Db): {
     // and the upsert touch different rows (those not in the new list, and those in it).
     await db.query(
       `with d as (
-         insert into devices (key_hash, apns_token, apns_env, push_to_start_token, vote_opened, live_activities, updated_at,
-                              bill_scheduled, bill_chamber_vote, bill_to_president, bill_law, bill_committee, bill_through_topics)
-         values ($1, $2, $3, $4, $5, $8, $6, $9, $10, $11, $12, $13, $14)
+         insert into devices (key_hash, apns_token, apns_env, push_to_start_token, vote_opened, live_activities, updated_at)
+         values ($1, $2, $3, $4, $5, $8, $6)
          on conflict (key_hash) do update set apns_token = excluded.apns_token, apns_env = excluded.apns_env,
            push_to_start_token = excluded.push_to_start_token, vote_opened = excluded.vote_opened,
-           live_activities = excluded.live_activities, updated_at = excluded.updated_at,
-           bill_scheduled = excluded.bill_scheduled, bill_chamber_vote = excluded.bill_chamber_vote,
-           bill_to_president = excluded.bill_to_president, bill_law = excluded.bill_law,
-           bill_committee = excluded.bill_committee, bill_through_topics = excluded.bill_through_topics
+           live_activities = excluded.live_activities, updated_at = excluded.updated_at
          returning id
        ), x as (
          select distinct on (kind, id) kind, id, how_voted
@@ -552,12 +548,6 @@ export function pgRepositories(db: Db): {
         now.toISOString(),
         JSON.stringify(reg.subscriptions.map((x) => ({ kind: x.kind, id: x.id, how_voted: x.howVoted }))),
         reg.liveActivities,
-        reg.billAlerts.floorScheduled,
-        reg.billAlerts.chamberVote,
-        reg.billAlerts.toPresident,
-        reg.billAlerts.lawOrVeto,
-        reg.billAlerts.committee,
-        reg.billAlerts.throughTopics,
       ],
     );
   };
@@ -1149,25 +1139,6 @@ export function pgRepositories(db: Db): {
       },
     },
     schedule: {
-      /**
-       * The week a bill is on a chamber's floor schedule: this week or the next one listed, not
-       * removed. `floor_schedule` comes from the floor schedule ingest's own migration; until it
-       * exists every bill reads as unscheduled.
-       */
-      async floorWeek(billId, now) {
-        const { rows: present } = await db.query<{ present: boolean }>(
-          "select to_regclass('public.floor_schedule') is not null as present",
-        );
-        if (!present[0]?.present) return null;
-        const { rows } = await db.query<{ chamber: "house" | "senate"; week_of: string }>(
-          `select chamber::text as chamber, to_char(week_of::date, 'YYYY-MM-DD') as week_of from floor_schedule
-            where bill_id = $1 and removed_at is null
-              and week_of::date >= ($2::timestamptz at time zone 'America/New_York')::date - 6
-            order by week_of limit 1`,
-          [billId, now.toISOString()],
-        );
-        return rows[0] ? { chamber: rows[0].chamber, weekOf: rows[0].week_of } : null;
-      },
       async week(weekOf) {
         // Through liveQuery: before migration 20261117000000 the tables do not exist, and the week
         // reads as nothing published rather than a 500.
