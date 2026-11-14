@@ -20,10 +20,14 @@ public struct OnboardingView: View {
     /// it inactive, so this tells a return from Settings apart from the alert closing.
     @State private var wasInBackground = false
     private let onFinished: (Delegation) -> Void
+    /// "Skip, I'll pick members myself": nil hides the link. The app then runs with no district —
+    /// Finals shows every final, Following starts empty — until you find your reps from there.
+    private let onSkip: (() -> Void)?
 
-    public init(model: OnboardingModel, onFinished: @escaping (Delegation) -> Void) {
+    public init(model: OnboardingModel, onSkip: (() -> Void)? = nil, onFinished: @escaping (Delegation) -> Void) {
         _model = State(initialValue: model)
         self.onFinished = onFinished
+        self.onSkip = onSkip
         FloorFonts.register()
     }
 
@@ -72,6 +76,13 @@ public struct OnboardingView: View {
         .safeAreaInset(edge: .bottom) {
             VStack(spacing: 10) {
                 cta
+                if let onSkip {
+                    Button("Skip, I'll pick members myself", action: onSkip)
+                        .scaledFont(14, weight: .semibold)
+                        .foregroundStyle(Palette.textSecondary)
+                        .disabled(model.phase == .looking)
+                        .accessibilityHint("Follow members of Congress without giving a district")
+                }
                 Text("Floor keeps the district and drops the street — and the location.")
                     .font(.system(size: 11))
                     .foregroundStyle(Palette.textFaint)

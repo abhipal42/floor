@@ -238,26 +238,13 @@ struct RepScreenOfflineTests {
 
     /// The picked grid square lives on the model, so a trip to Money and back (which rebuilds the
     /// record view) keeps it, and a reload keeps it too.
-    @Test func thePickedCallSurvivesASectionSwitch() async throws {
-        let three = YourThreeModel(members: [.sample], api: api)
-        let record = try #require(three.selected)
+    @Test func thePickedCallSurvivesAReload() async throws {
+        let record = RepScreenModel(bioguideId: Member.sample.bioguideId, api: api)
         await record.load()
         record.selectedCall = 1
-        three.section = .money
-        three.section = .record
-        #expect(three.selected?.selectedCall == 1)
         await record.load()
         #expect(record.selectedCall == 1)
-    }
-
-    /// Switching member keeps the segment, so you can compare your members' money.
-    @Test func yourThreeKeepsTheSectionAcrossMembers() {
-        let three = YourThreeModel(members: [.sample, .sampleSenator], api: api)
-        #expect(three.section == .record)
-        three.section = .money
-        three.selectedId = Member.sampleSenator.bioguideId
-        #expect(three.section == .money)
-        #expect(three.selected?.money.phase == .loading) // not fetched until the segment is shown
+        #expect(record.money.phase == .loading) // not fetched until the segment is shown
         #expect(MemberSection.allCases.map(\.rawValue) == ["Record", "Money", "Portfolio"])
     }
 }

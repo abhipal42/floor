@@ -5,7 +5,7 @@ import Models
 import SwiftUI
 
 /// One vote, as the locked Vote mock draws it: a broadcast scoreboard, the threshold bar, the box
-/// score by party, your three, the bill's level of six, and the full roll as squares by party.
+/// score by party, your members, the bill's level of six, and the full roll as squares by party.
 ///
 /// The mock's full roll says "tap a square to see who". The API reports a vote's party counts and
 /// your own members' positions, not every member's, so the squares here are counts and carry no
@@ -73,7 +73,8 @@ public struct VoteScreenView: View {
                         if let line = detail.vote.line { thresholdBar(line, detail.vote.totals) }
                         boxScore(detail)
                     }
-                    yourThree(detail)
+                    // With no district and nobody followed there is nobody to list.
+                    if !model.delegation.isEmpty { yourMembers(detail) }
                     if let measure = detail.measure {
                         measureLink(measure)
                     }
@@ -431,12 +432,12 @@ public struct VoteScreenView: View {
         .panel()
     }
 
-    // MARK: - Your three
+    // MARK: - Your members
 
-    private func yourThree(_ detail: VoteDetail) -> some View {
+    private func yourMembers(_ detail: VoteDetail) -> some View {
         let note = detail.otherChamberNote(delegation: model.delegation)
         return VStack(alignment: .leading, spacing: 10) {
-            Text("YOUR THREE").font(Typography.label(20)).foregroundStyle(Palette.text)
+            Text("YOUR MEMBERS").font(Typography.label(20)).foregroundStyle(Palette.text)
             ForEach(detail.positions) { position in
                 Button { onOpenMember(position.member) } label: { memberRow(position, detail) }
                     .buttonStyle(.plain)

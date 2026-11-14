@@ -1,0 +1,314 @@
+{
+    "votes": [
+        {
+            "vote": {
+                "id": "senate-119-2-262",
+                "kind": "question",
+                "candidates": [],
+                "chamber": "senate",
+                "congress": 119,
+                "session": 2,
+                "rollNumber": 262,
+                "question": "On the Cloture Motion",
+                "billId": null,
+                "nominationId": "119-pn-1181-7",
+                "billRef": "PN1181-7",
+                "occurredAt": "2026-11-12T20:21:00.000Z",
+                "state": "final",
+                "threshold": "majority",
+                "totals": {
+                    "yea": 49,
+                    "nay": 26,
+                    "present": 0,
+                    "notVoting": 25
+                },
+                "result": "Cloture Motion Agreed to"
+            },
+            "measure": {
+                "id": "119-pn-1181-7",
+                "kind": "nomination",
+                "citation": "PN1181-7",
+                "title": "Anna St. John"
+            }
+        },
+        {
+            "vote": {
+                "id": "senate-119-2-261",
+                "kind": "question",
+                "candidates": [],
+                "chamber": "senate",
+                "congress": 119,
+                "session": 2,
+                "rollNumber": 261,
+                "question": "On the Cloture Motion",
+                "billId": null,
+                "nominationId": "119-pn-999-2",
+                "billRef": "PN999-2",
+                "occurredAt": "2026-11-12T19:49:00.000Z",
+                "state": "final",
+                "threshold": "majority",
+                "totals": {
+                    "yea": 51,
+                    "nay": 27,
+                    "present": 0,
+                    "notVoting": 22
+                },
+                "result": "Cloture Motion Agreed to"
+            },
+            "measure": {
+                "id": "119-pn-999-2",
+                "kind": "nomination",
+                "citation": "PN999-2",
+                "title": "Daniel Desmond Domenico"
+            }
+        },
+        {
+            "vote": {
+                "id": "senate-119-2-260",
+                "kind": "question",
+                "candidates": [],
+                "chamber": "senate",
+                "congress": 119,
+                "session": 2,
+                "rollNumber": 260,
+                "question": "On the Nomination",
+                "billId": null,
+                "nominationId": "119-pn-1181-1",
+                "billRef": "PN1181-1",
+                "occurredAt": "2026-11-12T19:03:00.000Z",
+                "state": "final",
+                "threshold": "majority",
+                "totals": {
+                    "yea": 49,
+                    "nay": 27,
+                    "present": 0,
+                    "notVoting": 24
+                },
+                "result": "Nomination Confirmed"
+            },
+            "measure": {
+                "id": "119-pn-1181-1",
+                "kind": "nomination",
+                "citation": "PN1181-1",
+                "title": "Gregory Carl Cook"
+            }
+        },
+        {
+            "vote": {
+                "id": "senate-119-2-259",
+                "kind": "question",
+                "candidates": [],
+                "chamber": "senate",
+                "congress": 119,
+                "session": 2,
+                "rollNumber": 259,
+                "question": "On the Cloture Motion",
+                "billId": null,
+                "nominationId": "119-pn-1181-1",
+                "billRef": "PN1181-1",
+                "occurredAt": "2026-11-12T18:01:00.000Z",
+                "state": "final",
+                "threshold": "majority",
+                "totals": {
+                    "yea": 50,
+                    "nay": 27,
+                    "present": 0,
+                    "notVoting": 23
+                },
+                "result": "Cloture Motion Agreed to"
+            },
+            "measure": {
+                "id": "119-pn-1181-1",
+                "kind": "nomination",
+                "citation": "PN1181-1",
+                "title": "Gregory Carl Cook"
+            }
+        },
+        {
+            "vote": {
+                "id": "house-119-2-323",
+                "kind": "question",
+                "candidates": [],
+                "chamber": "house",
+                "congress": 119,
+                "session": 2,
+                "rollNumber": 323,
+                "question": "On Passage",
+                "billId": "119-hr-2102",
+                "nominationId": null,
+                "billRef": "H R 2102",
+                "occurredAt": "2026-11-12T15:59:00.000Z",
+                "state": "final",
+                "threshold": "majority",
+                "totals": {
+                    "yea": 392,
+                    "nay": 18,
+                    "present": 0,
+                    "notVoting": 23
+                },
+                "result": "Passed"
+            },
+            "measure": {
+                "id": "119-hr-2102",
+                "kind": "bill",
+                "citation": "H.R. 2102",
+                "title": "Major Richard Star Act"
+            }
+        },
+        {
+            "vote": {
+                "id": "house-119-2-322",
+                "kind": "question",
+                "candidates": [],
+                "chamber": "house",
+                "congress": 119,
+                "session": 2,
+                "rollNumber": 322,
+                "question": "On Agreeing to the Resolution",
+                "billId": "119-hres-1247",
+                "nominationId": null,
+                "billRef": "H RES 1247",
+                "occurredAt": "2026-11-12T14:45:00.000Z",
+                "state": "final",
+                "threshold": "majority",
+                "totals": {
+                    "yea": 271,
+                    "nay": 135,
+                    "present": 0,
+                    "notVoting": 26
+                },
+                "result": "Passed"
+            },
+            "measure": {
+                "id": "119-hres-1247",
+                "kind": "bill",
+                "citation": "H.Res. 1247",
+                "title": "Providing for consideration of the bill (H.R. 2102) to amend title 10, United States Code, to provide for concurrent receipt of veterans' disability compensation and retired pay for disability retirees with combat-related disabilities, and for other purposes."
+            }
+        },
+        {
+            "vote": {
+                "id": "house-119-2-321",
+                "kind": "question",
+                "candidates": [],
+                "chamber": "house",
+                "congress": 119,
+                "session": 2,
+                "rollNumber": 321,
+                "question": "On Passage",
+                "billId": "119-hr-1013",
+                "nominationId": null,
+                "billRef": "H R 1013",
+                "occurredAt": "2026-11-11T19:43:00.000Z",
+                "state": "final",
+                "threshold": "majority",
+                "totals": {
+                    "yea": 295,
+                    "nay": 128,
+                    "present": 0,
+                    "notVoting": 10
+                },
+                "result": "Passed"
+            },
+            "measure": {
+                "id": "119-hr-1013",
+                "kind": "bill",
+                "citation": "H.R. 1013",
+                "title": "Retirement Fairness for Charities and Educational Institutions Act of 2025"
+            }
+        },
+        {
+            "vote": {
+                "id": "house-119-2-320",
+                "kind": "question",
+                "candidates": [],
+                "chamber": "house",
+                "congress": 119,
+                "session": 2,
+                "rollNumber": 320,
+                "question": "On Motion to Discharge",
+                "billId": "119-hres-1247",
+                "nominationId": null,
+                "billRef": "H RES 1247",
+                "occurredAt": "2026-11-11T18:04:00.000Z",
+                "state": "final",
+                "threshold": "majority",
+                "totals": {
+                    "yea": 245,
+                    "nay": 175,
+                    "present": 0,
+                    "notVoting": 13
+                },
+                "result": "Passed"
+            },
+            "measure": {
+                "id": "119-hres-1247",
+                "kind": "bill",
+                "citation": "H.Res. 1247",
+                "title": "Providing for consideration of the bill (H.R. 2102) to amend title 10, United States Code, to provide for concurrent receipt of veterans' disability compensation and retired pay for disability retirees with combat-related disabilities, and for other purposes."
+            }
+        },
+        {
+            "vote": {
+                "id": "senate-119-2-258",
+                "kind": "question",
+                "candidates": [],
+                "chamber": "senate",
+                "congress": 119,
+                "session": 2,
+                "rollNumber": 258,
+                "question": "On the Motion to Proceed",
+                "billId": "119-hr-2347",
+                "nominationId": null,
+                "billRef": "H.R. 2347",
+                "occurredAt": "2026-11-11T00:37:00.000Z",
+                "state": "final",
+                "threshold": "majority",
+                "totals": {
+                    "yea": 62,
+                    "nay": 21,
+                    "present": 0,
+                    "notVoting": 17
+                },
+                "result": "Motion to Proceed Agreed to"
+            },
+            "measure": {
+                "id": "119-hr-2347",
+                "kind": "bill",
+                "citation": "H.R. 2347",
+                "title": "Survivor Justice Tax Prevention Act"
+            }
+        },
+        {
+            "vote": {
+                "id": "house-119-2-319",
+                "kind": "question",
+                "candidates": [],
+                "chamber": "house",
+                "congress": 119,
+                "session": 2,
+                "rollNumber": 319,
+                "question": "On Agreeing to the Resolution",
+                "billId": "119-hres-1650",
+                "nominationId": null,
+                "billRef": "H RES 1650",
+                "occurredAt": "2026-11-10T23:20:00.000Z",
+                "state": "final",
+                "threshold": "majority",
+                "totals": {
+                    "yea": 215,
+                    "nay": 209,
+                    "present": 0,
+                    "notVoting": 9
+                },
+                "result": "Passed"
+            },
+            "measure": {
+                "id": "119-hres-1650",
+                "kind": "bill",
+                "citation": "H.Res. 1650",
+                "title": "Providing for consideration of the bill (H.R. 1013) to amend the Federal securities laws to enhance 403(b) plans, and for other purposes."
+            }
+        }
+    ]
+}

@@ -4,17 +4,9 @@ import Models
 /// The words the widgets print and speak, kept apart from the views so they can be tested without
 /// WidgetKit.
 public enum WidgetText {
-    /// The position chip: `YEA`, `NAY`, `DNV`, `PRESENT`, or on a Speaker ballot the candidate the
-    /// member named (`JEFFRIES`), since "candidate" says nothing. Names are printed as the Clerk
-    /// records them — mostly surnames, but not always ("Donald J. Trump"), so they are not split.
+    /// The position chip, the same words as the app's (``Position/chip(choice:)``).
     public static func chip(_ position: Position, choice: String?) -> String {
-        switch position {
-        case .yea: "YEA"
-        case .nay: "NAY"
-        case .present: "PRESENT"
-        case .notVoting: "DNV"
-        case .candidate: trimmed(choice)?.uppercased() ?? "BALLOT"
-        }
+        position.chip(choice: choice)
     }
 
     /// What the vote was on, as the widgets head it: the measure's citation, else `Speaker ballot`
@@ -56,26 +48,30 @@ public enum WidgetText {
         return "\(word) \(vote.totals.yea)–\(vote.totals.nay)"
     }
 
-    /// The medium widget's heading: `Your three · TX-37`; one member reads `Your delegate · DC`
-    /// (or resident commissioner); a vacancy reads `Your two`.
-    public static func header(_ snapshot: WidgetSnapshot) -> String {
-        header(members: snapshot.members, district: snapshot.district)
+    /// The medium widget's heading for the rows it shows. Your own reps (the default) read
+    /// `Your members · TX-37`, or `Your delegate · DC` (or resident commissioner) for a lone
+    /// delegate; any other pick reads `Your members` — it is no longer one district.
+    public static func header(_ snapshot: WidgetSnapshot, chosen: [String]? = nil) -> String {
+        let shown = snapshot.mediumRows(chosen: chosen).map(\.member)
+        guard let district = snapshot.district, !shown.isEmpty,
+              shown.map(\.bioguideId) == Array(snapshot.repIds.prefix(WidgetSnapshot.mediumCount))
+        else { return "Your members" }
+        return header(members: shown, district: district)
     }
 
+    /// The heading for your own reps: `Your members · TX-37`, `Your delegate · DC`.
     public static func header(members: [Member], district: District) -> String {
-        let who: String = switch members.count {
-        case 1: members[0].isDelegate ? "Your \(members[0].title.lowercased())" : "Your member"
-        case 2: "Your two"
-        case 3: "Your three"
-        default: "Your members"
-        }
+        let who = members.count == 1 && members[0].isDelegate ? "Your \(members[0].title.lowercased())" : "Your members"
         return "\(who) · \(district.name)"
     }
 
     /// The line under a lone delegate's row, so the medium widget says why there is one member
-    /// rather than looking like two failed to load.
-    public static func loneMemberNote(_ snapshot: WidgetSnapshot) -> String? {
-        guard snapshot.members.count == 1, let only = snapshot.members.first, only.isDelegate else { return nil }
+    /// rather than looking like two failed to load. Only when that row is your own delegate, shown
+    /// alone.
+    public static func loneMemberNote(_ snapshot: WidgetSnapshot, chosen: [String]? = nil) -> String? {
+        let shown = snapshot.mediumRows(chosen: chosen).map(\.member)
+        guard shown.count == 1, let only = shown.first, only.isDelegate, snapshot.repIds == [only.bioguideId]
+        else { return nil }
         return "\(StateName.full(only.state)) has no senators. \(only.title)s vote on amendments, not on passage."
     }
 
@@ -143,6 +139,7 @@ public enum WidgetText {
 
     /// "Doggett voted nay on H.R. 1013, passed 295 to 128, Nov 11."
     public static func rowLabel(_ row: WidgetSnapshot.Row) -> String {
+        if row.unavailable { return "\(row.member.lastName): couldn't load their votes." }
         guard let latest = row.latest else { return "\(row.member.lastName) has no recorded votes yet." }
         let what = citation(latest.vote, measure: latest.measure)
         let result = resultLine(latest.vote).replacingOccurrences(of: "–", with: " to ")

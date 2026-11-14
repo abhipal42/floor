@@ -180,6 +180,11 @@ struct VoteBoxScoreTests {
         let note = try #require(detail.otherChamberNote(delegation: [detail.positions[0].member, schumer, gillibrand]))
         #expect(note.text == "Schumer and Gillibrand vote in the Senate — this was a House vote.")
         #expect(detail.otherChamberNote(delegation: [detail.positions[0].member]) == nil)
+        // Following more senators than fit in a sentence: a count.
+        let cruz = Member(bioguideId: "C001098", firstName: "Ted", lastName: "Cruz", party: "R", state: "TX", district: nil, chamber: .senate)
+        let three = try #require(detail.otherChamberNote(delegation: [schumer, gillibrand, cruz]))
+        #expect(three.text == "3 of your members vote in the Senate — this was a House vote.")
+        #expect(three.members.count == 3)
     }
 
     @Test func drawsOneSquarePerMember() throws {

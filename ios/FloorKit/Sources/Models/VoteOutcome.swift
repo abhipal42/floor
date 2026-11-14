@@ -155,6 +155,22 @@ public extension Chamber {
 }
 
 public extension Position {
+    /// The position chip on a feed card, a Following row and the widgets: `YEA`, `NAY`, `DNV`,
+    /// `PRESENT`, or on a Speaker ballot the candidate the member named (`JEFFRIES`), since
+    /// "candidate" says nothing. Names are printed as the Clerk records them — mostly surnames, but
+    /// not always ("Donald J. Trump"), so they are not split.
+    func chip(choice: String?) -> String {
+        switch self {
+        case .yea: return "YEA"
+        case .nay: return "NAY"
+        case .present: return "PRESENT"
+        case .notVoting: return "DNV"
+        case .candidate:
+            let name = choice?.trimmingCharacters(in: .whitespaces) ?? ""
+            return name.isEmpty ? "BALLOT" : name.uppercased()
+        }
+    }
+
     /// How the record prints it: `YEA`, `NAY`, `PRESENT`, `MISSED`.
     var shortLabel: String {
         switch self {

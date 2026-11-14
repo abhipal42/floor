@@ -3,6 +3,7 @@ import { cors } from "hono/cors";
 import type { DistrictMatch, Place } from "./district.js";
 import { POLICY_AREAS, matchTopics, parseBillNumber, topicNamed } from "./bills.js";
 import { rateLimit, type LimitStore } from "./limit.js";
+import { parseMemberQuery, type MemberQuery } from "./search.js";
 
 /*
  * The enums below are registered as their own components so the OpenAPI document refers to each by
@@ -277,11 +278,25 @@ export const MemberVoteSchema = z
 
 export type MemberVote = z.infer<typeof MemberVoteSchema>;
 
+/** One row of the recent-votes list: a vote and what it was on, with nobody's position. */
+export const RecentVoteSchema = z
+  .object({
+    vote: VoteSchema,
+    measure: MeasureSummarySchema.nullable().openapi({
+      description: "null for a procedural vote that refers to no measure",
+    }),
+  })
+  .openapi("RecentVote");
+
+export type RecentVote = z.infer<typeof RecentVoteSchema>;
+
 const ErrorSchema = z.object({ error: z.string() }).openapi("Error");
 
 /** Where the API reads votes from. Postgres in production, in-memory in tests. */
 export interface VoteRepository {
   getVote(id: string): Promise<Vote | null>;
+  /** The most recent final votes, newest first, optionally in one chamber and before an instant. */
+  recentVotes(chamber: Chamber | undefined, limit: number, before?: Date): Promise<RecentVote[]>;
   /** Per-party counts for the vote, plus how each of `memberIds` voted. */
   voteBreakdown(
     id: string,
@@ -301,6 +316,11 @@ export interface MemberRepository {
   recentVotes(bioguideId: string, limit: number): Promise<MemberVote[]>;
   /** One member, or null when we have no record of them. */
   getMember(bioguideId: string): Promise<Member | null>;
+  /**
+   * Sitting members matching a parsed search: Senate before House, then by how well the name
+   * matches (surname first), then surname; a state's House members by district.
+   */
+  search(query: MemberQuery, chamber: Chamber | undefined, limit: number): Promise<Member[]>;
   /** How often they sided with their own party. `party` comes from the member row. */
   partyLoyalty(bioguideId: string, party: string): Promise<PartyLoyalty>;
   /**
@@ -721,6 +741,23 @@ export interface AppDeps {
 /** How many address lookups one caller gets per hour. See the note in `limit.ts`. */
 export const REPS_RATE_LIMIT = { limit: 30, windowMs: 60 * 60 * 1000 };
 
+/**
+ * How many member searches (`/v1/members?q=`) one caller gets per minute. The app searches as you
+ * type (debounced), so a person typing a name costs a handful; this stops a loop from walking the
+ * table, not a person.
+ */
+export const MEMBER_SEARCH_RATE_LIMIT = { limit: 120, windowMs: 60 * 1000 };
+
+/** The recent-votes list: one request per Finals load, edge-cached, so the cap only stops a loop. */
+export const VOTES_RATE_LIMIT = { limit: 120, windowMs: 60 * 1000 };
+/** The list changes when a roll call posts, minutes apart at the busiest; the edge answers repeats. */
+export const VOTES_CACHE_CONTROL = "public, max-age=30, s-maxage=60, stale-while-revalidate=60";
+
+const listChamber = ChamberSchema.optional().openapi({
+  param: { name: "chamber", in: "query" },
+  description: "Only this chamber; omit for both",
+});
+
 const getVoteRoute = createRoute({
   method: "get",
   path: "/v1/votes/{id}",
@@ -860,6 +897,63 @@ const getMemberVotesRoute = createRoute({
     200: {
       content: { "application/json": { schema: z.object({ votes: z.array(MemberVoteSchema) }) } },
       description: "Votes, newest first",
+    },
+  },
+});
+
+const searchMembersRoute = createRoute({
+  method: "get",
+  path: "/v1/members",
+  summary: "Search sitting members by name, state or seat",
+  description:
+    "`q` is a name (`Schumer`, `alexandria ocasio`), a state by name or code (`New York`, `NY`), or a House seat " +
+    "(`NY-8`, `WY-AL`, `DC-AL`). Sitting members only, delegates and Puerto Rico's resident commissioner included. " +
+    "Senate before House; a name search puts surnames that start with it first. Rate limited per caller.",
+  request: {
+    query: z.object({
+      q: z
+        .string()
+        .trim()
+        .min(2, "Type at least two characters")
+        .max(60)
+        .openapi({ param: { name: "q", in: "query" }, example: "New York" }),
+      chamber: listChamber,
+      limit: z.coerce.number().int().min(1).max(100).default(60),
+    }),
+  },
+  responses: {
+    200: {
+      content: { "application/json": { schema: z.object({ members: z.array(MemberSchema) }) } },
+      description: "Matching members, Senate first",
+    },
+    400: { content: { "application/json": { schema: ErrorSchema } }, description: "No query, or too long" },
+    429: { content: { "application/json": { schema: ErrorSchema } }, description: "Too many searches" },
+  },
+});
+
+const listVotesRoute = createRoute({
+  method: "get",
+  path: "/v1/votes",
+  summary: "The most recent final votes, newest first",
+  request: {
+    query: z.object({
+      chamber: listChamber,
+      limit: z.coerce.number().int().min(1).max(100).default(40),
+      before: z
+        .string()
+        .datetime({ offset: true, message: "before is an ISO 8601 time, e.g. a vote's occurredAt" })
+        .optional()
+        .openapi({
+          param: { name: "before", in: "query" },
+          example: "2026-11-12T20:21:00.000Z",
+          description: "Only votes that happened before this: pass the last vote's occurredAt for the next page",
+        }),
+    }),
+  },
+  responses: {
+    200: {
+      content: { "application/json": { schema: z.object({ votes: z.array(RecentVoteSchema) }) } },
+      description: `Final votes, newest first (${VOTES_CACHE_CONTROL})`,
     },
   },
 });
@@ -1049,8 +1143,12 @@ export function createApp(deps: AppDeps) {
   const clock = () => (deps.now ?? (() => new Date()))();
   const LIMITED = [
     ["/v1/search", SEARCH_RATE_LIMIT, "search"],
+    // Exactly "/v1/members": member search. `/v1/members/{id}` and below are not limited.
+    ["/v1/members", MEMBER_SEARCH_RATE_LIMIT, "members"],
     // Hono's "/v1/topics/*" matches "/v1/topics" itself too; registering both counted it twice.
     ["/v1/topics/*", TOPICS_RATE_LIMIT, "topics"],
+    // Exactly "/v1/votes": the list. A vote by id is not limited.
+    ["/v1/votes", VOTES_RATE_LIMIT, "votes"],
   ] as const;
   for (const [path, limits, scope] of LIMITED) {
     app.use(
@@ -1067,6 +1165,18 @@ export function createApp(deps: AppDeps) {
   const catalog = deps.catalog ?? EMPTY_CATALOG;
 
   app.get("/health", (c) => c.json({ ok: true }));
+
+  app.openapi(searchMembersRoute, async (c) => {
+    const { q, chamber, limit } = c.req.valid("query");
+    return c.json({ members: await deps.members.search(parseMemberQuery(q), chamber, limit) }, 200);
+  });
+
+  app.openapi(listVotesRoute, async (c) => {
+    const { chamber, limit, before } = c.req.valid("query");
+    const votes = await deps.votes.recentVotes(chamber, limit, before ? new Date(before) : undefined);
+    c.header("Cache-Control", VOTES_CACHE_CONTROL);
+    return c.json({ votes }, 200);
+  });
 
   app.openapi(getVoteRoute, async (c) => {
     const { id } = c.req.valid("param");

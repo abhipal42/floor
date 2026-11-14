@@ -22,6 +22,7 @@ import type {
   Vote,
   VoteRepository,
 } from "./app.js";
+import { DELEGATE_JURISDICTIONS, FOLDS, type MemberQuery } from "./search.js";
 
 /**
  * Which kind of Supabase connection a `DATABASE_URL` is, from its port and host.
@@ -213,8 +214,10 @@ const STATE_NAMES: Record<string, string> = {
 const STATE_CODES = new Set(Object.values(STATE_NAMES));
 
 /**
- * How a member search reads its query. Shared so every route that finds members by text (search
- * today; a member picker's `?q=` when one lands) reads "TX-35", "Texas" and "Doggett" the same way.
+ * How `/v1/search` reads a query for members. The Following tab's member picker (`/v1/members?q=`)
+ * has its own reader, `parseMemberQuery` in `search.ts`: substring names with accents, hyphens and
+ * apostrophes folded, the territories by name, and a delegate's one seat for any number ("DC-1").
+ * Both read "TX-35", "Texas" and "Doggett" alike; folding the two into one is a follow-up.
  *
  * - `TX-35`, `tx 35`, `TX35`, `TX-AL`: that state's member for the district (at-large is 0).
  * - `TX`, `Texas`, `new york`: every serving member from the state.
@@ -410,6 +413,84 @@ export const pacKind = (orgType: string | null, designation: string | null, comm
   return designation === "D" ? "Leadership PAC" : null;
 };
 
+/**
+ * Who is serving now, over `members m`.
+ *
+ * `term_end > current_date` alone is wrong for an appointed senator: congress-legislators ends the
+ * appointment on the special election's date, and the appointee serves on until the winner is sworn
+ * in. On 2026-11-13 that dropped Moody (FL, term_end 2026-11-03, still voting on 11-12) and left
+ * Florida and Ohio with one senator each, in `/v1/reps` as well as search (HANDOFF lesson 52). So a
+ * term that ended in the last 90 days still counts when nobody's term in that seat (for a senator:
+ * that state's Senate seats) has started since it ended, **and** the member has voted after it
+ * ended — which a member who resigned or died cannot have done.
+ *
+ * Days are Eastern, as Congress keeps them: a vote at 8:30 p.m. ET on the last day is 01:30 UTC the
+ * next day, and compared in UTC it would read as a vote after the term ended.
+ */
+const TODAY_ET = "(now() at time zone 'America/New_York')::date";
+
+export const SITTING = `(m.term_end > ${TODAY_ET}
+  or (m.term_end > ${TODAY_ET} - 90
+      and not exists (select 1 from members s
+                       where s.chamber = m.chamber and s.state = m.state
+                         and s.district is not distinct from m.district
+                         and s.bioguide_id <> m.bioguide_id and s.term_start >= m.term_end)
+      and exists (select 1 from vote_positions p join votes v on v.id = p.vote_id
+                   where p.member_id = m.bioguide_id
+                     and (v.occurred_at at time zone 'America/New_York')::date > m.term_end)))`;
+
+/**
+ * A name column as the search compares it: lower case, accents folded, hyphens read as spaces and
+ * apostrophes dropped — the SQL twin of `foldName` in `search.ts`, so "velazquez", "ocasio cortez"
+ * and "ohalleran" find their members. The accented letters come from `FOLDS` and map one to one,
+ * `-` to a space, and the two apostrophes (past the end of the second list) are deleted.
+ */
+const FOLD_FROM = FOLDS.map(([from]) => from).join("");
+const FOLD_TO = FOLDS.map(([from, to]) => to.repeat([...from].length)).join("");
+const folded = (column: string): string =>
+  `translate(lower(${column}), '${FOLD_FROM}-''’', '${FOLD_TO} ')`;
+
+/** `%` and `_` are LIKE wildcards; a typed one must match itself. Backslash is LIKE's default escape. */
+const likeEscape = (s: string): string => s.replace(/[\\%_]/g, (c) => `\\${c}`);
+
+/**
+ * The WHERE clause and ordering for one parsed search, with its parameters numbered from `$3`
+ * (`$1` is the chamber and `$2` the limit).
+ */
+/** A folded name anywhere in "first last" or "last first", ranked surname-first; parameters from `$from`. */
+function nameMatch(name: string, from: number): { where: string; order: string; params: unknown[] } {
+  const text = likeEscape(name);
+  const firstLast = folded("first_name || ' ' || last_name");
+  const [anywhere, start] = ["$" + from, "$" + (from + 1)];
+  return {
+    where: `(${firstLast} like ${anywhere} or ${folded("last_name || ' ' || first_name")} like ${anywhere})`,
+    // Surname starts with it, then full name starts with it, then anywhere.
+    order: `case when ${folded("last_name")} like ${start} then 0 when ${firstLast} like ${start} then 1 else 2 end`,
+    params: [`%${text}%`, `${text}%`],
+  };
+}
+
+export function searchFilter(query: MemberQuery): { where: string; order: string; params: unknown[] } {
+  switch (query.kind) {
+    case "seat":
+      // A delegate jurisdiction has one seat whatever number was typed ("DC-1", "PR-AL").
+      return DELEGATE_JURISDICTIONS.has(query.state)
+        ? { where: "state = $3 and chamber = 'house'", order: "district", params: [query.state] }
+        : { where: "state = $3 and chamber = 'house' and district = $4", order: "district", params: [query.state, query.district] };
+    case "state": {
+      // The state's members by district, then anyone whose name matches the same text ("Washington").
+      const name = nameMatch(query.name, 4);
+      return {
+        where: `(state = $3 or ${name.where})`,
+        order: `case when state = $3 then 0 else 1 end, case when state = $3 then district end nulls first, ${name.order}`,
+        params: [query.state, ...name.params],
+      };
+    }
+    case "name":
+      return nameMatch(query.text, 3);
+  }
+}
+
 export function pgRepositories(db: Db): {
   votes: VoteRepository;
   members: MemberRepository;
@@ -480,7 +561,8 @@ export function pgRepositories(db: Db): {
       async searchMembers(q, limit, now) {
         const parsed = memberQuery(q);
         if (!parsed) return [];
-        const serving = `term_end >= ($1::timestamptz at time zone 'America/New_York')::date`;
+        // `SITTING` too, so an appointed senator past their nominal term end is found (lesson 52).
+        const serving = `(${SITTING} or term_end >= ($1::timestamptz at time zone 'America/New_York')::date)`;
         const order = "order by chamber desc, state, district nulls first, last_name, first_name limit $2";
         let rows: MemberRow[];
         if ("state" in parsed) {
@@ -713,6 +795,20 @@ export function pgRepositories(db: Db): {
         const { rows } = await db.query<VoteRow>(`select ${VOTE_COLUMNS} from votes v where v.id = $1`, [id]);
         return rows[0] ? toVote(rows[0]) : null;
       },
+      async recentVotes(chamber, limit, before) {
+        // Final only: an open vote's tally is the floor's, not the roll call's (as on bill pages).
+        const { rows } = await db.query<VoteRow & MeasureRow>(
+          `select ${VOTE_COLUMNS}, ${MEASURE_COLUMNS}
+             from votes v
+             ${MEASURE_JOINS}
+            where v.state = 'final' and ($1::chamber is null or v.chamber = $1::chamber)
+              and ($3::timestamptz is null or v.occurred_at < $3::timestamptz)
+            order by v.occurred_at desc nulls last, v.roll_number desc
+            limit $2`,
+          [chamber ?? null, limit, before?.toISOString() ?? null],
+        );
+        return rows.map((r) => ({ vote: toVote(r), measure: toMeasure(r) }));
+      },
       async voteBreakdown(id, memberIds) {
         const [{ rows: parties }, { rows: candidates }, { rows: positions }, { rows: measures }] = await Promise.all([
           // Elections record every position as 'candidate', so they produce no party rows here; their party
@@ -779,8 +875,8 @@ export function pgRepositories(db: Db): {
       async membersFor(state, district) {
         const { rows } = await db.query<MemberRow>(
           `select bioguide_id, first_name, last_name, party, state, district, chamber
-             from members
-            where state = $1 and term_end > current_date
+             from members m
+            where state = $1 and ${SITTING}
               and (chamber = 'senate' or district = $2)
             order by chamber, last_name`,
           [state, district],
@@ -816,6 +912,20 @@ export function pgRepositories(db: Db): {
           [bioguideId],
         );
         return rows[0] ? toMember(rows[0]) : null;
+      },
+      async search(query, chamber, limit) {
+        const { where, order, params } = searchFilter(query);
+        const { rows } = await db.query<MemberRow>(
+          `select bioguide_id, first_name, last_name, party, state, district, chamber
+             from members m
+            where ${SITTING}
+              and ($1::chamber is null or chamber = $1::chamber)
+              and ${where}
+            order by case chamber when 'senate' then 0 else 1 end, ${order}, last_name, first_name
+            limit $2`,
+          [chamber ?? null, limit, ...params],
+        );
+        return rows.map(toMember);
       },
       async partyLoyalty(bioguideId, party) {
         // "With party" means siding with the majority of one's own party. Votes where the party itself split

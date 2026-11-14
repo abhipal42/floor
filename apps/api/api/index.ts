@@ -60,12 +60,14 @@ const repositories = pool
       // deployment is visible in /v1/status rather than as a 500 with no explanation.
       votes: {
         getVote: async () => null,
+        recentVotes: async () => [],
         voteBreakdown: async () => ({ partyTotals: [], candidateTotals: [], positions: [], measure: null }),
       },
       members: {
         membersFor: async () => [],
         recentVotes: async () => [],
         getMember: async () => null,
+        search: async () => [],
         partyLoyalty: async () => ({ votes: 0, withParty: 0, againstParty: 0 }),
         funding: async () => null,
       },

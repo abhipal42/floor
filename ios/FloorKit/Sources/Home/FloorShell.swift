@@ -5,8 +5,9 @@ import SwiftUI
 import VoteScreen
 import BillScreen
 
-/// The app once you are onboarded: three tabs — Finals, Bills, Your three — under the locked
-/// mocks' floating tab bar.
+/// The app once you are onboarded (or skipped it): three tabs — Finals, Bills, Following — under
+/// the locked mocks' floating tab bar. Following replaced "Your three" (the locked
+/// Following mock, <https://claude.ai/artifact/C7qGitvJMSLFmCkYYQgNre>).
 ///
 /// The mocks' fourth tab, Money, is not built: it needs donor and disclosure data the API does not
 /// serve. Each tab keeps its own navigation stack, so switching tabs never loses your place.
@@ -14,13 +15,13 @@ public struct FloorShell: View {
     public enum Tab: String, CaseIterable, Sendable {
         case finals = "Finals"
         case bills = "Bills"
-        case yourThree = "Your three"
+        case following = "Following"
 
         var symbol: String {
             switch self {
             case .finals: "chart.bar.xaxis"
             case .bills: "doc.text"
-            case .yourThree: "person"
+            case .following: "person.2"
             }
         }
     }
@@ -29,14 +30,20 @@ public struct FloorShell: View {
     @State private var tab: Tab = .finals
     @State private var finalsPath: [HomeModel.Route] = []
     @State private var billsPath: [HomeModel.Route] = []
-    @State private var threePath: [HomeModel.Route] = []
+    @State private var followingPath: [HomeModel.Route] = []
     private let onChangeAddress: () -> Void
+    /// "Find my reps", with no district: back to onboarding, keeping who you follow.
+    private let onFindReps: () -> Void
     /// A link from a widget. The shell opens it on Finals and sets it back to nil.
     @Binding private var link: FloorLink?
 
-    public init(model: HomeModel, onChangeAddress: @escaping () -> Void, link: Binding<FloorLink?> = .constant(nil)) {
+    public init(
+        model: HomeModel, onChangeAddress: @escaping () -> Void, onFindReps: @escaping () -> Void = {},
+        link: Binding<FloorLink?> = .constant(nil)
+    ) {
         _model = State(initialValue: model)
         self.onChangeAddress = onChangeAddress
+        self.onFindReps = onFindReps
         _link = link
         FloorFonts.register()
     }
@@ -47,18 +54,21 @@ public struct FloorShell: View {
                 HomeView(
                     model: model,
                     onChangeAddress: onChangeAddress,
-                    onOpenMember: { member in
-                        model.yourThree.selectedId = member.bioguideId
-                        tab = .yourThree
-                    },
-                    onOpen: { finalsPath.append($0) }
+                    onOpenMember: { finalsPath.append(.member(id: $0.bioguideId)) },
+                    onOpen: { finalsPath.append($0) },
+                    onFindReps: onFindReps
                 )
             }
             stack(.bills, path: $billsPath, title: "Bills") {
                 BillsView(model: model) { billsPath.append(.bill(id: $0)) }
             }
-            stack(.yourThree, path: $threePath, title: "Your three") {
-                YourThreeView(model: model.yourThree) { threePath.append(.vote(id: $0.id)) }
+            stack(.following, path: $followingPath, title: "Following") {
+                FollowingView(
+                    model: model,
+                    onOpenMember: { followingPath.append(.member(id: $0.bioguideId)) },
+                    onFindReps: onFindReps,
+                    onChangeAddress: onChangeAddress
+                )
             }
             tabBar
         }
@@ -124,7 +134,7 @@ public struct FloorShell: View {
             }
             .navigationTitle("Bill")
         case let .member(id):
-            RepScreenView(model: model.repScreen(id: id)) { vote in
+            RepScreenView(model: model.repScreen(id: id), follows: model.follows, reps: model.reps.map(\.bioguideId)) { vote in
                 path.wrappedValue.append(.vote(id: vote.id))
             }
             .navigationTitle("Member")
@@ -144,7 +154,7 @@ public struct FloorShell: View {
                         switch item {
                         case .finals: finalsPath.removeAll()
                         case .bills: billsPath.removeAll()
-                        case .yourThree: threePath.removeAll()
+                        case .following: followingPath.removeAll()
                         }
                     }
                     tab = item

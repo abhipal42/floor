@@ -4,7 +4,9 @@ Last updated 2026-11-13. Read this first, then [`plan.md`](plan.md) for the full
 
 **In one paragraph:** M0 (foundation) is done. M1 (data backbone) is done; the one item still open against it, measured posting latency, has moved to M3, because it can only be taken on a live session day with polling running. Staging Postgres holds every House and Senate roll call since January 2023, and every one matches the official totals; every vote now has a subject attached, bills and nominations alike. The API serves district lookup, member votes, votes, bills, nominations and data freshness from that database, and now also the per-party breakdown of a vote, your own delegation's positions on it, and a member's party-loyalty record. **M2 is nearly done:** the API is deployed at <https://floor-api.vercel.app> and a Release build of
 the app runs the whole flow against it — onboarding to a real district, then Home, Vote, Bill and
-Rep. Since v0.2.3 those screens match the landing page (three tabs: Finals, Bills, Your three). Every
+Rep. Since v0.2.3 those screens match the landing page (three tabs: Finals, Bills and — since v0.2.28 — Following,
+which was "Your three"). You can follow any member of Congress, not only your own, and skip the district
+entirely; see "Following" under M2. Every
 screen now opens on its last-seen data when offline or slow, from a SwiftData cache. Snapshot tests
 landed in v0.2.25, with M5's accessibility pass and privacy manifests; one item remains, listed at
 the top of the M2 section: TestFlight distribution. **M3's backend is
@@ -65,7 +67,7 @@ npm run ingest -w @floor/worker -- latency 30                     # roll call po
 npm run loadtest -w @floor/api -- --duration 30 --connections 50 # vote-night load test against a LOCAL API (refuses production)
 npm run openapi -w @floor/api                                    # regenerate apps/api/openapi.json after changing routes
 npm run build -w @floor/web && npm run serve -w @floor/web       # build and serve the landing page from apps/web/dist
-swift test --package-path ios/FloorKit                           # all FloorKit tests (317): models, contract, client, screen models, snapshots
+swift test --package-path ios/FloorKit                           # all FloorKit tests (408): models, contract, client, screen models, snapshots
 ```
 
 `apps/api/openapi.json` is the committed contract. Re-run `npm run openapi` after any change to
@@ -104,9 +106,11 @@ Command Line Tools rather than Xcode: run it with `DEVELOPER_DIR=/Applications/X
 | Route | Returns |
 |---|---|
 | `GET /v1/reps?address=` or `?lat=&lng=` | District (119th Congress map) + House member + senators. Send an address *or* coordinates (e.g. from the browser's location), not both. Coordinates are rounded to 4 decimals (~11 m). Either goes only to the Census geocoder and isn't stored or logged. |
+| `GET /v1/members?q=&chamber=&limit=` | Search **sitting** members (see `SITTING`, lesson 52): `q` is a name (`Schumer`, `velazquez`, `ocasio cortez` — accents, hyphens and apostrophes folded on both sides, from one table `FOLDS` in `search.ts` that the SQL `translate()` is built from, so ø, ł, ı and đ fold too), a state by name or code (`New York`, `NY`, `N.Y.`, `D.C.`, `Virgin Islands`), or a House seat (`NY-8`, `N.Y.-8`, `WY-AL`; a delegate jurisdiction's one seat for any number, `DC-1`). A state is **also searched as a name** and the two merged, the state's own members first ("Washington" is a state and a surname; "Al" is a code and starts names). Parsed in `search.ts` (`parseMemberQuery`), so the SQL is one of three fixed shapes. Senate before House; a name search puts surnames that start with it first; a state's House members by district. `q` 2–60 characters, `limit` 1–100 (default 60: California is 54). **Rate limited**: 120 per caller per minute (`MEMBER_SEARCH_RATE_LIMIT`), keyed apart from `/v1/reps` so the two never share a count; `/v1/members/{id}` and below are not limited |
 | `GET /v1/members/{id}` | A member, plus how often they sided with their own party's majority |
 | `GET /v1/members/{id}/funding` | Their current campaign's money: what the campaign reported receiving (small-dollar, itemized, PAC, party, other, cash on hand) and the committees that reported giving to it, biggest direct giver first. `?committees=` (0-50, default 10). No individual donor is named |
 | `GET /v1/members/{bioguideId}/votes?limit=` | A member's recent votes with their position (and candidate, for Speaker elections) |
+| `GET /v1/votes?chamber=&limit=&before=` | The most recent **final** votes, newest first (`limit` 1–100, default 40), each with its `measure` (the same summary a member's record carries) and nobody's position: Finals' "All" (asked per chamber when one is picked), and the whole feed for someone who follows nobody. `before` (ISO time, e.g. the last vote's `occurredAt`) pages back. Edge-cached (`VOTES_CACHE_CONTROL`: 30 s, 60 s at the edge) and rate limited, 120 a minute per caller (`VOTES_RATE_LIMIT`; `/v1/votes/{id}` is not) |
 | `GET /v1/votes/{id}` | One vote: totals, threshold, kind, bill link, **per-party breakdown**, and for a Speaker election **which candidate each party backed**. `?members=A000370,C001098` (up to ten) also returns those members' own positions, so the vote screen loads your delegation in one round trip. IDs look like `house-119-1-100` |
 | `GET /v1/bills/{id}` | Title, short title, CRS summary, sponsor, policy area, CBO estimates, last 30 actions, every vote on it. IDs look like `119-hr-2207` |
 | `GET /v1/bills/{id}/analysis` | AI analysis of the bill's CRS summary (M4 Layer 1): purpose, provisions, affected groups, impact. `ai: true` on the response and on every line, a `disclaimer` to show with it, and per line the summary paragraph it cites (1-based, into `source.paragraphs`), a verbatim quote and the bill section. `source.stale` means the summary has changed since and a new analysis is pending. 404 until the worker has analysed the bill (the app reads that as "none" and saves it like a response). Shown at the top of the Bill screen since v0.2.27 |
@@ -473,6 +477,23 @@ Real data broke our first assumptions several times. Each case below is now hand
     was set for a standard 5,000 key and is left there: it is the safe figure if the key is ever
     replaced, and `--rate` raises it. A listing row can also lack `updateDate`; none has been seen,
     and the catalog skips and counts such a row rather than store it with no high-water mark.
+52. **An appointed senator's `term_end` is the special election's date, not the day they stop
+    serving.** Searching staging for every sitting member on 2026-11-13 found **98 senators**: Florida
+    and Ohio had one each. congress-legislators ends Moody's (FL) and Husted's (OH) appointments on
+    2026-11-03, the special election, and both kept voting (Moody on 11-12) — an appointee serves
+    until the winner is sworn in. `term_end > current_date` had silently dropped them from
+    `/v1/reps` (and from `/v1/search`'s members, which now use the rule too), so anyone in Florida or Ohio onboarded to one senator. `SITTING`
+    in `pg.ts` now also counts a term that ended within 90 days when the member **has voted since**
+    and **nobody's term in that seat (a state's Senate seats, for a senator) has started since** —
+    a member who resigned or died cannot pass the first test (Sherrill, NJ-11, and Vance, both last
+    voted on their last day). Days are compared **in Eastern time**: a vote at 8:30 p.m. ET on the
+    last day is 01:30 UTC the next, and the first version compared in UTC, so it would have counted
+    an evening vote on a resignation day as service after it (caught in review; tested). With it
+    staging has 100 senators and 439 House members (435 seats
+    less two vacancies, plus the six delegates and resident commissioner). The worker's
+    `fec-totals` still uses the plain rule, so its runs skip those two until upstream updates their
+    terms (their saved totals stay as they were). Two smaller things the same run showed: `Zz` is not a no-results example
+    (it matches Lizzie Fletcher and Suozzi), and `jeff` puts Merkley (Jeff, Senate) before Jeffries.
 
 ---
 
@@ -519,7 +540,7 @@ The working rhythm: break each milestone into tasks. For each task, write tests 
 **Goal:** a TestFlight build that shows how your reps voted, from real data. No live updates yet.
 
 > **M2 is not finished.** The app works end to end against the deployed API — onboarding, Finals,
-> Vote, Bill and Your three, all on real data — but two items from the list below are still open
+> Vote, Bill and Following (was Your three), all on real data — but two items from the list below are still open
 > (items 1 and 2 are kept for the record):
 >
 > 1. ~~**The Speaker election card on Home.**~~ **Done in v0.2.3** (`ScoreboardCard`'s Speaker-ballot
@@ -563,7 +584,7 @@ The working rhythm: break each milestone into tasks. For each task, write tests 
 >      `.task`; `FloorAPI` turns a cancelled request into `CancellationError` (never `.transport`),
 >      `revalidate` reports nothing for it, and the note stays at "refreshing…". Each model has
 >      `needsRefresh` — true until a load has finished with everything fresh — and the screens'
->      `.task` (Finals, Vote, rep, and Your three's `loadAll`) load when it is true, so a refresh that
+>      `.task` (Finals, Vote and the member screen) load when it is true, so a refresh that
 >      was cancelled, or ended on saved data, runs again when the screen reappears. A screen already
 >      showing data keeps it while it reloads rather than flashing a spinner.
 >    - **Overlapping loads** (pull-to-refresh beside the screen's own task): each model counts its
@@ -676,9 +697,9 @@ The working rhythm: break each milestone into tasks. For each task, write tests 
   "U.S. Representative"); the sponsor line reads "Del."; `District.name` (Home's header chip) reads `DC`, not `DC-AL`; `StateName.districtName` says "District of
   Columbia", not "District of Columbia's at-large district"; and Home's Senate filter says D.C. has
   no senators instead of "No recent votes in this chamber". Already fine with one member: the feed
-  merge, `YourThreeModel` (its agreement fact needs exactly two senators and falls back otherwise),
-  the vote screen's other-chamber note and the bill screen's member list. The tab is still called
-  "Your three" for D.C. — a name, not a count, and the mock keeps "Pull your three." too.
+  merge, the vote screen's other-chamber note and the bill screen's member list. The tab was called
+  "Your three" for D.C. too — a name, not a count; since v0.2.28 it is **Following**, which is a
+  count of nothing. Onboarding still says "Pull your three.", as its locked mock does.
 - ~~**Home**~~ **Done, except the election variant.** Delegation strip, chamber filter, and the
   merged feed of recent votes. One request per member in parallel, grouped by vote so two senators
   on one roll call make one card carrying both positions. **Still to do:** the Speaker election card
@@ -1228,7 +1249,7 @@ build differs from the mocks, and why:
 
 ### The Money segment (v0.2.21)
 
-The member screen (Your three, and a member pushed from a vote) has the mock's Record / Money /
+The member screen (from Following, a vote or search) has the mock's Record / Money /
 Portfolio switch, built to `AppRepMoney` (round 6, <https://claude.ai/artifact/FKWYDhCej75UPy94csYLsU>).
 Code: `RepScreen/MoneyView.swift` (views), `MoneyModel` in `RepScreenModel.swift`, `Models/Funding.swift`
 (models plus `MoneyFormat`, `FundingDates`, `CommitteeName`), `FloorAPI.funding(id:committees:)`.
@@ -1269,8 +1290,7 @@ Code: `RepScreen/MoneyView.swift` (views), `MoneyModel` in `RepScreenModel.swift
 - **Dynamic Type.** Body text uses text styles; at accessibility sizes the totals stack, the legend
   goes to one column and each PAC row puts the name on its own line. VoiceOver reads the totals as one
   sentence, each legend item with its share and amount, and each PAC as name, kind, whole dollars.
-- **State that outlives a view.** The section lives on `YourThreeModel` (it survives switching member)
-  and the picked grid square on `RepScreenModel.selectedCall` (it survives a trip to Money, which
+- **State that outlives a view.** The picked grid square on `RepScreenModel.selectedCall` (it survives a trip to Money, which
   rebuilds the record view).
 
 ### Widgets (v0.2.23)
@@ -1284,11 +1304,14 @@ Two home-screen widgets, built to the locked design, section "D · Widgets" of
   result word is `Vote.outcomeWord`, i.e. what the chamber recorded, not which side had more
   votes: cloture that lost 53–47 reads REJECTED. A Speaker ballot shows its two leading
   candidates' totals and ELECTED or NO ONE ELECTED (lesson 16), never the leader as a winner.
-- **Medium, "Your three · TX-37":** one row per member, representative first — position chip
+- **Medium, "Your members · TX-37":** up to three rows, picked in the widget's Edit menu (since
+  v0.2.28, below); with nothing picked, your reps, representative first — position chip
   (YEA, NAY, DNV, PRESENT, or the candidate they named on a Speaker ballot), surname, citation and
-  result (`H.R. 2347 · Agreed 62–21`), date. One member reads "Your delegate · DC" with a line
-  saying the jurisdiction has no senators and delegates vote on amendments, not passage; a vacancy
-  reads "Your two". A member with no votes yet gets a "—" chip and "No recorded votes yet".
+  result (`H.R. 2347 · Agreed 62–21`), date. Your lone delegate reads "Your delegate · DC" with a
+  line saying the jurisdiction has no senators and delegates vote on amendments, not passage; any
+  pick that is not exactly your reps reads "Your members", with no seat. A member with no votes yet
+  gets a "—" chip and "No recorded votes yet". (It was "Your three · TX-37", and "Your two" for a
+  vacancy, until v0.2.28.)
 - **Where things live.** Everything the widgets show is built and tested in FloorKit's `WidgetFeed`
   (`WidgetSnapshot.make`, `WidgetText`); `ios/FloorWidgets/FloorWidgets.swift` is the WidgetKit
   timeline and the drawing only. Colours are `Palette` tokens, light and dark; the background is
@@ -1341,6 +1364,118 @@ Two home-screen widgets, built to the locked design, section "D · Widgets" of
 - **Signing, when TestFlight comes:** the App Group has to be registered in the developer account
   and enabled for both bundle ids, `app.floor.ios` and `app.floor.ios.widgets`.
 - **Not built here:** Live Activities, push, and the AI section (M3/M4, other work in flight).
+- **Since v0.2.28 (Following):** the widgets read who you follow from the same group
+  (`floor.follows.v1`, see "Following"), and `WidgetMembers` (reps not hidden, then followed, no
+  repeats) replaces the delegation as what a snapshot belongs to. The small widget's latest final
+  considers all of them; on a vote several share, the chip goes to your rep, then your senators, then
+  the first you follow. The medium widget is an `AppIntentConfiguration` (`PickMembersIntent`, up to
+  three `MemberEntity`s offered from your reps and follows, by `YourMembersQuery`); it keeps the
+  `app.floor.widget.your-three` kind so one already on a home screen carries over. A pick whose
+  members are all gone (unfollowed, district changed) falls back to the default, and a partly stale
+  pick keeps what is left (`WidgetSnapshot.mediumRows(chosen:)`, tested). The **medium widget fetches
+  only the rows it draws** (`WidgetMembers.mediumIds`, the same rule on ids) and keeps its own saved
+  copy (`WidgetSnapshotStore.mediumKey`); the small one fetches every member, one
+  `/v1/members/{id}/votes?limit=10` each, six at a time. **Each member on their own**: one that fails
+  marks its row "Couldn't load their votes" (`Row.unavailable`); only everyone failing falls back to
+  the saved copy. A saved snapshot matches your members **as sets** (reordering keeps it), and one
+  saved before following still decodes (`repIds` and `unavailable` are read if present). A refresh overtaken by a change now shows the saved snapshot for the new
+  members if there is one (else "Couldn't reach Floor") — the app's reload after the change fetches
+  them at once.
+
+### Following (v0.2.28)
+
+"Your three" became **Following**, built to the locked mock
+<https://claude.ai/artifact/C7qGitvJMSLFmCkYYQgNre> (round 9, sections A–C). Your own district's
+members are still found from an address or your location and pinned at the top; anyone else in
+Congress can be followed.
+
+- **Storage: `FollowState` in `Onboarding/Follows.swift`, no account.** One JSON record,
+  `floor.follows.v1`, in the App Group suite beside the delegation (`UserDefaultsFollowStore.shared`,
+  with the delegation store's fallback: no group → the app's own defaults, so following still works
+  and only the widget can't see it). It holds **entries** — `(kind, id, followedAt, member?)`, newest
+  first, in your order — the ids of **reps you hid**, and **alert choices**. Entries are generic on
+  purpose: `kind` is `member`, `bill` or `topic` (a CRS policy area), so following bills and topics,
+  the next round, needs no storage migration; only members have UI. A member entry carries the
+  member's public record so the list, the feed and the widget can name them without a request.
+  Decoding tolerates missing fields and drops duplicates; an unreadable record reads as following
+  nobody. `Follows` is the observable wrapper the screens use; every change saves and reloads the
+  widgets.
+- **Your reps still come from the saved `Delegation`.** They are not entries: they can be hidden
+  (from the tab, Finals' "Your members" and the widgets' default), not unfollowed. "Your members"
+  everywhere is `FollowState.yourMembers(reps:)`: reps not hidden, then followed, no repeats.
+  **A rep is never also a followed member**: someone you followed before finding your district who
+  turns out to be one of its members has their follow entry removed when onboarding finishes
+  (`Follows.adopt`), and any such entry left (an older record) is ignored by `yourMembers`, the
+  widgets (`WidgetMembers`) and the tab's Following group — so hiding that rep hides them
+  everywhere. Tested from skip → follow → find reps.
+  "Change address" forgets the old reps' hidden flags and alert choices (`forgetReps`), which name the
+  old district, and keeps who you follow.
+- **Privacy.** Unchanged in kind: the group holds the district, public member records and Bioguide
+  IDs — never an address or a coordinate (tested on the encoded record, as for the delegation). A
+  follow list says what you are interested in; like everything else it stays on the phone. The
+  privacy manifests need no change (`UserDefaults`, 1C8F.1 for the group, CA92.1 for the skip flag),
+  and requests already named members by id, which is why Coarse Location is declared (M5).
+- **The tab** (`Home/FollowingView.swift`): "Your reps · TX-37" with "From your address" (Edit shows
+  "Change address"), then "Following · N" with Edit. **Edit is also in the top bar whenever there is a
+  district** (or anyone followed), so reps hidden all at once can be shown again. Each row: portrait or initials, surname,
+  `party · chamber · seat` (`FollowingText.caption`, from `Member.seatCaption`, so D.C. reads
+  "D · Delegate · DC"), loyalty ("96.9% with party"; nothing for an independent, lesson 15) and the
+  latest vote's chip; tap opens the member screen. Edit: each rep gets Shown/Hidden; each followed
+  member Unfollow and a handle, dragged to reorder (a `List` with `onMove`, live only in Edit). With
+  VoiceOver each followed row in Edit is one element ("Jeffries, 2 of 3") with Move up, Move down
+  and Unfollow actions; Shown/Hidden is a switch (toggle trait, value "Shown"/"Hidden"). Empty states as the mock: no district → "Find my
+  reps"; nobody followed → "Find members to follow". The loyalty and chips come from Finals' own
+  load, so the tab adds no requests.
+- **Adding** (`Home/MemberSearch.swift`): "+ Add" opens a sheet searching `/v1/members?q=`, 300 ms
+  after the last keystroke (`.task(id:)` cancels the one in flight), with All / Senate / House,
+  results grouped Senate then House with counts, a Follow / Following toggle (your own reps read
+  "Your rep" instead), a no-results card naming the query, a spinner in the field and an error
+  card (429 included). Searches are **never cached** (tested). The member screen's header has the
+  same Follow button wherever it was opened from — Following, a vote's "Your members", search.
+- **No district.** Onboarding gains "Skip, I'll pick members myself" (`@AppStorage
+  floor.districtSkipped.v1`). The app then runs with `delegation == nil`: Finals shows every recent
+  final from `/v1/votes` (no member requests at all), the header chip reads "Find my reps", Following
+  shows both empty states, the vote screen hides "Your members", and "Find my reps" goes back to
+  onboarding keeping who you follow. Tested end to end against stubbed routes.
+- **Finals.** A first switch, "All" / "Your members · N", shown when you have members, above the
+  board, the deck and the cards, which all follow it; the chamber filter stays beside "YOUR FINALS".
+  "Your members" is one request per member (reps and followed), **six at a time**
+  (`throttledMap`, `APIClient/Throttled.swift`), through `revalidate` as before, **each on its own**
+  (`Pass.attempt`): a member whose record fails (with no saved copy) is left out and named under the
+  board ("Couldn't load Hageman's votes."), and only everyone failing fails the feed. "All" is
+  `/v1/votes?limit=40`, for the chamber picked, best-effort beside your members' feed (so an API
+  without the route cannot blank it) and required when it is the whole feed. One card lists every
+  member who voted on it, reps first then followed in your order (`HomeModel.merge(_:order:)`); in
+  "All", a vote carries the chips of whichever of your members are on it (`HomeModel.annotate`).
+  **What changes refetch:** the view syncs on `syncKey` (the *set* of your members, and the chamber).
+  Following someone fetches just them; a new chamber fetches its finals; unfollowing, hiding and
+  reordering fetch nothing — the cards are regrouped from the records held (`regroup`, also on
+  `orderKey`). Pull to refresh reloads everything. Widget reloads after follow changes are
+  debounced two seconds (`WidgetReload` in `FloorApp.swift`), so a burst in the search sheet is one.
+- **"Your three" wording elsewhere:** the vote screen's and bill screen's member sections, the
+  catch-up deck and the widgets now say "Your members". The vote screen asks `?members=` for ten
+  (the route's cap): the members the feed shows on that vote's card first, then the rest of yours in
+  order; the bill screen lists all. Past two members in the other chamber its note gives a count
+  ("3 of your members vote in the Senate — this was a House vote.").
+- **Alerts: stored, not shown.** The mock's Alerts screen (section C, right) and the member screen's
+  "Alerts on" button are **not built**: nothing sends a push yet (M3), and a switch that implies
+  alerts work would be a lie. The model holds them for the push work: `FollowState.alertsOn(member:
+  isRep:)` is your choice if you made one, else **on for your reps and off for members you
+  follow**, as the mock specifies; `setAlerts` records a choice.
+- **Where the build differs from the mock, and why:**
+  - Finals keeps its chamber filter (All / House / Senate) beside the new All / Your members switch;
+    the mock shows only the second.
+  - The Home strip under the header still shows only your reps (not hidden); followed members are
+    on the Following tab, since a long list does not fit across.
+  - The two-senator "agreement" fact on the old Your three screen is gone with it: each member's
+    screen shows its own fact.
+  - Search's no-results example: the mock's "Zz" matches two real members (lesson 52).
+  - The search sheet's empty state (before typing) says what can be searched; the mock has none.
+  - No Alerts screen and no "Alerts on" button (above).
+- **Two member-text readers.** `/v1/search` (v0.2.26) reads members with `memberQuery` in `pg.ts`
+  (each word starts a name); `/v1/members?q=` uses `parseMemberQuery` in `search.ts` (substring,
+  accents and punctuation folded, territories by name, a delegate's seat for any number). They
+  landed in parallel; folding them into one reader is the next change to either.
 
 ### Light mode on the landing page (v0.2.17)
 

@@ -129,6 +129,25 @@ public struct FloorAPI: Sendable {
         )
     }
 
+    /// Sitting members matching a name, a state ("New York", "NY") or a seat ("NY-8", "WY-AL",
+    /// "DC"), Senate first. The server reads the text; send it as typed.
+    ///
+    /// Never cached: a list of what someone searched for is not worth keeping on the phone, and a
+    /// search with no network should say so rather than answer from an old list.
+    public func searchMembers(query: String, chamber: Chamber? = nil, limit: Int = 100) async throws -> MemberSearch {
+        var items = [URLQueryItem(name: "q", value: query), URLQueryItem(name: "limit", value: String(limit))]
+        if let chamber { items.append(URLQueryItem(name: "chamber", value: chamber.rawValue)) }
+        return try await get("/v1/members", query: items, cacheable: false)
+    }
+
+    /// The most recent final votes in both chambers (or one), newest first, each with what it was
+    /// on. The Finals tab's "All", and its whole feed when you follow nobody.
+    public func recentVotes(chamber: Chamber? = nil, limit: Int = 40) async throws -> RecentVotes {
+        var items = [URLQueryItem(name: "limit", value: String(limit))]
+        if let chamber { items.append(URLQueryItem(name: "chamber", value: chamber.rawValue)) }
+        return try await get("/v1/votes", query: items)
+    }
+
     /// What a member's current campaign reported receiving, and the committees that reported giving
     /// to it, biggest direct giver first. `funding` is nil for a member FEC has no current totals for.
     /// Saved for offline like the member's record.

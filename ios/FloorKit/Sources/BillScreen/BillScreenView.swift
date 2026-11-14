@@ -223,7 +223,7 @@ public struct BillScreenView: View {
 
     private var yourMembers: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("YOUR THREE ON THIS BILL").font(Typography.label(20)).foregroundStyle(Palette.text)
+            Text("YOUR MEMBERS ON THIS BILL").font(Typography.label(20)).foregroundStyle(Palette.text)
             ForEach(model.yourMembers) { entry in
                 HStack(spacing: 10) {
                     MemberPortrait(entry.member).frame(width: 34, height: 34)

@@ -14,17 +14,21 @@ public struct HomeView: View {
     let onChangeAddress: () -> Void
     let onOpenMember: (Member) -> Void
     let onOpen: (HomeModel.Route) -> Void
+    /// With no district, the header chip finds your reps instead of changing them.
+    let onFindReps: () -> Void
 
     public init(
         model: HomeModel,
         onChangeAddress: @escaping () -> Void,
         onOpenMember: @escaping (Member) -> Void,
-        onOpen: @escaping (HomeModel.Route) -> Void
+        onOpen: @escaping (HomeModel.Route) -> Void,
+        onFindReps: @escaping () -> Void = {}
     ) {
         self.model = model
         self.onChangeAddress = onChangeAddress
         self.onOpenMember = onOpenMember
         self.onOpen = onOpen
+        self.onFindReps = onFindReps
     }
 
     public var body: some View {
@@ -32,6 +36,7 @@ public struct HomeView: View {
             VStack(alignment: .leading, spacing: 20) {
                 header
                 delegationStrip
+                if !model.yourMembers.isEmpty { scopeSwitch }
                 switch model.phase {
                 case .loading:
                     ProgressView().tint(Palette.accent).frame(maxWidth: .infinity).padding(.top, 40)
@@ -39,6 +44,9 @@ public struct HomeView: View {
                     failure(message)
                 case .loaded:
                     if let saved = model.saved { SavedDataNote(saved) }
+                    if let note = model.unavailableNote {
+                        Text(note).scaledFont(12).foregroundStyle(Palette.textMuted)
+                    }
                     if let latest = model.latestFinal {
                         Button { onOpen(.vote(id: latest.vote.id)) } label: { SplitFlapBoard(item: latest) }
                             .buttonStyle(.plain)
@@ -62,7 +70,11 @@ public struct HomeView: View {
                 .ignoresSafeArea()
         }
         .background(Palette.ground)
-        .task { if model.needsRefresh { await model.load() } }
+        // Keyed by the set of your members and the chamber: following someone fetches just them, a
+        // new chamber fetches its latest finals, and anything else (a first load, a refresh that was
+        // cancelled) loads everything. Reordering only regroups the cards.
+        .task(id: model.syncKey) { await model.sync() }
+        .onChange(of: model.orderKey) { model.regroup() }
     }
 
     private var header: some View {
@@ -70,18 +82,23 @@ public struct HomeView: View {
             Text("FLOOR").font(Typography.headline(34)).foregroundStyle(Palette.text)
                 .accessibilityAddTraits(.isHeader)
             Spacer()
-            Button(action: onChangeAddress) {
-                Text(model.delegation.district.name)
+            Button(action: model.delegation == nil ? onFindReps : onChangeAddress) {
+                Text(model.delegation?.district.name ?? "Find my reps")
                     .font(.system(size: 12, weight: .semibold))
                     .foregroundStyle(Palette.textSecondary)
                     .padding(.horizontal, 10)
                     .padding(.vertical, 6)
                     .background(Palette.text.opacity(0.08), in: .capsule)
             }
-            .accessibilityLabel("District \(model.delegation.district.name). Change your address")
+            .accessibilityLabel(model.delegation.map { "District \($0.district.name). Change your address" }
+                ?? "Find your representative and senators")
             AppearanceMenu()
         }
     }
+
+    /// Your reps, minus any you hid. Members you follow are on the Following tab, not here: the
+    /// strip is the mock's three, and a long follow list would not fit across.
+    private var stripMembers: [Member] { model.follows.state.visibleReps(model.reps) }
 
     private var delegationStrip: some View {
         // Three across is the mock; at accessibility sizes a third of the width cannot hold a
@@ -90,7 +107,7 @@ public struct HomeView: View {
             ? AnyLayout(VStackLayout(spacing: 10))
             : AnyLayout(HStackLayout(spacing: 10))
         return layout {
-            ForEach(model.delegation.members) { member in
+            ForEach(stripMembers) { member in
                 Button { onOpenMember(member) } label: { delegationCard(member) }
                     .buttonStyle(.plain)
             }
@@ -143,7 +160,7 @@ public struct HomeView: View {
             .frame(width: 54, height: 62, alignment: .topLeading)
             VStack(alignment: .leading, spacing: 3) {
                 Text("CATCH UP · \(deck.count) FINALS").font(Typography.headline(22)).foregroundStyle(Palette.text)
-                Text("The rule, the score, the twist, your three.")
+                Text("The rule, the score, the twist, your members.")
                     .font(.system(size: 12)).foregroundStyle(Palette.textMuted)
                 HStack(spacing: 4) {
                     ForEach(deck) { item in
@@ -162,9 +179,36 @@ public struct HomeView: View {
         .accessibilityLabel("Catch up, \(deck.count) finals. \(deck.filter { model.seenInDeck.contains($0.id) }.count) of \(deck.count) caught up")
     }
 
+    /// The mock's Finals switch: every recent final, or the ones your members voted on. Hidden
+    /// when you follow nobody, since then "All" is the only feed there is.
+    private var scopeSwitch: some View {
+        let count = model.yourMembers.count
+        return HStack(spacing: 4) {
+            ForEach(HomeModel.Scope.allCases, id: \.self) { option in
+                let on = model.shownScope == option
+                Button { model.scope = option } label: {
+                    Text(option == .all ? "ALL" : "YOUR MEMBERS · \(count)")
+                        .font(Typography.label(13))
+                        .tracking(0.6)
+                        .foregroundStyle(on ? Palette.text : Palette.textMuted)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.8)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 8)
+                        .background(on ? Palette.chip : Color.clear, in: .rect(cornerRadius: 7))
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(option == .all ? "All finals" : "Your members' finals, \(count) members")
+                .accessibilityAddTraits(on ? [.isSelected] : [])
+            }
+        }
+        .padding(3)
+        .background(Palette.panel, in: .rect(cornerRadius: 9))
+    }
+
     private var finalsHeader: some View {
         HStack {
-            Text("YOUR FINALS").font(Typography.headline(26)).foregroundStyle(Palette.text)
+            Text(model.shownScope == .yours ? "YOUR FINALS" : "FINALS").font(Typography.headline(26)).foregroundStyle(Palette.text)
             Spacer()
             HStack(spacing: 4) {
                 ForEach(HomeModel.Filter.allCases, id: \.self) { option in

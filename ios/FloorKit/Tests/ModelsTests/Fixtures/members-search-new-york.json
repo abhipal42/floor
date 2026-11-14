@@ -1,0 +1,256 @@
+{
+    "members": [
+        {
+            "bioguideId": "G000555",
+            "firstName": "Kirsten",
+            "lastName": "Gillibrand",
+            "party": "D",
+            "state": "NY",
+            "district": null,
+            "chamber": "senate"
+        },
+        {
+            "bioguideId": "S000148",
+            "firstName": "Chuck",
+            "lastName": "Schumer",
+            "party": "D",
+            "state": "NY",
+            "district": null,
+            "chamber": "senate"
+        },
+        {
+            "bioguideId": "L000598",
+            "firstName": "Nicolas",
+            "lastName": "LaLota",
+            "party": "R",
+            "state": "NY",
+            "district": 1,
+            "chamber": "house"
+        },
+        {
+            "bioguideId": "G000597",
+            "firstName": "Andrew",
+            "lastName": "Garbarino",
+            "party": "R",
+            "state": "NY",
+            "district": 2,
+            "chamber": "house"
+        },
+        {
+            "bioguideId": "S001201",
+            "firstName": "Thomas",
+            "lastName": "Suozzi",
+            "party": "D",
+            "state": "NY",
+            "district": 3,
+            "chamber": "house"
+        },
+        {
+            "bioguideId": "G000602",
+            "firstName": "Laura",
+            "lastName": "Gillen",
+            "party": "D",
+            "state": "NY",
+            "district": 4,
+            "chamber": "house"
+        },
+        {
+            "bioguideId": "M001137",
+            "firstName": "Gregory",
+            "lastName": "Meeks",
+            "party": "D",
+            "state": "NY",
+            "district": 5,
+            "chamber": "house"
+        },
+        {
+            "bioguideId": "M001188",
+            "firstName": "Grace",
+            "lastName": "Meng",
+            "party": "D",
+            "state": "NY",
+            "district": 6,
+            "chamber": "house"
+        },
+        {
+            "bioguideId": "V000081",
+            "firstName": "Nydia",
+            "lastName": "Velázquez",
+            "party": "D",
+            "state": "NY",
+            "district": 7,
+            "chamber": "house"
+        },
+        {
+            "bioguideId": "J000294",
+            "firstName": "Hakeem",
+            "lastName": "Jeffries",
+            "party": "D",
+            "state": "NY",
+            "district": 8,
+            "chamber": "house"
+        },
+        {
+            "bioguideId": "C001067",
+            "firstName": "Yvette",
+            "lastName": "Clarke",
+            "party": "D",
+            "state": "NY",
+            "district": 9,
+            "chamber": "house"
+        },
+        {
+            "bioguideId": "G000599",
+            "firstName": "Dan",
+            "lastName": "Goldman",
+            "party": "D",
+            "state": "NY",
+            "district": 10,
+            "chamber": "house"
+        },
+        {
+            "bioguideId": "M000317",
+            "firstName": "Nicole",
+            "lastName": "Malliotakis",
+            "party": "R",
+            "state": "NY",
+            "district": 11,
+            "chamber": "house"
+        },
+        {
+            "bioguideId": "N000002",
+            "firstName": "Jerrold",
+            "lastName": "Nadler",
+            "party": "D",
+            "state": "NY",
+            "district": 12,
+            "chamber": "house"
+        },
+        {
+            "bioguideId": "E000297",
+            "firstName": "Adriano",
+            "lastName": "Espaillat",
+            "party": "D",
+            "state": "NY",
+            "district": 13,
+            "chamber": "house"
+        },
+        {
+            "bioguideId": "O000172",
+            "firstName": "Alexandria",
+            "lastName": "Ocasio-Cortez",
+            "party": "D",
+            "state": "NY",
+            "district": 14,
+            "chamber": "house"
+        },
+        {
+            "bioguideId": "T000486",
+            "firstName": "Ritchie",
+            "lastName": "Torres",
+            "party": "D",
+            "state": "NY",
+            "district": 15,
+            "chamber": "house"
+        },
+        {
+            "bioguideId": "L000606",
+            "firstName": "George",
+            "lastName": "Latimer",
+            "party": "D",
+            "state": "NY",
+            "district": 16,
+            "chamber": "house"
+        },
+        {
+            "bioguideId": "L000599",
+            "firstName": "Michael",
+            "lastName": "Lawler",
+            "party": "R",
+            "state": "NY",
+            "district": 17,
+            "chamber": "house"
+        },
+        {
+            "bioguideId": "R000579",
+            "firstName": "Patrick",
+            "lastName": "Ryan",
+            "party": "D",
+            "state": "NY",
+            "district": 18,
+            "chamber": "house"
+        },
+        {
+            "bioguideId": "R000622",
+            "firstName": "Josh",
+            "lastName": "Riley",
+            "party": "D",
+            "state": "NY",
+            "district": 19,
+            "chamber": "house"
+        },
+        {
+            "bioguideId": "T000469",
+            "firstName": "Paul",
+            "lastName": "Tonko",
+            "party": "D",
+            "state": "NY",
+            "district": 20,
+            "chamber": "house"
+        },
+        {
+            "bioguideId": "S001196",
+            "firstName": "Elise",
+            "lastName": "Stefanik",
+            "party": "R",
+            "state": "NY",
+            "district": 21,
+            "chamber": "house"
+        },
+        {
+            "bioguideId": "M001231",
+            "firstName": "John",
+            "lastName": "Mannion",
+            "party": "D",
+            "state": "NY",
+            "district": 22,
+            "chamber": "house"
+        },
+        {
+            "bioguideId": "L000600",
+            "firstName": "Nicholas",
+            "lastName": "Langworthy",
+            "party": "R",
+            "state": "NY",
+            "district": 23,
+            "chamber": "house"
+        },
+        {
+            "bioguideId": "T000478",
+            "firstName": "Claudia",
+            "lastName": "Tenney",
+            "party": "R",
+            "state": "NY",
+            "district": 24,
+            "chamber": "house"
+        },
+        {
+            "bioguideId": "M001206",
+            "firstName": "Joseph",
+            "lastName": "Morelle",
+            "party": "D",
+            "state": "NY",
+            "district": 25,
+            "chamber": "house"
+        },
+        {
+            "bioguideId": "K000402",
+            "firstName": "Timothy",
+            "lastName": "Kennedy",
+            "party": "D",
+            "state": "NY",
+            "district": 26,
+            "chamber": "house"
+        }
+    ]
+}

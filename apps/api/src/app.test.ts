@@ -3,6 +3,7 @@ import {
   AI_DISCLAIMER,
   SEARCH_CACHE_CONTROL,
   SEARCH_RATE_LIMIT,
+  VOTES_CACHE_CONTROL,
   TOPICS_CACHE_CONTROL,
   TOPICS_RATE_LIMIT,
   congressOn,
@@ -17,6 +18,7 @@ import {
   type VoteRepository,
 } from "./app.js";
 import { MemoryLimitStore } from "./limit.js";
+import type { MemberQuery } from "./search.js";
 
 const sample: Vote = {
   id: "house-119-1-100",
@@ -73,7 +75,18 @@ const repo: VoteRepository = {
     }),
     measure: { id: "119-hconres-14", kind: "bill" as const, citation: "H.Con.Res. 14", title: "FY2025 Budget" },
   }),
+  recentVotes: async (chamber, limit, before) =>
+    [
+      { vote: nominationVote, measure: null },
+      { vote: sample, measure: { id: "119-hconres-14", kind: "bill" as const, citation: "H.Con.Res. 14", title: "FY2025 Budget" } },
+    ]
+      .filter((r) => !chamber || r.vote.chamber === chamber)
+      .filter((r) => !before || new Date(r.vote.occurredAt!) < before)
+      .slice(0, limit),
 };
+
+/** Each parsed search the member repository was asked, so the route's parsing can be checked. */
+const searches: { query: MemberQuery; chamber: string | undefined; limit: number }[] = [];
 
 /** Records how `partyLoyalty` was called, so we can check the party came off the member row. */
 const loyaltyCalls: string[] = [];
@@ -114,6 +127,7 @@ const emptyDeps = {
     membersFor: async () => [],
     recentVotes: async () => [],
     getMember: async () => null,
+    search: async () => [],
     partyLoyalty: async () => ({ votes: 0, withParty: 0, againstParty: 0 }),
     funding: async () => null,
   },
@@ -138,6 +152,10 @@ const app = createApp({
           }].slice(0, limit)
         : [],
     getMember: async (id) => members.find((m) => m.bioguideId === id) ?? null,
+    search: async (query, chamber, limit) => {
+      searches.push({ query, chamber, limit });
+      return members.filter((m) => !chamber || m.chamber === chamber).slice(0, limit);
+    },
     partyLoyalty: async (id, party) => {
       loyaltyCalls.push(`${id}/${party}`);
       return { votes: 120, withParty: 111, againstParty: 9 };
@@ -423,6 +441,50 @@ describe("API", () => {
     });
   });
 
+  it("searches members, handing the repository the parsed query, chamber and limit", async () => {
+    searches.length = 0;
+    const res = await app.request("/v1/members?q=New%20York");
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ members });
+    await app.request("/v1/members?q=ny-8&chamber=house&limit=5");
+    await app.request("/v1/members?q=%20Doggett%20");
+    expect(searches).toEqual([
+      { query: { kind: "state", state: "NY", name: "new york" }, chamber: undefined, limit: 60 },
+      { query: { kind: "seat", state: "NY", district: 8 }, chamber: "house", limit: 5 },
+      { query: { kind: "name", text: "doggett" }, chamber: undefined, limit: 60 },
+    ]);
+  });
+
+  it("filters a search by chamber", async () => {
+    const res = await app.request("/v1/members?q=tx&chamber=senate");
+    expect((await res.json()).members.map((m: Member) => m.bioguideId)).toEqual(["C001098"]);
+  });
+
+  it("refuses an empty or one-letter search, a bad chamber, and an out-of-range limit", async () => {
+    for (const q of ["", "q=", "q=%20%20", "q=a", "q=ny&chamber=both", "q=ny&limit=0", "q=ny&limit=101"]) {
+      const res = await app.request(`/v1/members?${q}`);
+      expect(res.status, q).toBe(400);
+    }
+    expect((await (await app.request("/v1/members?q=a")).json()).error).toBe("Type at least two characters");
+  });
+
+  it("lists recent final votes with what each was on, by chamber", async () => {
+    const all = await (await app.request("/v1/votes")).json();
+    expect(all.votes.map((r: { vote: Vote }) => r.vote.id)).toEqual([nominationVote.id, sample.id]);
+    expect(all.votes[1].measure.citation).toBe("H.Con.Res. 14");
+    const house = await (await app.request("/v1/votes?chamber=house&limit=10")).json();
+    expect(house.votes.map((r: { vote: Vote }) => r.vote.id)).toEqual([sample.id]);
+    expect((await app.request("/v1/votes?limit=101")).status).toBe(400);
+    expect((await app.request("/v1/votes?before=yesterday")).status).toBe(400);
+    // Strictly before: both fakes share this occurredAt, so the page after them is empty.
+    const next = await (await app.request(`/v1/votes?before=${encodeURIComponent(nominationVote.occurredAt!)}`)).json();
+    expect(next.votes.map((r: { vote: Vote }) => r.vote.id)).toEqual([]);
+    const page = await app.request("/v1/votes?before=2030-01-01T00:00:00Z");
+    expect(page.headers.get("cache-control")).toBe(VOTES_CACHE_CONTROL);
+    // The list route and the one-vote route are different paths; a vote ID still reaches the latter.
+    expect((await app.request(`/v1/votes/${sample.id}`)).status).toBe(200);
+  });
+
   it("rejects malformed member IDs and limits", async () => {
     expect((await app.request("/v1/members/doggett/votes")).status).toBe(400);
     expect((await app.request("/v1/members/D000399/votes?limit=500")).status).toBe(400);
@@ -501,6 +563,7 @@ describe("API", () => {
         membersFor: async () => [],
         recentVotes: async () => [],
         getMember: async () => null,
+        search: async () => [],
         partyLoyalty: async () => ({ votes: 0, withParty: 0, againstParty: 0 }),
         funding: async () => null,
       },

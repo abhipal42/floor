@@ -1,17 +1,19 @@
 import { describe, expect, it } from "vitest";
-import { createApp, REPS_RATE_LIMIT, type AppDeps } from "./app.js";
+import { createApp, MEMBER_SEARCH_RATE_LIMIT, REPS_RATE_LIMIT, VOTES_RATE_LIMIT, type AppDeps } from "./app.js";
 import { MemoryLimitStore } from "./limit.js";
 
 /** Repositories that answer nothing; these tests only exercise the middleware. */
 const empty: Omit<AppDeps, "locate"> = {
   votes: {
     getVote: async () => null,
+    recentVotes: async () => [],
     voteBreakdown: async () => ({ partyTotals: [], candidateTotals: [], positions: [], measure: null }),
   },
   members: {
     membersFor: async () => [],
     recentVotes: async () => [],
     getMember: async () => null,
+    search: async () => [],
     partyLoyalty: async () => ({ votes: 0, withParty: 0, againstParty: 0 }),
     funding: async () => null,
   },
@@ -110,6 +112,42 @@ describe("rate limiting /v1/reps", () => {
       const res = await app.request("/v1/status", from("203.0.113.7"));
       expect(res.status).toBe(200);
     }
+  });
+});
+
+describe("rate limiting /v1/members search", () => {
+  it("allows a minute's quota, then refuses", async () => {
+    const app = appWith();
+    for (let i = 0; i < MEMBER_SEARCH_RATE_LIMIT.limit; i++) {
+      expect((await app.request("/v1/members?q=ny", from("203.0.113.20"))).status).toBe(200);
+    }
+    const refused = await app.request("/v1/members?q=ny", from("203.0.113.20"));
+    expect(refused.status).toBe(429);
+    expect((await refused.json()).error).toBe("Too many requests. Please wait a moment and try again.");
+  });
+
+  it("counts searches apart from address lookups, though both share one store", async () => {
+    const app = appWith();
+    for (let i = 0; i < REPS_RATE_LIMIT.limit; i++) await app.request(`/v1/reps?${address}`, from("203.0.113.21"));
+    expect((await app.request(`/v1/reps?${address}`, from("203.0.113.21"))).status).toBe(429);
+    expect((await app.request("/v1/members?q=ny", from("203.0.113.21"))).status).toBe(200);
+  });
+
+  it("does not limit a member's own routes under the same prefix", async () => {
+    const app = appWith();
+    for (let i = 0; i < MEMBER_SEARCH_RATE_LIMIT.limit; i++) await app.request("/v1/members?q=ny", from("203.0.113.22"));
+    expect((await app.request("/v1/members?q=ny", from("203.0.113.22"))).status).toBe(429);
+    // 404 from the empty repository, not 429: /v1/members/{id} is not search.
+    expect((await app.request("/v1/members/D000399", from("203.0.113.22"))).status).toBe(404);
+  });
+});
+
+describe("rate limiting /v1/votes", () => {
+  it("limits the list, not a vote by id", async () => {
+    const app = appWith();
+    for (let i = 0; i < VOTES_RATE_LIMIT.limit; i++) await app.request("/v1/votes", from("203.0.113.30"));
+    expect((await app.request("/v1/votes", from("203.0.113.30"))).status).toBe(429);
+    expect((await app.request("/v1/votes/house-119-1-100", from("203.0.113.30"))).status).toBe(404);
   });
 });
 

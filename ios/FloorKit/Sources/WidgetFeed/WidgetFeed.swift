@@ -3,10 +3,11 @@ import Foundation
 import Models
 import Onboarding
 
-/// Fetches what the widgets show, through the same `/v1/members/{id}/votes` route the app uses.
+/// Fetches what the widgets show, through the same `/v1/members/{id}/votes` route the app uses: one
+/// request per member (your reps and everyone you follow), six at a time.
 public enum WidgetFeed {
     /// How many of each member's votes to ask for. Ten is plenty to find the newest final, and
-    /// keeps a refresh to three small requests.
+    /// keeps each request small.
     public static let limit = 10
 
     /// How often the widget asks for a new timeline. WidgetKit treats this as a floor, not a
@@ -32,62 +33,87 @@ public enum WidgetFeed {
 
     /// Every member's recent votes, fetched together. Any member failing fails the whole load:
     /// a row reading "no recorded votes" for a member who simply didn't load would be wrong.
-    public static func load(delegation: Delegation, api: FloorAPI, now: Date = Date()) async throws -> WidgetSnapshot {
-        let records = try await withThrowingTaskGroup(of: (String, [MemberVote]).self) { group in
-            for member in delegation.members {
-                group.addTask {
-                    (member.bioguideId, try await api.memberVotes(id: member.bioguideId, limit: limit).votes)
-                }
+    /// Each member on their own: one that fails leaves its row marked unavailable rather than
+    /// failing the widget. Only when every one fails does the load fail (and the saved copy shows).
+    ///
+    /// - Parameter only: the ids to fetch — the medium widget's three; nil for everyone (the small
+    ///   widget's latest final looks at all your members).
+    public static func load(
+        members: WidgetMembers, api: FloorAPI, now: Date = Date(), only: [String]? = nil
+    ) async throws -> WidgetSnapshot {
+        let asked = only.map(Set.init)
+        let wanted = members.all.filter { asked?.contains($0.bioguideId) ?? true }
+        let fetched = try await throttledMap(wanted) { member in
+            do {
+                return (member.bioguideId, Result<[MemberVote], any Error>.success(
+                    try await api.memberVotes(id: member.bioguideId, limit: limit).votes
+                ))
+            } catch is CancellationError {
+                throw CancellationError()
+            } catch {
+                return (member.bioguideId, .failure(error))
             }
-            var collected: [String: [MemberVote]] = [:]
-            for try await (id, votes) in group { collected[id] = votes }
-            return collected
         }
-        return WidgetSnapshot.make(delegation: delegation, records: records, fetchedAt: now)
+        var records: [String: [MemberVote]] = [:]
+        for case let (id, .success(votes)) in fetched { records[id] = votes }
+        if records.isEmpty, !wanted.isEmpty, case let .failure(error)? = fetched.first?.1 { throw error }
+        return WidgetSnapshot.make(members: members, records: records, fetchedAt: now, only: only)
+    }
+
+    public static func load(delegation: Delegation, api: FloorAPI, now: Date = Date()) async throws -> WidgetSnapshot {
+        try await load(members: WidgetMembers(delegation: delegation), api: api, now: now)
     }
 
     /// What one timeline refresh produced.
     public enum Refresh: Sendable, Equatable {
-        /// No district has been picked in the app.
-        case noDistrict
-        /// Just fetched for the current delegation, and saved.
+        /// No district and nobody followed in the app.
+        case noMembers
+        /// Just fetched for your current members, and saved.
         case fresh(WidgetSnapshot)
-        /// The fetch failed; this is the last snapshot saved for the same delegation.
+        /// The fetch failed; this is the last snapshot saved for the same members.
         case saved(WidgetSnapshot)
-        /// The fetch failed and nothing is saved for this delegation.
+        /// The fetch failed and nothing is saved for these members.
         case failed
 
         /// When the widget should ask again.
         public var retryAfter: TimeInterval {
             switch self {
-            case .fresh, .noDistrict: WidgetFeed.refreshInterval
+            case .fresh, .noMembers: WidgetFeed.refreshInterval
             case .saved, .failed: WidgetFeed.retryInterval
             }
         }
     }
 
-    /// One refresh: read the delegation, fetch, and save — but only if the delegation is still the
-    /// one fetched for.
+    /// One refresh: read your members, fetch, and save — but only if they are still the members
+    /// fetched for.
     ///
-    /// "Change address" can land while a fetch is in flight. Saving that fetch afterwards would
-    /// put the old district's votes back in the group the app just cleared, so the delegation is
-    /// read again once the votes arrive, and a snapshot that no longer belongs is dropped.
+    /// "Change address" (or a follow, or a hide) can land while a fetch is in flight. Saving that
+    /// fetch afterwards would put the old district's votes back in the group the app just cleared,
+    /// so the members are read again once the votes arrive, and a snapshot that no longer belongs
+    /// is dropped.
     ///
-    /// - Parameter delegation: reads the saved delegation; called before and after the fetch.
+    /// - Parameter members: reads what the app saved; called before and after the fetch.
     public static func refresh(
-        delegation: @Sendable () -> Delegation?,
+        members: @Sendable () -> WidgetMembers,
+        only: @Sendable (WidgetMembers) -> [String]? = { _ in nil },
         api: FloorAPI,
         store: WidgetSnapshotStore,
         now: Date = Date()
     ) async -> Refresh {
-        guard let asked = delegation() else { return .noDistrict }
+        let asked = members()
+        guard !asked.isEmpty else { return .noMembers }
         do {
-            let snapshot = try await load(delegation: asked, api: api, now: now)
-            guard let current = delegation(), snapshot.belongs(to: current) else { return .noDistrict }
+            let snapshot = try await load(members: asked, api: api, now: now, only: only(asked))
+            let current = members()
+            guard !current.isEmpty, snapshot.belongs(to: current) else {
+                // Overtaken: the next refresh, which the app asked for, fetches the new members.
+                return current.isEmpty ? .noMembers : (store.load(for: current).map(Refresh.saved) ?? .failed)
+            }
             store.save(snapshot)
             return .fresh(snapshot)
         } catch {
-            guard let current = delegation() else { return .noDistrict }
+            let current = members()
+            guard !current.isEmpty else { return .noMembers }
             return store.load(for: current).map(Refresh.saved) ?? .failed
         }
     }
@@ -97,33 +123,44 @@ public enum WidgetFeed {
 ///
 /// `@unchecked Sendable` for the same reason as ``UserDefaultsDelegationStore``.
 public struct WidgetSnapshotStore: @unchecked Sendable {
-    static let key = "floor.widget.snapshot.v1"
+    public static let key = "floor.widget.snapshot.v1"
+    /// The medium widget's own copy: it fetches only the rows it draws, so its snapshot is not the
+    /// small widget's.
+    public static let mediumKey = "floor.widget.snapshot.medium.v1"
     private let defaults: UserDefaults
+    private let key: String
 
-    public init(defaults: UserDefaults) {
+    public init(defaults: UserDefaults, key: String = WidgetSnapshotStore.key) {
         self.defaults = defaults
+        self.key = key
     }
 
     /// The store in this build's App Group, or nil if it has none.
     public static func shared() -> WidgetSnapshotStore? {
-        UserDefaultsDelegationStore.groupDefaults().map(WidgetSnapshotStore.init)
+        UserDefaultsDelegationStore.groupDefaults().map { WidgetSnapshotStore(defaults: $0) }
     }
 
-    /// The saved snapshot, only if it was built for this delegation.
-    public func load(for delegation: Delegation) -> WidgetSnapshot? {
-        guard let data = defaults.data(forKey: Self.key),
+    /// The saved snapshot, only if it was built for exactly these members (as sets).
+    public func load(for members: WidgetMembers) -> WidgetSnapshot? {
+        guard let data = defaults.data(forKey: key),
               let snapshot = try? JSONDecoder().decode(WidgetSnapshot.self, from: data),
-              snapshot.belongs(to: delegation)
+              snapshot.belongs(to: members)
         else { return nil }
         return snapshot
     }
 
-    public func save(_ snapshot: WidgetSnapshot) {
-        guard let data = try? JSONEncoder().encode(snapshot) else { return }
-        defaults.set(data, forKey: Self.key)
+    public func load(for delegation: Delegation) -> WidgetSnapshot? {
+        load(for: WidgetMembers(delegation: delegation))
     }
 
+    public func save(_ snapshot: WidgetSnapshot) {
+        guard let data = try? JSONEncoder().encode(snapshot) else { return }
+        defaults.set(data, forKey: key)
+    }
+
+    /// Forgets every saved snapshot, the small widget's and the medium one's: "Change address".
     public func clear() {
         defaults.removeObject(forKey: Self.key)
+        defaults.removeObject(forKey: Self.mediumKey)
     }
 }

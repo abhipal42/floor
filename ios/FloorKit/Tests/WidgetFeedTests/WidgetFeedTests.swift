@@ -63,7 +63,7 @@ struct WidgetSnapshotTests {
     @Test func mediumHasOneRowPerMemberRepresentativeFirst() throws {
         let snapshot = WidgetSnapshot.make(delegation: .sampleTX37, records: try records(), fetchedAt: fetched)
         #expect(snapshot.rows.map(\.member.lastName) == ["Doggett", "Cornyn", "Cruz"])
-        #expect(WidgetText.header(snapshot) == "Your three · TX-37")
+        #expect(WidgetText.header(snapshot) == "Your members · TX-37")
 
         let lines = snapshot.rows.map { row -> String in
             let latest = row.latest!
@@ -210,7 +210,7 @@ struct WidgetTextTests {
 
     @Test func headersForEveryShapeOfDelegation() throws {
         #expect(WidgetText.header(members: Delegation.sampleTX37.members, district: Delegation.sampleTX37.district)
-            == "Your three · TX-37")
+            == "Your members · TX-37")
 
         let dc = try fixture("reps-location-dc", as: Reps.self)
         #expect(WidgetText.header(members: dc.members, district: dc.district) == "Your delegate · DC")
@@ -221,11 +221,11 @@ struct WidgetTextTests {
             == "Your resident commissioner · PR")
 
         let wy = try fixture("reps-location-cheyenne", as: Reps.self)
-        #expect(WidgetText.header(members: wy.members, district: wy.district) == "Your three · WY-AL")
+        #expect(WidgetText.header(members: wy.members, district: wy.district) == "Your members · WY-AL")
 
         // A vacant Senate seat.
         #expect(WidgetText.header(members: Array(Delegation.sampleTX37.members.prefix(2)), district: Delegation.sampleTX37.district)
-            == "Your two · TX-37")
+            == "Your members · TX-37")
     }
 
     @Test func aLoneDelegateSaysWhy() throws {
@@ -303,15 +303,16 @@ struct WidgetFeedLoadTests {
         let store = WidgetSnapshotStore(defaults: try #require(UserDefaults(suiteName: "floor.tests.\(UUID())")))
         let source = DelegationSource([.sampleTX37, nil]) // there when asked, gone when the votes land
 
-        let result = await WidgetFeed.refresh(delegation: { source.next() }, api: api, store: store, now: fetched)
-        #expect(result == .noDistrict)
+        let result = await WidgetFeed.refresh(members: { WidgetMembers(delegation: source.next()) }, api: api, store: store, now: fetched)
+        #expect(result == .noMembers)
         #expect(store.load(for: .sampleTX37) == nil)
 
-        // A different district by the time the votes land is dropped too.
+        // A different district by the time the votes land is dropped too, and nothing is saved for
+        // the new one yet; the app's reload after the change fetches it.
         var elsewhere = Delegation.sampleTX37
         elsewhere.district.district = 35
         let moved = DelegationSource([.sampleTX37, elsewhere])
-        #expect(await WidgetFeed.refresh(delegation: { moved.next() }, api: api, store: store, now: fetched) == .noDistrict)
+        #expect(await WidgetFeed.refresh(members: { WidgetMembers(delegation: moved.next()) }, api: api, store: store, now: fetched) == .failed)
         #expect(store.load(for: .sampleTX37) == nil)
     }
 
@@ -323,22 +324,22 @@ struct WidgetFeedLoadTests {
             return (200, try! WidgetStub.fixtureData("member-votes-\(name)-40"))
         }
         let base = URL(string: "https://api.example.test")!
-        let fresh = await WidgetFeed.refresh(delegation: { .sampleTX37 }, api: FloorAPI(baseURL: base, session: good),
+        let fresh = await WidgetFeed.refresh(members: { WidgetMembers(delegation: .sampleTX37) }, api: FloorAPI(baseURL: base, session: good),
                                              store: store, now: fetched)
         guard case let .fresh(snapshot) = fresh else { Issue.record("expected fresh, got \(fresh)"); return }
         #expect(fresh.retryAfter == 30 * 60)
 
         let down = WidgetStub.session { _ in (503, Data(#"{"error":"down"}"#.utf8)) }
-        let fallback = await WidgetFeed.refresh(delegation: { .sampleTX37 }, api: FloorAPI(baseURL: base, session: down),
+        let fallback = await WidgetFeed.refresh(members: { WidgetMembers(delegation: .sampleTX37) }, api: FloorAPI(baseURL: base, session: down),
                                                 store: store)
         #expect(fallback == .saved(snapshot))
         #expect(fallback.retryAfter == 15 * 60)
 
         store.clear()
-        #expect(await WidgetFeed.refresh(delegation: { .sampleTX37 }, api: FloorAPI(baseURL: base, session: down),
+        #expect(await WidgetFeed.refresh(members: { WidgetMembers(delegation: .sampleTX37) }, api: FloorAPI(baseURL: base, session: down),
                                          store: store) == .failed)
-        #expect(await WidgetFeed.refresh(delegation: { nil }, api: FloorAPI(baseURL: base, session: down),
-                                         store: store) == .noDistrict)
+        #expect(await WidgetFeed.refresh(members: { WidgetMembers(delegation: nil) }, api: FloorAPI(baseURL: base, session: down),
+                                         store: store) == .noMembers)
     }
 
     @Test func theWidgetSessionGivesUpQuicklyAndCachesNothing() {
@@ -347,16 +348,44 @@ struct WidgetFeedLoadTests {
         #expect(configuration.urlCache == nil)
     }
 
-    @Test func oneMemberFailingFailsTheLoad() async throws {
+    /// One member failing marks their row, and the others still show; it is not "no recorded votes".
+    @Test func oneMemberFailingMarksTheirRowOnly() async throws {
         let session = WidgetStub.session { request in
             request.url!.path.contains("C001098")
                 ? (500, Data(#"{"error":"boom"}"#.utf8))
                 : (200, Data(#"{"votes":[]}"#.utf8))
         }
         let api = FloorAPI(baseURL: URL(string: "https://api.example.test")!, session: session)
+        let snapshot = try await WidgetFeed.load(delegation: .sampleTX37, api: api)
+        #expect(snapshot.rows.map(\.unavailable) == [false, false, true])
+        #expect(WidgetText.rowLabel(snapshot.rows[2]) == "Cruz: couldn't load their votes.")
+        #expect(WidgetText.rowLabel(snapshot.rows[0]) == "Doggett has no recorded votes yet.")
+    }
+
+    @Test func everyMemberFailingFailsTheLoad() async throws {
+        let session = WidgetStub.session { _ in (500, Data(#"{"error":"boom"}"#.utf8)) }
+        let api = FloorAPI(baseURL: URL(string: "https://api.example.test")!, session: session)
         await #expect(throws: FloorAPIError.self) {
             _ = try await WidgetFeed.load(delegation: .sampleTX37, api: api)
         }
+    }
+
+    /// The medium widget asks only for the rows it draws.
+    @Test func theMediumWidgetFetchesOnlyItsRows() async throws {
+        let session = WidgetStub.session { _ in (200, Data(#"{"votes":[]}"#.utf8)) }
+        let api = FloorAPI(baseURL: URL(string: "https://api.example.test")!, session: session)
+        var state = FollowState()
+        state.follow(member: Member(bioguideId: "J000294", firstName: "Hakeem", lastName: "Jeffries", party: "D",
+                                    state: "NY", district: 8, chamber: .house))
+        let who = WidgetMembers(delegation: .sampleTX37, follows: state)
+        let store = WidgetSnapshotStore(defaults: try #require(UserDefaults(suiteName: "floor.tests.\(UUID())")),
+                                        key: WidgetSnapshotStore.mediumKey)
+        let result = await WidgetFeed.refresh(members: { who }, only: { $0.mediumIds(chosen: ["J000294"]) },
+                                              api: api, store: store)
+        guard case let .fresh(snapshot) = result else { Issue.record("expected fresh, got \(result)"); return }
+        #expect(WidgetStub.requests.compactMap(\.url?.path) == ["/v1/members/J000294/votes"])
+        #expect(snapshot.mediumRows(chosen: ["J000294"]).map(\.member.lastName) == ["Jeffries"])
+        #expect(who.mediumIds(chosen: nil) == ["D000399", "C001056", "C001098"])
     }
 }
 
@@ -424,4 +453,159 @@ final class WidgetStub: URLProtocol {
     }
 
     override func stopLoading() {}
+}
+
+private let jeffries = Member(bioguideId: "J000294", firstName: "Hakeem", lastName: "Jeffries", party: "D",
+                              state: "NY", district: 8, chamber: .house)
+private let schumer = Member(bioguideId: "S000148", firstName: "Charles", lastName: "Schumer", party: "D",
+                             state: "NY", district: nil, chamber: .senate)
+private let hageman = Member(bioguideId: "H001096", firstName: "Harriet", lastName: "Hageman", party: "R",
+                             state: "WY", district: 0, chamber: .house)
+
+/// TX-37 with Jeffries, Schumer and Hageman followed (in that order: each follow goes to the front).
+private func following(hide: [String] = []) -> FollowState {
+    var state = FollowState()
+    for member in [hageman, schumer, jeffries] { state.follow(member: member) }
+    for id in hide { state.setHidden(rep: id, true) }
+    return state
+}
+
+@Suite("Widget members and the medium widget's pick")
+struct WidgetMembersTests {
+    @Test func yourMembersAreYourRepsThenWhoYouFollowWithoutRepeats() {
+        var state = following(hide: [Member.cruz.bioguideId])
+        state.follow(member: .cornyn) // one of your reps, followed too: still one row
+        let who = WidgetMembers(delegation: .sampleTX37, follows: state)
+        #expect(who.reps.map(\.lastName) == ["Doggett", "Cornyn"])
+        #expect(who.all.map(\.lastName) == ["Doggett", "Cornyn", "Jeffries", "Schumer", "Hageman"])
+        #expect(who.district?.countyFips == nil)
+        #expect(WidgetMembers(delegation: nil).isEmpty)
+        #expect(!WidgetMembers(delegation: nil, follows: following()).isEmpty)
+    }
+
+    /// The intent's default — nothing picked — is the widget as it was before following: your reps.
+    @Test func theMediumDefaultIsYourReps() {
+        let snapshot = WidgetSnapshot.make(members: WidgetMembers(delegation: .sampleTX37, follows: following()),
+                                           records: [:], fetchedAt: fetched)
+        #expect(snapshot.mediumRows(chosen: nil).map(\.member.lastName) == ["Doggett", "Cornyn", "Cruz"])
+        #expect(snapshot.mediumRows(chosen: []).map(\.member.lastName) == ["Doggett", "Cornyn", "Cruz"])
+        #expect(WidgetText.header(snapshot) == "Your members · TX-37")
+    }
+
+    @Test func aPickIsShownInItsOrderCappedAtThree() {
+        let snapshot = WidgetSnapshot.make(members: WidgetMembers(delegation: .sampleTX37, follows: following()),
+                                           records: [:], fetchedAt: fetched)
+        let picked = [schumer.bioguideId, Member.doggett.bioguideId, schumer.bioguideId, jeffries.bioguideId,
+                      hageman.bioguideId]
+        #expect(snapshot.mediumRows(chosen: picked).map(\.member.lastName) == ["Schumer", "Doggett", "Jeffries"])
+        #expect(WidgetText.header(snapshot, chosen: picked) == "Your members")
+    }
+
+    /// A member picked, then unfollowed in the app: the pick falls back rather than showing nothing.
+    @Test func aPickNobodyIsInAnyMoreFallsBackToTheDefault() {
+        let snapshot = WidgetSnapshot.make(members: WidgetMembers(delegation: .sampleTX37, follows: following()),
+                                           records: [:], fetchedAt: fetched)
+        #expect(snapshot.mediumRows(chosen: ["Z000001"]).map(\.member.lastName) == ["Doggett", "Cornyn", "Cruz"])
+        // A partly stale pick keeps what is still there.
+        #expect(snapshot.mediumRows(chosen: ["Z000001", hageman.bioguideId]).map(\.member.lastName) == ["Hageman"])
+    }
+
+    @Test func withNoDistrictTheDefaultIsTheFirstThreeYouFollow() {
+        let snapshot = WidgetSnapshot.make(members: WidgetMembers(delegation: nil, follows: following()),
+                                           records: [:], fetchedAt: fetched)
+        #expect(snapshot.district == nil)
+        #expect(snapshot.mediumRows(chosen: nil).map(\.member.lastName) == ["Jeffries", "Schumer", "Hageman"])
+        #expect(WidgetText.header(snapshot) == "Your members")
+    }
+
+    @Test func hiddenRepsLeaveTheDefault() {
+        let who = WidgetMembers(delegation: .sampleTX37, follows: following(hide: [Member.doggett.bioguideId]))
+        let snapshot = WidgetSnapshot.make(members: who, records: [:], fetchedAt: fetched)
+        #expect(snapshot.mediumRows(chosen: nil).map(\.member.lastName) == ["Cornyn", "Cruz"])
+    }
+
+    /// The small widget's latest final considers every member: a followed member's newer vote wins,
+    /// and a vote your rep shares keeps your rep's chip.
+    @Test func theLatestFinalConsidersEveryoneYouFollow() throws {
+        var newer = MemberVote.doggettHR1013
+        newer.vote.id = "house-119-2-330"
+        newer.vote.occurredAt = "2026-11-12T19:00:00.000Z"
+        newer.position = .yea
+        let who = WidgetMembers(delegation: .sampleTX37, follows: following())
+        let snapshot = WidgetSnapshot.make(members: who, records: [
+            Member.doggett.bioguideId: [.doggettHR1013],
+            jeffries.bioguideId: [newer, .doggettHR1013],
+        ], fetchedAt: fetched)
+        let final = try #require(snapshot.latestFinal)
+        #expect(final.vote.id == "house-119-2-330")
+        #expect(final.call.member.lastName == "Jeffries")
+
+        let shared = WidgetSnapshot.make(members: who, records: [
+            jeffries.bioguideId: [.doggettHR1013],
+            Member.doggett.bioguideId: [.doggettHR1013],
+        ], fetchedAt: fetched)
+        #expect(shared.latestFinal?.call.member.lastName == "Doggett")
+    }
+
+    @Test func aSnapshotBelongsOnlyToTheMembersItWasBuiltFor() {
+        let who = WidgetMembers(delegation: .sampleTX37, follows: following())
+        let snapshot = WidgetSnapshot.make(members: who, records: [:], fetchedAt: fetched)
+        #expect(snapshot.belongs(to: who))
+        #expect(!snapshot.belongs(to: .sampleTX37)) // who you follow is part of it
+        var unfollowed = following()
+        unfollowed.unfollow(member: schumer.bioguideId)
+        #expect(!snapshot.belongs(to: WidgetMembers(delegation: .sampleTX37, follows: unfollowed)))
+        #expect(!snapshot.belongs(to: WidgetMembers(delegation: .sampleTX37,
+                                                    follows: following(hide: [Member.cruz.bioguideId]))))
+    }
+
+    /// A rep you also follow is one row, as a rep; hiding that rep hides them from the widget too.
+    @Test func hiddenWinsForARepYouAlsoFollow() {
+        var state = following(hide: [Member.cruz.bioguideId])
+        state.follow(member: .cruz)
+        let who = WidgetMembers(delegation: .sampleTX37, follows: state)
+        #expect(!who.all.contains { $0.bioguideId == Member.cruz.bioguideId })
+        #expect(who.followed.map(\.lastName) == ["Jeffries", "Schumer", "Hageman"])
+    }
+
+    /// Reordering who you follow keeps the saved copy; a snapshot from before following still opens.
+    @Test func matchesBySetsAndReadsAnOlderSnapshot() throws {
+        let who = WidgetMembers(delegation: .sampleTX37, follows: following())
+        let snapshot = WidgetSnapshot.make(members: who, records: [:], fetchedAt: fetched)
+        var reordered = following()
+        reordered.moveMembers(fromOffsets: [0], toOffset: 3)
+        #expect(snapshot.belongs(to: WidgetMembers(delegation: .sampleTX37, follows: reordered)))
+
+        var json = try #require(try JSONSerialization.jsonObject(with: JSONEncoder().encode(WidgetSnapshot.sample)) as? [String: Any])
+        json["repIds"] = nil
+        var rows = try #require(json["rows"] as? [[String: Any]])
+        for i in rows.indices { rows[i]["unavailable"] = nil }
+        json["rows"] = rows
+        let old = try JSONDecoder().decode(WidgetSnapshot.self, from: JSONSerialization.data(withJSONObject: json))
+        #expect(old.repIds.isEmpty)
+        #expect(old.rows.allSatisfy { !$0.unavailable })
+        #expect(old.mediumRows(chosen: nil).count == 3)
+    }
+
+    /// The widget reads exactly what the app's two stores wrote to the group.
+    @Test func readsTheDistrictAndTheFollowsFromTheGroup() throws {
+        let group = try #require(UserDefaults(suiteName: "floor.tests.\(UUID())"))
+        UserDefaultsDelegationStore(defaults: group).save(.sampleTX37)
+        UserDefaultsFollowStore(defaults: group).save(following(hide: [Member.cruz.bioguideId]))
+        let who = WidgetMembers.read(from: group)
+        #expect(who.all.map(\.lastName) == ["Doggett", "Cornyn", "Jeffries", "Schumer", "Hageman"])
+        #expect(WidgetMembers.read(from: try #require(UserDefaults(suiteName: "floor.tests.\(UUID())"))).isEmpty)
+    }
+}
+
+// In the serialized "Widget feed" suite, which owns `WidgetStub`'s shared responder.
+extension WidgetFeedLoadTests {
+    @Test func fetchesEveryMember() async throws {
+        let session = WidgetStub.session { _ in (200, Data(#"{"votes":[]}"#.utf8)) }
+        let api = FloorAPI(baseURL: URL(string: "https://api.example.test")!, session: session)
+        let snapshot = try await WidgetFeed.load(members: WidgetMembers(delegation: .sampleTX37, follows: following()),
+                                                 api: api, now: fetched)
+        #expect(snapshot.rows.count == 6)
+        #expect(WidgetStub.requests.count == 6)
+    }
 }

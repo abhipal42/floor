@@ -209,14 +209,20 @@ public struct Pass: Sendable {
     /// or on the network pass its saved copy when the request fails — recorded, so the screen still
     /// says that part of it is saved. nil when neither is available, or the load was cancelled.
     public func bestEffort<T: Sendable>(_ fetch: @Sendable (FloorAPI) async throws -> T) async -> T? {
+        try? await attempt(fetch).get()
+    }
+
+    /// `bestEffort`, saying why when there is nothing: the value (or, on the network pass, its saved
+    /// copy, recorded), else the request's own error — `CancellationError` when the load was
+    /// cancelled. For a screen that loads many records and shows the ones that came.
+    public func attempt<T: Sendable>(_ fetch: @Sendable (FloorAPI) async throws -> T) async -> Result<T, any Error> {
         do {
-            return try await fetch(api)
+            return .success(try await fetch(api))
         } catch {
-            guard let fallback, !(error is CancellationError), !Task.isCancelled,
-                  let saved = try? await fetch(fallback.api)
-            else { return nil }
+            if error is CancellationError || Task.isCancelled { return .failure(CancellationError()) }
+            guard let fallback, let saved = try? await fetch(fallback.api) else { return .failure(error) }
             await fallback.record.fellBack(after: error)
-            return saved
+            return .success(saved)
         }
     }
 }
