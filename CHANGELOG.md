@@ -8,6 +8,22 @@ is a milestone and ships a retro under `docs/retros/`.
 Older series live in [`docs/changelog/`](docs/changelog) (0.1.x: [`0.1.md`](docs/changelog/0.1.md)).
 Before 0.1.0 the history is the commit log on `main`.
 
+## 0.2.36 — 2026-11-14
+
+### Changed
+- **Financial disclosures: the §13107 question is decided.** Floor is free to the public and will
+  never have a paid tier (ads at most), so it publishes as news media for dissemination to the
+  general public. Two limits come with that: no ads beside disclosure data, and the data is never
+  sold or licensed. Production was backfilled (House 1,349 filings parsed, Senate 464). Both
+  chambers now run daily at 06 UTC in `ingest.yml`, 150 requests each, and `/v1/status` treats them
+  as stale after 48 h. Shown in the app once `DISCLOSURES_ENABLED` is set on `floor-api`.
+
+### Fixed
+- **The share line names the bill** by its official title when that title is a name ("H.R. 5267,
+  the American Franchise Act, is up…"). Before, it used only the short title, which most bills
+  don't have, so the shared text read "H.R. 5267 is up…". A purpose clause ("To amend…") is still
+  never used as a name.
+
 ## 0.2.35 — 2026-11-14
 
 Bill-step alerts and the share page, back — 0.2.32 (#41) re-landed with the crash that took

@@ -637,6 +637,8 @@ export const MAX_AGE_HOURS: Record<string, number> = {
   bills: 48,
   nominations: 48,
   schedule: 24,
+  house_disclosures: 48,
+  senate_disclosures: 48,
 };
 
 /**

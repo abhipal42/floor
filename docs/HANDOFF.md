@@ -68,7 +68,7 @@ npm run ingest -w @floor/worker -- nominations                    # load nominat
 npm run ingest -w @floor/worker -- schedule                       # the week ahead: House list this week + next, Senate convening and Digest program
 npm run ingest -w @floor/worker -- fec-totals                     # campaign totals for every current member (OpenFEC, ~10 min)
 npm run ingest -w @floor/worker -- fec-pacs 2026                  # committee-to-candidate totals from the FEC bulk files (~30 s)
-npm run ingest -w @floor/worker -- disclosures house --budget 150   # financial disclosures (House Clerk PDFs); not scheduled, served only with DISCLOSURES_ENABLED=true
+npm run ingest -w @floor/worker -- disclosures house --budget 150   # financial disclosures (House Clerk PDFs); daily at 06 UTC in ingest.yml, served only with DISCLOSURES_ENABLED=true
 npm run ingest -w @floor/worker -- disclosures senate --budget 150  # the same from Senate eFD (accepts its §13107 agreement); see "Financial disclosures"
 npm run ingest -w @floor/worker -- analyze 25                     # AI analysis (M4 Layer 1) of up to 25 bills that need one; costs money
 npm run eval:analysis -w @floor/worker -- --out /tmp/eval.json    # the ~50-bill analysis eval; prints "Not run" without ANTHROPIC_API_KEY
@@ -630,6 +630,12 @@ Real data broke our first assumptions several times. Each case below is now hand
     `production-smoke.yml`, which curls production when Vercel posts floor-api's status for a commit
     on `main`. The rule: **anything a dependency reads by a path it computes is invisible to the
     trace; run the traced copy, not the checkout, before believing a deploy.**
+65. **The disclosures backfill fills a small disk.** The first full run (2026-11-14, ~2,000 requests)
+    caches every PDF under `apps/worker/.cache/disclosures/` and hit `ENOSPC` on a Mac with ~3 GB
+    free; three House filings failed on the write, not the parse. The cache is a convenience (a
+    re-run or parser fix costs no request), not a store: it can be deleted at any time, and a re-run
+    retries what a write lost. On CI it starts empty every run, which the daily budget of 150
+    requests per chamber allows for.
 
 ---
 
@@ -1713,15 +1719,21 @@ steps ship as 0.2.x PATCH releases; 0.3.0 closes the milestone with its retro.
 5. **Donor context** from Senate LDA lobbying filings (what each PAC's organization lobbies on),
    matched to the member's votes by topic. The plain-English "who they are" lines are AI-written and
    wait for M4's label-and-cite pipeline.
-6. **Financial disclosures: imported, stored and served — and OFF.** Built on `feat/disclosures`
-   (not yet released): worker `disclosures house|senate`, three tables, and
-   `/v1/members/{id}/disclosures`, which answers `{enabled: false, reason}` until the API has
-   `DISCLOSURES_ENABLED=true`. **Nothing is shown in the product until the team answers the
-   §13107(c) question below.** Not in the scheduled workflow. Details in the next section.
+6. **Financial disclosures: imported, stored, scheduled; on once the flag is set.** Released in
+   v0.2.34: worker `disclosures house|senate`, three tables, and `/v1/members/{id}/disclosures`,
+   which answers `{enabled: false, reason}` until the API has `DISCLOSURES_ENABLED=true`. The
+   §13107(c) question was decided on 2026-11-14 (below); production was backfilled the same day and
+   the ingest runs daily since v0.2.36. Details in the next section.
 
 ### Financial disclosures (v0.3.0 item 6)
 
-**The open legal question — owner: the team, before `DISCLOSURES_ENABLED` is ever set.**
+**Decided 2026-11-14 (Ishan, for the team): Floor will never have a paid tier — free to the public,
+ads at most.** On that basis Floor treats itself as "news and communications media for
+dissemination to the general public" under §13107(c)(1)(B), the way outlets and trackers that
+publish members' trades do. Two limits keep that reading clean and are product rules from here:
+**no ads alongside disclosure data**, and **never sell or license the data** (or anything derived
+from it). If ads become real, or anything paid is ever proposed, get counsel's opinion first. Not
+legal advice. The question as it was framed, kept for the record:
 5 U.S.C. §13107(c)(1) (formerly 5 U.S.C. app. §105(c), Ethics in Government Act): "It shall be
 unlawful for any person to obtain or use a report — (A) for any unlawful purpose; (B) for any
 commercial purpose, other than by news and communications media for dissemination to the general
@@ -1765,7 +1777,8 @@ this doc. Nothing here is legal advice.
   cached under `apps/worker/.cache/disclosures/` (gitignored; `DISCLOSURES_CACHE_DIR` overrides), so a
   re-run or a parser fix costs no request. Documents are read newest filing first; what the budget
   leaves stays `pending` for the next run. Each run is an `ingest_runs` row (`house_disclosures`,
-  `senate_disclosures`), not in `MAX_AGE_HOURS` since nothing schedules it.
+  `senate_disclosures`), each stale after 48 h in `/v1/status` (`MAX_AGE_HOURS`), since both run
+  daily at 06 UTC (`ingest.yml`, budget 150 requests each).
 - **Matching filers to members.** House: the filing's seat (StateDst) plus surname; off the seat,
   surname *and* first name must pick out one House member of the state. Senate (eFD gives no state):
   a unique surname among senators, else surname plus a compatible first name. Anything else is
@@ -1786,10 +1799,12 @@ this doc. Nothing here is legal advice.
   (`paper`) and electronic filings not read yet or refused (`unparsed`). An amendment is treated as
   replacing the report (the latest filing wins); that both chambers' e-filed amendments are complete
   reports is an assumption, checked on Aderholt-sized samples only.
-- **To turn on (after the legal answer):** apply `20261117000200_disclosures.sql`, run both
-  ingests until `stillDue` is 0 (about 1,700 House and 500 Senate filings listed today, ~2,200
-  requests, under an hour at 1.5 s), then set `DISCLOSURES_ENABLED=true` on the `floor-api` Vercel
-  project. Scheduling it, and the app's Disclosures segment, are separate changes.
+- **Status (2026-11-14):** `20261117000200_disclosures.sql` applied; production backfilled — House
+  1,701 filings listed (1,514 matched), 1,349 parsed (about 36,500 assets, 5,140 trades), 152 paper,
+  13 refused by the parser's checks; Senate 508 listed (all matched), 464 parsed (23,935 assets,
+  1,762 trades), 0 failed. The backfill ran out of disk once (`ENOSPC` while caching PDFs, lesson
+  65); a re-run picked up the three it missed. **Left to do: set `DISCLOSURES_ENABLED=true` on the
+  `floor-api` Vercel project** (asked of the repo owner), and the app's Disclosures segment.
 
 **A real sample, 2026-11-14** (both sources into an in-memory PGlite — nothing written to staging
 or production; members from congress-legislators):
