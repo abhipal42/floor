@@ -3,6 +3,7 @@ import { PGlite } from "@electric-sql/pglite";
 import { loadMigrations } from "@floor/db";
 import { beforeAll, describe, expect, it } from "vitest";
 import { pgRepositories, poolerMode, poolerWarning, type Db } from "./pg.js";
+import { parseMemberQuery } from "./search.js";
 
 describe("poolerMode", () => {
   // Shapes only: the hosts are Supabase's, the credentials are placeholders.
@@ -561,6 +562,150 @@ describe("Postgres repositories", () => {
       expect(expected.length).toBeGreaterThan(0);
       expect(expected.length).toBeLessThan(designations.length * types.length);
     });
+  });
+});
+
+describe("member search", () => {
+  beforeAll(async () => {
+    // Shapes taken from staging: accents, hyphens and apostrophes in surnames; an at-large seat
+    // (district 0); D.C.'s delegate and Puerto Rico's resident commissioner (district 0, no
+    // senators); a former member who must not come back.
+    await pg.exec(`
+      insert into members (bioguide_id, first_name, last_name, party, state, district, chamber, term_start, term_end) values
+        ('J000294', 'Hakeem', 'Jeffries', 'D', 'NY', 8, 'house', '2025-01-03', '2099-01-03'),
+        ('V000081', 'Nydia', 'Velázquez', 'D', 'NY', 7, 'house', '2025-01-03', '2099-01-03'),
+        ('O000172', 'Alexandria', 'Ocasio-Cortez', 'D', 'NY', 14, 'house', '2025-01-03', '2099-01-03'),
+        ('S000148', 'Charles', 'Schumer', 'D', 'NY', null, 'senate', '2025-01-03', '2099-01-03'),
+        ('G000555', 'Kirsten', 'Gillibrand', 'D', 'NY', null, 'senate', '2025-01-03', '2099-01-03'),
+        ('Z000001', 'Old', 'Jefferson', 'R', 'NY', 9, 'house', '2021-01-03', '2023-01-03'),
+        ('H001096', 'Harriet', 'Hageman', 'R', 'WY', 0, 'house', '2025-01-03', '2099-01-03'),
+        ('N000147', 'Eleanor', 'Norton', 'D', 'DC', 0, 'house', '2025-01-03', '2099-01-03'),
+        ('H001103', 'Pablo José', 'Hernández', 'D', 'PR', 0, 'house', '2025-01-03', '2099-01-03'),
+        ('O000171', 'Tom', 'O''Halleran', 'D', 'AZ', 2, 'house', '2025-01-03', '2099-01-03'),
+        -- Letters NFD cannot decompose: the SQL fold must come from the same table as the typed one.
+        ('L000001', 'Łukasz', 'Søren', 'D', 'MN', 9, 'house', '2025-01-03', '2099-01-03');
+    `);
+  });
+
+  const ids = (ms: { bioguideId: string }[]) => ms.map((m) => m.bioguideId);
+  const search = (q: string, chamber?: "house" | "senate", limit = 60) =>
+    repos.members.search(parseMemberQuery(q), chamber, limit).then(ids);
+
+  it("lists a state's senators before its House members, and the House by district", async () => {
+    expect(await search("New York")).toEqual(["G000555", "S000148", "V000081", "J000294", "O000172"]);
+    expect(await search("NY")).toEqual(await search("new york"));
+  });
+
+  it("finds one seat, including at large", async () => {
+    expect(await search("NY-8")).toEqual(["J000294"]);
+    expect(await search("WY-AL")).toEqual(["H001096"]);
+    expect(await search("NY-99")).toEqual([]);
+  });
+
+  it("finds a delegate jurisdiction's one member whatever seat is typed, and no senators", async () => {
+    expect(await search("DC")).toEqual(["N000147"]);
+    expect(await search("DC-AL")).toEqual(["N000147"]);
+    expect(await search("dc-1")).toEqual(["N000147"]);
+    expect(await search("Puerto Rico")).toEqual(["H001103"]);
+  });
+
+  it("finds a name without its accents, hyphen or apostrophe, and in either order", async () => {
+    expect(await search("velazquez")).toEqual(["V000081"]);
+    expect(await search("Velázquez")).toEqual(["V000081"]);
+    expect(await search("ocasio cortez")).toEqual(["O000172"]);
+    expect(await search("alexandria ocasio")).toEqual(["O000172"]);
+    expect(await search("ohalleran")).toEqual(["O000171"]);
+    expect(await search("hernandez pablo")).toEqual(["H001103"]);
+  });
+
+  it("puts a surname that starts with the text ahead of one that merely contains it", async () => {
+    // "Jeffries" starts with "jeff"; the former "Jefferson" is not sitting and never appears.
+    expect(await search("jeff")).toEqual(["J000294"]);
+    // "Schumer" contains "hum"; nobody's surname starts with it.
+    expect(await search("hum")).toEqual(["S000148"]);
+    expect(await search("hage")).toEqual(["H001096"]);
+  });
+
+  it("filters by chamber and caps at the limit", async () => {
+    expect(await search("NY", "house")).toEqual(["V000081", "J000294", "O000172"]);
+    expect(await search("NY", "senate")).toEqual(["G000555", "S000148"]);
+    expect(await search("NY", undefined, 2)).toEqual(["G000555", "S000148"]);
+  });
+
+  it("folds letters with no decomposition the way a typed name folds", async () => {
+    expect(await search("soren")).toEqual(["L000001"]);
+    expect(await search("Søren Łukasz")).toEqual(["L000001"]);
+  });
+
+  // Two letters that are a code still start names: Alabama has nobody here, so "AL" is names alone,
+  // Senate first, then surnames that start with it, then names that do, then names containing it.
+  it("searches a state as a name too, after the state's own members", async () => {
+    expect(await search("AL")).toEqual(["S000002", "H000038", "O000172", "O000171"]);
+    expect((await search("N.Y.")).slice(0, 5)).toEqual(["G000555", "S000148", "V000081", "J000294", "O000172"]);
+  });
+
+  it("treats a typed % or _ as itself, not a wildcard", async () => {
+    expect(await search("%%")).toEqual([]);
+    expect(await search("__")).toEqual([]);
+  });
+});
+
+describe("recent votes", () => {
+  it("lists final votes newest first with what each was on, and filters by chamber", async () => {
+    const all = await repos.votes.recentVotes(undefined, 10);
+    expect(all.map((r) => r.vote.id)).toEqual([
+      "senate-119-1-91", "senate-119-1-90", "house-119-1-4", "house-119-1-3", "house-119-1-2", "house-119-1-1",
+    ]);
+    expect(all[1]!.measure).toEqual({
+      id: "119-pn-12-12", kind: "nomination", citation: "PN12-12", title: "Daniel Driscoll",
+    });
+    expect(all.find((r) => r.vote.id === "house-119-1-2")!.measure).toBeNull();
+    expect((await repos.votes.recentVotes("house", 2)).map((r) => r.vote.id)).toEqual(["house-119-1-4", "house-119-1-3"]);
+    // The next page: before the last one shown.
+    const next = await repos.votes.recentVotes(undefined, 2, new Date("2025-01-12T15:00:00Z"));
+    expect(next.map((r) => r.vote.id)).toEqual(["house-119-1-2", "house-119-1-1"]);
+  });
+});
+
+describe("who is sitting", () => {
+  beforeAll(async () => {
+    // Florida on 2026-11-13, relative to today: an appointed senator whose term "ended" on the
+    // special election's date and who has voted since; a House member who resigned (last vote on
+    // their last day); and Ohio, whose appointee's successor has since been sworn in.
+    await pg.exec(`
+      insert into members (bioguide_id, first_name, last_name, party, state, district, chamber, term_start, term_end) values
+        ('F000001', 'Rick', 'Regular', 'R', 'FL', null, 'senate', '2025-01-03', '2099-01-03'),
+        ('F000002', 'Ashley', 'Appointee', 'R', 'FL', null, 'senate', '2025-01-21', current_date - 10),
+        ('F000011', 'Rhea', 'Resigned', 'D', 'FL', 11, 'house', '2025-01-03', current_date - 20),
+        ('O000001', 'Otto', 'Appointed', 'R', 'OH', null, 'senate', '2025-01-21', current_date - 30),
+        ('O000002', 'Olive', 'Elected', 'D', 'OH', null, 'senate', current_date - 5, '2031-01-03'),
+        ('O000003', 'Oscar', 'Regular', 'R', 'OH', null, 'senate', '2025-01-03', '2029-01-03');
+      insert into votes (id, chamber, congress, session, roll_number, question, state, yea, nay, result, occurred_at) values
+        ('senate-119-2-900', 'senate', 119, 2, 900, 'On the Cloture Motion', 'final', 60, 38, 'Agreed to', now() - interval '2 days'),
+        ('house-119-2-900', 'house', 119, 2, 900, 'On Passage', 'final', 300, 100, 'Passed',
+         -- 8:30 p.m. Eastern on their last day: 01:30 UTC the next day, which a UTC comparison
+         -- would read as a vote after the term ended.
+         ((current_date - 20) + time '20:30') at time zone 'America/New_York');
+      insert into vote_positions (vote_id, member_id, position) values
+        ('senate-119-2-900', 'F000001', 'yea'),
+        ('senate-119-2-900', 'F000002', 'yea'),
+        ('senate-119-2-900', 'O000001', 'yea'),
+        ('house-119-2-900', 'F000011', 'yea');
+    `);
+  });
+
+  it("keeps an appointed senator who is still voting after the special election date", async () => {
+    expect((await repos.members.membersFor("FL", 11)).map((m) => m.bioguideId)).toEqual(["F000002", "F000001"]);
+    const found = await repos.members.search(parseMemberQuery("FL"), "senate", 10);
+    expect(found.map((m) => m.bioguideId)).toEqual(["F000002", "F000001"]);
+  });
+
+  it("drops a member who resigned, whose last vote was the evening of their last day (Eastern)", async () => {
+    expect((await repos.members.search(parseMemberQuery("FL-11"), undefined, 10))).toEqual([]);
+  });
+
+  it("drops an appointee once someone has taken a seat since, even though they voted after", async () => {
+    expect((await repos.members.membersFor("OH", 1)).map((m) => m.bioguideId)).toEqual(["O000002", "O000003"]);
   });
 });
 

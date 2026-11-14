@@ -65,8 +65,9 @@ export interface RateLimitOptions {
  *
  * Used on `/v1/reps`, the only route that reaches a third party — every lookup is a request to the
  * U.S. Census geocoder, and being rate-limited there would take the route down for everyone — and,
- * more loosely, on `/v1/search` and `/v1/topics`, which read our own database but run full-text
- * and aggregate queries a stray client loop should not be able to repeat without limit.
+ * more loosely, on `/v1/search`, `/v1/topics` and `/v1/members` (member search, called as you
+ * type), which read our own database but run full-text and aggregate queries a stray client loop
+ * should not be able to repeat without limit.
  */
 export function rateLimit(options: RateLimitOptions): MiddlewareHandler {
   const store = options.store ?? new MemoryLimitStore();

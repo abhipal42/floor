@@ -140,6 +140,29 @@ public enum Spoken {
         return "\(Self.member(member)). \(loyalty)"
     }
 
+    /// A row on the Following tab: who, their loyalty figure, and their latest vote. `Lloyd Doggett,
+    /// Democrat, Representative for Texas' 37th District. 96.9 percent with their party. Latest
+    /// vote: nay, H.R. 1013, Nov 11.`
+    public static func followingRow(_ member: Member, withPartyShare share: Double?, latest: MemberVote?) -> String {
+        var parts = [Self.member(member)]
+        if let share { parts.append("\(String(format: "%.1f", share * 100)) percent with their party") }
+        if let latest {
+            let how: String = switch latest.position {
+            case .yea: "yea"
+            case .nay: "nay"
+            case .present: "present"
+            case .notVoting: "did not vote"
+            case .candidate: "for \(latest.choice ?? "a candidate")"
+            }
+            let what = latest.measure?.citation ?? latest.vote.questionKind
+            let when = latest.vote.occurredAtDate?.formatted(.dateTime.month(.abbreviated).day())
+            parts.append("Latest vote: " + [how, what, when].compactMap(\.self).joined(separator: ", "))
+        } else {
+            parts.append("No recorded votes yet")
+        }
+        return parts.map(sentence).joined(separator: " ")
+    }
+
     /// One of your members on the vote screen: `Hakeem Jeffries, Representative for New York's 8th
     /// District, voted nay, with 128 of 211 Democrats`.
     public static func memberPosition(_ position: MemberPosition, partyNote: String? = nil) -> String {

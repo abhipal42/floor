@@ -83,6 +83,9 @@ struct ContractTests {
             // Not components: these wrap a list in the route's own inline schema.
             "/v1/members/{id}/votes": fields(MemberVotes.sample),
             "/v1/status": fields(DataStatus.sample),
+            "/v1/members": fields(MemberSearch.sample),
+            "/v1/votes": fields(RecentVotes.sample),
+            "RecentVote": fields(RecentVote.sample),
         ]
     }
 
@@ -91,7 +94,7 @@ struct ContractTests {
         "MemberPosition", "PartyLoyalty", "MemberDetail", "PacCheck", "Funding", "MemberFunding", "MemberVote", "MeasureSummary", "District",
         "Reps", "LatestAction", "CboEstimate", "BillAction", "Bill", "Nomination", "SourceStatus", "Error",
         "AnalysisCitation", "AnalysisClaim", "AnalysisSource", "BillAnalysis",
-        "ChamberStatus", "Live", "LiveVote",
+        "ChamberStatus", "Live", "LiveVote", "RecentVote",
         "BillListItem", "Topic", "TopicList", "TopicBills", "SearchResults",
     ])
     func modelFieldsMatchItsSchema(name: String) throws {
@@ -123,9 +126,9 @@ struct ContractTests {
         #expect(cases == Set(values), "\(name) has drifted from the contract")
     }
 
-    /// Two responses wrap a list rather than naming a component, so they are checked against the
+    /// Four responses wrap a list rather than naming a component, so they are checked against the
     /// route's own inline schema.
-    @Test(arguments: ["/v1/members/{id}/votes", "/v1/status"])
+    @Test(arguments: ["/v1/members/{id}/votes", "/v1/status", "/v1/members", "/v1/votes"])
     func wrapperResponsesMatchTheirRoute(path: String) throws {
         let paths = try #require(try Self.document()["paths"] as? [String: Any])
         let route = try #require(paths[path] as? [String: Any], "no route \(path)")
@@ -161,7 +164,7 @@ struct ContractTests {
         let enums: Set<String> = [
             "Chamber", "VoteKind", "VoteState", "VoteThreshold", "Position", "BillStage", "TopicFilter",
         ]
-        let modelled = Set(Self.modelFields().keys).subtracting(["/v1/members/{id}/votes", "/v1/status"])
+        let modelled = Set(Self.modelFields().keys).subtracting(["/v1/members/{id}/votes", "/v1/status", "/v1/members", "/v1/votes"])
         #expect(Set(try Self.schemas().keys) == modelled.union(enums),
                 "the contract has a schema with no Swift model")
     }

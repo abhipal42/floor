@@ -10,6 +10,18 @@ struct SpokenTests {
         return Dictionary(uniqueKeysWithValues: reps.members.map { ($0.lastName, $0) })
     }
 
+    /// A Following row reads as who, their loyalty figure, then their latest vote.
+    @Test func aFollowingRowReadsTheMemberLoyaltyAndLatestVote() throws {
+        let doggett = Member(bioguideId: "D000399", firstName: "Lloyd", lastName: "Doggett", party: "D",
+                             state: "TX", district: 37, chamber: .house)
+        let latest = try #require(try fixture("member-votes-doggett-40", as: MemberVotes.self).votes.first)
+        let text = Spoken.followingRow(doggett, withPartyShare: 0.969, latest: latest)
+        #expect(text.hasPrefix("Lloyd Doggett, Democrat, Representative for Texas' 37th District. 96.9 percent with their party. Latest vote: "))
+        #expect(text.hasSuffix("."))
+        #expect(Spoken.followingRow(doggett, withPartyShare: nil, latest: nil)
+            == "Lloyd Doggett, Democrat, Representative for Texas' 37th District. No recorded votes yet.")
+    }
+
     @Test func aPassageReadsAsOneSentenceWithYourRepFirst() throws {
         let detail = try fixture("vote-passage-hr1013", as: VoteDetail.self)
         let measure = try #require(detail.measure)

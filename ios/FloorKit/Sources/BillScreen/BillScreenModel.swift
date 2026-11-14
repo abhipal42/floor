@@ -57,7 +57,7 @@ public final class BillScreenModel {
     private let members: [Member]
     private let api: FloorAPI
 
-    /// - Parameter members: your delegation, for "Your three on this bill". Empty skips it.
+    /// - Parameter members: your delegation, for "Your members on this bill". Empty skips it.
     public init(billId: String, api: FloorAPI, members: [Member] = []) {
         self.billId = billId
         self.api = api

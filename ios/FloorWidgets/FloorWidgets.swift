@@ -1,4 +1,5 @@
 import APIClient
+import AppIntents
 import DesignSystem
 import Foundation
 import Models
@@ -8,18 +9,19 @@ import WidgetFeed
 import WidgetKit
 
 // The two home-screen widgets from the locked design, section "D · Widgets" of
-// https://claude.ai/artifact/X5NwWSe1NmugSRoCKh3vBn. What they show is built and tested in
-// FloorKit's `WidgetFeed`; this target is WidgetKit and drawing only.
+// https://claude.ai/artifact/X5NwWSe1NmugSRoCKh3vBn, and the medium widget's member pick from the
+// Following design, section C of https://claude.ai/artifact/C7qGitvJMSLFmCkYYQgNre. What they show
+// is built and tested in FloorKit's `WidgetFeed`; this target is WidgetKit and drawing only.
 
 @main
 struct FloorWidgetBundle: WidgetBundle {
     var body: some Widget {
         LatestFinalWidget()
-        YourThreeWidget()
+        MembersWidget()
     }
 }
 
-/// Small: the newest final vote any of your members took part in.
+/// Small: the newest final vote any of your members took part in — your reps and everyone you follow.
 struct LatestFinalWidget: Widget {
     var body: some WidgetConfiguration {
         StaticConfiguration(kind: "app.floor.widget.latest-final", provider: FloorTimeline()) { entry in
@@ -31,31 +33,88 @@ struct LatestFinalWidget: Widget {
     }
 }
 
-/// Medium: each of your members' most recent vote.
-struct YourThreeWidget: Widget {
+/// Medium: up to three of your members' most recent votes, picked in the widget's Edit menu; your
+/// reps until you pick. The kind is the one "Your three" shipped with, so a widget already on a home
+/// screen carries over (as your reps) instead of disappearing.
+struct MembersWidget: Widget {
     var body: some WidgetConfiguration {
-        StaticConfiguration(kind: "app.floor.widget.your-three", provider: FloorTimeline()) { entry in
-            YourThreeView(entry: entry)
+        AppIntentConfiguration(kind: "app.floor.widget.your-three", intent: PickMembersIntent.self, provider: MembersTimeline()) { entry in
+            MembersView(entry: entry)
         }
-        .configurationDisplayName("Your three")
-        .description("How each of your members voted most recently.")
+        .configurationDisplayName("Your members")
+        .description("How up to three of your members voted most recently. Pick them with Edit Widget; until then, your reps.")
         .supportedFamilies([.systemMedium])
     }
+}
+
+// MARK: - The member pick
+
+/// A member to pick for the medium widget: one of your reps or someone you follow.
+struct MemberEntity: AppEntity {
+    static let typeDisplayRepresentation: TypeDisplayRepresentation = "Member"
+    static let defaultQuery = YourMembersQuery()
+
+    let id: String
+    let name: String
+    /// `D · House · TX-37`.
+    let seat: String
+
+    init(_ member: Member) {
+        id = member.bioguideId
+        name = member.fullName
+        seat = "\(member.party) · \(member.seatCaption)"
+    }
+
+    var displayRepresentation: DisplayRepresentation {
+        DisplayRepresentation(title: "\(name)", subtitle: "\(seat)")
+    }
+}
+
+/// The members the pick offers: your reps and everyone you follow, as the app left them in the
+/// App Group. Nothing else — the widget is about your members.
+struct YourMembersQuery: EntityQuery {
+    func entities(for identifiers: [MemberEntity.ID]) async throws -> [MemberEntity] {
+        let all = Self.members()
+        return identifiers.compactMap { id in all.first { $0.bioguideId == id }.map(MemberEntity.init) }
+    }
+
+    func suggestedEntities() async throws -> [MemberEntity] {
+        Self.members().map(MemberEntity.init)
+    }
+
+    static func members() -> [Member] {
+        UserDefaultsDelegationStore.groupDefaults().map { WidgetMembers.read(from: $0).all } ?? []
+    }
+}
+
+/// The medium widget's Edit menu. Nothing picked means your reps, which is what the widget showed
+/// before you could pick.
+struct PickMembersIntent: WidgetConfigurationIntent {
+    static let title: LocalizedStringResource = "Your members"
+    static let description = IntentDescription("Choose up to three members to show. Leave it empty for your reps.")
+
+    @Parameter(title: "Members", size: 3)
+    var members: [MemberEntity]?
+
+    init() {}
 }
 
 // MARK: - Timeline
 
 struct FloorEntry: TimelineEntry {
     enum Content {
-        /// Nobody has picked a district in the app yet.
-        case noDistrict
+        /// No district and nobody followed in the app yet.
+        case noMembers
         case loaded(WidgetSnapshot)
-        /// The refresh failed and there is no saved copy for this district.
+        /// The refresh failed and there is no saved copy for these members.
         case failed
     }
 
     var date: Date
     var content: Content
+    /// The medium widget's pick, by Bioguide ID; nil for its default (your reps). The small widget
+    /// has no pick.
+    var chosen: [String]? = nil
 
     /// `As of 3:40 PM` once the votes shown are more than two hours old, else nil.
     var asOf: String? {
@@ -84,28 +143,36 @@ struct FloorTimeline: TimelineProvider {
         Task { completion(await Self.timeline()) }
     }
 
-    /// One refresh through `WidgetFeed.refresh`, which reads the delegation the app saved in the
-    /// App Group before and after fetching. Loaded content gets a second entry for the moment it
+    /// One refresh through `WidgetFeed.refresh`, which reads your district and who you follow from
+    /// the App Group before and after fetching. Loaded content gets a second entry for the moment it
     /// turns two hours old, so "As of …" appears even if WidgetKit is slow to refresh again.
-    static func timeline() async -> Timeline<FloorEntry> {
+    /// - Parameter medium: the medium widget, which fetches only the rows it draws (`chosen`, or your
+    ///   reps) and keeps its own saved copy; the small one fetches everyone.
+    static func timeline(medium: Bool = false, chosen: [String]? = nil) async -> Timeline<FloorEntry> {
         let now = Date()
         guard let group = UserDefaultsDelegationStore.groupDefaults() else {
-            // No App Group in this build: the app can't share a district, so there is none to show.
-            return Timeline(entries: [FloorEntry(date: now, content: .noDistrict)], policy: .never)
+            // No App Group in this build: the app can't share your members, so there are none to show.
+            return Timeline(entries: [FloorEntry(date: now, content: .noMembers)], policy: .never)
         }
+        // The stores, not the suite, cross into the refresh: they are Sendable and `UserDefaults` is not.
         let delegations = UserDefaultsDelegationStore(defaults: group)
+        let follows = UserDefaultsFollowStore(defaults: group)
         let result = await WidgetFeed.refresh(
-            delegation: { delegations.load() }, api: api, store: WidgetSnapshotStore(defaults: group), now: now
+            members: { WidgetMembers(delegation: delegations.load(), follows: follows.load()) },
+            only: { medium ? $0.mediumIds(chosen: chosen) : nil },
+            api: api,
+            store: WidgetSnapshotStore(defaults: group, key: medium ? WidgetSnapshotStore.mediumKey : WidgetSnapshotStore.key),
+            now: now
         )
         let content: FloorEntry.Content = switch result {
-        case .noDistrict: .noDistrict
+        case .noMembers: .noMembers
         case let .fresh(snapshot), let .saved(snapshot): .loaded(snapshot)
         case .failed: .failed
         }
-        var entries = [FloorEntry(date: now, content: content)]
+        var entries = [FloorEntry(date: now, content: content, chosen: chosen)]
         if case let .loaded(snapshot) = content {
             let stale = snapshot.fetchedAt.addingTimeInterval(WidgetText.staleAfter + 60)
-            if stale > now { entries.append(FloorEntry(date: stale, content: content)) }
+            if stale > now { entries.append(FloorEntry(date: stale, content: content, chosen: chosen)) }
         }
         return Timeline(entries: entries, policy: .after(now.addingTimeInterval(result.retryAfter)))
     }
@@ -120,6 +187,28 @@ struct FloorTimeline: TimelineProvider {
             session: WidgetFeed.makeSession()
         )
     }()
+}
+
+/// The medium widget's timeline: the same refresh, carrying the members picked in Edit Widget.
+struct MembersTimeline: AppIntentTimelineProvider {
+    func placeholder(in context: Context) -> FloorEntry {
+        FloorEntry(date: Date(), content: .loaded(.sample))
+    }
+
+    func snapshot(for configuration: PickMembersIntent, in context: Context) async -> FloorEntry {
+        if context.isPreview { return placeholder(in: context) }
+        let chosen = Self.chosen(configuration)
+        return await FloorTimeline.timeline(medium: true, chosen: chosen).entries.first
+            ?? FloorEntry(date: Date(), content: .loaded(.sample), chosen: chosen)
+    }
+
+    func timeline(for configuration: PickMembersIntent, in context: Context) async -> Timeline<FloorEntry> {
+        await FloorTimeline.timeline(medium: true, chosen: Self.chosen(configuration))
+    }
+
+    static func chosen(_ configuration: PickMembersIntent) -> [String]? {
+        configuration.members?.map(\.id)
+    }
 }
 
 // MARK: - Small
@@ -137,8 +226,8 @@ struct LatestFinalView: View {
                     Message(header: "Final", title: "No finals yet", detail: "Your members' next vote shows here.")
                         .widgetURL(FloorLink.open.url)
                 }
-            case .noDistrict:
-                Message.noDistrict.widgetURL(FloorLink.open.url)
+            case .noMembers:
+                Message.noMembers.widgetURL(FloorLink.open.url)
             case .failed:
                 Message.failed.widgetURL(FloorLink.open.url)
             }
@@ -231,7 +320,7 @@ private struct ScoreText: View {
 
 // MARK: - Medium
 
-struct YourThreeView: View {
+struct MembersView: View {
     var entry: FloorEntry
 
     var body: some View {
@@ -239,8 +328,8 @@ struct YourThreeView: View {
             switch entry.content {
             case let .loaded(snapshot):
                 rows(snapshot)
-            case .noDistrict:
-                Message.noDistrict.widgetURL(FloorLink.open.url)
+            case .noMembers:
+                Message.noMembers.widgetURL(FloorLink.open.url)
             case .failed:
                 Message.failed.widgetURL(FloorLink.open.url)
             }
@@ -250,9 +339,9 @@ struct YourThreeView: View {
 
     private func rows(_ snapshot: WidgetSnapshot) -> some View {
         VStack(alignment: .leading, spacing: 7) {
-            WidgetHeader(WidgetText.header(snapshot), trailing: entry.asOf)
+            WidgetHeader(WidgetText.header(snapshot, chosen: entry.chosen), trailing: entry.asOf)
             Grid(alignment: .leading, horizontalSpacing: 8, verticalSpacing: 6) {
-                ForEach(snapshot.rows) { row in
+                ForEach(snapshot.mediumRows(chosen: entry.chosen)) { row in
                     GridRow {
                         cell(row) {
                             if let latest = row.latest {
@@ -282,7 +371,7 @@ struct YourThreeView: View {
                     }
                 }
             }
-            if let note = WidgetText.loneMemberNote(snapshot) {
+            if let note = WidgetText.loneMemberNote(snapshot, chosen: entry.chosen) {
                 Text(note)
                     .font(.system(size: 11, weight: .medium))
                     .foregroundStyle(Palette.textMuted)
@@ -295,7 +384,7 @@ struct YourThreeView: View {
         // One spoken line per member rather than three cells each.
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(
-            ([WidgetText.header(snapshot) + "."] + snapshot.rows.map(WidgetText.rowLabel)
+            ([WidgetText.header(snapshot, chosen: entry.chosen) + "."] + snapshot.mediumRows(chosen: entry.chosen).map(WidgetText.rowLabel)
                 + [entry.asOf.map { $0 + "." }].compactMap(\.self)).joined(separator: " ")
         )
         // A tap outside a row opens the newest of the votes shown.
@@ -304,6 +393,7 @@ struct YourThreeView: View {
 
     /// `H.R. 1013 · Passed 295–128`, or why there is nothing.
     private func detail(_ row: WidgetSnapshot.Row) -> String {
+        if row.unavailable { return "Couldn't load their votes" }
         guard let latest = row.latest else { return "No recorded votes yet" }
         return "\(WidgetText.citation(latest.vote, measure: latest.measure)) · \(WidgetText.resultLine(latest.vote))"
     }
@@ -319,7 +409,7 @@ struct YourThreeView: View {
     }
 
     private func newest(_ snapshot: WidgetSnapshot) -> String? {
-        snapshot.rows.compactMap(\.latest?.vote).max { a, b in
+        snapshot.mediumRows(chosen: entry.chosen).compactMap(\.latest?.vote).max { a, b in
             (a.occurredAtDate ?? .distantPast) < (b.occurredAtDate ?? .distantPast)
         }?.id
     }
@@ -327,7 +417,7 @@ struct YourThreeView: View {
 
 // MARK: - Pieces
 
-/// The glyph and the tracked-out caps line: `FINAL · HOUSE`, `YOUR THREE · TX-37`.
+/// The glyph and the tracked-out caps line: `FINAL · HOUSE`, `YOUR MEMBERS · TX-37`.
 private struct WidgetHeader: View {
     var text: String
     /// Muted text at the right edge: "As of 3:40 PM" on a stale snapshot.
@@ -411,9 +501,9 @@ private struct Message: View {
     var title: String
     var detail: String
 
-    static let noDistrict = Message(
+    static let noMembers = Message(
         header: "Floor", title: "Open Floor to pick your members",
-        detail: "Your district stays on this phone."
+        detail: "Your district and who you follow stay on this phone."
     )
     static let failed = Message(
         header: "Floor", title: "Couldn't reach Floor", detail: "Trying again in a few minutes."
@@ -470,11 +560,11 @@ struct ChamberGlyph: Shape {
     LatestFinalWidget()
 } timeline: {
     FloorEntry(date: .now, content: .loaded(.sample))
-    FloorEntry(date: .now, content: .noDistrict)
+    FloorEntry(date: .now, content: .noMembers)
 }
 
 #Preview("Medium", as: .systemMedium) {
-    YourThreeWidget()
+    MembersWidget()
 } timeline: {
     FloorEntry(date: .now, content: .loaded(.sample))
     FloorEntry(date: .now, content: .failed)

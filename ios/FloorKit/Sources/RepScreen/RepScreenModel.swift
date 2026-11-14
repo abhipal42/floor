@@ -181,55 +181,6 @@ public extension MemberVote {
     }
 }
 
-// MARK: - Your three (the locked AppRep mock)
-
-/// Your whole delegation on one tab: a switcher, and every member's record loaded together so a
-/// fact can compare your two senators.
-@MainActor
-@Observable
-public final class YourThreeModel {
-    public let members: [Member]
-    public var selectedId: String
-    /// Record, Money or Portfolio. Kept when switching member, so you can compare their money.
-    public var section: MemberSection = .record
-    /// One per member, built once so switching back does not reload.
-    public let records: [String: RepScreenModel]
-
-    public init(members: [Member], api: FloorAPI, selectedId: String? = nil) {
-        self.members = members
-        self.selectedId = selectedId ?? members.first?.bioguideId ?? ""
-        var records: [String: RepScreenModel] = [:]
-        for member in members { records[member.bioguideId] = RepScreenModel(bioguideId: member.bioguideId, api: api) }
-        self.records = records
-    }
-
-    public var selected: RepScreenModel? { records[selectedId] }
-
-    public func loadAll() async {
-        await withTaskGroup(of: Void.self) { group in
-            for model in records.values {
-                // Not "already loaded": a record on saved data, or whose refresh was cancelled when
-                // the tab went away, refreshes again when it comes back.
-                if !model.needsRefresh { continue }
-                group.addTask { await model.load() }
-            }
-        }
-    }
-
-    /// The "did you know" line for one member, given what has loaded for the others.
-    public func fact(for member: Member) -> String? {
-        guard case let .loaded(record)? = records[member.bioguideId]?.phase else { return nil }
-        let senators = members.filter { $0.chamber == .senate }
-        // The first senator gets the agreement fact, the second their attendance, so the two tabs
-        // say different things — as the mock's Schumer and Gillibrand tabs do.
-        if member.chamber == .senate, senators.count == 2, senators.first == member,
-           let other = senators.last, case let .loaded(theirs)? = records[other.bioguideId]?.phase {
-            return RecordFacts.agreement(record.votes, theirs.votes)
-        }
-        return RecordFacts.didYouKnow(member: member, votes: record.votes)
-    }
-}
-
 /// The player card's tier, from crossovers: votes against their own party's majority.
 public enum Tier: String, Sendable {
     case starter = "STARTER"

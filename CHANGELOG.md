@@ -8,6 +8,65 @@ is a milestone and ships a retro under `docs/retros/`.
 Older series live in [`docs/changelog/`](docs/changelog) (0.1.x: [`0.1.md`](docs/changelog/0.1.md)).
 Before 0.1.0 the history is the commit log on `main`.
 
+## 0.2.28 — 2026-11-13
+
+Following: follow any member of Congress, not just your three. Built to the locked mock
+<https://claude.ai/artifact/C7qGitvJMSLFmCkYYQgNre>.
+
+### Added
+- **`GET /v1/members?q=&chamber=&limit=`**: search sitting members by name (accents, hyphens and
+  apostrophes folded), state name or code, or House seat (`NY-8`, `WY-AL`, `DC`), Senate before
+  House; delegates and the resident commissioner included. Rate limited to 120 searches a minute per
+  caller, counted apart from address lookups. Parsing in `apps/api/src/search.ts`.
+- **`GET /v1/votes?chamber=&limit=`**: the latest final votes with what each was on — Finals' "All",
+  and the whole feed when you follow nobody.
+- **Following tab** (was "Your three"): your reps pinned from your district, then everyone you
+  follow, newest first; each row shows loyalty and the latest vote's chip and opens the member.
+  Edit hides or shows a rep, unfollows, and reorders by drag (or VoiceOver's Move up / down).
+- **Add members**: a search sheet (debounced; All / Senate / House; grouped results with a Follow
+  toggle; no-results, loading and error states), and a Follow button on every member screen,
+  including one opened from a vote.
+- **`FollowState` / `Follows`** (`Onboarding/Follows.swift`): the follow list, on the phone in the
+  App Group with no account. Entries are generic — member, bill or topic — so following bills and
+  topics later needs no migration. Alert defaults (on for your reps, off for followed) are stored for
+  the push work; no alerts screen ships until pushes exist.
+- **"Skip, I'll pick members myself"** on onboarding: the app runs with no district (Finals shows
+  every final, Following starts empty, "Find my reps" returns to onboarding).
+- **Medium widget member pick**: an App Intent configuration choosing up to three of your reps and
+  follows; the default is your reps, as before.
+
+### Changed
+- **Finals** gains "All" / "Your members · N"; one card lists every member you follow who voted on
+  it. Member records load six at a time (`throttledMap`) through the saved-then-network path.
+- **"Your three" → "Your members"** on the vote and bill screens, the catch-up deck and the widgets.
+  The small widget's latest final considers everyone you follow.
+
+### Fixed
+- **Appointed senators were missing.** Moody (FL) and Husted (OH) have `term_end` on the special
+  election's date and still serve, so `/v1/reps` gave Florida and Ohio one senator each. A term that
+  ended in the last 90 days now counts when the member has voted since and nobody has taken the seat
+  (`SITTING` in `pg.ts`; HANDOFF lesson 52). Staging now has 100 senators.
+  Days are compared in Eastern time, so an evening vote on a resignation day is not service after it.
+
+### Review fixes (before merge)
+- A rep you had already followed is listed once, as a rep: onboarding drops their follow entry, and
+  hiding a rep hides them everywhere (feed, widgets, tab) even with an old entry left.
+- Edit is in the Following top bar whenever there is a district, so hidden reps can be shown again.
+- Finals "All" asks `/v1/votes` for the chamber picked; `/v1/votes` gains `before=` paging, a 30–60 s
+  `Cache-Control` and a rate limit.
+- One member failing no longer blanks Finals or the widgets: their row or a note says who is missing.
+  The medium widget fetches only the members it draws.
+- Following, hiding and reordering no longer refetch everyone: only newly followed members load, and
+  widget reloads are debounced.
+- VoiceOver: a followed row in Edit is one element with Move up, Move down and Unfollow; Shown/Hidden
+  is a switch.
+- Search also matches a state's text as a name, reads dotted codes ("N.Y."), and folds ø, ł, ı and đ
+  from one table shared with SQL. The follow list moves into the App Group by the delegation store's
+  rules. The vote screen asks for the card's members first; past two, the other-chamber note counts.
+
+### Removed
+- `YourThreeView` / `YourThreeModel` (replaced by the Following tab and the member screen).
+
 ## 0.2.27 — 2026-11-13
 
 The Bill screen's AI section (M4 Layer 1 in the app), built to section "E · AI on the bill screen" of

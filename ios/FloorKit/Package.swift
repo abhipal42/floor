@@ -30,7 +30,8 @@ let package = Package(
         // BillScreen for `LawLevels`: the vote screen's bill card says which of six levels it reached.
         .target(name: "VoteScreen", dependencies: ["Models", "APIClient", "DesignSystem", "BillScreen"]),
         .target(name: "BillScreen", dependencies: ["Models", "APIClient", "DesignSystem"]),
-        .target(name: "RepScreen", dependencies: ["Models", "APIClient", "DesignSystem"]),
+        // Onboarding for `Follows`: the member screen's Follow button.
+        .target(name: "RepScreen", dependencies: ["Models", "APIClient", "DesignSystem", "Onboarding"]),
         .target(
             name: "Home",
             dependencies: [

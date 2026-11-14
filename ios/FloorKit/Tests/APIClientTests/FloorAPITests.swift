@@ -63,6 +63,24 @@ struct FloorAPITests {
         #expect(members == "A000370,K000401")
     }
 
+    /// The search box is sent as typed (the server reads "New York", "NY-8", "dc"), escaped, with
+    /// the chamber only when one is picked.
+    @Test func searchesMembersAndListsRecentVotes() async throws {
+        let session = StubURLProtocol.session(always: .response(status: 200, body: try fixtureData("members-search-new-york")))
+        let api = FloorAPI(baseURL: base, session: session)
+        let found = try await api.searchMembers(query: "New York & co", chamber: .house, limit: 20)
+        #expect(found.members.count == 28)
+        #expect(StubURLProtocol.lastURL?.absoluteString
+            == "https://api.example.test/v1/members?q=New%20York%20%26%20co&limit=20&chamber=house")
+        _ = try await api.searchMembers(query: "NY-8")
+        #expect(StubURLProtocol.lastURL?.absoluteString == "https://api.example.test/v1/members?q=NY-8&limit=100")
+
+        let votes = StubURLProtocol.session(always: .response(status: 200, body: try fixtureData("votes-recent")))
+        let recent = try await FloorAPI(baseURL: base, session: votes).recentVotes(chamber: .senate, limit: 10)
+        #expect(recent.votes.count == 10)
+        #expect(StubURLProtocol.lastURL?.absoluteString == "https://api.example.test/v1/votes?limit=10&chamber=senate")
+    }
+
     @Test func omitsTheMembersParameterWhenNoneAreAskedFor() async throws {
         let session = StubURLProtocol.session(always: .response(status: 200, body: try fixtureData("vote-question")))
         _ = try await FloorAPI(baseURL: base, session: session).vote(id: "house-119-1-100")

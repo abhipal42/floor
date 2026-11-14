@@ -3,7 +3,7 @@ import Models
 import SwiftUI
 
 /// The catch-up deck, as the locked landing "Five finals deck" draws it: a stack of cards, each
-/// with the rule, the score counting up to the final, the threshold line, the twist and your three.
+/// with the rule, the score counting up to the final, the threshold line, the twist and your members.
 ///
 /// The landing card carries a one-line plain-English blurb of the bill. That needs the bill's own
 /// summary rewritten, which is M4 work, so the card shows the chamber's recorded result in that
@@ -192,7 +192,7 @@ struct CatchUpDeckView: View {
             Spacer(minLength: 0)
             if !item.positions.isEmpty {
                 VStack(alignment: .leading, spacing: 8) {
-                    Text("YOUR THREE").font(.system(size: 11)).tracking(0.7).foregroundStyle(Palette.textMuted)
+                    Text("YOUR MEMBERS").font(.system(size: 11)).tracking(0.7).foregroundStyle(Palette.textMuted)
                     HStack(spacing: 8) {
                     ForEach(item.positions) { position in
                         HStack(spacing: 8) {

@@ -178,9 +178,13 @@ public extension VoteDetail {
         let absent = delegation.filter { $0.chamber != vote.chamber }
         guard !absent.isEmpty, let chamber = absent.first?.chamber else { return nil }
         let names = absent.map(\.lastName)
-        let list = names.count == 1 ? names[0] : names.dropLast().joined(separator: ", ") + " and " + names.last!
-        let verb = absent.count == 1 ? "votes" : "vote"
-        return (absent, "\(list) \(verb) in the \(chamber.name) — this was a \(vote.chamber.name) vote.")
+        // Names while they fit in a sentence; past two (you follow several senators) a count.
+        let who = switch names.count {
+        case 1: "\(names[0]) votes"
+        case 2: "\(names[0]) and \(names[1]) vote"
+        default: "\(names.count) of your members vote"
+        }
+        return (absent, "\(who) in the \(chamber.name) — this was a \(vote.chamber.name) vote.")
     }
 }
 

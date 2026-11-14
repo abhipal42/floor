@@ -1,16 +1,31 @@
 import APIClient
 import DesignSystem
 import Models
+import Onboarding
 import SwiftUI
 
-/// Your three, as the locked AppRep mock draws it: a switcher across your members, then the
-/// selected one's record, money (the AppRepMoney mock) or portfolio placeholder.
-public struct YourThreeView: View {
-    @State private var model: YourThreeModel
+/// One member's record: from the Following tab, from a vote's "Your members", or from search.
+///
+/// The header carries Follow (the locked Following mock, section B). Your own reps read "Your rep"
+/// instead: they come from your district and can be hidden on the Following tab, not unfollowed.
+/// The mock's "Alerts on" button beside it is left out until alerts are actually sent.
+public struct RepScreenView: View {
+    @State private var model: RepScreenModel
+    @State private var section: MemberSection = .record
+    private let follows: Follows?
+    private let reps: Set<String>
     private let onOpenVote: (Vote) -> Void
 
-    public init(model: YourThreeModel, onOpenVote: @escaping (Vote) -> Void = { _ in }) {
+    /// - Parameters:
+    ///   - follows: the follow list; nil shows no Follow button (previews of the record alone).
+    ///   - reps: Bioguide IDs of your own district's members.
+    public init(
+        model: RepScreenModel, follows: Follows? = nil, reps: [String] = [],
+        onOpenVote: @escaping (Vote) -> Void = { _ in }
+    ) {
         _model = State(initialValue: model)
+        self.follows = follows
+        self.reps = Set(reps)
         self.onOpenVote = onOpenVote
     }
 
@@ -18,72 +33,67 @@ public struct YourThreeView: View {
         ZStack {
             Palette.ground.ignoresSafeArea()
             ScrollView {
-                VStack(alignment: .leading, spacing: 16) {
-                    switcher
-                    if let member = model.members.first(where: { $0.bioguideId == model.selectedId }),
-                       let record = model.selected {
-                        MemberSections(record: record, member: member, section: $model.section,
-                                       fact: model.fact(for: member), onOpenVote: onOpenVote)
-                            .id(member.bioguideId)
+                VStack(alignment: .leading, spacing: 12) {
+                    if let follows, let member = model.member {
+                        FollowButton(member: member, follows: follows, isRep: reps.contains(member.bioguideId))
                     }
+                    MemberSections(record: model, member: model.member, section: $section, fact: nil, onOpenVote: onOpenVote)
                 }
                 .padding(.horizontal, 16)
                 .padding(.top, 8)
                 .padding(.bottom, 32)
             }
         }
-        .task { await model.loadAll() }
-    }
-
-    private var switcher: some View {
-        HStack(spacing: 8) {
-            ForEach(model.members) { member in
-                let on = member.bioguideId == model.selectedId
-                Button { model.selectedId = member.bioguideId } label: {
-                    HStack(spacing: 6) {
-                        MemberPortrait(member).frame(width: 28, height: 28)
-                        Text(member.lastName)
-                            .font(.system(size: 12, weight: .semibold))
-                            .foregroundStyle(Palette.text)
-                            .lineLimit(1)
-                            .minimumScaleFactor(0.7)
-                        Spacer(minLength: 0)
-                    }
-                    .padding(EdgeInsets(top: 3, leading: 3, bottom: 3, trailing: 8))
-                    .frame(maxWidth: .infinity)
-                    .background(on ? Palette.card : Palette.panel, in: .capsule)
-                    .overlay(Capsule().stroke(on ? Palette.yea : Palette.panelBorder, lineWidth: 2))
-                }
-                .buttonStyle(.plain)
-                .accessibilityLabel(member.fullName)
-                .accessibilityAddTraits(on ? [.isSelected] : [])
-            }
-        }
+        .task { if model.needsRefresh { await model.load() } }
     }
 }
 
-/// One member's record pushed on its own, e.g. from a vote's "Your three".
-public struct RepScreenView: View {
-    @State private var model: RepScreenModel
-    @State private var section: MemberSection = .record
-    private let onOpenVote: (Vote) -> Void
+/// Follow / Following on a member, as the mock's member screen and search rows draw it: filled when
+/// you can follow, outlined once you do. Your own rep shows a label, not a button.
+public struct FollowButton: View {
+    let member: Member
+    let follows: Follows
+    let isRep: Bool
+    var compact = false
 
-    public init(model: RepScreenModel, onOpenVote: @escaping (Vote) -> Void = { _ in }) {
-        _model = State(initialValue: model)
-        self.onOpenVote = onOpenVote
+    public init(member: Member, follows: Follows, isRep: Bool, compact: Bool = false) {
+        self.member = member
+        self.follows = follows
+        self.isRep = isRep
+        self.compact = compact
     }
 
     public var body: some View {
-        ZStack {
-            Palette.ground.ignoresSafeArea()
-            ScrollView {
-                MemberSections(record: model, member: model.member, section: $section, fact: nil, onOpenVote: onOpenVote)
-                    .padding(.horizontal, 16)
-                    .padding(.top, 8)
-                    .padding(.bottom, 32)
+        if isRep {
+            Text(member.chamber == .senate ? "YOUR SENATOR" : "YOUR REP")
+                .font(Typography.label(compact ? 12 : 14))
+                .tracking(0.6)
+                .foregroundStyle(Palette.textMuted)
+                .padding(.horizontal, compact ? 10 : 12)
+                .padding(.vertical, compact ? 7 : 10)
+                .frame(maxWidth: compact ? nil : .infinity)
+                .accessibilityLabel("\(member.fullName) is your \(member.chamber == .senate ? "senator" : "representative")")
+        } else {
+            let on = follows.isFollowing(member)
+            Button { follows.toggle(member) } label: {
+                Text(on ? (compact ? "FOLLOWING" : "✓ FOLLOWING") : "FOLLOW")
+                    .font(Typography.label(compact ? 12 : 14))
+                    .tracking(0.6)
+                    .foregroundStyle(on ? Palette.text : Palette.ground)
+                    .padding(.horizontal, compact ? 10 : 12)
+                    .padding(.vertical, compact ? 7 : 10)
+                    .frame(maxWidth: compact ? nil : .infinity)
+                    .background(on ? Color.clear : Palette.threshold, in: .rect(cornerRadius: compact ? 8 : 9))
+                    .overlay {
+                        if on { RoundedRectangle(cornerRadius: compact ? 8 : 9).strokeBorder(Palette.raised, lineWidth: 1) }
+                    }
+                    .fixedSize(horizontal: compact, vertical: false)
             }
+            .buttonStyle(.plain)
+            .accessibilityLabel(on ? "Following \(member.fullName)" : "Follow \(member.fullName)")
+            .accessibilityHint(on ? "Unfollows" : "Adds their votes to Finals and your widgets")
+            .accessibilityAddTraits(on ? [.isSelected] : [])
         }
-        .task { if model.needsRefresh { await model.load() } }
     }
 }
 
@@ -323,9 +333,12 @@ struct RepRecordContent: View {
     }
 }
 
-#Preview("Your three") {
+#Preview("Member") {
     // Needs `npm run dev -w @floor/api`.
     NavigationStack {
-        YourThreeView(model: YourThreeModel(members: [.sample, .sampleSenator], api: FloorAPI(baseURL: FloorAPI.localDevelopment)))
+        RepScreenView(
+            model: RepScreenModel(bioguideId: Member.sample.bioguideId, api: FloorAPI(baseURL: FloorAPI.localDevelopment)),
+            follows: Follows(store: InMemoryFollowStore())
+        )
     }
 }
