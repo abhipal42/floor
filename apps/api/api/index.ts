@@ -84,6 +84,15 @@ const app = createApp({
   ...repositories,
   allowedOrigins,
   locate: (place) => locateDistrict(place, CONGRESS),
+  // The share page (src/share.ts). APPLE_TEAM_ID turns on the universal-link association file;
+  // unset, it answers 404 rather than name an app id that does not exist yet.
+  share: {
+    base: process.env.FLOOR_SHARE_BASE || undefined,
+    apiBase: process.env.FLOOR_PUBLIC_API_BASE || undefined,
+    getAppUrl: process.env.FLOOR_GET_APP_URL || undefined,
+    appleTeamId: process.env.APPLE_TEAM_ID || undefined,
+    bundleId: process.env.FLOOR_BUNDLE_ID || undefined,
+  },
 });
 
 export default handle(app);

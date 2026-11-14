@@ -997,6 +997,31 @@
           "votes"
         ]
       },
+      "BillShare": {
+        "type": "object",
+        "properties": {
+          "url": {
+            "type": "string",
+            "description": "The page to share; opens in the app where it is installed",
+            "example": "https://floor.app/bill/119/hr/5267"
+          },
+          "text": {
+            "type": "string",
+            "description": "The share sheet's line, to send with url. Neutral: what happened or is next, never a side",
+            "example": "H.R. 5267, the American Franchise Act, is up for a House vote the week of Nov 16. What it does and how our members vote:"
+          },
+          "kicker": {
+            "type": "string",
+            "description": "The preview card's kicker",
+            "example": "H.R. 5267 · ON THE FLOOR THIS WEEK"
+          }
+        },
+        "required": [
+          "url",
+          "text",
+          "kicker"
+        ]
+      },
       "AnalysisSource": {
         "type": "object",
         "properties": {
@@ -1880,6 +1905,43 @@
           "topics"
         ]
       },
+      "BillAlerts": {
+        "type": "object",
+        "properties": {
+          "floorScheduled": {
+            "type": "boolean",
+            "description": "\"Scheduled for the floor\": on a chamber's weekly floor schedule. Default on"
+          },
+          "chamberVote": {
+            "type": "boolean",
+            "description": "\"Passes or fails a chamber, with the score\". Default on"
+          },
+          "toPresident": {
+            "type": "boolean",
+            "description": "\"Sent to the President\". Default on"
+          },
+          "lawOrVeto": {
+            "type": "boolean",
+            "description": "\"Becomes law or is vetoed\". Default on"
+          },
+          "committee": {
+            "type": "boolean",
+            "description": "\"Committee action\": hearings, markups, reported. Default off"
+          },
+          "throughTopics": {
+            "type": "boolean",
+            "description": "\"Through topics too\": bills in a followed topic alert as if followed. Default off"
+          }
+        },
+        "required": [
+          "floorScheduled",
+          "chamberVote",
+          "toPresident",
+          "lawOrVeto",
+          "committee",
+          "throughTopics"
+        ]
+      },
       "DeviceRegistered": {
         "type": "object",
         "properties": {
@@ -1888,11 +1950,15 @@
           },
           "voteOpened": {
             "type": "boolean"
+          },
+          "billAlerts": {
+            "$ref": "#/components/schemas/BillAlerts"
           }
         },
         "required": [
           "subscriptions",
-          "voteOpened"
+          "voteOpened",
+          "billAlerts"
         ]
       },
       "DeviceSubscription": {
@@ -1902,17 +1968,18 @@
             "type": "string",
             "enum": [
               "member",
-              "bill"
+              "bill",
+              "topic"
             ]
           },
           "id": {
             "type": "string",
-            "description": "A Bioguide ID, or a Floor bill id (`119-hr-1013`)",
+            "description": "A Bioguide ID, a Floor bill id (`119-hr-1013`), or a topic's canonical name (`Health`, as /v1/topics names it)",
             "example": "D000399"
           },
           "howVoted": {
             "type": "boolean",
-            "description": "Alert when the vote is final: how a member voted, or that a followed bill was voted on. Off items are still listed, because \"A vote opened\" covers votes involving any of them"
+            "description": "Alert when the vote is final: how a member voted, or that a followed bill was voted on. Off items are still listed, because \"A vote opened\" covers votes involving any of them. Ignored for a topic"
           }
         },
         "required": [
@@ -1958,6 +2025,24 @@
               "$ref": "#/components/schemas/DeviceSubscription"
             },
             "maxItems": 1000
+          },
+          "billAlerts": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/BillAlerts"
+              },
+              {
+                "default": {
+                  "floorScheduled": true,
+                  "chamberVote": true,
+                  "toPresident": true,
+                  "lawOrVeto": true,
+                  "committee": false,
+                  "throughTopics": false
+                },
+                "description": "The \"Bills you follow\" switches. Omitted means the defaults"
+              }
+            ]
           }
         },
         "required": [
@@ -2466,6 +2551,45 @@
         }
       }
     },
+    "/v1/bills/{id}/share": {
+      "get": {
+        "summary": "What the app's share sheet sends for a bill: the link and a neutral line",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d{2,3}-(hr|hres|hjres|hconres|s|sres|sjres|sconres)-\\d+$",
+              "example": "119-hr-5267"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The link and its line",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BillShare"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No bill with that ID",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/bills/{id}/analysis": {
       "get": {
         "summary": "AI analysis of a bill's CRS summary: purpose, provisions, affected groups and impact, each line cited",
@@ -2858,7 +2982,7 @@
     "/v1/devices": {
       "put": {
         "summary": "Register this phone for alerts and Live Activities, or replace its registration",
-        "description": "The whole registration each time: tokens, \"A vote opened\", and every member and bill with its \"How they voted\" switch. Identified by the `Authorization: Device <key>` header (a random 32-byte key, base64url); no account, no address. Rate limited, 30 a minute per caller, shared with the other device routes.",
+        "description": "The whole registration each time: tokens, \"A vote opened\", every member and bill with its \"How they voted\" switch, every followed topic, and the \"Bills you follow\" switches (`billAlerts`). Identified by the `Authorization: Device <key>` header (a random 32-byte key, base64url); no account, no address. Rate limited, 30 a minute per caller, shared with the other device routes.",
         "security": [
           {
             "deviceKey": []
