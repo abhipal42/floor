@@ -8,6 +8,14 @@ is a milestone and ships a retro under `docs/retros/`.
 Older series live in [`docs/changelog/`](docs/changelog) (0.1.x: [`0.1.md`](docs/changelog/0.1.md)).
 Before 0.1.0 the history is the commit log on `main`.
 
+## 0.2.42 — 2026-11-16
+
+### Changed
+- **Floor signs on Ishan's Apple team** (`DCCFA8MX7A`, an individual team), not a team account still
+  to be made. `ios/project.yml` sets `DEVELOPMENT_TEAM` with automatic signing, and the share page's
+  `apple-app-site-association` names `DCCFA8MX7A.app.floor.ios` by default (`APPLE_TEAM_ID` still
+  overrides), so universal links need no Vercel setting. Unsigned CI builds are unaffected.
+
 ## 0.2.41 — 2026-11-16
 
 ### Fixed

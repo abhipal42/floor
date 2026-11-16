@@ -203,8 +203,10 @@ describe("share routes", () => {
     expect(cardTitleSize("x".repeat(100))).toBe(64);
   });
 
-  it("serves the universal-link association only once there is an Apple team", async () => {
-    expect((await appWith().request("/.well-known/apple-app-site-association")).status).toBe(404);
+  it("serves the universal-link association for Ishan's team unless told another", async () => {
+    const byDefault = await appWith().request("/.well-known/apple-app-site-association");
+    expect(byDefault.status).toBe(200);
+    expect(JSON.stringify(await byDefault.json())).toContain('"DCCFA8MX7A.app.floor.ios"');
     const res = await appWith({ appleTeamId: "ABCDE12345" }).request("/.well-known/apple-app-site-association");
     expect(res.status).toBe(200);
     expect(res.headers.get("content-type")).toMatch(/^application\/json/);

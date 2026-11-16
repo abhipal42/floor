@@ -2240,15 +2240,20 @@ the Bill screen's Share button are the app's half, in "Round 11 on the phone" be
   changed in `DEFAULT_SHARE_BASE`, `FloorLink.shareHost` and `FLOOR_APPLINKS_DOMAIN` together.
   Env on `floor-api` (all optional): `FLOOR_SHARE_BASE` (default `https://floor-web-seven.vercel.app`),
   `FLOOR_PUBLIC_API_BASE` (default `https://floor-api.vercel.app`), `FLOOR_GET_APP_URL` (default
-  the landing page's beta sign-up, `…/#get`, until there is an App Store listing), `APPLE_TEAM_ID`,
+  the landing page's beta sign-up, `…/#get`, until there is an App Store listing), `APPLE_TEAM_ID`
+  (default `DCCFA8MX7A`, Ishan's team, since v0.2.42),
   `FLOOR_BUNDLE_ID` (default `app.floor.ios`).
 - **Universal links:** `FloorLink` reads `https://floor-web-seven.vercel.app/bill/119/hr/5267` as
   `.bill(id: "119-hr-5267")`, and `floor://bill/<id>`; the shell opens it on Bills. The app asks for
   `com.apple.developer.associated-domains: applinks:$(FLOOR_APPLINKS_DOMAIN)` in `ios/project.yml`
   (default `floor-web-seven.vercel.app` since v0.2.41; v0.2.35's re-land dropped it, v0.2.37 restored it). Until the items below
-  are done, an https share link opens in the browser. **Left:** the Apple team, the
-  Associated Domains capability on the App ID, and `APPLE_TEAM_ID` on `floor-api` (skipped
-  for now by the owner's call, 2026-11-16), and a domain of our own if we want one.
+  are done, an https share link opens in the browser. **The Apple team is Ishan's**
+  (individual, `DCCFA8MX7A`; decided 2026-11-16): `DEVELOPMENT_TEAM` in `ios/project.yml` and
+  `DEFAULT_APPLE_TEAM_ID` in `share.ts`, so the association file needs no env. Xcode's automatic
+  signing registers the App ID, App Group, iCloud store and Associated Domains on a signed build
+  (`-allowProvisioningUpdates`, with the Apple ID signed in to Xcode). **Left:** that first signed
+  build, and the `APNS_*` variables (apps/worker/src/apns.ts) on the always-on worker, wherever
+  `live` runs; the team's push key is reusable for any app on the team. A domain of our own later.
 - **Where the build differs from the mock, and why:** the lookup asks for an address, not a ZIP,
   and its privacy line is not "Not stored." (lesson 63); the card's footer is the share domain, not
   a tagline the mock did not give.

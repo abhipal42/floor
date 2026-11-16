@@ -86,8 +86,8 @@ const app = createApp({
   locate: (place) => locateDistrict(place, CONGRESS),
   // Off unless set: financial disclosures wait on the §13107(c) question (HANDOFF.md).
   disclosuresEnabled: process.env.DISCLOSURES_ENABLED === "true",
-  // The share page (src/share.ts). APPLE_TEAM_ID turns on the universal-link association file;
-  // unset, it answers 404 rather than name an app id that does not exist yet.
+  // The share page (src/share.ts). The universal-link association file names the app on
+  // share.ts's DEFAULT_APPLE_TEAM_ID unless APPLE_TEAM_ID overrides it.
   share: {
     base: process.env.FLOOR_SHARE_BASE || undefined,
     apiBase: process.env.FLOOR_PUBLIC_API_BASE || undefined,
