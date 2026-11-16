@@ -1,0 +1,17 @@
+{
+  "filingId": "house-9116165",
+  "member": "N000002",
+  "filer": "Jerrold Lewis Nadler",
+  "report": "2025 Annual (Form A), hand-delivered 2026-05-14, 5 pages, handwritten",
+  "sourceUrl": "https://disclosures-clerk.house.gov/public_disc/financial-pdfs/2025/9116165.pdf",
+  "transcribedBy": "ai",
+  "transcribedOn": "2026-11-16",
+  "notes": "Schedule A as written, in its order. No asset type is written on the form, so none is given. The two retirement-system rows say 'Undetermined, see Schedule C'; Schedule C lists the NYS pension's income and the spouse's NYC pension. Schedule D's liabilities (a joint Wells Fargo mortgage on the personal residence, a spouse's Chase card) are not assets and Floor does not show liabilities.",
+  "assets": [
+    { "name": "Citizens Bank", "owner": "self", "value": "$1,001 - $15,000" },
+    { "name": "Cong. Fed Credit Union", "owner": "self", "value": "$1,001 - $15,000" },
+    { "name": "NYS Employee Retirement System", "owner": "self", "value": "Undetermined" },
+    { "name": "JPMorgan Chase", "owner": "spouse", "value": "$1,001 - $15,000" },
+    { "name": "NYS Employee Retirement System", "owner": "spouse", "value": "Undetermined" }
+  ]
+}

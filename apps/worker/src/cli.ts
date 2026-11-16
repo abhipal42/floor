@@ -16,6 +16,7 @@ import { StatusAlerter } from "./alert.js";
 import { ApnsSender, apnsConfigFromEnv } from "./apns.js";
 import { PushBroadcaster, composeBroadcasters, pruneDevices } from "./push.js";
 import { disclosureSource, ingestDisclosures, parseDisclosureArgs } from "./disclosures.js";
+import { loadTranscription, readTranscriptions } from "./transcriptions.js";
 import { BillEventPusher } from "./billevents.js";
 
 const USAGE = `Usage:
@@ -35,6 +36,8 @@ const USAGE = `Usage:
   npm run ingest -w @floor/worker -- analyze [limit]              (AI analysis of bills whose CRS summary has none or changed; default 25; needs ANTHROPIC_API_KEY)
   npm run ingest -w @floor/worker -- schedule                     (the week ahead: the House's weekly list for this week and next, the
                                          Senate's next convening, and with CONGRESS_API_KEY its Daily Digest program)
+  npm run ingest -w @floor/worker -- transcriptions
+                                         (load apps/worker/transcriptions/*.json into the paper filings they transcribe)
   npm run ingest -w @floor/worker -- disclosures <house|senate> [--year N] [--budget N]
                                          (financial disclosures: annual reports' assets and PTR trades; default the last
                                           three years' indexes and 150 requests, one every 1.5 s; documents cached under
@@ -180,6 +183,11 @@ async function main() {
         }
       } finally {
         conn.release();
+      }
+    } else if (command === "transcriptions") {
+      const dir = new URL("../transcriptions/", import.meta.url).pathname;
+      for (const t of readTranscriptions(dir)) {
+        console.log(`${t.filingId}: ${await loadTranscription(db, t)} (${t.assets.length} assets)`);
       }
     } else if (command === "disclosures") {
       const opts = parseDisclosureArgs(args, new Date());

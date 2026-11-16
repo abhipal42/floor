@@ -8,6 +8,20 @@ is a milestone and ships a retro under `docs/retros/`.
 Older series live in [`docs/changelog/`](docs/changelog) (0.1.x: [`0.1.md`](docs/changelog/0.1.md)).
 Before 0.1.0 the history is the commit log on `main`.
 
+## 0.2.44 — 2026-11-16
+
+### Added
+- **Paper filings can be transcribed, labelled as AI.** A disclosure the worker can't read (a
+  scanned or handwritten PDF) can now be filled from a transcription kept in the repo,
+  `apps/worker/transcriptions/<filing id>.json`, loaded by `ingest -- transcriptions` (also a daily
+  step in `ingest.yml`) into the same tables, with `disclosure_filings.transcribed_by = 'ai'`
+  (migration `20261118000000`). The API returns `annual.transcribed`; the app puts the AI tag over
+  the rows: "Transcribed by Floor's AI from a handwritten filing. May contain errors; check the
+  original below." A transcription only fills a filing held as paper, never an electronic one.
+  First: Jerry Nadler's 2025 report (NY-12, five assets, handwritten). Lesson 73.
+- **The app icon is Floor's mark**: the landing page's green F (`apps/web/public/favicon.svg`), in
+  light, dark and tinted variants. The app had none.
+
 ## 0.2.43 — 2026-11-16
 
 ### Fixed

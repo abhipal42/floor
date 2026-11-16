@@ -1261,8 +1261,9 @@ export function pgDisclosures(db: Db): DisclosureRepository {
         amendment: boolean;
         source_url: string;
         parse_status: string;
+        transcribed_by: string | null;
       }>(
-        `select id, report_year, to_char(filed_on, 'YYYY-MM-DD') as filed_on, amendment, source_url, parse_status
+        `select id, report_year, to_char(filed_on, 'YYYY-MM-DD') as filed_on, amendment, source_url, parse_status, transcribed_by
            from disclosure_filings
           where member_id = $1 and kind = 'annual'
           order by report_year desc nulls last, filed_on desc nulls last, id desc
@@ -1292,6 +1293,7 @@ export function pgDisclosures(db: Db): DisclosureRepository {
           filedAt: latest.filed_on,
           amendment: latest.amendment,
           sourceUrl: latest.source_url,
+          transcribed: latest.transcribed_by === "ai",
           assets: assets.map((a) => ({
             name: a.name,
             type: a.asset_type,

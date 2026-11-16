@@ -168,6 +168,15 @@ struct Round11SnapshotTests {
         assertScreen(NavigationStack { RepScreenView(model: model, section: .money) }, height: 1700)
     }
 
+    /// A handwritten report Floor's AI transcribed: the AI tag above the rows, the link below.
+    @Test func disclosuresTranscribed() async throws {
+        let model = RepScreenModel(bioguideId: "N000002", api: FixtureServer.api)
+        model.moneySegment = .disclosures
+        await model.load()
+        await model.disclosures.load()
+        assertScreen(NavigationStack { RepScreenView(model: model, section: .money) }, height: 800, [.light, .dark])
+    }
+
     /// Off, as production serves it: the placeholder with the API's own reason.
     @Test func disclosuresOff() async throws {
         let model = RepScreenModel(bioguideId: "C001056", api: FixtureServer.api)

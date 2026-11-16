@@ -231,6 +231,7 @@ struct DisclosuresFigures: View {
         if let annual = disclosures.annual {
             label(["ASSETS", annual.year.map { "\($0) ANNUAL REPORT" }, annual.amendment ? "AMENDED" : nil]
                 .compactMap(\.self).joined(separator: " · "))
+            if annual.transcribed { TranscribedNote() }
             if annual.assets.isEmpty {
                 note("The report lists no assets.")
             }
@@ -379,5 +380,31 @@ struct DisclosuresFigures: View {
     static func day(_ string: String) -> String? {
         if let text = Formats.dayText(string) { return text }
         return Formats.instant(string)?.formatted(date: .abbreviated, time: .omitted)
+    }
+}
+
+/// The AI tag on rows Floor's AI read off a paper filing (product rule "AI is labelled and cited"):
+/// the bill screen's `.lab` look, and the report link stays right under the rows.
+struct TranscribedNote: View {
+    static let text = "Transcribed by Floor's AI from a handwritten filing. May contain errors; check the original below."
+
+    var body: some View {
+        HStack(alignment: .firstTextBaseline, spacing: 7) {
+            Text("AI")
+                .font(Typography.label(11))
+                .tracking(1.1)
+                .foregroundStyle(Palette.aiInk)
+                .padding(.vertical, 4)
+                .padding(.horizontal, 6)
+                .background(Palette.ai, in: .rect(cornerRadius: 5))
+                .fixedSize()
+            Text(Self.text)
+                .font(.caption2.weight(.medium))
+                .foregroundStyle(Palette.ai)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .padding(.horizontal, 2)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("AI. \(Self.text)")
     }
 }

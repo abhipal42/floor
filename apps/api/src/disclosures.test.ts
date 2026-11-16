@@ -121,7 +121,8 @@ describe("pgDisclosures", () => {
     await pg.exec(`
       insert into members (bioguide_id, first_name, last_name, party, state, district, chamber, term_start, term_end) values
         ('A000055', 'Robert', 'Aderholt', 'R', 'AL', 4, 'house', '2025-01-03', '2027-01-03'),
-        ('P000001', 'Paper', 'Filer', 'D', 'NY', 1, 'house', '2025-01-03', '2027-01-03');
+        ('P000001', 'Paper', 'Filer', 'D', 'NY', 1, 'house', '2025-01-03', '2027-01-03'),
+        ('T000001', 'Trans', 'Cribed', 'D', 'NY', 12, 'house', '2025-01-03', '2027-01-03');
       insert into disclosure_filings (id, chamber, member_id, filer_name, kind, amendment, report_year, filed_on, source_url, format, parse_status) values
         ('house-1', 'house', 'A000055', 'Robert B. Aderholt', 'annual', false, 2024, '2025-05-15', 'https://x/1.pdf', 'electronic', 'parsed'),
         ('house-2', 'house', 'A000055', 'Robert B. Aderholt', 'annual', false, 2025, '2026-08-13', 'https://x/2.pdf', 'electronic', 'parsed'),
@@ -129,7 +130,11 @@ describe("pgDisclosures", () => {
         ('house-4', 'house', 'A000055', 'Robert B. Aderholt', 'ptr', false, null, '2025-06-01', 'https://x/4.pdf', 'electronic', 'parsed'),
         ('house-5', 'house', 'A000055', 'Robert B. Aderholt', 'ptr', false, null, '2026-02-01', 'https://x/5.pdf', 'paper', 'paper'),
         ('house-6', 'house', 'P000001', 'Paper Filer', 'annual', false, 2024, '2025-05-15', 'https://x/6.pdf', 'electronic', 'parsed'),
-        ('house-7', 'house', 'P000001', 'Paper Filer', 'annual', false, 2025, '2026-05-15', 'https://x/7.pdf', 'paper', 'paper');
+        ('house-7', 'house', 'P000001', 'Paper Filer', 'annual', false, 2025, '2026-05-15', 'https://x/7.pdf', 'paper', 'paper'),
+        ('house-8', 'house', 'T000001', 'Trans Cribed', 'annual', false, 2025, '2026-05-14', 'https://x/8.pdf', 'paper', 'parsed');
+      update disclosure_filings set transcribed_by = 'ai' where id = 'house-8';
+      insert into disclosure_assets (filing_id, position, name, owner, value_range) values
+        ('house-8', 1, 'Citizens Bank', 'self', '$1,001 - $15,000');
       insert into disclosure_assets (filing_id, position, name, asset_type, asset_type_code, owner, value_range) values
         ('house-1', 1, 'Old Report Asset', 'Stocks (including ADRs)', 'ST', 'self', '$1,001 - $15,000'),
         ('house-2', 2, 'Bank Independent - ***0165D', 'Bank Accounts, Money Market Accounts and CDs', 'BA', 'self', '$15,001 - $50,000'),
@@ -150,11 +155,19 @@ describe("pgDisclosures", () => {
       filedAt: "2026-08-13",
       amendment: false,
       sourceUrl: "https://x/2.pdf",
+      transcribed: false,
     });
     expect(d.annual?.assets.map((a) => [a.name, a.value, a.typeCode])).toEqual([
       ["abrdn Healthcare Investors (HQH)", "$15,001 - $50,000", "ST"],
       ["Bank Independent - ***0165D", "$15,001 - $50,000", "BA"],
     ]);
+  });
+
+  it("marks an annual report Floor's AI transcribed from paper, and serves its rows like any other", async () => {
+    const d = await repo.disclosures("T000001", now);
+    expect(d.annual).toMatchObject({ year: 2025, transcribed: true, sourceUrl: "https://x/8.pdf" });
+    expect(d.annual?.assets.map((a) => [a.name, a.value, a.type])).toEqual([["Citizens Bank", "$1,001 - $15,000", null]]);
+    expect(d.paperFilings).toEqual([]);
   });
 
   it("serves a year of trades with the days to file against the 45-day limit", async () => {

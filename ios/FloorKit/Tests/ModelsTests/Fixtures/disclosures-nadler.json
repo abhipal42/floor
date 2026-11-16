@@ -1,0 +1,70 @@
+{
+  "enabled": true,
+  "deadlineDays": 45,
+  "annual": {
+    "year": 2025,
+    "filedAt": "2026-05-14",
+    "amendment": false,
+    "sourceUrl": "https://disclosures-clerk.house.gov/public_disc/financial-pdfs/2025/9116165.pdf",
+    "transcribed": true,
+    "assets": [
+      {
+        "name": "Citizens Bank",
+        "type": null,
+        "typeCode": null,
+        "account": null,
+        "owner": "self",
+        "value": "$1,001 - $15,000",
+        "incomeType": null,
+        "income": null,
+        "description": null
+      },
+      {
+        "name": "Cong. Fed Credit Union",
+        "type": null,
+        "typeCode": null,
+        "account": null,
+        "owner": "self",
+        "value": "$1,001 - $15,000",
+        "incomeType": null,
+        "income": null,
+        "description": null
+      },
+      {
+        "name": "NYS Employee Retirement System",
+        "type": null,
+        "typeCode": null,
+        "account": null,
+        "owner": "self",
+        "value": "Undetermined",
+        "incomeType": null,
+        "income": null,
+        "description": null
+      },
+      {
+        "name": "JPMorgan Chase",
+        "type": null,
+        "typeCode": null,
+        "account": null,
+        "owner": "spouse",
+        "value": "$1,001 - $15,000",
+        "incomeType": null,
+        "income": null,
+        "description": null
+      },
+      {
+        "name": "NYS Employee Retirement System",
+        "type": null,
+        "typeCode": null,
+        "account": null,
+        "owner": "spouse",
+        "value": "Undetermined",
+        "incomeType": null,
+        "income": null,
+        "description": null
+      }
+    ]
+  },
+  "trades": [],
+  "paperFilings": []
+}

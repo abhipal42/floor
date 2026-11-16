@@ -14,6 +14,14 @@ struct DisclosuresTests {
         #expect(off.trades.isEmpty)
     }
 
+    /// A paper report Floor's AI transcribed carries the flag; an electronic one, or an older API, doesn't.
+    @Test func transcribedIsReadAndDefaultsToFalse() throws {
+        let nadler = try #require(try fixture("disclosures-nadler", as: Disclosures.self).annual)
+        #expect(nadler.transcribed)
+        #expect(nadler.assets.map(\.name).first == "Citizens Bank")
+        #expect(try fixture("disclosures-doggett", as: Disclosures.self).annual?.transcribed == false)
+    }
+
     @Test func onReadsRangesAsFiled() throws {
         let on = try fixture("disclosures-doggett", as: Disclosures.self)
         #expect(on.enabled)
