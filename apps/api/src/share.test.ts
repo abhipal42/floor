@@ -45,7 +45,7 @@ describe("the share line and link", () => {
     expect(shareText(bill, week)).toBe(
       "H.R. 5267, the American Franchise Act, is up for a House vote the week of Nov 16. What it does and how our members vote:",
     );
-    expect(shareUrl(bill)).toBe("https://floor.app/bill/119/hr/5267");
+    expect(shareUrl(bill)).toBe("https://floor-web-seven.vercel.app/bill/119/hr/5267");
   });
 
   it("says where it stands when nothing is scheduled, and names no title it does not have", () => {
@@ -136,7 +136,7 @@ describe("share routes", () => {
     const res = await appWith().request("/v1/bills/119-hr-5267/share");
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual({
-      url: "https://floor.app/bill/119/hr/5267",
+      url: "https://floor-web-seven.vercel.app/bill/119/hr/5267",
       text: "H.R. 5267, the American Franchise Act, is up for a House vote the week of Nov 16. What it does and how our members vote:",
       kicker: "H.R. 5267 · ON THE FLOOR THE WEEK OF NOV 16",
     });
@@ -148,9 +148,9 @@ describe("share routes", () => {
     expect(res.status).toBe(200);
     expect(res.headers.get("content-type")).toMatch(/^text\/html/);
     const html = await res.text();
-    expect(html).toContain('<meta property="og:image" content="https://floor.app/bill/119/hr/5267/card.png">');
+    expect(html).toContain('<meta property="og:image" content="https://floor-web-seven.vercel.app/bill/119/hr/5267/card.png">');
     expect(html).toContain('<meta name="twitter:card" content="summary_large_image">');
-    expect(html).toContain('<meta property="og:url" content="https://floor.app/bill/119/hr/5267">');
+    expect(html).toContain('<meta property="og:url" content="https://floor-web-seven.vercel.app/bill/119/hr/5267">');
     expect(html).toContain("<h1>American Franchise Act</h1>");
     expect(html).toContain("H.R. 5267 · ON THE FLOOR THE WEEK OF NOV 16");
     expect(html).toContain("<p>It applies to franchises.</p>");

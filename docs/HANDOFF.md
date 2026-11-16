@@ -126,8 +126,8 @@ Command Line Tools rather than Xcode: run it with `DEVELOPER_DIR=/Applications/X
 | `GET /v1/votes/{id}` | One vote (like every vote the API returns, with `explainer`: `{kind, text, source}`, the hand-written line for its question from `votekinds.ts`, or null for a question with no line, lesson 58): totals, threshold, kind, bill link, **per-party breakdown**, and for a Speaker election **which candidate each party backed**. `?members=A000370,C001098` (up to ten) also returns those members' own positions, so the vote screen loads your delegation in one round trip. IDs look like `house-119-1-100` |
 | `GET /v1/bills/{id}` | Title, short title, the list `label` (as `BillListItem.label`), the road-to-law `stage` (null until staged; read through `to_jsonb(b) ->> 'stage'`, so a database without the catalog migration still serves bills), CRS summary, sponsor, policy area, CBO estimates, last 30 actions, every vote on it. IDs look like `119-hr-2207` |
 | `GET /v1/bills/{id}/analysis` | AI analysis of the bill's CRS summary (M4 Layer 1): purpose, provisions, affected groups, impact. `ai: true` on the response and on every line, a `disclaimer` to show with it, and per line the summary paragraph it cites (1-based, into `source.paragraphs`), a verbatim quote and the bill section. `source.stale` means the summary has changed since and a new analysis is pending. 404 until the worker has analysed the bill (the app reads that as "none" and saves it like a response). Shown at the top of the Bill screen since v0.2.27 |
-| `GET /v1/bills/{id}/share` | What the app's share sheet sends: `{url, text, kicker}` — `https://floor.app/bill/119/hr/5267`, the neutral line ("H.R. 5267, the American Franchise Act, is up for a House vote the week of Nov 16. What it does and how our members vote:", else where it stands), and the preview card's kicker. Round 11, section D; see "Bill alerts and the share link" |
-| `GET /bill/{congress}/{type}/{number}` | The share page itself (HTML, not in the OpenAPI document): kicker, title, CRS summary, the road to law, latest action, recorded votes, an address lookup of how your members voted (in the browser, against `/v1/reps` and `/v1/votes/{id}`), "Get Floor for iPhone". OG and Twitter tags; `…/card.png` is the 1200×630 preview card. A proper 404 page for an unknown or malformed bill. floor.app proxies `/bill/*` here (root `vercel.json`) |
+| `GET /v1/bills/{id}/share` | What the app's share sheet sends: `{url, text, kicker}` — `https://floor-web-seven.vercel.app/bill/119/hr/5267`, the neutral line ("H.R. 5267, the American Franchise Act, is up for a House vote the week of Nov 16. What it does and how our members vote:", else where it stands), and the preview card's kicker. Round 11, section D; see "Bill alerts and the share link" |
+| `GET /bill/{congress}/{type}/{number}` | The share page itself (HTML, not in the OpenAPI document): kicker, title, CRS summary, the road to law, latest action, recorded votes, an address lookup of how your members voted (in the browser, against `/v1/reps` and `/v1/votes/{id}`), "Get Floor for iPhone". OG and Twitter tags; `…/card.png` is the 1200×630 preview card. A proper 404 page for an unknown or malformed bill. the landing page (`floor-web-seven.vercel.app`) proxies `/bill/*` here (root `vercel.json`) |
 | `GET /.well-known/apple-app-site-association` | Universal links for `/bill/*`, naming `APPLE_TEAM_ID.FLOOR_BUNDLE_ID`. **404 until `APPLE_TEAM_ID` is set** on `floor-api` (the Apple team is not set up yet) |
 | `GET /v1/nominations/{id}` | Nominee, position, agency, received and latest action, every Senate vote on it. IDs look like `119-pn-1093-3` |
 | `GET /v1/live?since=` | Each chamber's session state as the live worker last saw it (`inSession`, `convenesAt`, `checkedAt`), and the votes that are `open` (named in the last day) or that the worker published as `final` within `since` minutes (`broadcast_at`; default 120, max 1440) and that were themselves voted in the last day, with `openedAt` / `announcedAt` / `postedAt`, and (v0.2.30) `measure` — an open vote's bill read from its `billRef`, since it is linked only once final. Sent with `Cache-Control: public, max-age=5, s-maxage=5`, so Vercel's edge answers vote-night polling. Empty — `{chambers: [], votes: []}`, not an error — on a database without the M3 migration (Postgres `42P01`/`42703` are read as "nothing live"), and until the worker runs |
@@ -664,6 +664,15 @@ Real data broke our first assumptions several times. Each case below is now hand
     would have been served. `vercel.json` now sets `outputDirectory: "public"`, which holds only
     `robots.txt`; `.vercelignore` was not the fix, since it would also drop `src/` from the function.
     The production smoke asserts `/src/app.ts` is 404.
+71. **Check who owns a domain before the code links to it, and where a secret actually lives.**
+    Round 11 built every share link on `https://floor.app`, the mock's domain. When Abhi went to
+    point it at Vercel, Vercel said it does not exist in our account: someone else owns it (it
+    resolves to a server that is not ours). Every link the share sheet built since v0.2.37 pointed
+    at a stranger's site. Share links now use the landing page's own domain,
+    `floor-web-seven.vercel.app`. The same day, the ingest kept logging "DATABASE_URL secret is not set"
+    after Abhi set both secrets: they were in the repo's `fafo` **environment**, which a job sees
+    only when it names it (`environment: fafo` in `ingest.yml`). `gh api
+    repos/OWNER/REPO/environments/NAME/secrets` lists them; `gh secret list` shows repo-level only.
 
 ---
 
@@ -2223,21 +2232,23 @@ the Bill screen's Share button are the app's half, in "Round 11 on the phone" be
   and "In Taxation, a topic you follow." when it came through a topic.
 - **The share page** (`apps/api/src/share.ts`), served by the API because the API has the bill. A
   strict CSP: no script but the page's own, allowed by its SHA-256, which reads the API base and the
-  vote ids from `data-` attributes, and `connect-src` only the API. **For floor.app:** the root
-  `vercel.json` (the `floor-web` project, whose root is the repo root) proxies `/bill/*` and the
-  association file to `floor-api.vercel.app`. The page's lookups go to the API directly, so
-  `https://floor.app` must be added to `ALLOWED_ORIGINS` on `floor-api` once the domain is live.
-  Env on `floor-api` (all optional): `FLOOR_SHARE_BASE` (default `https://floor.app`),
+  vote ids from `data-` attributes, and `connect-src` only the API. **The share domain is the landing
+  page's, `floor-web-seven.vercel.app`** (v0.2.41): floor.app, the design's domain, belongs to someone else
+  (lesson 71). The root `vercel.json` (the `floor-web` project, whose root is the repo root)
+  proxies `/bill/*` and the association file to `floor-api.vercel.app`. The page's lookups go to the
+  API directly, so a domain we buy later must be added to `ALLOWED_ORIGINS` on `floor-api`, and
+  changed in `DEFAULT_SHARE_BASE`, `FloorLink.shareHost` and `FLOOR_APPLINKS_DOMAIN` together.
+  Env on `floor-api` (all optional): `FLOOR_SHARE_BASE` (default `https://floor-web-seven.vercel.app`),
   `FLOOR_PUBLIC_API_BASE` (default `https://floor-api.vercel.app`), `FLOOR_GET_APP_URL` (default
   the landing page's beta sign-up, `…/#get`, until there is an App Store listing), `APPLE_TEAM_ID`,
   `FLOOR_BUNDLE_ID` (default `app.floor.ios`).
-- **Universal links:** `FloorLink` reads `https://floor.app/bill/119/hr/5267` (and `www.`) as
+- **Universal links:** `FloorLink` reads `https://floor-web-seven.vercel.app/bill/119/hr/5267` as
   `.bill(id: "119-hr-5267")`, and `floor://bill/<id>`; the shell opens it on Bills. The app asks for
   `com.apple.developer.associated-domains: applinks:$(FLOOR_APPLINKS_DOMAIN)` in `ios/project.yml`
-  (default `floor.app`; v0.2.35's re-land dropped it, v0.2.37 restored it). Until the items below
+  (default `floor-web-seven.vercel.app` since v0.2.41; v0.2.35's re-land dropped it, v0.2.37 restored it). Until the items below
   are done, an https share link opens in the browser. **Left:** the Apple team, the
-  Associated Domains capability on the App ID, `APPLE_TEAM_ID` on `floor-api`, and the floor.app
-  domain itself (it is the design's; nothing points it at Vercel yet).
+  Associated Domains capability on the App ID, and `APPLE_TEAM_ID` on `floor-api` (skipped
+  for now by the owner's call, 2026-11-16), and a domain of our own if we want one.
 - **Where the build differs from the mock, and why:** the lookup asks for an address, not a ZIP,
   and its privacy line is not "Not stored." (lesson 63); the card's footer is the share domain, not
   a tagline the mock did not give.
@@ -2285,7 +2296,7 @@ the routes of v0.2.31, v0.2.34 and v0.2.35. Every screen follows the app's desig
   (or the three choices, marked "you pick"). Nothing is stored: the text lives in the sheet's
   `@State` and goes with it. No AI anywhere in it.
 - **Share:** `ShareLink` with `GET /v1/bills/{id}/share`'s url and text; offline, `ShareFallback`
-  builds `https://floor.app/bill/<congress>/<type>/<number>` and the same sentence from the bill.
+  builds `FloorLink.shareBase` + `/bill/<congress>/<type>/<number>` and the same sentence from the bill.
 - **Vote explainers:** "What this vote is" above the score, folding to its header, the line and its
   rule; no `explainer` is no card. "?" opens "Kinds of vote" (`VoteKindsView`, `GET
   /v1/vote-kinds`, saved for offline): every entry in the registry's order, with its chamber,

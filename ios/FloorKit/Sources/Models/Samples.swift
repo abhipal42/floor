@@ -302,7 +302,7 @@ public extension BillAlerts {
 
 public extension BillShare {
     static let sample = BillShare(
-        url: "https://floor.app/bill/119/hr/5267",
+        url: "https://floor-web-seven.vercel.app/bill/119/hr/5267",
         text: "H.R. 5267, the American Franchise Act, is up for a House vote the week of Nov 16. What it does and how our members vote:",
         kicker: "H.R. 5267 · ON THE FLOOR THIS WEEK"
     )

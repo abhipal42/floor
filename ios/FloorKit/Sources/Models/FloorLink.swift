@@ -1,7 +1,7 @@
 import Foundation
 
 /// The `floor://` links the widgets and alerts open the app with, and the share link
-/// `https://floor.app/bill/119/hr/5267` when iOS hands it to the app (a universal link).
+/// `https://floor-web-seven.vercel.app/bill/119/hr/5267` when iOS hands it to the app (a universal link).
 ///
 /// One type builds them (the widget) and parses them (the app's `onOpenURL`), so the two can't
 /// disagree about the shape. The scheme is registered under `CFBundleURLTypes` in `ios/project.yml`,
@@ -20,7 +20,12 @@ public enum FloorLink: Sendable, Hashable {
 
     public static let scheme = "floor"
     /// The hosts whose `/bill/{congress}/{type}/{number}` pages are share links (the API serves them).
-    public static let shareHosts: Set<String> = ["floor.app", "www.floor.app"]
+    /// Not floor.app, the design's domain: someone else owns it (HANDOFF lesson 71). Change this,
+    /// `FLOOR_APPLINKS_DOMAIN` and the API's `DEFAULT_SHARE_BASE` together.
+    public static let shareHost = "floor-web-seven.vercel.app"
+    public static let shareHosts: Set<String> = [shareHost]
+    /// The origin share links are built on.
+    public static let shareBase = "https://\(shareHost)"
 
     public var url: URL {
         switch self {
@@ -47,7 +52,7 @@ public enum FloorLink: Sendable, Hashable {
             String($0).removingPercentEncoding
         }
         if url.scheme?.lowercased() == "https", let host = url.host?.lowercased(), Self.shareHosts.contains(host) {
-            // https://floor.app/bill/119/hr/1013
+            // https://floor-web-seven.vercel.app/bill/119/hr/1013
             guard parts.count == 4, parts[0] == "bill", let congress = parts[1], let type = parts[2], let number = parts[3]
             else { return nil }
             let id = "\(congress)-\(type)-\(number)"

@@ -1,5 +1,5 @@
 /**
- * The share link (round 11, section D "Share a bill"): `https://floor.app/bill/119/hr/5267`.
+ * The share link (round 11, section D "Share a bill"): `https://floor-web-seven.vercel.app/bill/119/hr/5267`.
  *
  * The app's share sheet sends a neutral line and this link (`GET /v1/bills/{id}/share` gives both).
  * The link is a real page that works without the app — title, CRS summary, where the bill stands on
@@ -7,7 +7,7 @@
  * iPhone" — and its preview card is a PNG rendered here (`/bill/…/card.png`: satori lays it out
  * as SVG, resvg's WebAssembly build rasterizes it; no native module, no headless browser). An unknown bill is a 404 page, not an empty one.
  *
- * It is served by the API because the API has the bill data; floor.app proxies `/bill/*` and
+ * It is served by the API because the API has the bill data; the landing page proxies `/bill/*` and
  * `/.well-known/apple-app-site-association` here (the root `vercel.json`, the `floor-web` project).
  * With the app installed and the associated-domains entitlement signed, iOS opens the same link in
  * the app instead (`FloorLink` reads it); until the Apple team exists, the association file answers
@@ -25,8 +25,12 @@ import { BILL_LABEL } from "./bills.js";
 
 type Chamber = "house" | "senate";
 
-/** Where share links point. floor.app is the locked design's domain; `FLOOR_SHARE_BASE` overrides it. */
-export const DEFAULT_SHARE_BASE = "https://floor.app";
+/**
+ * Where share links point: the landing page's domain, whose `vercel.json` hands `/bill/*` to this API.
+ * Not floor.app, the locked design's domain, which someone else owns (lesson 71). `FLOOR_SHARE_BASE`
+ * overrides it, so a domain we buy later is an env change plus this default.
+ */
+export const DEFAULT_SHARE_BASE = "https://floor-web-seven.vercel.app";
 /** Where the page's browser-side lookups go. */
 export const DEFAULT_API_BASE = "https://floor-api.vercel.app";
 /** "Get Floor for iPhone": the beta sign-up on the landing page, until there is an App Store listing. */

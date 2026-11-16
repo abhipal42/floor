@@ -1270,7 +1270,7 @@
           "url": {
             "type": "string",
             "description": "The page to share; opens in the app where it is installed",
-            "example": "https://floor.app/bill/119/hr/5267"
+            "example": "https://floor-web-seven.vercel.app/bill/119/hr/5267"
           },
           "text": {
             "type": "string",
