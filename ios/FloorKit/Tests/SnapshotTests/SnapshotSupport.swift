@@ -215,6 +215,14 @@ final class FixtureServer: URLProtocol {
         "/v1/votes/senate-119-2-253?members=C001056,C001098": "vote-cloture-explained",
         "/v1/search?q=rural%20health": "search-rural-health",
         "/v1/search?q=hr%201013": "search-hr1013",
+        // Round 12, members-elect: El-Sayed (Michigan, Senate) as the contract has him, and a layout
+        // sample of undecided seats (the mock's SAMPLE, not a real race).
+        "/v1/members-elect": "members-elect-mi",
+        "/v1/members-elect/elect-2026-mi-sen": "member-elect-mi-sen",
+        "/v1/search?q=michigan&chamber=senate": "search-michigan-senate",
+        "/v1/members?q=michigan&limit=100&chamber=senate": "members-search-michigan-senate",
+        "/v1/search?q=pending%20sample&chamber=house": "search-pending-sample",
+        "/v1/members?q=pending%20sample&limit=100&chamber=house": "members-search-pending-sample",
     ]
 
     static var api: FloorAPI { api(FixtureServer.self) }

@@ -232,6 +232,42 @@ struct FloorAPITests {
         #expect(try await offline.api.billAnalysis(id: "119-hr-1") == nil)
     }
 
+    // MARK: - Members-elect
+
+    @Test func asksForAStatesMembersElect() async throws {
+        let session = StubURLProtocol.session(always: .response(status: 200, body: try fixtureData("members-elect-mi")))
+        let found = try await FloorAPI(baseURL: base, session: session).membersElect(state: "MI")
+        #expect(StubURLProtocol.lastURL?.absoluteString == "https://api.example.test/v1/members-elect?state=MI")
+        #expect(found.elect.map(\.lastName) == ["El-Sayed"])
+        #expect(found.pending.isEmpty)
+    }
+
+    /// An API without the route yet: none, not an error, so Home shows its members as before.
+    @Test func anAPIWithoutMembersElectReadsAsNone() async throws {
+        let session = StubURLProtocol.session(always: .json(#"{"error":"Not found"}"#, status: 404))
+        let found = try await FloorAPI(baseURL: base, session: session).membersElect()
+        #expect(found == MembersElect())
+        #expect(StubURLProtocol.lastURL?.absoluteString == "https://api.example.test/v1/members-elect")
+    }
+
+    @Test func decodesAMemberElectsProfile() async throws {
+        let session = StubURLProtocol.session(always: .response(status: 200, body: try fixtureData("member-elect-mi-sen")))
+        let profile = try #require(try await FloorAPI(baseURL: base, session: session).memberElect(id: "elect-2026-mi-sen"))
+        #expect(StubURLProtocol.lastURL?.absoluteString == "https://api.example.test/v1/members-elect/elect-2026-mi-sen")
+        #expect(profile.funding?.receipts == 53_830_872)
+        #expect(profile.disclosure == nil)
+    }
+
+    /// Unknown, or past taking office: nil ("no longer listed"), and saved as such for offline.
+    @Test func aMemberElectNoLongerListedIsNoneAndIsSaved() async throws {
+        let cache = try SwiftDataResponseCache.inMemory()
+        let session = StubURLProtocol.session(always: .json(#"{"error":"No member-elect elect-2026-mi-sen"}"#, status: 404))
+        let api = FloorAPI(baseURL: base, session: session, cache: cache)
+        #expect(try await api.memberElect(id: "elect-2026-mi-sen") == nil)
+        let offline = try #require(api.savedOnly())
+        #expect(try await offline.api.memberElect(id: "elect-2026-mi-sen") == nil)
+    }
+
     /// A 404 that isn't the API's own (a proxy's page, a misrouted base URL) says nothing about the
     /// bill: an error, and nothing saved.
     @Test func aForeign404IsAnErrorNotNone() async throws {

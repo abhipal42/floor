@@ -20,8 +20,9 @@ public final class FollowSearchModel {
         /// `billNumber`: the query read as a bill number, so these are that bill in each Congress.
         case bills([BillListItem], billNumber: Bool)
         /// Empty when words matched topics or bills but no member: the sheet says so under the
-        /// heading, as the mock does.
-        case members([Member])
+        /// heading, as the mock does. `elect` and `pending`: members-elect and undecided seats
+        /// matching the same query (round 12), drawn in the delegation they belong to.
+        case members([Member], elect: [MemberElect] = [], pending: [PendingSeat] = [])
     }
 
     public var query = ""
@@ -29,6 +30,9 @@ public final class FollowSearchModel {
     public var chamber: Chamber?
     /// The results for ``searched``; kept while a newer search loads, so the list doesn't blink.
     public private(set) var results: SearchResults?
+    /// Members-elect and undecided seats matching the same text, from `/v1/members?q=` (which
+    /// `/v1/search` does not carry); empty when that request fails, which never fails the search.
+    public private(set) var seats = MembersElect()
     /// The text the results are for, or nil before any search has finished.
     public private(set) var searched: String?
     public private(set) var isLoading = false
@@ -52,17 +56,32 @@ public final class FollowSearchModel {
     /// The results as the sheet groups them. A bill number is that bill and nothing else. Words
     /// show topics and bills only when there are some, and members always — with nothing found
     /// anywhere, no sections at all, and the sheet says nothing matched.
-    public nonisolated static func sections(_ results: SearchResults) -> [Section] {
+    public nonisolated static func sections(_ results: SearchResults, seats: MembersElect = MembersElect()) -> [Section] {
         if results.billNumber { return results.bills.isEmpty ? [] : [.bills(results.bills, billNumber: true)] }
-        guard !(results.topics.isEmpty && results.bills.isEmpty && results.members.isEmpty) else { return [] }
+        guard !(results.topics.isEmpty && results.bills.isEmpty && results.members.isEmpty
+            && seats.elect.isEmpty && seats.pending.isEmpty) else { return [] }
         var sections: [Section] = []
         if !results.topics.isEmpty { sections.append(.topics(results.topics)) }
         if !results.bills.isEmpty { sections.append(.bills(results.bills, billNumber: false)) }
-        sections.append(.members(results.members))
+        sections.append(.members(results.members, elect: seats.elect, pending: seats.pending))
         return sections
     }
 
-    public var sections: [Section] { results.map(Self.sections) ?? [] }
+    public var sections: [Section] { results.map { Self.sections($0, seats: seats) } ?? [] }
+
+    /// A state's delegation by chamber, Senate first: each chamber's members with its elects under
+    /// the members they replace and its undecided seats (``SeatRow/rows(members:elect:pending:)``).
+    /// A chamber with nothing in it is left out.
+    public nonisolated static func seatGroups(
+        _ members: [Member], elect: [MemberElect], pending: [PendingSeat]
+    ) -> [(chamber: Chamber, members: Int, rows: [SeatRow])] {
+        [Chamber.senate, .house].compactMap { chamber in
+            let these = members.filter { $0.chamber == chamber }
+            let rows = SeatRow.rows(members: these, elect: elect.filter { $0.chamber == chamber },
+                                    pending: pending.filter { $0.chamber == chamber })
+            return rows.isEmpty ? nil : (chamber, these.count, rows)
+        }
+    }
 
     /// What the sheet's `.task(id:)` watches: a new chamber searches again, as a keystroke does.
     public var key: String { "\(chamber?.rawValue ?? "all")|\(query)" }
@@ -108,9 +127,13 @@ public final class FollowSearchModel {
         }
         isLoading = true
         do {
+            // Side by side: the elects ride on `/v1/members?q=`, and their failure is no failure.
+            async let elect = try? api.searchMembers(query: text, chamber: chamber)
             let found = try await api.search(query: text, chamber: chamber)
+            let seatsFound = await elect
             guard !Task.isCancelled else { return }
             results = found
+            seats = MembersElect(elect: seatsFound?.elect ?? [], pending: seatsFound?.pending ?? [])
             searched = text
             error = nil
             isLoading = false
@@ -132,19 +155,24 @@ public struct AddFollowsView: View {
     let reps: [String]
     let onOpenBill: (String) -> Void
     let onOpenTopic: (String) -> Void
+    let onOpenElect: (String) -> Void
     @Environment(\.dismiss) private var dismiss
     @FocusState private var focused: Bool
 
-    /// - Parameter reps: your reps' Bioguide IDs; their rows read "Your rep" rather than Follow.
+    /// - Parameters:
+    ///   - reps: your reps' Bioguide IDs; their rows read "Your rep" rather than Follow.
+    ///   - onOpenElect: a member-elect's row, by elect id.
     public init(
         model: FollowSearchModel, follows: Follows, reps: [String],
-        onOpenBill: @escaping (String) -> Void, onOpenTopic: @escaping (String) -> Void
+        onOpenBill: @escaping (String) -> Void, onOpenTopic: @escaping (String) -> Void,
+        onOpenElect: @escaping (String) -> Void = { _ in }
     ) {
         _model = State(initialValue: model)
         self.follows = follows
         self.reps = reps
         self.onOpenBill = onOpenBill
         self.onOpenTopic = onOpenTopic
+        self.onOpenElect = onOpenElect
     }
 
     public var body: some View {
@@ -265,8 +293,8 @@ public struct AddFollowsView: View {
                                hint: "Adds its votes to Finals") { follows.toggle(bill: bill) }
                 }
             }
-        case let .members(members):
-            if members.isEmpty, let searched = model.searched {
+        case let .members(members, elect, pending):
+            if members.isEmpty, elect.isEmpty, pending.isEmpty, let searched = model.searched {
                 heading(model.chamber.map { "\($0.name.uppercased()) MEMBERS" } ?? "MEMBERS")
                 Text("No \(model.chamber.map { "\($0.name) " } ?? "")members match \u{201C}\(searched)\u{201D}.")
                     .scaledFont(12.5)
@@ -277,10 +305,30 @@ public struct AddFollowsView: View {
                     .overlay(RoundedRectangle(cornerRadius: 14).strokeBorder(Palette.panelBorder, style: StrokeStyle(lineWidth: 1, dash: [5, 4])))
             }
             // By chamber, as v0.2.28's member search grouped them: a whole state is 40 rows.
-            ForEach(FollowSearchModel.groups(members), id: \.chamber) { group in
-                heading("\(group.chamber.name.uppercased()) · \(group.members.count)")
-                ForEach(group.members) { member in memberRow(member) }
+            // Members-elect sit under the member whose seat they take (round 12, section A).
+            ForEach(FollowSearchModel.seatGroups(members, elect: elect, pending: pending), id: \.chamber) { group in
+                heading(group.members > 0 ? "\(group.chamber.name.uppercased()) · \(group.members)" : group.chamber.name.uppercased())
+                ForEach(group.rows) { row in seatRow(row) }
             }
+        }
+    }
+
+    @ViewBuilder
+    private func seatRow(_ row: SeatRow) -> some View {
+        switch row {
+        case let .member(member, leavingOn):
+            if leavingOn == nil {
+                memberRow(member)
+            } else {
+                SeatMemberRow(member, leavingOn: leavingOn, caption: FollowingText.caption(member)) {
+                    FollowButton(member: member, follows: follows, isRep: reps.contains(member.bioguideId), compact: true)
+                }
+            }
+        case let .elect(elect):
+            Button { open { onOpenElect(elect.id) } } label: { ElectRow(elect) }
+                .buttonStyle(.plain)
+        case let .pending(seat):
+            PendingSeatCard(seat)
         }
     }
 

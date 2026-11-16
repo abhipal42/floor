@@ -10,12 +10,15 @@ public struct Member: Codable, Sendable, Hashable, Identifiable {
     /// nil for senators.
     public var district: Int?
     public var chamber: Chamber
+    /// `YYYY-MM-DD`: the day they leave, when a member-elect replaces them and that day has not come
+    /// (`2027-01-03`). nil otherwise, and in a response from an API older than members-elect.
+    public var leavingOn: String?
 
     public var id: String { bioguideId }
 
     public init(
         bioguideId: String, firstName: String, lastName: String, party: String, state: String,
-        district: Int?, chamber: Chamber
+        district: Int?, chamber: Chamber, leavingOn: String? = nil
     ) {
         self.bioguideId = bioguideId
         self.firstName = firstName
@@ -24,6 +27,7 @@ public struct Member: Codable, Sendable, Hashable, Identifiable {
         self.state = state
         self.district = district
         self.chamber = chamber
+        self.leavingOn = leavingOn
     }
 
     public var fullName: String { "\(firstName) \(lastName)" }
@@ -211,10 +215,25 @@ public struct District: Codable, Sendable, Hashable {
 public struct Reps: Codable, Sendable, Hashable {
     public var district: District
     public var members: [Member]
+    /// Members-elect for these seats only (the state's Senate seats, this House district), and the
+    /// seats among them with no winner yet. Empty from an older API and once they take office.
+    public var elect: [MemberElect]
+    public var pending: [PendingSeat]
 
-    public init(district: District, members: [Member]) {
+    public init(district: District, members: [Member], elect: [MemberElect] = [], pending: [PendingSeat] = []) {
         self.district = district
         self.members = members
+        self.elect = elect
+        self.pending = pending
+    }
+
+    private enum CodingKeys: String, CodingKey { case district, members, elect, pending }
+
+    public init(from decoder: any Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        district = try c.decode(District.self, forKey: .district)
+        members = try c.decode([Member].self, forKey: .members)
+        (elect, pending) = ElectLists.decode(c, elect: .elect, pending: .pending)
     }
 
     public var representative: Member? { members.first { $0.chamber == .house } }

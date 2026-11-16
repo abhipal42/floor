@@ -78,6 +78,7 @@ public struct FloorShell: View {
                     onOpenMember: { followingPath.append(.member(id: $0.bioguideId)) },
                     onOpenBill: { followingPath.append(.bill(id: $0)) },
                     onOpenTopic: { followingPath.append(.topic(name: $0)) },
+                    onOpenElect: { followingPath.append(.elect(id: $0)) },
                     onOpenAlerts: { followingPath.append(.alerts) },
                     onFindReps: onFindReps,
                     onChangeAddress: onChangeAddress
@@ -169,6 +170,9 @@ public struct FloorShell: View {
                 path.wrappedValue.append(.vote(id: vote.id))
             }
             .navigationTitle("Member")
+        case let .elect(id):
+            ElectScreenView(model: model.electScreen(id: id))
+                .navigationTitle("Member-elect")
         case .catchUp:
             CatchUpDeckView(model: model) { path.wrappedValue.append(.vote(id: $0)) }
                 .navigationTitle("Catch up")

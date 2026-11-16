@@ -109,6 +109,19 @@ struct PaletteTests {
         #expect(Swatch.contrast(Tones.textMuted.light, lightTint) < 4.5)
     }
 
+    /// The ELECT tag prints `electInk` on an `elect` fill; the takes-office banner is the ground
+    /// washed with `elect`, with its title in `elect` and its line in `textSecondary`.
+    @Test func electTagAndBannerRead() {
+        #expect(Swatch.contrast(Tones.electInk.light, Tones.elect.light) >= 4.5)
+        #expect(Swatch.contrast(Tones.electInk.dark, Tones.elect.dark) >= 4.5)
+        for (name, pick) in [("light", { (s: Swatch) in s.light }), ("dark", { (s: Swatch) in s.dark })] {
+            let tint = Swatch.mix(pick(Tones.elect), over: pick(Tones.ground), opacity: Tones.electTint)
+            for (token, swatch) in [("textSecondary", Tones.textSecondary), ("elect", Tones.elect)] {
+                #expect(Swatch.contrast(pick(swatch), tint) >= 4.5, "\(token) on the elect banner, \(name)")
+            }
+        }
+    }
+
     @Test func mixCompositesChannelByChannel() {
         #expect(Swatch.mix(0xFFFFFF, over: 0x000000, opacity: 0.5) == 0x808080)
         #expect(Swatch.mix(0x5B3FB5, over: 0xECEFEE, opacity: 0) == 0xECEFEE)
