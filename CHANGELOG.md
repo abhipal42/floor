@@ -8,6 +8,15 @@ is a milestone and ships a retro under `docs/retros/`.
 Older series live in [`docs/changelog/`](docs/changelog) (0.1.x: [`0.1.md`](docs/changelog/0.1.md)).
 Before 0.1.0 the history is the commit log on `main`.
 
+## 0.2.43 — 2026-11-16
+
+### Fixed
+- **Disclosures no longer say members don't report their homes.** A member need not report a home
+  that earns nothing, but one that does is reportable: with disclosures switched on in production,
+  the first asset on Pelosi's report is "11 Zinfandel Lane - Home & Vineyard" (grape sales), under a
+  line saying homes aren't reported. Both lines now read that a home is listed only when it earns
+  income. The four disclosure snapshots are re-recorded (lesson 72).
+
 ## 0.2.42 — 2026-11-16
 
 ### Changed

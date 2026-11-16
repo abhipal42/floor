@@ -178,7 +178,7 @@ struct DisclosuresFigures: View {
                 assets
                 trades
                 paper
-                Text("From the member's own filings. Ranges as filed; Floor doesn't estimate a total, and members don't report their homes.")
+                Text("From the member's own filings. Ranges as filed; Floor doesn't estimate a total. A home is listed only when it earns income.")
                     .scaledFont(10.5, weight: .medium)
                     .foregroundStyle(Palette.textMuted)
                     .fixedSize(horizontal: false, vertical: true)
@@ -211,7 +211,7 @@ struct DisclosuresFigures: View {
             VStack(alignment: .leading, spacing: 8) {
                 Text("REPORTED ASSETS · RANGES, AS FILED")
                     .font(.caption2).tracking(0.7).foregroundStyle(Palette.textMuted)
-                Text("Members report what they own and owe in value bands, and leave out their homes. "
+                Text("Members report what they own and owe in value bands, and leave out a home unless it earns income. "
                     + "When this loads, Floor will show those ranges as filed, and their trades — never a "
                     + "single net-worth figure.")
                     .font(.footnote)
