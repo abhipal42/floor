@@ -1,0 +1,6 @@
+# Windows needs CRLF in its wrapper script; everything else stays LF.
+gradlew.bat text eol=crlf
+gradlew text eol=lf
+*.jar binary
+*.png binary
+*.ttf binary

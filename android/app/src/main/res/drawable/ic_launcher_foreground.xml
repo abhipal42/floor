@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The iOS app icon's slanted F (ios/Floor/Assets.xcassets/AppIcon), traced from its 1024 px
+     master and scaled into the adaptive icon's safe zone. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="1024"
+    android:viewportHeight="1024">
+    <group
+        android:pivotX="512"
+        android:pivotY="512"
+        android:scaleX="0.68"
+        android:scaleY="0.68">
+        <path
+            android:fillColor="@color/icon_glyph"
+            android:pathData="M431,224 L752,224 L727,336 L537,336 L509,464 L688,464 L663,576 L483,576 L429,800 L304,800 Z" />
+    </group>
+</vector>

@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Mirrors Tones.ground (light) for the window behind the first frame, which is drawn before
+         Compose and cannot read the Kotlin tokens. values-night holds the dark one. -->
+    <color name="ground">#ECEFEE</color>
+    <!-- The app icon is the same in both appearances, as on iOS: the dark ground and the dark yea. -->
+    <color name="icon_ground">#07080A</color>
+    <color name="icon_glyph">#34D399</color>
+</resources>
