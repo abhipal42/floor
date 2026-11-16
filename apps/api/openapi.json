@@ -911,7 +911,7 @@
               "paper",
               "unparsed"
             ],
-            "description": "paper: a scanned filing Floor does not read (no OCR guesses); unparsed: an electronic filing Floor could not read"
+            "description": "paper: a scanned filing Floor holds only as a link (it reads none by machine, and has not transcribed this one); unparsed: an electronic filing Floor could not read"
           }
         },
         "required": [
@@ -956,6 +956,10 @@
               "sourceUrl": {
                 "type": "string"
               },
+              "transcribed": {
+                "type": "boolean",
+                "description": "true when Floor's AI transcribed these rows from a paper (handwritten or scanned) filing: label them AI, say they may contain errors, and link the original"
+              },
               "assets": {
                 "type": "array",
                 "items": {
@@ -968,6 +972,7 @@
               "filedAt",
               "amendment",
               "sourceUrl",
+              "transcribed",
               "assets"
             ],
             "description": "The latest annual report Floor has read; null when there is none"

@@ -112,6 +112,11 @@ jobs:
       - name: Senate disclosures
         if: steps.install.outcome == 'success' && (github.event_name == 'workflow_dispatch' || github.event.schedule == '17 6 * * *') && !cancelled()
         run: npm run ingest -w @floor/worker -- disclosures senate --budget 150
+      # Paper filings someone transcribed (apps/worker/transcriptions, lesson 73), after both listings
+      # so a filing listed today is filled today. Idempotent: a reload replaces the filing's rows.
+      - name: Transcribed paper filings
+        if: steps.install.outcome == 'success' && (github.event_name == 'workflow_dispatch' || github.event.schedule == '17 6 * * *') && !cancelled()
+        run: npm run ingest -w @floor/worker -- transcriptions
       - name: Bill catalog
         if: steps.install.outcome == 'success' && env.CONGRESS_API_KEY != '' && !cancelled()
         env:

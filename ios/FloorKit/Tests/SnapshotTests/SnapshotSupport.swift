@@ -206,6 +206,9 @@ final class FixtureServer: URLProtocol {
         "/v1/vote-kinds": "vote-kinds",
         "/v1/members/D000399/disclosures": "disclosures-doggett",
         "/v1/members/C001056/disclosures": "disclosures-off",
+        // Nadler's 2025 report, handwritten, as Floor's AI transcribed it (lesson 73).
+        "/v1/members/N000002": "member-detail-nadler",
+        "/v1/members/N000002/disclosures": "disclosures-nadler",
         // Routes whose answer depends on the query, keyed path and query as sent.
         "/v1/schedule?week=2026-11-16": "schedule-2026-11-16",
         "/v1/schedule?week=2026-11-23": "schedule-2026-11-23",

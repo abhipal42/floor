@@ -1,0 +1,23 @@
+{
+    "member": {
+        "bioguideId": "N000002",
+        "firstName": "Jerrold",
+        "lastName": "Nadler",
+        "party": "D",
+        "state": "NY",
+        "district": 12,
+        "chamber": "house"
+    },
+    "partyLoyalty": {
+        "votes": 1790,
+        "withParty": 1750,
+        "againstParty": 40
+    },
+    "contact": {
+        "phone": "202-225-5635",
+        "contactForm": null,
+        "website": "https://nadler.house.gov",
+        "office": "2132 Rayburn House Office Building",
+        "address": "2132 Rayburn House Office Building Washington DC 20515-3212"
+    }
+}

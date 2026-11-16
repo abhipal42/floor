@@ -63,18 +63,22 @@ public struct AnnualDisclosure: Codable, Sendable, Hashable {
     /// An amendment to an earlier report.
     public var amendment: Bool
     public var sourceUrl: String?
+    /// Floor's AI transcribed these rows from a paper (handwritten or scanned) filing: shown with
+    /// the AI tag, "may contain errors", and the link to the original (HANDOFF lesson 73).
+    public var transcribed: Bool
     public var assets: [DisclosedAsset]
 
-    public init(year: Int?, filedAt: String?, amendment: Bool, sourceUrl: String?, assets: [DisclosedAsset]) {
+    public init(year: Int?, filedAt: String?, amendment: Bool, sourceUrl: String?, transcribed: Bool = false, assets: [DisclosedAsset]) {
         self.year = year
         self.filedAt = filedAt
         self.amendment = amendment
         self.sourceUrl = sourceUrl
+        self.transcribed = transcribed
         self.assets = assets
     }
 
     private enum CodingKeys: String, CodingKey {
-        case year, filedAt, amendment, sourceUrl, assets
+        case year, filedAt, amendment, sourceUrl, transcribed, assets
     }
 
     public init(from decoder: any Decoder) throws {
@@ -83,6 +87,7 @@ public struct AnnualDisclosure: Codable, Sendable, Hashable {
         filedAt = try? c.decodeIfPresent(String.self, forKey: .filedAt)
         amendment = (try? c.decodeIfPresent(Bool.self, forKey: .amendment)) ?? false
         sourceUrl = try? c.decodeIfPresent(String.self, forKey: .sourceUrl)
+        transcribed = (try? c.decodeIfPresent(Bool.self, forKey: .transcribed)) ?? false
         assets = ((try? c.decodeIfPresent([LossyElement<DisclosedAsset>].self, forKey: .assets)) ?? []).compactMap(\.value)
     }
 }

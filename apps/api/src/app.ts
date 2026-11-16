@@ -312,7 +312,8 @@ export const PaperFilingSchema = z
     filedAt: z.string().nullable(),
     sourceUrl: z.string(),
     status: z.enum(["paper", "unparsed"]).openapi({
-      description: "paper: a scanned filing Floor does not read (no OCR guesses); unparsed: an electronic filing Floor could not read",
+      description:
+        "paper: a scanned filing Floor holds only as a link (it reads none by machine, and has not transcribed this one); unparsed: an electronic filing Floor could not read",
     }),
   })
   .openapi("PaperFiling");
@@ -328,6 +329,10 @@ export const DisclosuresSchema = z
         filedAt: z.string().nullable(),
         amendment: z.boolean(),
         sourceUrl: z.string(),
+        transcribed: z.boolean().openapi({
+          description:
+            "true when Floor's AI transcribed these rows from a paper (handwritten or scanned) filing: label them AI, say they may contain errors, and link the original",
+        }),
         assets: z.array(DisclosureAssetSchema),
       })
       .nullable()
