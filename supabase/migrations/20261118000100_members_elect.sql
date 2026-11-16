@@ -20,7 +20,10 @@ create table members_elect (
   district smallint,                             -- null for the Senate; 0 at large
   chamber chamber not null,
   replaces text references members (bioguide_id), -- the member leaving that seat; null when unknown
-  takes_office date not null,
+  takes_office date not null,                    -- the regular term's start; for on_certification, only the latest it can be
+  -- A special election's winner (not its incumbent) takes office once the state certifies the
+  -- result, on a date no source gives in advance: the app says "when <state> certifies", not a date.
+  on_certification boolean not null default false,
   called_by text not null check (called_by in ('AP', 'House Clerk')),
   called_on date,
   source_url text not null,

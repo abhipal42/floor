@@ -1395,6 +1395,7 @@ interface ElectRow {
   district: number | null;
   chamber: "house" | "senate";
   takes_office: string;
+  on_certification: boolean;
   called_by: "AP" | "House Clerk";
   called_on: string | null;
   source_url: string;
@@ -1407,10 +1408,17 @@ interface ElectRow {
 
 const ELECT_SELECT = `
   select e.id, e.bioguide_id, e.first_name, e.last_name, e.party, e.state, e.district, e.chamber,
-         to_char(e.takes_office, 'YYYY-MM-DD') as takes_office, e.called_by, to_char(e.called_on, 'YYYY-MM-DD') as called_on,
+         to_char(e.takes_office, 'YYYY-MM-DD') as takes_office, e.on_certification, e.called_by, to_char(e.called_on, 'YYYY-MM-DD') as called_on,
          e.source_url, e.fec_candidate_id,
          r.bioguide_id as r_id, r.first_name as r_first, r.last_name as r_last, r.party as r_party
     from members_elect e left join members r on r.bioguide_id = e.replaces`;
+
+/**
+ * An elect stops being served once congress-legislators lists someone sworn into that seat after the
+ * election (a special election's winner takes office on certification, weeks before January 3).
+ */
+const NOT_SWORN = `not exists (select 1 from members s where s.state = e.state and s.chamber = e.chamber
+    and s.district is not distinct from e.district and s.term_start > make_date(e.cycle, 11, 3))`;
 
 const holder = (id: string | null, first: string | null, last: string | null, party: string | null) =>
   id && first !== null && last !== null && party !== null ? { bioguideId: id, firstName: first, lastName: last, party } : null;
@@ -1425,6 +1433,7 @@ const toElect = (r: ElectRow): MemberElect => ({
   district: r.district,
   chamber: r.chamber,
   takesOffice: r.takes_office,
+  takesOfficeOnCertification: r.on_certification,
   replaces: holder(r.r_id, r.r_first, r.r_last, r.r_party),
   call: { by: r.called_by, on: r.called_on, sourceUrl: r.source_url },
   fecCandidateId: r.fec_candidate_id,
@@ -1443,7 +1452,7 @@ export function pgElect(db: Db, now: () => number = Date.now): ElectRepository {
   let cached: { today: string; at: number; seats: Promise<{ elect: MemberElect[]; pending: PendingSeat[] }> } | null = null;
   const read = async (today: string) => {
     const [elect, pending] = await Promise.all([
-      query<ElectRow>(`${ELECT_SELECT} where e.takes_office > $1::date order by case e.chamber when 'senate' then 0 else 1 end, e.state, e.district, e.id`, [today]),
+      query<ElectRow>(`${ELECT_SELECT} where e.takes_office > $1::date and ${NOT_SWORN} order by case e.chamber when 'senate' then 0 else 1 end, e.state, e.district, e.id`, [today]),
       query<{
         id: string;
         state: string;
@@ -1496,7 +1505,7 @@ export function pgElect(db: Db, now: () => number = Date.now): ElectRepository {
         ElectRow & { receipts: string | null; disbursements: string | null; coverage_end: string | null; finance_cycle: number | null }
       >(
         `${ELECT_SELECT.replace("e.fec_candidate_id,", "e.fec_candidate_id, e.receipts, e.disbursements, to_char(e.coverage_end, 'YYYY-MM-DD') as coverage_end, e.finance_cycle,")}
-          where e.id = $1 and e.takes_office > $2::date`,
+          where e.id = $1 and e.takes_office > $2::date and ${NOT_SWORN}`,
         [id, today],
       );
       const r = rows[0];

@@ -1,7 +1,7 @@
 import { PGlite } from "@electric-sql/pglite";
 import { loadMigrations } from "@floor/db";
 import { beforeEach, describe, expect, it } from "vitest";
-import { createApp, electFor, NO_CONTACT, type Member, type MemberElect } from "./app.js";
+import { createApp, electFor, NO_CONTACT, withLeaving, type Member, type MemberElect } from "./app.js";
 import type { DistrictMatch } from "./district.js";
 import { pgElect, type Db } from "./pg.js";
 import { parseMemberQuery } from "./search.js";
@@ -21,6 +21,7 @@ const elSayed: MemberElect = {
   district: null,
   chamber: "senate",
   takesOffice: "2027-01-03",
+  takesOfficeOnCertification: false,
   replaces: { bioguideId: "P000595", firstName: "Gary", lastName: "Peters", party: "D" },
   call: { by: "AP", on: "2026-11-04", sourceUrl: SOURCE },
   fecCandidateId: "S6MI00418",
@@ -190,6 +191,39 @@ describe("members-elect beside the members they replace", () => {
     expect(after).toEqual({ members: [{ ...peters, leavingOn: null }], elect: [], pending: [] });
     expect((await json(appAt("2027-01-03T15:00:00Z"), "/v1/members/P000595")).body.member.leavingOn).toBeNull();
     expect((await json(app, "/v1/members/P000595")).body.member.leavingOn).toBe("2027-01-03");
+  });
+});
+
+describe("a special election's winner, who takes office on certification", () => {
+  // Ohio 2026: Sherrod Brown won the special election for the rest of JD Vance's term over the
+  // appointed Sen. Husted (AP). He is sworn in once Ohio certifies, on a date no source gives ahead.
+  // The IDs (X0000xx) and the swearing-in date below are test stand-ins, not real records.
+  beforeEach(async () => {
+    await pg.exec(`
+      insert into members (bioguide_id, first_name, last_name, party, state, district, chamber, term_start, term_end) values
+        ('X000001', 'Jon', 'Husted', 'R', 'OH', null, 'senate', '2025-01-21', '2029-01-03');
+      insert into members_elect (id, cycle, first_name, last_name, party, state, chamber, replaces, takes_office, on_certification,
+                                 called_by, called_on, source_url)
+        values ('elect-2026-oh-sen', 2026, 'Sherrod', 'Brown', 'D', 'OH', 'senate', 'X000001', '2027-01-03', true, 'AP',
+                '2026-11-03', 'https://apnews.com/projects/elections-2026/ohio-us-senate-results');
+    `);
+  });
+
+  it("says so, and gives the outgoing senator no leaving date rather than a wrong one", async () => {
+    const { body } = await json(appAt("2026-11-16T15:00:00Z"), "/v1/members-elect?state=OH");
+    expect(body.elect.map((e: MemberElect) => [e.id, e.takesOfficeOnCertification, e.replaces?.bioguideId])).toEqual([
+      ["elect-2026-oh-sen", true, "X000001"],
+    ]);
+    expect(withLeaving([{ ...peters, bioguideId: "X000001", state: "OH" }], body.elect)[0]!.leavingOn).toBeNull();
+  });
+
+  it("drops the elect once congress-legislators lists a senator sworn into that seat after the election", async () => {
+    await pg.exec(`insert into members (bioguide_id, first_name, last_name, party, state, district, chamber, term_start, term_end)
+                   values ('X000002', 'Sherrod', 'Brown', 'D', 'OH', null, 'senate', '2026-12-08', '2029-01-03')`);
+    const app = appAt("2026-12-09T15:00:00Z");
+    expect((await json(app, "/v1/members-elect?state=OH")).body.elect).toEqual([]);
+    expect((await json(app, "/v1/members-elect/elect-2026-oh-sen")).status).toBe(404);
+    expect((await json(app, "/v1/members-elect?state=MI")).body.elect.map((e: MemberElect) => e.id)).toEqual(["elect-2026-mi-sen"]);
   });
 });
 

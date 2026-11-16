@@ -153,7 +153,12 @@
           },
           "takesOffice": {
             "type": "string",
+            "description": "The regular term's start; with takesOfficeOnCertification, only the latest date",
             "example": "2027-01-03"
+          },
+          "takesOfficeOnCertification": {
+            "type": "boolean",
+            "description": "A special election's winner takes office once the state certifies the result, on a date no source gives in advance (Ohio, 2026)"
           },
           "replaces": {
             "$ref": "#/components/schemas/SeatHolder"
@@ -177,6 +182,7 @@
           "district",
           "chamber",
           "takesOffice",
+          "takesOfficeOnCertification",
           "replaces",
           "call",
           "fecCandidateId"

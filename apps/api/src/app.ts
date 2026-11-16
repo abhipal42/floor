@@ -377,7 +377,10 @@ export const MemberElectSchema = z
     state: z.string().openapi({ example: "MI" }),
     district: z.number().int().nullable().openapi({ description: "null for the Senate; 0 at large" }),
     chamber: ChamberSchema,
-    takesOffice: z.string().openapi({ example: "2027-01-03" }),
+    takesOffice: z.string().openapi({ example: "2027-01-03", description: "The regular term's start; with takesOfficeOnCertification, only the latest date" }),
+    takesOfficeOnCertification: z.boolean().openapi({
+      description: "A special election's winner takes office once the state certifies the result, on a date no source gives in advance (Ohio, 2026)",
+    }),
     replaces: SeatHolderSchema.nullable(),
     call: z
       .object({
@@ -494,7 +497,8 @@ export function electFor(
 
 /** Members with `leavingOn` from the elect that replaces them; null for everyone else. */
 export function withLeaving<M extends Member>(members: M[], elect: MemberElect[]): M[] {
-  const leaving = new Map(elect.filter((e) => e.replaces).map((e) => [e.replaces!.bioguideId, e.takesOffice]));
+  // A seat that changes hands on certification has no date to show, so no leavingOn rather than a wrong one.
+  const leaving = new Map(elect.filter((e) => e.replaces && !e.takesOfficeOnCertification).map((e) => [e.replaces!.bioguideId, e.takesOffice]));
   return members.map((m) => ({ ...m, leavingOn: leaving.get(m.bioguideId) ?? null }));
 }
 

@@ -8,6 +8,25 @@ is a milestone and ships a retro under `docs/retros/`.
 Older series live in [`docs/changelog/`](docs/changelog) (0.1.x: [`0.1.md`](docs/changelog/0.1.md)).
 Before 0.1.0 the history is the commit log on `main`.
 
+## 0.2.45 — 2026-11-16
+
+### Added
+- **Members-elect, server side** (round 12, locked mock https://claude.ai/artifact/Hod9RDLS1DgxapLeBcA3QY).
+  Floor never calls a race: each elect names who did and links it.
+  - Senate: `apps/worker/elections/2026-senate.json`, all 35 races of 2026 from the AP's calls, each
+    with its source: 18 new senators-elect, 16 re-elected, Alaska uncalled (a pending seat, no name).
+    `ingest -- elections` loads it; a correction in the file corrects the database.
+  - House: `ingest -- members-elect-house 120` reads the Clerk's member-elect XML once it is
+    published (late December; 404 until then, a no-op).
+  - FEC totals for each elect (`fec-elect`) and House candidate reports (`elect-disclosures`, served
+    only with disclosures on). Senate candidate reports are not read yet.
+  - API: `GET /v1/members-elect[?state=]`, `GET /v1/members-elect/{id}`, `leavingOn` on members, and
+    `elect`/`pending` on `/v1/reps` and `/v1/members`. All of it stops on January 3, or for a seat as
+    soon as someone sworn in after the election holds it.
+  - A special election's winner (Ohio: Sherrod Brown) takes office on certification, so they carry
+    `takesOfficeOnCertification` and no invented date. Lesson 74.
+  - Migration `20261118000100`. The iOS screens follow in the next release.
+
 ## 0.2.44 — 2026-11-16
 
 ### Added

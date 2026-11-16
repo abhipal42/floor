@@ -1,16 +1,770 @@
 {
-  "races": [
-    {
-      "state": "MI",
-      "special": false,
-      "incumbent": { "name": "Gary Peters", "party": "D", "running": false },
-      "status": "called",
-      "winner": { "firstName": "Abdul", "lastName": "El-Sayed", "party": "D", "isIncumbent": false, "fecCandidateId": "S6MI00418" },
-      "calledBy": "AP",
-      "calledOn": "2026-11-04",
-      "runoffOn": null,
-      "sourceUrl": "https://www.wsbtv.com/news/trending/election-2026-abdul-el-sayed-prevails-win-us-senate-seat-michigan/DGWW7OLFAVCKBH3ZXXU5Y46YVE/",
-      "note": null
-    }
-  ]
+ "compiledOn": "2026-11-16",
+ "calledOnBasis": "Eastern Time date of the AP call, from AP's chronology of 2026 Senate calls. AP state results pages print call times in UTC.",
+ "races": [
+  {
+   "state": "AL",
+   "special": false,
+   "incumbent": {
+    "name": "Tommy Tuberville",
+    "party": "R",
+    "running": false
+   },
+   "status": "called",
+   "winner": {
+    "firstName": "Barry",
+    "lastName": "Moore",
+    "party": "R",
+    "isIncumbent": false,
+    "fecCandidateId": "S6AL00476"
+   },
+   "calledBy": "AP",
+   "calledOn": "2026-11-03",
+   "runoffOn": null,
+   "sourceUrl": "https://apnews.com/projects/elections-2026/alabama-us-senate-results",
+   "note": "Tuberville ran for governor instead. AP call 11:18 PM ET Nov 3."
+  },
+  {
+   "state": "AK",
+   "special": false,
+   "incumbent": {
+    "name": "Dan Sullivan",
+    "party": "R",
+    "running": true
+   },
+   "status": "uncalled",
+   "winner": null,
+   "calledBy": null,
+   "calledOn": null,
+   "runoffOn": null,
+   "sourceUrl": "https://apnews.com/projects/elections-2026/alaska-us-senate-results",
+   "note": "Not called by AP as of compile date. AP results page (updated Nov 13) shows Peltola (D) leading Sullivan (R) with neither above 50%; Alaska Public Media (Nov 13) says AP has not called it. If no first-choice majority, ranked-choice tabulation is scheduled for Nov 18. Not a runoff. Do not infer a winner."
+  },
+  {
+   "state": "AR",
+   "special": false,
+   "incumbent": {
+    "name": "Tom Cotton",
+    "party": "R",
+    "running": true
+   },
+   "status": "called",
+   "winner": {
+    "firstName": "Tom",
+    "lastName": "Cotton",
+    "party": "R",
+    "isIncumbent": true,
+    "fecCandidateId": "S4AR00103"
+   },
+   "calledBy": "AP",
+   "calledOn": "2026-11-03",
+   "runoffOn": null,
+   "sourceUrl": "https://apnews.com/projects/elections-2026/arkansas-us-senate-results",
+   "note": "AP call 10:40 PM ET Nov 3. FEC lists him as COTTON, THOMAS."
+  },
+  {
+   "state": "CO",
+   "special": false,
+   "incumbent": {
+    "name": "John Hickenlooper",
+    "party": "D",
+    "running": true
+   },
+   "status": "called",
+   "winner": {
+    "firstName": "John",
+    "lastName": "Hickenlooper",
+    "party": "D",
+    "isIncumbent": true,
+    "fecCandidateId": "S0CO00575"
+   },
+   "calledBy": "AP",
+   "calledOn": "2026-11-03",
+   "runoffOn": null,
+   "sourceUrl": "https://www.ap.org/the-definitive-source/behind-the-news/calling-control-of-congress-in-the-2026-midterm-elections",
+   "note": "AP's own state results page did not render the call text for me, so the source is AP's chronology of 2026 Senate calls (9:00 PM ET Nov 3). The Colorado Sun also reports that AP called it when polls closed: https://coloradosun.com/2026/11/03/us-senate-election-results-john-hickenlooper-mark-baisley"
+  },
+  {
+   "state": "DE",
+   "special": false,
+   "incumbent": {
+    "name": "Chris Coons",
+    "party": "D",
+    "running": true
+   },
+   "status": "called",
+   "winner": {
+    "firstName": "Chris",
+    "lastName": "Coons",
+    "party": "D",
+    "isIncumbent": true,
+    "fecCandidateId": "S0DE00092"
+   },
+   "calledBy": "AP",
+   "calledOn": "2026-11-03",
+   "runoffOn": null,
+   "sourceUrl": "https://apnews.com/projects/elections-2026/delaware-us-senate-results",
+   "note": "AP call 8:00 PM ET Nov 3."
+  },
+  {
+   "state": "FL",
+   "special": true,
+   "incumbent": {
+    "name": "Ashley Moody",
+    "party": "R",
+    "running": true
+   },
+   "status": "called",
+   "winner": {
+    "firstName": "Ashley",
+    "lastName": "Moody",
+    "party": "R",
+    "isIncumbent": true,
+    "fecCandidateId": "S6FL00640"
+   },
+   "calledBy": "AP",
+   "calledOn": "2026-11-03",
+   "runoffOn": null,
+   "sourceUrl": "https://apnews.com/projects/elections-2026/florida-us-senate-results",
+   "note": "Special election for the last 2 years of Marco Rubio's term. Moody was appointed by Gov. DeSantis in Jan 2025 and has now won the seat. AP call 8:34 PM ET Nov 3."
+  },
+  {
+   "state": "GA",
+   "special": false,
+   "incumbent": {
+    "name": "Jon Ossoff",
+    "party": "D",
+    "running": true
+   },
+   "status": "called",
+   "winner": {
+    "firstName": "Jon",
+    "lastName": "Ossoff",
+    "party": "D",
+    "isIncumbent": true,
+    "fecCandidateId": "S8GA00180"
+   },
+   "calledBy": "AP",
+   "calledOn": "2026-11-03",
+   "runoffOn": null,
+   "sourceUrl": "https://apnews.com/projects/elections-2026/georgia-us-senate-results",
+   "note": "Won 59.0%, so no runoff. AP call 7:55 PM ET Nov 3. FEC lists him as OSSOFF, T. JONATHAN."
+  },
+  {
+   "state": "ID",
+   "special": false,
+   "incumbent": {
+    "name": "Jim Risch",
+    "party": "R",
+    "running": true
+   },
+   "status": "called",
+   "winner": {
+    "firstName": "Jim",
+    "lastName": "Risch",
+    "party": "R",
+    "isIncumbent": true,
+    "fecCandidateId": "S8ID00092"
+   },
+   "calledBy": "AP",
+   "calledOn": "2026-11-04",
+   "runoffOn": null,
+   "sourceUrl": "https://apnews.com/projects/elections-2026/idaho-us-senate-results",
+   "note": "AP call 1:31 AM ET Nov 4. The FEC candidate record shows party UNKNOWN; party R is from AP (GOP)."
+  },
+  {
+   "state": "IL",
+   "special": false,
+   "incumbent": {
+    "name": "Dick Durbin",
+    "party": "D",
+    "running": false
+   },
+   "status": "called",
+   "winner": {
+    "firstName": "Juliana",
+    "lastName": "Stratton",
+    "party": "D",
+    "isIncumbent": false,
+    "fecCandidateId": "S6IL00458"
+   },
+   "calledBy": "AP",
+   "calledOn": "2026-11-03",
+   "runoffOn": null,
+   "sourceUrl": "https://apnews.com/projects/elections-2026/illinois-us-senate-results",
+   "note": "Durbin retired. AP call 8:00 PM ET Nov 3."
+  },
+  {
+   "state": "IA",
+   "special": false,
+   "incumbent": {
+    "name": "Joni Ernst",
+    "party": "R",
+    "running": false
+   },
+   "status": "called",
+   "winner": {
+    "firstName": "Josh",
+    "lastName": "Turek",
+    "party": "D",
+    "isIncumbent": false,
+    "fecCandidateId": "S6IA00298"
+   },
+   "calledBy": "AP",
+   "calledOn": "2026-11-03",
+   "runoffOn": null,
+   "sourceUrl": "https://apnews.com/projects/elections-2026/iowa-us-senate-results",
+   "note": "Ernst retired. Flipped R to D. AP call 11:35 PM ET Nov 3. FEC lists him as TUREK, JOSHUA."
+  },
+  {
+   "state": "KS",
+   "special": false,
+   "incumbent": {
+    "name": "Roger Marshall",
+    "party": "R",
+    "running": true
+   },
+   "status": "called",
+   "winner": {
+    "firstName": "Adam",
+    "lastName": "Hamilton",
+    "party": "D",
+    "isIncumbent": false,
+    "fecCandidateId": "S6KS00312"
+   },
+   "calledBy": "AP",
+   "calledOn": "2026-11-03",
+   "runoffOn": null,
+   "sourceUrl": "https://apnews.com/projects/elections-2026/kansas-us-senate-results",
+   "note": "Defeated incumbent Marshall. Flipped R to D. AP call 11:24 PM ET Nov 3."
+  },
+  {
+   "state": "KY",
+   "special": false,
+   "incumbent": {
+    "name": "Mitch McConnell",
+    "party": "R",
+    "running": false
+   },
+   "status": "called",
+   "winner": {
+    "firstName": "Andy",
+    "lastName": "Barr",
+    "party": "R",
+    "isIncumbent": false,
+    "fecCandidateId": "S6KY00286"
+   },
+   "calledBy": "AP",
+   "calledOn": "2026-11-03",
+   "runoffOn": null,
+   "sourceUrl": "https://apnews.com/projects/elections-2026/kentucky-us-senate-results",
+   "note": "McConnell retired. AP call 9:16 PM ET Nov 3."
+  },
+  {
+   "state": "LA",
+   "special": false,
+   "incumbent": {
+    "name": "Bill Cassidy",
+    "party": "R",
+    "running": false
+   },
+   "status": "called",
+   "winner": {
+    "firstName": "Julia",
+    "lastName": "Letlow",
+    "party": "R",
+    "isIncumbent": false,
+    "fecCandidateId": "S6LA00664"
+   },
+   "calledBy": "AP",
+   "calledOn": "2026-11-04",
+   "runoffOn": null,
+   "sourceUrl": "https://apnews.com/projects/elections-2026/louisiana-us-senate-results",
+   "note": "Cassidy sought renomination but lost the primary to Letlow, so he was not on the general ballot. AP call 12:31 AM ET Nov 4."
+  },
+  {
+   "state": "ME",
+   "special": false,
+   "incumbent": {
+    "name": "Susan Collins",
+    "party": "R",
+    "running": true
+   },
+   "status": "called",
+   "winner": {
+    "firstName": "Troy",
+    "lastName": "Jackson",
+    "party": "D",
+    "isIncumbent": false,
+    "fecCandidateId": "S6ME00464"
+   },
+   "calledBy": "AP",
+   "calledOn": "2026-11-04",
+   "runoffOn": null,
+   "sourceUrl": "https://apnews.com/projects/elections-2026/maine-us-senate-results",
+   "note": "Defeated incumbent Collins. Flipped R to D. AP call 1:02 AM ET Nov 4."
+  },
+  {
+   "state": "MA",
+   "special": false,
+   "incumbent": {
+    "name": "Ed Markey",
+    "party": "D",
+    "running": true
+   },
+   "status": "called",
+   "winner": {
+    "firstName": "Edward",
+    "lastName": "Markey",
+    "party": "D",
+    "isIncumbent": true,
+    "fecCandidateId": "S4MA00028"
+   },
+   "calledBy": "AP",
+   "calledOn": "2026-11-03",
+   "runoffOn": null,
+   "sourceUrl": "https://apnews.com/projects/elections-2026/massachusetts-us-senate-results",
+   "note": "AP call 8:01 PM ET Nov 3."
+  },
+  {
+   "state": "MI",
+   "special": false,
+   "incumbent": {
+    "name": "Gary Peters",
+    "party": "D",
+    "running": false
+   },
+   "status": "called",
+   "winner": {
+    "firstName": "Abdul",
+    "lastName": "El-Sayed",
+    "party": "D",
+    "isIncumbent": false,
+    "fecCandidateId": "S6MI00418"
+   },
+   "calledBy": "AP",
+   "calledOn": "2026-11-04",
+   "runoffOn": null,
+   "sourceUrl": "https://apnews.com/projects/elections-2026/michigan-us-senate-results",
+   "note": "Peters retired. AP called it at 2:27 AM ET Nov 4 (the AP page shows 7:27 a.m. UTC), so calledOn is Nov 4, not Nov 3."
+  },
+  {
+   "state": "MN",
+   "special": false,
+   "incumbent": {
+    "name": "Tina Smith",
+    "party": "D",
+    "running": false
+   },
+   "status": "called",
+   "winner": {
+    "firstName": "Peggy",
+    "lastName": "Flanagan",
+    "party": "D",
+    "isIncumbent": false,
+    "fecCandidateId": "S6MN00440"
+   },
+   "calledBy": "AP",
+   "calledOn": "2026-11-04",
+   "runoffOn": null,
+   "sourceUrl": "https://apnews.com/projects/elections-2026/minnesota-us-senate-results",
+   "note": "Smith did not seek re-election. AP call 12:07 AM ET Nov 4. FEC lists her as FLANAGAN, MARGARET, party DEMOCRATIC-FARMER-LABOR; D is per AP (Dem)."
+  },
+  {
+   "state": "MS",
+   "special": false,
+   "incumbent": {
+    "name": "Cindy Hyde-Smith",
+    "party": "R",
+    "running": true
+   },
+   "status": "called",
+   "winner": {
+    "firstName": "Scott",
+    "lastName": "Colom",
+    "party": "D",
+    "isIncumbent": false,
+    "fecCandidateId": "S6MS00133"
+   },
+   "calledBy": "AP",
+   "calledOn": "2026-11-11",
+   "runoffOn": null,
+   "sourceUrl": "https://apnews.com/live/trump-congress-midterm-elections-politics-news-updates-11-11-2026",
+   "note": "Defeated incumbent Hyde-Smith. Flipped R to D. AP called it Wednesday Nov 11 at 5:58 PM EST, after provisional ballots were counted. Hyde-Smith conceded."
+  },
+  {
+   "state": "MT",
+   "special": false,
+   "incumbent": {
+    "name": "Steve Daines",
+    "party": "R",
+    "running": false
+   },
+   "status": "called",
+   "winner": {
+    "firstName": "Kurt",
+    "lastName": "Alme",
+    "party": "R",
+    "isIncumbent": false,
+    "fecCandidateId": "S6MT00295"
+   },
+   "calledBy": "AP",
+   "calledOn": "2026-11-04",
+   "runoffOn": null,
+   "sourceUrl": "https://apnews.com/projects/elections-2026/montana-us-senate-results",
+   "note": "Daines retired. AP call 2:54 AM ET Nov 4."
+  },
+  {
+   "state": "NE",
+   "special": false,
+   "incumbent": {
+    "name": "Pete Ricketts",
+    "party": "R",
+    "running": true
+   },
+   "status": "called",
+   "winner": {
+    "firstName": "Pete",
+    "lastName": "Ricketts",
+    "party": "R",
+    "isIncumbent": true,
+    "fecCandidateId": "S6NE00129"
+   },
+   "calledBy": "AP",
+   "calledOn": "2026-11-04",
+   "runoffOn": null,
+   "sourceUrl": "https://apnews.com/projects/elections-2026/nebraska-us-senate-results",
+   "note": "Ricketts was appointed in 2023 and won the 2024 special election. Beat independent Dan Osborn. AP call 3:27 AM ET Nov 4."
+  },
+  {
+   "state": "NH",
+   "special": false,
+   "incumbent": {
+    "name": "Jeanne Shaheen",
+    "party": "D",
+    "running": false
+   },
+   "status": "called",
+   "winner": {
+    "firstName": "Chris",
+    "lastName": "Pappas",
+    "party": "D",
+    "isIncumbent": false,
+    "fecCandidateId": "S6NH00141"
+   },
+   "calledBy": "AP",
+   "calledOn": "2026-11-03",
+   "runoffOn": null,
+   "sourceUrl": "https://www.ap.org/the-definitive-source/behind-the-news/calling-control-of-congress-in-the-2026-midterm-elections",
+   "note": "Shaheen retired. AP's state results page did not render the call text for me, so the source is AP's chronology (8:20 PM ET Nov 3). Also reported in AP's story: https://apnews.com/article/new-hampshire-senate-sununu-pappas-2b2235cf4d8ca6e0eebd2817bf8767f6"
+  },
+  {
+   "state": "NJ",
+   "special": false,
+   "incumbent": {
+    "name": "Cory Booker",
+    "party": "D",
+    "running": true
+   },
+   "status": "called",
+   "winner": {
+    "firstName": "Cory",
+    "lastName": "Booker",
+    "party": "D",
+    "isIncumbent": true,
+    "fecCandidateId": "S4NJ00185"
+   },
+   "calledBy": "AP",
+   "calledOn": "2026-11-03",
+   "runoffOn": null,
+   "sourceUrl": "https://apnews.com/projects/elections-2026/new-jersey-us-senate-results",
+   "note": "AP call 8:00 PM ET Nov 3."
+  },
+  {
+   "state": "NM",
+   "special": false,
+   "incumbent": {
+    "name": "Ben Ray Luján",
+    "party": "D",
+    "running": true
+   },
+   "status": "called",
+   "winner": {
+    "firstName": "Ben Ray",
+    "lastName": "Luján",
+    "party": "D",
+    "isIncumbent": true,
+    "fecCandidateId": "S0NM00058"
+   },
+   "calledBy": "AP",
+   "calledOn": "2026-11-03",
+   "runoffOn": null,
+   "sourceUrl": "https://apnews.com/projects/elections-2026/new-mexico-us-senate-results",
+   "note": "AP call 9:00 PM ET Nov 3. AP lists him as Ben R. Lujan."
+  },
+  {
+   "state": "NC",
+   "special": false,
+   "incumbent": {
+    "name": "Thom Tillis",
+    "party": "R",
+    "running": false
+   },
+   "status": "called",
+   "winner": {
+    "firstName": "Roy",
+    "lastName": "Cooper",
+    "party": "D",
+    "isIncumbent": false,
+    "fecCandidateId": "S6NC00407"
+   },
+   "calledBy": "AP",
+   "calledOn": "2026-11-03",
+   "runoffOn": null,
+   "sourceUrl": "https://apnews.com/projects/elections-2026/north-carolina-us-senate-results",
+   "note": "Tillis retired. Flipped R to D. AP call 8:24 PM ET Nov 3."
+  },
+  {
+   "state": "OH",
+   "special": true,
+   "incumbent": {
+    "name": "Jon Husted",
+    "party": "R",
+    "running": true
+   },
+   "status": "called",
+   "winner": {
+    "firstName": "Sherrod",
+    "lastName": "Brown",
+    "party": "D",
+    "isIncumbent": false,
+    "fecCandidateId": "S6OH00163"
+   },
+   "calledBy": "AP",
+   "calledOn": "2026-11-03",
+   "runoffOn": null,
+   "sourceUrl": "https://apnews.com/projects/elections-2026/ohio-us-senate-results",
+   "note": "Special election for the last 2 years of JD Vance's term. Husted was appointed by Gov. DeWine in 2025 and lost. Brown is a former senator from Ohio's other seat, not this seat's incumbent. Flipped R to D. AP call 11:10 PM ET Nov 3."
+  },
+  {
+   "state": "OK",
+   "special": false,
+   "incumbent": {
+    "name": "Alan Armstrong",
+    "party": "R",
+    "running": false
+   },
+   "status": "called",
+   "winner": {
+    "firstName": "Kevin",
+    "lastName": "Hern",
+    "party": "R",
+    "isIncumbent": false,
+    "fecCandidateId": "S6OK04247"
+   },
+   "calledBy": "AP",
+   "calledOn": "2026-11-03",
+   "runoffOn": null,
+   "sourceUrl": "https://apnews.com/projects/elections-2026/oklahoma-us-senate-results",
+   "note": "Seat was Markwayne Mullin's; he left in March 2026 to become Homeland Security secretary. Armstrong was appointed by Gov. Stitt and did not run. AP call 9:36 PM ET Nov 3."
+  },
+  {
+   "state": "OR",
+   "special": false,
+   "incumbent": {
+    "name": "Jeff Merkley",
+    "party": "D",
+    "running": true
+   },
+   "status": "called",
+   "winner": {
+    "firstName": "Jeff",
+    "lastName": "Merkley",
+    "party": "D",
+    "isIncumbent": true,
+    "fecCandidateId": "S8OR00207"
+   },
+   "calledBy": "AP",
+   "calledOn": "2026-11-03",
+   "runoffOn": null,
+   "sourceUrl": "https://apnews.com/projects/elections-2026/oregon-us-senate-results",
+   "note": "AP call 11:00 PM ET Nov 3."
+  },
+  {
+   "state": "RI",
+   "special": false,
+   "incumbent": {
+    "name": "Jack Reed",
+    "party": "D",
+    "running": true
+   },
+   "status": "called",
+   "winner": {
+    "firstName": "Jack",
+    "lastName": "Reed",
+    "party": "D",
+    "isIncumbent": true,
+    "fecCandidateId": "S6RI00163"
+   },
+   "calledBy": "AP",
+   "calledOn": "2026-11-03",
+   "runoffOn": null,
+   "sourceUrl": "https://apnews.com/projects/elections-2026/rhode-island-us-senate-results",
+   "note": "AP call 8:01 PM ET Nov 3. FEC lists him as REED, JOHN F."
+  },
+  {
+   "state": "SC",
+   "special": false,
+   "incumbent": {
+    "name": "Darline Graham",
+    "party": "R",
+    "running": true
+   },
+   "status": "called",
+   "winner": {
+    "firstName": "Annie",
+    "lastName": "Andrews",
+    "party": "D",
+    "isIncumbent": false,
+    "fecCandidateId": "S6SC04239"
+   },
+   "calledBy": "AP",
+   "calledOn": "2026-11-03",
+   "runoffOn": null,
+   "sourceUrl": "https://apnews.com/projects/elections-2026/south-carolina-us-senate-results",
+   "note": "Darline Graham was appointed after her brother, Sen. Lindsey Graham, died in July 2026. She ran for a full term and lost. Flipped R to D. AP call 10:39 PM ET Nov 3."
+  },
+  {
+   "state": "SD",
+   "special": false,
+   "incumbent": {
+    "name": "Mike Rounds",
+    "party": "R",
+    "running": true
+   },
+   "status": "called",
+   "winner": {
+    "firstName": "Mike",
+    "lastName": "Rounds",
+    "party": "R",
+    "isIncumbent": true,
+    "fecCandidateId": "S4SD00049"
+   },
+   "calledBy": "AP",
+   "calledOn": "2026-11-04",
+   "runoffOn": null,
+   "sourceUrl": "https://apnews.com/projects/elections-2026/south-dakota-us-senate-results",
+   "note": "AP call 12:02 AM ET Nov 4."
+  },
+  {
+   "state": "TN",
+   "special": false,
+   "incumbent": {
+    "name": "Bill Hagerty",
+    "party": "R",
+    "running": true
+   },
+   "status": "called",
+   "winner": {
+    "firstName": "Bill",
+    "lastName": "Hagerty",
+    "party": "R",
+    "isIncumbent": true,
+    "fecCandidateId": "S0TN00169"
+   },
+   "calledBy": "AP",
+   "calledOn": "2026-11-03",
+   "runoffOn": null,
+   "sourceUrl": "https://apnews.com/projects/elections-2026/tennessee-us-senate-results",
+   "note": "AP call 11:28 PM ET Nov 3."
+  },
+  {
+   "state": "TX",
+   "special": false,
+   "incumbent": {
+    "name": "John Cornyn",
+    "party": "R",
+    "running": false
+   },
+   "status": "called",
+   "winner": {
+    "firstName": "James",
+    "lastName": "Talarico",
+    "party": "D",
+    "isIncumbent": false,
+    "fecCandidateId": "S6TX00479"
+   },
+   "calledBy": "AP",
+   "calledOn": "2026-11-03",
+   "runoffOn": null,
+   "sourceUrl": "https://apnews.com/projects/elections-2026/texas-us-senate-results",
+   "note": "Cornyn sought renomination but lost the GOP primary runoff to Ken Paxton, so he was not on the general ballot. Talarico beat Paxton. Flipped R to D. AP call 11:03 PM ET Nov 3."
+  },
+  {
+   "state": "VA",
+   "special": false,
+   "incumbent": {
+    "name": "Mark Warner",
+    "party": "D",
+    "running": true
+   },
+   "status": "called",
+   "winner": {
+    "firstName": "Mark",
+    "lastName": "Warner",
+    "party": "D",
+    "isIncumbent": true,
+    "fecCandidateId": "S6VA00093"
+   },
+   "calledBy": "AP",
+   "calledOn": "2026-11-03",
+   "runoffOn": null,
+   "sourceUrl": "https://apnews.com/projects/elections-2026/virginia-us-senate-results",
+   "note": "AP call 7:00 PM ET Nov 3."
+  },
+  {
+   "state": "WV",
+   "special": false,
+   "incumbent": {
+    "name": "Shelley Moore Capito",
+    "party": "R",
+    "running": true
+   },
+   "status": "called",
+   "winner": {
+    "firstName": "Shelley Moore",
+    "lastName": "Capito",
+    "party": "R",
+    "isIncumbent": true,
+    "fecCandidateId": "S4WV00159"
+   },
+   "calledBy": "AP",
+   "calledOn": "2026-11-03",
+   "runoffOn": null,
+   "sourceUrl": "https://apnews.com/projects/elections-2026/west-virginia-us-senate-results",
+   "note": "AP call 8:52 PM ET Nov 3."
+  },
+  {
+   "state": "WY",
+   "special": false,
+   "incumbent": {
+    "name": "Cynthia Lummis",
+    "party": "R",
+    "running": false
+   },
+   "status": "called",
+   "winner": {
+    "firstName": "Harriet",
+    "lastName": "Hageman",
+    "party": "R",
+    "isIncumbent": false,
+    "fecCandidateId": "S6WY00209"
+   },
+   "calledBy": "AP",
+   "calledOn": "2026-11-03",
+   "runoffOn": null,
+   "sourceUrl": "https://apnews.com/projects/elections-2026/wyoming-us-senate-results",
+   "note": "Lummis retired. AP call 9:00 PM ET Nov 3. The 'race to watch' blurb on AP's Wyoming Senate page wrongly describes the governor's race, but the page's call and vote table are for the Senate race."
+  }
+ ]
 }

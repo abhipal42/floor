@@ -57,7 +57,14 @@ describe("the elections files in the repo", () => {
     const [e] = readElections(join(here, "../elections"));
     expect(e!.cycle).toBe(2026);
     expect(e!.takesOffice).toBe("2027-01-03");
-    expect(e!.races.find((r) => r.state === "MI")).toEqual(michigan);
+    const mi = e!.races.find((r) => r.state === "MI")!;
+    expect(mi.winner).toEqual(michigan.winner);
+    expect([mi.status, mi.calledBy, mi.calledOn]).toEqual(["called", "AP", "2026-11-04"]);
+    expect(mi.sourceUrl).toBe("https://apnews.com/projects/elections-2026/michigan-us-senate-results");
+    // The whole 2026 Senate map: 33 Class II seats and the Ohio and Florida specials, every one sourced.
+    expect(e!.races).toHaveLength(35);
+    expect(e!.races.filter((r) => r.status === "called" && !r.winner!.isIncumbent)).toHaveLength(18);
+    expect(e!.races.filter((r) => r.status !== "called").map((r) => r.state)).toEqual(["AK"]);
   });
 });
 
@@ -122,6 +129,14 @@ describe("loadElections (PGlite)", () => {
         fec_candidate_id: "S6MI00418", receipts: "53830872",
       },
     ]);
+  });
+
+  it("marks a special election's non-incumbent winner as taking office on certification", async () => {
+    const ohio = { ...michigan, state: "OH", special: true, incumbent: { name: "Jon Husted", party: "R", running: true },
+      winner: { firstName: "Sherrod", lastName: "Brown", party: "D", isIncumbent: false, fecCandidateId: "S6OH00163" } };
+    await loadElections(pg as unknown as Db, checkElections({ races: [michigan, ohio] }, "2026-senate.json"));
+    const { rows } = await pg.query("select id, on_certification from members_elect order by id");
+    expect(rows).toEqual([{ id: "elect-2026-mi-sen", on_certification: false }, { id: "elect-2026-oh-sen", on_certification: true }]);
   });
 
   it("keeps an uncalled seat as pending, never with a name, and drops a call taken out of the file", async () => {

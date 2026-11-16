@@ -192,6 +192,7 @@ export async function loadElections(
       state: r.state,
       replaces: incumbentOf(r),
       takes_office: e.takesOffice,
+      on_certification: r.special,
       called_on: r.calledOn,
       source_url: r.sourceUrl,
       fec_candidate_id: r.winner!.fecCandidateId,
@@ -210,15 +211,15 @@ export async function loadElections(
   await db.query(
     `with input as (
        select * from jsonb_to_recordset($2::jsonb) as x(id text, cycle smallint, first_name text, last_name text, party text,
-         state text, replaces text, takes_office date, called_on date, source_url text, fec_candidate_id text)
+         state text, replaces text, takes_office date, on_certification boolean, called_on date, source_url text, fec_candidate_id text)
      ), upserted as (
        insert into members_elect (id, cycle, bioguide_id, first_name, last_name, party, state, district, chamber, replaces,
-                                  takes_office, called_by, called_on, source_url, fec_candidate_id)
-       select id, cycle, null, first_name, last_name, party, state, null, 'senate', replaces, takes_office, 'AP', called_on,
+                                  takes_office, on_certification, called_by, called_on, source_url, fec_candidate_id)
+       select id, cycle, null, first_name, last_name, party, state, null, 'senate', replaces, takes_office, on_certification, 'AP', called_on,
               source_url, fec_candidate_id
          from input
        on conflict (id) do update set first_name = excluded.first_name, last_name = excluded.last_name, party = excluded.party,
-         replaces = excluded.replaces, takes_office = excluded.takes_office, called_by = excluded.called_by,
+         replaces = excluded.replaces, takes_office = excluded.takes_office, on_certification = excluded.on_certification, called_by = excluded.called_by,
          called_on = excluded.called_on, source_url = excluded.source_url, fec_candidate_id = excluded.fec_candidate_id
        returning 1
      )
