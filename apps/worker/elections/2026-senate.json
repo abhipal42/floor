@@ -1,0 +1,16 @@
+{
+  "races": [
+    {
+      "state": "MI",
+      "special": false,
+      "incumbent": { "name": "Gary Peters", "party": "D", "running": false },
+      "status": "called",
+      "winner": { "firstName": "Abdul", "lastName": "El-Sayed", "party": "D", "isIncumbent": false, "fecCandidateId": "S6MI00418" },
+      "calledBy": "AP",
+      "calledOn": "2026-11-04",
+      "runoffOn": null,
+      "sourceUrl": "https://www.wsbtv.com/news/trending/election-2026-abdul-el-sayed-prevails-win-us-senate-seat-michigan/DGWW7OLFAVCKBH3ZXXU5Y46YVE/",
+      "note": null
+    }
+  ]
+}

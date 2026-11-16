@@ -5,7 +5,7 @@ import type { DistrictMatch, Place } from "./district.js";
 import { POLICY_AREAS, matchTopics, parseBillNumber, topicNamed } from "./bills.js";
 import { bodyLimit } from "hono/body-limit";
 import { clientKey, rateLimit, type LimitStore } from "./limit.js";
-import { parseMemberQuery, type MemberQuery } from "./search.js";
+import { DELEGATE_JURISDICTIONS, foldName, parseMemberQuery, type MemberQuery } from "./search.js";
 import { CONDITIONS, VOTE_KINDS } from "./votekinds.js";
 import { mountShare, shareKicker, shareText, shareUrl, type FloorWeek, type ShareOptions } from "./share.js";
 
@@ -115,6 +115,12 @@ export const MemberSchema = z
     state: z.string().openapi({ example: "NC" }),
     district: z.number().int().nullable(),
     chamber: ChamberSchema,
+    leavingOn: z.string().nullable().optional().openapi({
+      example: "2027-01-03",
+      description:
+        "The day they leave the seat, when a member-elect replaces them and has not taken office yet; null otherwise. " +
+        "Absent where a response does not look it up",
+    }),
   })
   .openapi("Member");
 
@@ -352,6 +358,146 @@ export interface DisclosureRepository {
   disclosures(bioguideId: string, now: Date): Promise<Required<Omit<Disclosures, "enabled" | "reason">>>;
 }
 
+// ---------------------------------------------------------------------------------------------
+// Members-elect. Floor never calls a race: every elect names who called it (the AP for a Senate
+// race, the House Clerk's member-elect list for the House) and links the source, and a seat with no
+// call is a pending seat with no name. All of it is served only until takesOffice.
+
+const SeatHolderSchema = z
+  .object({ bioguideId: z.string(), firstName: z.string(), lastName: z.string(), party: z.string() })
+  .openapi("SeatHolder", { description: "The sitting member a member-elect replaces, or a pending seat's incumbent" });
+
+export const MemberElectSchema = z
+  .object({
+    id: z.string().openapi({ example: "elect-2026-mi-sen" }),
+    bioguideId: z.string().nullable().openapi({ description: "Once assigned (the House Clerk's list has them); null for most senators-elect" }),
+    firstName: z.string(),
+    lastName: z.string(),
+    party: z.string().openapi({ example: "D" }),
+    state: z.string().openapi({ example: "MI" }),
+    district: z.number().int().nullable().openapi({ description: "null for the Senate; 0 at large" }),
+    chamber: ChamberSchema,
+    takesOffice: z.string().openapi({ example: "2027-01-03" }),
+    replaces: SeatHolderSchema.nullable(),
+    call: z
+      .object({
+        by: z.enum(["AP", "House Clerk"]).openapi({ description: "Who called the race. Floor never does" }),
+        on: z.string().nullable().openapi({ example: "2026-11-04" }),
+        sourceUrl: z.string(),
+      })
+      .openapi("ElectCall"),
+    fecCandidateId: z.string().nullable().openapi({ example: "S6MI00418" }),
+  })
+  .openapi("MemberElect");
+
+export type MemberElect = z.infer<typeof MemberElectSchema>;
+
+export const PendingSeatSchema = z
+  .object({
+    id: z.string().openapi({ example: "elect-2026-ga-sen" }),
+    state: z.string(),
+    district: z.number().int().nullable(),
+    chamber: ChamberSchema,
+    status: z.enum(["uncalled", "runoff"]),
+    runoffOn: z.string().nullable().openapi({ description: "When status is runoff" }),
+    incumbent: SeatHolderSchema.nullable(),
+    sourceUrl: z.string(),
+  })
+  .openapi("PendingSeat", { description: "A seat whose race nobody has called. Never names a leader" });
+
+export type PendingSeat = z.infer<typeof PendingSeatSchema>;
+
+const ElectSeatsSchema = z
+  .object({ elect: z.array(MemberElectSchema), pending: z.array(PendingSeatSchema) })
+  .openapi("ElectSeats");
+
+export const ElectProfileSchema = z
+  .object({
+    elect: MemberElectSchema,
+    funding: z
+      .object({
+        cycle: z.number().int().openapi({ example: 2026 }),
+        receipts: z.number(),
+        disbursements: z.number(),
+        coverageEnd: z.string().nullable().openapi({ example: "2026-10-14" }),
+        sourceUrl: z.string(),
+      })
+      .nullable()
+      .openapi({ description: "OpenFEC candidate totals; null when Floor holds none" }),
+    disclosure: z
+      .object({
+        filedAt: z.string().nullable(),
+        sourceUrl: z.string(),
+        assets: z.array(DisclosureAssetSchema).openapi({ description: "As filed: ranges, never a total" }),
+        paper: z.boolean().openapi({ description: "A scanned filing Floor holds only as a link; assets is empty" }),
+      })
+      .nullable()
+      .openapi({
+        description:
+          "The candidate report Floor has read; null when there is none, or while disclosures are off (DISCLOSURES_ENABLED)",
+      }),
+  })
+  .openapi("ElectProfile");
+
+export type ElectProfile = z.infer<typeof ElectProfileSchema>;
+
+export interface ElectRepository {
+  /** Every member-elect and pending seat whose new member takes office after `today` (YYYY-MM-DD, Eastern). */
+  seats(today: string): Promise<{ elect: MemberElect[]; pending: PendingSeat[] }>;
+  /** One member-elect's profile, or null when unknown or already seated. `disclosure` is read only when asked. */
+  profile(id: string, today: string, withDisclosure: boolean): Promise<ElectProfile | null>;
+}
+
+export const NO_ELECT: ElectRepository = {
+  seats: async () => ({ elect: [], pending: [] }),
+  profile: async () => null,
+};
+
+/** Today in Washington, as Congress keeps days. */
+export const easternDay = (now: Date) => now.toLocaleDateString("en-CA", { timeZone: "America/New_York" });
+
+/** Which seats a request is about: everything, a state, a caller's three seats, or a member search. */
+export type ElectFilter = { kind: "all" } | { kind: "in"; state: string } | { kind: "reps"; state: string; district: number } | MemberQuery;
+
+/** Elect and pending seats matching a filter, Senate first. Delegate jurisdictions have one seat whatever the number. */
+export function electFor(
+  seats: { elect: MemberElect[]; pending: PendingSeat[] },
+  filter: ElectFilter,
+  chamber?: Chamber,
+): { elect: MemberElect[]; pending: PendingSeat[] } {
+  const seatIs = (s: { state: string; district: number | null; chamber: Chamber }, state: string, district: number) =>
+    s.chamber === "house" && s.state === state && (DELEGATE_JURISDICTIONS.has(state) || s.district === district);
+  const named = (e: MemberElect, text: string) =>
+    text.length > 0 && [`${e.firstName} ${e.lastName}`, `${e.lastName} ${e.firstName}`].some((n) => foldName(n).includes(text));
+  const at = <T extends { state: string; district: number | null; chamber: Chamber }>(s: T, e?: MemberElect): boolean => {
+    switch (filter.kind) {
+      case "all":
+        return true;
+      case "in":
+        return s.state === filter.state;
+      case "reps":
+        return (s.chamber === "senate" && s.state === filter.state) || seatIs(s, filter.state, filter.district);
+      case "seat":
+        return seatIs(s, filter.state, filter.district);
+      case "state":
+        return s.state === filter.state || (e !== undefined && named(e, filter.name));
+      case "name":
+        return e !== undefined && named(e, filter.text);
+    }
+  };
+  const inChamber = (s: { chamber: Chamber }) => !chamber || s.chamber === chamber;
+  return {
+    elect: seats.elect.filter((e) => inChamber(e) && at(e, e)),
+    pending: seats.pending.filter((p) => inChamber(p) && at(p)),
+  };
+}
+
+/** Members with `leavingOn` from the elect that replaces them; null for everyone else. */
+export function withLeaving<M extends Member>(members: M[], elect: MemberElect[]): M[] {
+  const leaving = new Map(elect.filter((e) => e.replaces).map((e) => [e.replaces!.bioguideId, e.takesOffice]));
+  return members.map((m) => ({ ...m, leavingOn: leaving.get(m.bioguideId) ?? null }));
+}
+
 /**
  * Just enough about the bill or nomination a vote was on to label it in a list.
  *
@@ -405,6 +551,8 @@ const RepsSchema = z
   .object({
     district: DistrictSchema,
     members: z.array(MemberSchema),
+    elect: z.array(MemberElectSchema).openapi({ description: "Members-elect for these seats (the state's Senate seats, this House seat)" }),
+    pending: z.array(PendingSeatSchema).openapi({ description: "These seats whose race is not called" }),
   })
   .openapi("Reps");
 
@@ -1149,6 +1297,8 @@ export interface AppDeps {
   disclosures?: DisclosureRepository;
   /** `DISCLOSURES_ENABLED=true`. Default off: the route answers {enabled:false, reason} and reads nothing. */
   disclosuresEnabled?: boolean;
+  /** Members-elect and pending seats. Defaults to `NO_ELECT` (none). */
+  elect?: ElectRepository;
   /** The share page's links and the universal-link association (share.ts). */
   share?: ShareOptions;
 }
@@ -1362,11 +1512,60 @@ const searchMembersRoute = createRoute({
   },
   responses: {
     200: {
-      content: { "application/json": { schema: z.object({ members: z.array(MemberSchema) }) } },
+      content: {
+        "application/json": {
+          schema: z.object({
+            members: z.array(MemberSchema),
+            elect: z.array(MemberElectSchema).openapi({ description: "Members-elect matching the same query: state, seat or their name" }),
+            pending: z.array(PendingSeatSchema).openapi({ description: "Uncalled seats matching the state or seat" }),
+          }),
+        },
+      },
       description: "Matching members, Senate first",
     },
     400: { content: { "application/json": { schema: ErrorSchema } }, description: "No query, or too long" },
     429: { content: { "application/json": { schema: ErrorSchema } }, description: "Too many searches" },
+  },
+});
+
+const listElectRoute = createRoute({
+  method: "get",
+  path: "/v1/members-elect",
+  summary: "Members-elect not yet in office, and seats whose race is not called",
+  description:
+    "Senate races as the AP called them, House seats from the House Clerk's member-elect list. Floor calls no race and " +
+    "shows no leader: a seat nobody has called is a pending seat. Empty once the new members take office.",
+  request: {
+    query: z.object({
+      state: z
+        .string()
+        .regex(/^[A-Za-z]{2}$/, "A state is a two-letter code like MI")
+        .transform((s) => s.toUpperCase())
+        .optional()
+        .openapi({ param: { name: "state", in: "query" }, example: "MI" }),
+    }),
+  },
+  responses: {
+    200: { content: { "application/json": { schema: ElectSeatsSchema } }, description: "Members-elect and pending seats, Senate first" },
+    400: { content: { "application/json": { schema: ErrorSchema } }, description: "Not a state code" },
+  },
+});
+
+const getElectRoute = createRoute({
+  method: "get",
+  path: "/v1/members-elect/{id}",
+  summary: "A member-elect: who called the race, their campaign's FEC totals and their candidate report",
+  request: {
+    params: z.object({
+      id: z
+        .string()
+        .regex(/^elect-\d{4}-[a-z]{2}-(sen|al|\d{1,2})$/, "Member-elect IDs look like elect-2026-mi-sen")
+        .openapi({ param: { name: "id", in: "path" }, example: "elect-2026-mi-sen" }),
+    }),
+  },
+  responses: {
+    200: { content: { "application/json": { schema: ElectProfileSchema } }, description: "The member-elect" },
+    404: { content: { "application/json": { schema: ErrorSchema } }, description: "No member-elect with that ID, or they have taken office" },
   },
 });
 
@@ -1771,9 +1970,29 @@ export function createApp(deps: AppDeps) {
 
   app.get("/health", (c) => c.json({ ok: true }));
 
+  // Members-elect: one read of every current elect and pending seat serves each route, filtered
+  // here; there are a few hundred at most, and none at all once the new members take office.
+  const elect = deps.elect ?? NO_ELECT;
+  const electSeats = () => elect.seats(easternDay(clock()));
+
   app.openapi(searchMembersRoute, async (c) => {
     const { q, chamber, limit } = c.req.valid("query");
-    return c.json({ members: await deps.members.search(parseMemberQuery(q), chamber, limit) }, 200);
+    const query = parseMemberQuery(q);
+    const [members, seats] = await Promise.all([deps.members.search(query, chamber, limit), electSeats()]);
+    return c.json({ members: withLeaving(members, seats.elect), ...electFor(seats, query, chamber) }, 200);
+  });
+
+  app.openapi(listElectRoute, async (c) => {
+    const { state } = c.req.valid("query");
+    return c.json(electFor(await electSeats(), state ? { kind: "in", state } : { kind: "all" }), 200);
+  });
+
+  app.openapi(getElectRoute, async (c) => {
+    const { id } = c.req.valid("param");
+    // Candidate reports are financial disclosures: off with the rest of them (§13107(c), HANDOFF.md).
+    const profile = await elect.profile(id, easternDay(clock()), deps.disclosuresEnabled === true);
+    if (!profile) return c.json({ error: `No member-elect with ID ${id}` }, 404);
+    return c.json(deps.disclosuresEnabled ? profile : { ...profile, disclosure: null }, 200);
   });
 
   app.openapi(listVotesRoute, async (c) => {
@@ -1794,15 +2013,21 @@ export function createApp(deps: AppDeps) {
     const vote = await deps.votes.getVote(id);
     if (!vote) return c.json({ error: `No vote with ID ${id}` }, 404);
     const breakdown = await deps.votes.voteBreakdown(id, members ? members.split(",") : []);
-    return c.json({ ...vote, ...breakdown }, 200);
+    const leaving = breakdown.positions.length ? (await electSeats()).elect : [];
+    const named = withLeaving(breakdown.positions.map((p) => p.member), leaving);
+    return c.json({ ...vote, ...breakdown, positions: breakdown.positions.map((p, i) => ({ ...p, member: named[i]! })) }, 200);
   });
 
   app.openapi(getMemberRoute, async (c) => {
     const { id } = c.req.valid("param");
     const member = await deps.members.getMember(id);
     if (!member) return c.json({ error: `No member with ID ${id}` }, 404);
-    const [partyLoyalty, contact] = await Promise.all([deps.members.partyLoyalty(id, member.party), deps.members.contact(id)]);
-    return c.json({ member, partyLoyalty, contact }, 200);
+    const [partyLoyalty, contact, seats] = await Promise.all([
+      deps.members.partyLoyalty(id, member.party),
+      deps.members.contact(id),
+      electSeats(),
+    ]);
+    return c.json({ member: withLeaving([member], seats.elect)[0]!, partyLoyalty, contact }, 200);
   });
 
   app.openapi(getMemberFundingRoute, async (c) => {
@@ -1810,7 +2035,8 @@ export function createApp(deps: AppDeps) {
     const { committees } = c.req.valid("query");
     const member = await deps.members.getMember(id);
     if (!member) return c.json({ error: `No member with ID ${id}` }, 404);
-    return c.json({ member, funding: await deps.members.funding(id, committees) }, 200);
+    const [funding, seats] = await Promise.all([deps.members.funding(id, committees), electSeats()]);
+    return c.json({ member: withLeaving([member], seats.elect)[0]!, funding }, 200);
   });
 
   app.openapi(getMemberDisclosuresRoute, async (c) => {
@@ -1844,11 +2070,12 @@ export function createApp(deps: AppDeps) {
         404,
       );
     }
-    const members = await deps.members.membersFor(match.state, match.district);
+    const [members, seats] = await Promise.all([deps.members.membersFor(match.state, match.district), electSeats()]);
     return c.json(
       {
         district: { congress: match.congress, state: match.state, district: match.district, countyFips: match.countyFips },
-        members,
+        members: withLeaving(members, seats.elect),
+        ...electFor(seats, { kind: "reps", state: match.state, district: match.district }),
       },
       200,
     );
@@ -1864,7 +2091,8 @@ export function createApp(deps: AppDeps) {
     const { id } = c.req.valid("param");
     const bill = await deps.bills.getBill(id);
     if (!bill) return c.json({ error: `No bill with ID ${id}` }, 404);
-    return c.json(bill, 200);
+    if (!bill.sponsor) return c.json(bill, 200);
+    return c.json({ ...bill, sponsor: withLeaving([bill.sponsor], (await electSeats()).elect)[0]! }, 200);
   });
 
   const schedule = deps.schedule ?? EMPTY_SCHEDULE;
@@ -2016,14 +2244,15 @@ export function createApp(deps: AppDeps) {
       return c.json({ query: q, billNumber: true, members: [], bills, topics: [] }, 200);
     }
     const names = matchTopics(q);
-    const [members, bills, counts] = await Promise.all([
+    const [members, bills, counts, seats] = await Promise.all([
       // One member reader for the app: the Following picker's (`parseMemberQuery`, search.ts).
       deps.members.search(parseMemberQuery(q), chamber, MEMBER_SEARCH_LIMIT),
       catalog.searchBills(q, congress, 20, now),
       names.length > 0 ? catalog.topicCounts(congress) : Promise.resolve([]),
+      electSeats(),
     ]);
     const topics = names.map((name) => counts.find((t) => t.name === name) ?? emptyTopic(name));
-    return c.json({ query: q, billNumber: false, members, bills, topics }, 200);
+    return c.json({ query: q, billNumber: false, members: withLeaving(members, seats.elect), bills, topics }, 200);
   });
 
   // Alerts and Live Activities. Never cached: each answer is about one phone.
