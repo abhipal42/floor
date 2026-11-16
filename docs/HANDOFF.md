@@ -673,6 +673,13 @@ Real data broke our first assumptions several times. Each case below is now hand
     after Abhi set both secrets: they were in the repo's `fafo` **environment**, which a job sees
     only when it names it (`environment: fafo` in `ingest.yml`). `gh api
     repos/OWNER/REPO/environments/NAME/secrets` lists them; `gh secret list` shows repo-level only.
+72. **"Members don't report their homes" is half true.** A personal residence that earns nothing is
+    exempt; one that earns income is reported like any property. The day disclosures went live
+    (`DISCLOSURES_ENABLED=true`, 2026-11-16), Pelosi's first asset was "11 Zinfandel Lane - Home &
+    Vineyard" (grape sales) directly above the app's line saying homes aren't reported. The copy
+    now says a home is listed only when it earns income. A one-line caption change stayed under the
+    snapshot's 0.5% tolerance with `RECORD=failed`, so `disclosuresOn` was re-recorded with
+    `TEST_RUNNER_SNAPSHOT_TESTING_RECORD=all`: a copy change needs `all` for the screens it touches.
 
 ---
 
