@@ -1421,7 +1421,7 @@ const getBillRoute = createRoute({
 
 export const BillShareSchema = z
   .object({
-    url: z.string().openapi({ example: "https://floor.app/bill/119/hr/5267", description: "The page to share; opens in the app where it is installed" }),
+    url: z.string().openapi({ example: "https://floor-web-seven.vercel.app/bill/119/hr/5267", description: "The page to share; opens in the app where it is installed" }),
     text: z.string().openapi({
       example: "H.R. 5267, the American Franchise Act, is up for a House vote the week of Nov 16. What it does and how our members vote:",
       description: "The share sheet's line, to send with url. Neutral: what happened or is next, never a side",

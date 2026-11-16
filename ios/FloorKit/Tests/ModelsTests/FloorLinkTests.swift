@@ -34,7 +34,7 @@ struct FloorLinkTests {
 
     @Test func rejectsLinksThatAreNotOurs() throws {
         for string in [
-            "https://floor.app/vote/house-119-2-321", "floor://vote", "floor://vote/", "floor://bill/119-pn-1013",
+            "https://floor-web-seven.vercel.app/vote/house-119-2-321", "floor://vote", "floor://vote/", "floor://bill/119-pn-1013",
             "floor://vote/a/b", "floor://vote/house-119-2-321/", "floor://vote//house-119-2-321",
         ] {
             #expect(FloorLink(url: try #require(URL(string: string))) == nil, "\(string)")
@@ -50,12 +50,12 @@ struct FloorLinkTests {
 
     /// The share page's link opens the bill screen when iOS hands it to the app.
     @Test func theShareLinkOpensTheBill() throws {
-        #expect(FloorLink(url: try #require(URL(string: "https://floor.app/bill/119/hr/5267"))) == .bill(id: "119-hr-5267"))
-        #expect(FloorLink(url: try #require(URL(string: "https://www.floor.app/bill/119/s/2"))) == .bill(id: "119-s-2"))
+        #expect(FloorLink(url: try #require(URL(string: "https://floor-web-seven.vercel.app/bill/119/hr/5267"))) == .bill(id: "119-hr-5267"))
+        #expect(FloorLink(url: try #require(URL(string: "\(FloorLink.shareBase)/bill/119/s/2"))) == .bill(id: "119-s-2"))
         for string in [
-            "https://floor.app/bill/119/hr/5267/card.png", "https://floor.app/bill/119/HR/5267", "https://floor.app/bill/119/hr",
-            "https://evil.example/bill/119/hr/5267", "http://floor.app/bill/119/hr/5267", "https://floor.app/bill/119/hr/05267",
-            "https://floor.app/bill/119/hr/5267%2F..", "floor://bill/119-hr-", "floor://bill/1-hr-1", "floor://bill/119-hr-1/x",
+            "https://floor-web-seven.vercel.app/bill/119/hr/5267/card.png", "https://floor-web-seven.vercel.app/bill/119/HR/5267", "https://floor-web-seven.vercel.app/bill/119/hr",
+            "https://evil.example/bill/119/hr/5267", "https://floor.app/bill/119/hr/5267", "http://floor-web-seven.vercel.app/bill/119/hr/5267", "https://floor-web-seven.vercel.app/bill/119/hr/05267",
+            "https://floor-web-seven.vercel.app/bill/119/hr/5267%2F..", "floor://bill/119-hr-", "floor://bill/1-hr-1", "floor://bill/119-hr-1/x",
         ] {
             #expect(FloorLink(url: try #require(URL(string: string))) == nil, "\(string)")
         }

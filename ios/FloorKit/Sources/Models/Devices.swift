@@ -123,7 +123,7 @@ public struct DeviceRegistered: Codable, Sendable, Hashable {
 
 /// `GET /v1/bills/{id}/share`: what the share sheet sends for a bill.
 public struct BillShare: Codable, Sendable, Hashable {
-    /// `https://floor.app/bill/119/hr/5267`: a page that works without the app, and opens it where installed.
+    /// `https://floor-web-seven.vercel.app/bill/119/hr/5267`: a page that works without the app, and opens it where installed.
     public var url: String
     /// The neutral line to send with it.
     public var text: String

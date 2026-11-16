@@ -223,7 +223,7 @@ public struct FloorAPI: Sendable {
 
     static let disclosuresUnavailable = Data(#"{"enabled":false,"reason":null}"#.utf8)
 
-    /// What the share sheet sends for a bill: its floor.app link and a neutral line.
+    /// What the share sheet sends for a bill: its share link and a neutral line.
     public func billShare(id: String) async throws -> BillShare {
         try await get("/v1/bills/\(escaped(id))/share")
     }

@@ -217,7 +217,7 @@ public enum SpeakUpTemplate {
 /// line built from the bill the way the API builds its own (`shareText`, apps/api/src/share.ts).
 public enum ShareFallback {
     public static func url(_ bill: Bill) -> URL {
-        URL(string: "https://floor.app/bill/\(bill.congress)/\(bill.type)/\(bill.number)")!
+        URL(string: "\(FloorLink.shareBase)/bill/\(bill.congress)/\(bill.type)/\(bill.number)")!
     }
 
     public static func text(_ facts: BillFacts) -> String {

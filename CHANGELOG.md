@@ -8,6 +8,17 @@ is a milestone and ships a retro under `docs/retros/`.
 Older series live in [`docs/changelog/`](docs/changelog) (0.1.x: [`0.1.md`](docs/changelog/0.1.md)).
 Before 0.1.0 the history is the commit log on `main`.
 
+## 0.2.41 — 2026-11-16
+
+### Fixed
+- **Share links point at a domain we own.** Every link was `https://floor.app/bill/…`, the mock's
+  domain, which belongs to someone else. They are now `https://floor-web-seven.vercel.app/bill/…`, the
+  landing page, whose `vercel.json` already hands `/bill/*` to the API: the API's
+  `DEFAULT_SHARE_BASE`, the app's `FloorLink.shareHost` (one constant the share fallback builds on)
+  and `FLOOR_APPLINKS_DOMAIN`. A floor.app link no longer opens the app (tested).
+- **The hourly ingest finds its secrets.** They live in the repo's `fafo` environment, which the
+  job now names; it had been skipping with "DATABASE_URL secret is not set" (lesson 71).
+
 ## 0.2.40 — 2026-11-14
 
 ### Changed
