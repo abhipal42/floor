@@ -9,6 +9,7 @@ Designs: v2 "Live + impact" canvas (Home, Live vote, Bill, Rep, Live Activity). 
 | Decision | Why |
 |---|---|
 | **Native SwiftUI, iOS 17.2+** | Live Activities, Dynamic Island and widgets are the core of the "sports app" feel. They need ActivityKit and WidgetKit. |
+| **Native Android second (Kotlin, Jetpack Compose), from 2026-11-16** | The owner asked for Android. It mirrors the iOS screens rather than sharing UI code, so each platform keeps its own widgets and conventions. Built in five phases (`android/README.md`); push (FCM) waits on a Firebase project. |
 | **Official sources first** | House Clerk, Senate LIS, Congress.gov and GovInfo are free and authoritative. Third-party data covers two gaps only: district geocoding as a second option, and display-only market odds. |
 | **Always-on ingest worker** | Votes need polling every 5–15 s while a chamber is in session. Minute-level serverless crons are too slow. |
 | **Postgres + realtime channels** | One system of record. Live state reaches open apps over realtime channels and closed apps via APNs and Live Activity pushes. |
