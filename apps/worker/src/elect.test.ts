@@ -14,6 +14,7 @@ import {
   clerkElectUrl,
   cycleOf,
   electId,
+  electionDay,
   ingestElectDisclosures,
   ingestHouseMembersElect,
   loadElections,
@@ -21,6 +22,7 @@ import {
   matchIncumbent,
   parseClerkMembers,
   readElections,
+  sameFirstName,
   type Elections,
 } from "./elect.js";
 import { ingestFecElect } from "./fec.js";
@@ -291,5 +293,125 @@ describe("candidate reports for House members-elect", () => {
       throw new Error("should not fetch");
     }) as unknown as typeof fetch;
     expect(await ingestElectDisclosures(pg as unknown as Db, { years: [2025], budget: 10, fetchImpl })).toMatchObject({ elects: 0, requests: 0 });
+  });
+});
+
+// ---------------------------------------------------------------------------------------------
+// Review fixes (each failed before its fix)
+
+const senators2026: { bioguide_id: string; first_name: string; last_name: string; party: string; state: string; term_start: string; term_end: string }[] =
+  JSON.parse(fixture("elect/senators-2026.json").toString("utf8"));
+async function seedSenators(pg: PGlite, states?: string[]) {
+  const rows = senators2026.filter((r) => !states || states.includes(r.state));
+  await pg.query(
+    `insert into members (bioguide_id, first_name, last_name, party, state, district, chamber, term_start, term_end)
+     select bioguide_id, first_name, last_name, party, state, null, 'senate', term_start, term_end
+       from jsonb_to_recordset($1::jsonb) as x(bioguide_id text, first_name text, last_name text, party text, state text, term_start date, term_end date)`,
+    [JSON.stringify(rows)],
+  );
+}
+const replacesOf = async (pg: PGlite) =>
+  Object.fromEntries((await pg.query<{ state: string; replaces: string | null }>("select state, replaces from members_elect")).rows.map((r) => [r.state, r.replaces]));
+
+describe("incumbents are senators sitting on election day (prod's members rows)", () => {
+  it("election day is the Tuesday after the first Monday in November", () => {
+    expect([electionDay(2024), electionDay(2026), electionDay(2028)]).toEqual(["2024-11-05", "2026-11-03", "2028-11-07"]);
+  });
+
+  it("South Carolina: Darline Graham is the appointee Graham Nordone, not Lindsey Graham who resigned", async () => {
+    const pg = await freshDb();
+    await seedSenators(pg, ["SC", "OK"]);
+    const race = (state: string, incumbent: string) => ({ ...michigan, state, incumbent: { name: incumbent, party: "R", running: false }, winner: { ...michigan.winner, fecCandidateId: null } });
+    const r = await loadElections(pg as unknown as Db, checkElections({ races: [race("SC", "Darline Graham"), race("OK", "Alan Armstrong")] }, "2026-senate.json"));
+    expect(r.unmatched).toEqual([]);
+    expect(await replacesOf(pg)).toEqual({ SC: "G000608", OK: "A000383" });
+  });
+
+  it("every senator-elect in 2026-senate.json replaces a senator sitting on election day", async () => {
+    const pg = await freshDb();
+    await seedSenators(pg);
+    const [e] = readElections(join(here, "../elections"));
+    const r = await loadElections(pg as unknown as Db, e!);
+    expect(r).toMatchObject({ elect: 18, unmatched: [] });
+    const sitting = new Set(senators2026.filter((m) => m.term_start <= "2026-11-03" && m.term_end >= "2026-11-03").map((m) => m.bioguide_id));
+    const replaces = await replacesOf(pg);
+    expect(Object.keys(replaces)).toHaveLength(18);
+    for (const [state, id] of Object.entries(replaces)) expect(id !== null && sitting.has(id), state).toBe(true);
+    expect([replaces["OH"], replaces["IL"], replaces["SC"], replaces["OK"]]).toEqual(["H001104", "D000563", "G000608", "A000383"]);
+  });
+});
+
+describe("a seat's elect changing person", () => {
+  it("drops the old person's FEC totals when the FEC ID or name changes, and keeps them otherwise", async () => {
+    const pg = await freshDb();
+    await seedSenators(pg, ["MI"]);
+    const e = checkElections({ races: [michigan] }, "2026-senate.json");
+    await loadElections(pg as unknown as Db, e);
+    await pg.exec("update members_elect set receipts = 53830872, finance_cycle = 2026, finance_fetched_at = now()");
+    await loadElections(pg as unknown as Db, e);
+    expect((await pg.query("select receipts from members_elect")).rows).toEqual([{ receipts: "53830872" }]);
+    // The same seat now naming a different FEC candidate (a corrected file): the old totals are not theirs.
+    const other = checkElections({ races: [{ ...michigan, winner: { ...michigan.winner, fecCandidateId: "S6MI00001" } }] }, "2026-senate.json");
+    await loadElections(pg as unknown as Db, other);
+    expect((await pg.query("select receipts, finance_cycle, finance_fetched_at from members_elect")).rows).toEqual([
+      { receipts: null, finance_cycle: null, finance_fetched_at: null },
+    ]);
+  });
+
+  it("detaches the old person's candidate report when the Clerk lists someone else for the seat", async () => {
+    const pg = await freshDb();
+    // A stand-in earlier row for AK-AL naming someone other than Begich, with a report and totals attached.
+    await pg.exec(`
+      insert into members_elect (id, cycle, bioguide_id, first_name, last_name, party, state, district, chamber, takes_office, called_by,
+                                 source_url, receipts, finance_cycle)
+        values ('elect-2024-ak-al', 2024, 'X000009', 'Someone', 'Else', 'D', 'AK', 0, 'house', '2025-01-03', 'House Clerk', 'https://clerk.house.gov/', 1, 2024);
+      insert into disclosure_filings (id, chamber, filer_name, kind, source_url, elect_id)
+        values ('house-test-1', 'house', 'Someone Else', 'annual', 'https://example.test/1.pdf', 'elect-2024-ak-al');`);
+    const fetchImpl = (async () => new Response(clerk119)) as unknown as typeof fetch;
+    await ingestHouseMembersElect(pg as unknown as Db, 119, { fetchImpl });
+    expect((await pg.query("select bioguide_id, receipts from members_elect where id = 'elect-2024-ak-al'")).rows).toEqual([{ bioguide_id: "B001323", receipts: null }]);
+    expect((await pg.query("select elect_id from disclosure_filings")).rows).toEqual([{ elect_id: null }]);
+  });
+
+  it("detaches a report when the seat's elect no longer matches any candidate report", async () => {
+    const pg = await freshDb();
+    await pg.exec(`
+      insert into members_elect (id, cycle, first_name, last_name, party, state, district, chamber, takes_office, called_by, source_url)
+        values ('elect-x-az-1', 2026, 'Someone', 'Else', 'R', 'AZ', 1, 'house', '2099-01-03', 'House Clerk', 'https://clerk.house.gov/');
+      insert into disclosure_filings (id, chamber, filer_name, kind, source_url, elect_id)
+        values ('house-10072224', 'house', 'David Wayne Redkey', 'annual', 'https://example.test/1.pdf', 'elect-x-az-1');`);
+    const zip = zipSync({ "2025FD.txt": strToU8(fixture("disclosures/house-2025FD-excerpt.txt").toString("utf8")) });
+    const fetchImpl = (async (url: string) => (url.endsWith("2025FD.zip") ? new Response(zip) : new Response("", { status: 404 }))) as unknown as typeof fetch;
+    const r = await ingestElectDisclosures(pg as unknown as Db, { years: [2025], budget: 10, cache: memoryCache(), throttle: new Throttle(0, 10, async () => {}), fetchImpl });
+    expect(r.matched).toBe(0);
+    expect((await pg.query("select elect_id from disclosure_filings")).rows).toEqual([{ elect_id: null }]);
+  });
+});
+
+describe("candidate reports need the first name too", () => {
+  const listed = parseHouseIndex(fixture("disclosures/house-2025FD-excerpt.txt").toString("utf8"), CANDIDATE_KINDS);
+  const seat = { id: "elect-x-az-1", first_name: "David", last_name: "Redkey", state: "AZ", district: 1 };
+  it("skips a surname-only match, and accepts an initial only where one side gives just that", () => {
+    expect(matchCandidateReport({ ...seat, first_name: "Daniel" }, listed)).toBeNull();
+    expect(matchCandidateReport({ ...seat, first_name: "D." }, listed)?.id).toBe("house-10072224");
+    expect(sameFirstName("David Wayne", "David")).toBe(true);
+    expect(sameFirstName("Dave", "David")).toBe(false);
+    expect(sameFirstName("D", "David")).toBe(true);
+    expect(sameFirstName("", "David")).toBe(false);
+  });
+});
+
+describe("a Clerk entry with no bioguide ID", () => {
+  it("is skipped and named, and the rest of the list loads", async () => {
+    const vacant = clerk119.replace("<bioguideID>B001323</bioguideID>", "<bioguideID/>");
+    const parsed = parseClerkMembers(vacant);
+    expect(parsed.members.map((m) => m.bioguideId)).not.toContain("B001323");
+    expect(parsed.members).toHaveLength(5);
+    expect(parsed.skipped).toEqual(["AK00 Begich, Nicholas"]);
+    const pg = await freshDb();
+    const logs: string[] = [];
+    const r = await ingestHouseMembersElect(pg as unknown as Db, 119, { fetchImpl: (async () => new Response(vacant)) as unknown as typeof fetch, log: (m) => logs.push(m) });
+    expect(r.listed).toBe(5);
+    expect(logs).toContain("AK00 Begich, Nicholas: no bioguide ID in the Clerk's list; skipped");
   });
 });

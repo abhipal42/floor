@@ -470,8 +470,10 @@ export function electFor(
 ): { elect: MemberElect[]; pending: PendingSeat[] } {
   const seatIs = (s: { state: string; district: number | null; chamber: Chamber }, state: string, district: number) =>
     s.chamber === "house" && s.state === state && (DELEGATE_JURISDICTIONS.has(state) || s.district === district);
+  // A name query starts a word of the elect's name ("el sayed", "sayed", "abdul el"), so a few letters
+  // inside a word ("mi" in Hamilton) match nothing.
   const named = (e: MemberElect, text: string) =>
-    text.length > 0 && [`${e.firstName} ${e.lastName}`, `${e.lastName} ${e.firstName}`].some((n) => foldName(n).includes(text));
+    text.length > 0 && [`${e.firstName} ${e.lastName}`, `${e.lastName} ${e.firstName}`].some((n) => ` ${foldName(n)}`.includes(` ${text}`));
   const at = <T extends { state: string; district: number | null; chamber: Chamber }>(s: T, e?: MemberElect): boolean => {
     switch (filter.kind) {
       case "all":
@@ -482,8 +484,9 @@ export function electFor(
         return (s.chamber === "senate" && s.state === filter.state) || seatIs(s, filter.state, filter.district);
       case "seat":
         return seatIs(s, filter.state, filter.district);
+      // A state by name or code means the state's seats only: "MI" is not a name to search for.
       case "state":
-        return s.state === filter.state || (e !== undefined && named(e, filter.name));
+        return s.state === filter.state;
       case "name":
         return e !== undefined && named(e, filter.text);
     }

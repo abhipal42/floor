@@ -1417,8 +1417,24 @@ const ELECT_SELECT = `
  * An elect stops being served once congress-legislators lists someone sworn into that seat after the
  * election (a special election's winner takes office on certification, weeks before January 3).
  */
-const NOT_SWORN = `not exists (select 1 from members s where s.state = e.state and s.chamber = e.chamber
-    and s.district is not distinct from e.district and s.term_start > make_date(e.cycle, 11, 3))`;
+/** The cycle's election day in SQL: the Tuesday after the first Monday in November. */
+const electionDay = (cycle: string) =>
+  `(make_date(${cycle}, 11, 2) + ((9 - extract(isodow from make_date(${cycle}, 11, 2))::int) % 7))`;
+
+/**
+ * The person an elect names has been sworn in: congress-legislators lists them with a term that
+ * started after election day — by bioguide ID, by the same House seat, or (a senator-elect has no
+ * bioguide ID yet) by surname and first name, folded as search folds them. A senator appointed to
+ * the state's other seat is someone else, and hides nothing.
+ */
+const NOT_SWORN = `not exists (
+    select 1 from members s
+     where s.state = e.state and s.chamber = e.chamber and s.term_start > ${electionDay("e.cycle")}
+       and (s.bioguide_id = e.bioguide_id
+            or (e.chamber = 'house' and s.district is not distinct from e.district)
+            or (${folded("s.last_name")} = ${folded("e.last_name")}
+                and (${folded("s.first_name")} like ${folded("e.first_name")} || '%'
+                     or ${folded("e.first_name")} like ${folded("s.first_name")} || '%'))))`;
 
 const holder = (id: string | null, first: string | null, last: string | null, party: string | null) =>
   id && first !== null && last !== null && party !== null ? { bioguideId: id, firstName: first, lastName: last, party } : null;

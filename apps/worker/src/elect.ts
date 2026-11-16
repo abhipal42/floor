@@ -138,20 +138,56 @@ interface SeatMember {
   term_end: string;
 }
 
+/** Election day: the Tuesday after the first Monday in November (`YYYY-MM-DD`). */
+export function electionDay(cycle: number): string {
+  const nov2 = new Date(Date.UTC(cycle, 10, 2)).getUTCDay();
+  return new Date(Date.UTC(cycle, 10, 2 + ((2 - nov2 + 7) % 7))).toISOString().slice(0, 10);
+}
+
+/** A name's words, each reduced as `normName` reduces a name: "Graham Nordone" → graham, nordone. */
+const nameWords = (name: string) => name.split(/[\s-]+/).map(normName).filter(Boolean);
+
 /**
- * The senator a race's `incumbent` names, among the state's senators whose term ends with this
- * election (a regular term on January 3, an appointee's on the special election's day). The full
- * name must match, or the surname must end the name and pick out one senator; anything looser is
- * null, never a guess.
+ * The senator a race's `incumbent` names, among the state's senators who held a seat on election
+ * day (the caller passes only those: a senator who resigned in July is not the incumbent). In order,
+ * each needing exactly one senator: the full name; the same first name with every word of the race's
+ * name in theirs ("Darline Graham" for Darline Graham Nordone); a surname that ends the race's name
+ * ("Dick Durbin" for Richard Durbin). Anything looser is null, never a guess.
  */
 export function matchIncumbent(senators: SeatMember[], state: string, name: string): string | null {
   const inState = senators.filter((m) => m.state === state);
+  const one = (found: SeatMember[]) => (found.length === 1 ? found[0]!.bioguide_id : null);
   const full = normName(name);
-  const exact = inState.filter((m) => normName(`${m.first_name} ${m.last_name}`) === full);
-  if (exact.length === 1) return exact[0]!.bioguide_id;
-  const bySurname = inState.filter((m) => full.endsWith(normName(m.last_name)));
-  return bySurname.length === 1 ? bySurname[0]!.bioguide_id : null;
+  const exact = one(inState.filter((m) => normName(`${m.first_name} ${m.last_name}`) === full));
+  if (exact) return exact;
+  const words = nameWords(name);
+  const byWords = one(
+    inState.filter((m) => {
+      const theirs = nameWords(`${m.first_name} ${m.last_name}`);
+      return words[0] === nameWords(m.first_name)[0] && words.every((w) => theirs.includes(w));
+    }),
+  );
+  if (byWords) return byWords;
+  return one(inState.filter((m) => full.endsWith(normName(m.last_name))));
 }
+
+/** Today in Washington, as SQL: the day the worker's date filters compare with. */
+const TODAY_ET = "(now() at time zone 'America/New_York')::date";
+
+/**
+ * On an upsert that names someone else (or another FEC candidate) for the seat, what was fetched
+ * for the old row's person goes: their FEC totals, and (`DETACH_FILINGS`) their candidate report.
+ */
+const PERSON_CHANGED = `(members_elect.first_name <> excluded.first_name or members_elect.last_name <> excluded.last_name
+  or members_elect.bioguide_id is distinct from excluded.bioguide_id or members_elect.fec_candidate_id is distinct from excluded.fec_candidate_id)`;
+const FINANCE_RESET = ["receipts", "disbursements", "coverage_end", "finance_cycle", "finance_fetched_at"]
+  .map((c) => `${c} = case when ${PERSON_CHANGED} then null else members_elect.${c} end`)
+  .join(", ");
+const DETACH_FILINGS = (bioguide: string) => `detached as (
+  update disclosure_filings f set elect_id = null
+    from input i join members_elect m on m.id = i.id
+   where f.elect_id = i.id
+     and (m.first_name <> i.first_name or m.last_name <> i.last_name or m.bioguide_id is distinct from ${bioguide}))`;
 
 const dayText = (d: unknown) => (d instanceof Date ? d.toISOString().slice(0, 10) : String(d).slice(0, 10));
 
@@ -165,10 +201,12 @@ export async function loadElections(
   e: Elections,
   log: (msg: string) => void = () => {},
 ): Promise<{ elect: number; pending: number; unmatched: string[] }> {
+  // Senators holding a seat on election day: a regular term ending January 3, an appointee's on the
+  // special election's day, and not one who resigned during the year.
   const { rows } = await db.query<SeatMember & { term_end: Date | string }>(
     `select bioguide_id, first_name, last_name, state, district, term_end from members
-      where chamber = 'senate' and term_end between $1::date and $2::date`,
-    [`${e.cycle}-01-01`, e.takesOffice],
+      where chamber = 'senate' and term_start <= $1::date and term_end >= $1::date`,
+    [electionDay(e.cycle)],
   );
   const senators = rows.map((r) => ({ ...r, term_end: dayText(r.term_end) }));
   const unmatched: string[] = [];
@@ -212,7 +250,7 @@ export async function loadElections(
     `with input as (
        select * from jsonb_to_recordset($2::jsonb) as x(id text, cycle smallint, first_name text, last_name text, party text,
          state text, replaces text, takes_office date, on_certification boolean, called_on date, source_url text, fec_candidate_id text)
-     ), upserted as (
+     ), ${DETACH_FILINGS("null")}, upserted as (
        insert into members_elect (id, cycle, bioguide_id, first_name, last_name, party, state, district, chamber, replaces,
                                   takes_office, on_certification, called_by, called_on, source_url, fec_candidate_id)
        select id, cycle, null, first_name, last_name, party, state, null, 'senate', replaces, takes_office, on_certification, 'AP', called_on,
@@ -220,7 +258,8 @@ export async function loadElections(
          from input
        on conflict (id) do update set first_name = excluded.first_name, last_name = excluded.last_name, party = excluded.party,
          replaces = excluded.replaces, takes_office = excluded.takes_office, on_certification = excluded.on_certification, called_by = excluded.called_by,
-         called_on = excluded.called_on, source_url = excluded.source_url, fec_candidate_id = excluded.fec_candidate_id
+         called_on = excluded.called_on, source_url = excluded.source_url, fec_candidate_id = excluded.fec_candidate_id,
+         ${FINANCE_RESET}
        returning 1
      )
      delete from members_elect
@@ -271,18 +310,25 @@ const tag = (xml: string, name: string) => unescape(new RegExp(`<${name}(?:\\s[^
 /** The Clerk writes American Samoa as AQ; everyone else, Floor included, as AS. */
 const CLERK_STATES: Record<string, string> = { AQ: "AS" };
 
-/** Reads the Clerk's member-elect XML: one entry per seat with a member-elect. */
-export function parseClerkMembers(xml: string): { congress: number; members: ClerkMember[] } {
+/**
+ * Reads the Clerk's member-elect XML: one entry per seat with a member-elect. An entry with no
+ * bioguide ID (a vacancy, or a member not yet assigned one) is skipped and named in `skipped`.
+ */
+export function parseClerkMembers(xml: string): { congress: number; members: ClerkMember[]; skipped: string[] } {
   const congress = Number(tag(xml, "congress-num"));
   if (!Number.isInteger(congress) || congress <= 0) throw new Error("member-elect XML has no congress-num");
-  const members = [...xml.matchAll(/<member>([\s\S]*?)<\/member>/g)].map(([, m]) => {
+  const skipped: string[] = [];
+  const members = [...xml.matchAll(/<member>([\s\S]*?)<\/member>/g)].flatMap(([, m]): ClerkMember[] => {
     const sd = tag(m!, "statedistrict");
     const match = /^([A-Z]{2})(\d{2})$/.exec(sd);
     if (!match) throw new Error(`member-elect XML has a statedistrict "${sd}"`);
     const bioguideId = tag(m!, "bioguideID");
-    if (!/^[A-Z]\d{6}$/.test(bioguideId)) throw new Error(`${sd} has no bioguide ID`);
+    if (!/^[A-Z]\d{6}$/.test(bioguideId)) {
+      skipped.push(`${sd} ${tag(m!, "namelist") || "(no name)"}`);
+      return [];
+    }
     const elected = /<elected-date date="(\d{4})(\d{2})(\d{2})"/.exec(m!);
-    return {
+    return [{
       bioguideId,
       firstName: tag(m!, "firstname"),
       lastName: tag(m!, "lastname"),
@@ -290,9 +336,9 @@ export function parseClerkMembers(xml: string): { congress: number; members: Cle
       state: CLERK_STATES[match[1]!] ?? match[1]!,
       district: Number(match[2]),
       electedOn: elected ? `${elected[1]}-${elected[2]}-${elected[3]}` : null,
-    };
+    }];
   });
-  return { congress, members };
+  return { congress, members, skipped };
 }
 
 /**
@@ -317,6 +363,7 @@ export async function ingestHouseMembersElect(
   try {
     const parsed = parseClerkMembers(await res.text());
     if (parsed.congress !== congress) throw new Error(`${url} is for the ${parsed.congress}th Congress, not the ${congress}th`);
+    for (const s of parsed.skipped) opts.log?.(`${s}: no bioguide ID in the Clerk's list; skipped`);
     const cycle = cycleOf(congress);
     const takesOffice = `${cycle + 1}-01-03`;
     const { rows } = await db.query<SeatMember & { term_end: Date | string }>(
@@ -357,7 +404,7 @@ export async function ingestHouseMembersElect(
       `with input as (
          select * from jsonb_to_recordset($2::jsonb) as x(id text, cycle smallint, bioguide_id text, first_name text, last_name text,
            party text, state text, district smallint, replaces text, takes_office date, called_on date, source_url text)
-       ), upserted as (
+       ), ${DETACH_FILINGS("i.bioguide_id")}, upserted as (
          insert into members_elect (id, cycle, bioguide_id, first_name, last_name, party, state, district, chamber, replaces,
                                     takes_office, called_by, called_on, source_url)
          select id, cycle, bioguide_id, first_name, last_name, party, state, district, 'house', replaces, takes_office,
@@ -366,7 +413,7 @@ export async function ingestHouseMembersElect(
          on conflict (id) do update set bioguide_id = excluded.bioguide_id, first_name = excluded.first_name,
            last_name = excluded.last_name, party = excluded.party, replaces = excluded.replaces,
            takes_office = excluded.takes_office, called_by = excluded.called_by, called_on = excluded.called_on,
-           source_url = excluded.source_url
+           source_url = excluded.source_url, ${FINANCE_RESET}
          returning 1
        )
        delete from members_elect where cycle = $1 and called_by = 'House Clerk' and id not in (select id from input)`,
@@ -392,14 +439,29 @@ interface ElectSeat {
 }
 
 /**
+ * Whether two first names are the same person's: the first word must agree, or one side gives only
+ * an initial ("D." or "D") and it agrees. "Dave" and "David" do not: that is a guess.
+ */
+export function sameFirstName(a: string, b: string): boolean {
+  const word = (s: string) => s.trim().split(/\s+/)[0] ?? "";
+  const [x, y] = [word(a), word(b)];
+  const initial = (w: string) => /^\p{L}\.?$/u.test(w);
+  const [nx, ny] = [normName(x), normName(y)];
+  if (!nx || !ny) return false;
+  return nx === ny || ((initial(x) || initial(y)) && nx[0] === ny[0]);
+}
+
+/**
  * The candidate report a House member-elect filed, or null. The index row must name their seat
- * (state and district) and carry their exact surname, and only one filer there may: two filers of
- * that surname for one seat is a guess, and is skipped. The latest report of that filer wins.
+ * (state and district), their exact surname and the same first name (`sameFirstName`), and only one
+ * filer there may: anything else is a guess, and is skipped. The latest report of that filer wins.
  */
 export function matchCandidateReport(elect: ElectSeat, filings: ListedFiling[]): ListedFiling | null {
   const seat = `${elect.state}${String(elect.district).padStart(2, "0")}`;
   const last = normName(elect.last_name);
-  const theirs = filings.filter((f) => f.stateDistrict?.toUpperCase() === seat && normName(f.last) === last);
+  const theirs = filings.filter(
+    (f) => f.stateDistrict?.toUpperCase() === seat && normName(f.last) === last && sameFirstName(f.first, elect.first_name),
+  );
   const filers = new Set(theirs.map((f) => normName(`${f.first} ${f.last}`)));
   if (filers.size !== 1) return null;
   return [...theirs].sort((a, b) => `${b.filedOn ?? ""}${b.id}`.localeCompare(`${a.filedOn ?? ""}${a.id}`))[0]!;
@@ -417,7 +479,7 @@ export async function ingestElectDisclosures(
   const result = { elects: 0, matched: 0, parsed: 0, paper: 0, failed: 0, requests: 0 };
   const { rows: elects } = await db.query<ElectSeat>(
     `select id, first_name, last_name, state, district from members_elect
-      where chamber = 'house' and district is not null and takes_office > current_date order by id`,
+      where chamber = 'house' and district is not null and takes_office > ${TODAY_ET} order by id`,
   );
   result.elects = elects.length;
   // Nothing to look for: no download at all (the Clerk's list arrives in late December).
@@ -438,6 +500,8 @@ export async function ingestElectDisclosures(
     for (const e of elects) {
       const f = matchCandidateReport(e, listed);
       if (!f) {
+        // Whatever was attached before (the seat's earlier member-elect's report) is not theirs.
+        await db.query("update disclosure_filings set elect_id = null where elect_id = $1", [e.id]);
         log(`${e.id}: no candidate report for ${e.first_name} ${e.last_name} at that seat`);
         continue;
       }

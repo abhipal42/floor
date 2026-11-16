@@ -184,7 +184,7 @@ export async function ingestFecElect(
   try {
     const { rows } = await db.query<{ id: string; fec_candidate_id: string; cycle: number }>(
       `select id, fec_candidate_id, cycle from members_elect
-        where fec_candidate_id is not null and takes_office > current_date
+        where fec_candidate_id is not null and takes_office > (now() at time zone 'America/New_York')::date
           and (finance_fetched_at is null or finance_fetched_at < now() - make_interval(hours => $1))
         order by id`,
       [opts.staleHours ?? 20],

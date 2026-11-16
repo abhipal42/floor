@@ -248,3 +248,53 @@ describe("electFor", () => {
     expect(electFor(seats, { kind: "all" }, "house").elect.map((e) => e.id)).toEqual(["elect-2024-ak-al"]);
   });
 });
+
+// ---------------------------------------------------------------------------------------------
+// Review fixes (each failed before its fix)
+
+describe("a state search finds that state's elects only", () => {
+  it("does not read MI as a name (Adam Hamilton, Kansas)", async () => {
+    // Kansas 2026 as the AP called it: Adam Hamilton for the seat Roger Marshall is leaving.
+    await pg.exec(`
+      insert into members (bioguide_id, first_name, last_name, party, state, district, chamber, term_start, term_end)
+        values ('M001198', 'Roger', 'Marshall', 'R', 'KS', null, 'senate', '2021-01-03', '2027-01-03');
+      insert into members_elect (id, cycle, first_name, last_name, party, state, chamber, replaces, takes_office, called_by, called_on, source_url)
+        values ('elect-2026-ks-sen', 2026, 'Adam', 'Hamilton', 'D', 'KS', 'senate', 'M001198', '2027-01-03', 'AP', '2026-11-04',
+                'https://apnews.com/projects/elections-2026/kansas-us-senate-results');`);
+    const app = appAt("2026-11-16T15:00:00Z");
+    const ids = async (q: string) => (await json(app, `/v1/members?q=${encodeURIComponent(q)}`)).body.elect.map((e: MemberElect) => e.id);
+    expect(await ids("MI")).toEqual(["elect-2026-mi-sen"]);
+    expect(await ids("Michigan")).toEqual(["elect-2026-mi-sen"]);
+    expect(await ids("ham")).toEqual(["elect-2026-ks-sen"]);
+    expect(await ids("sayed")).toEqual(["elect-2026-mi-sen"]);
+    expect(await ids("ilton")).toEqual([]);
+  });
+});
+
+describe("hiding an elect once sworn in", () => {
+  it("keeps the elect when someone is appointed to the state's other seat after the election", async () => {
+    // A stand-in appointee (not a real record) to Michigan's other seat.
+    await pg.exec(`insert into members (bioguide_id, first_name, last_name, party, state, district, chamber, term_start, term_end)
+                   values ('X000003', 'Test', 'Appointee', 'D', 'MI', null, 'senate', '2026-11-20', '2031-01-03')`);
+    const ids = (await json(appAt("2026-11-25T15:00:00Z"), "/v1/members-elect?state=MI")).body.elect.map((e: MemberElect) => e.id);
+    expect(ids).toEqual(["elect-2026-mi-sen"]);
+  });
+
+  it("hides the elect once they are listed as sworn in", async () => {
+    // A stand-in swearing-in date, to check the rule.
+    await pg.exec(`insert into members (bioguide_id, first_name, last_name, party, state, district, chamber, term_start, term_end)
+                   values ('X000004', 'Abdul', 'El-Sayed', 'D', 'MI', null, 'senate', '2026-11-20', '2033-01-03')`);
+    expect((await json(appAt("2026-11-25T15:00:00Z"), "/v1/members-elect?state=MI")).body.elect).toEqual([]);
+  });
+
+  it("measures 'after the election' from the cycle's real election day (2024: November 5)", async () => {
+    const ak = async () => (await json(appAt("2024-12-31T15:00:00Z"), "/v1/members-elect?state=AK")).body.elect.map((e: MemberElect) => e.id);
+    // A stand-in term starting on 2024-11-04, before election day: nobody sworn after it.
+    await pg.exec(`insert into members (bioguide_id, first_name, last_name, party, state, district, chamber, term_start, term_end)
+                   values ('X000005', 'Test', 'Before', 'D', 'AK', 0, 'house', '2024-11-04', '2025-01-03')`);
+    expect(await ak()).toEqual(["elect-2024-ak-al"]);
+    // The same seat with a term starting after election day: that seat has been filled.
+    await pg.exec("update members set term_start = '2024-11-13' where bioguide_id = 'X000005'");
+    expect(await ak()).toEqual([]);
+  });
+});
