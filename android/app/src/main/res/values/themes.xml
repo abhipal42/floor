@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- The window behind Compose's first frame: Floor's ground (Tones.ground), so launch does not
+         flash white in dark mode. values-night holds the dark ground. -->
+    <style name="Theme.Floor" parent="android:Theme.Material.Light.NoActionBar">
+        <item name="android:windowBackground">@color/ground</item>
+    </style>
+</resources>

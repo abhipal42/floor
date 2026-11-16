@@ -8,6 +8,23 @@ is a milestone and ships a retro under `docs/retros/`.
 Older series live in [`docs/changelog/`](docs/changelog) (0.1.x: [`0.1.md`](docs/changelog/0.1.md)).
 Before 0.1.0 the history is the commit log on `main`.
 
+## 0.2.46 — 2026-11-16
+
+### Added
+- **Floor for Android, phase 1 of 5** (`android/`): Kotlin and Jetpack Compose, mirroring the iOS app,
+  whose screens are the approved design. This phase covers:
+  - the project with the Gradle wrapper;
+  - the design system (every iOS colour token, light and dark; Barlow Condensed and Inter);
+  - the API client with an on-device response cache;
+  - the shell with the iOS tabs in their order;
+  - the Finals feed with its split-flap board, chamber filter, pull to refresh, and loading, error,
+    empty and offline states.
+
+  The other tabs show "Coming soon" until their phase lands. Tests: 26 JVM tests (they decode the
+  same recorded API responses the iOS tests use, in place) and 12 Roborazzi screenshots. An
+  `android` CI job on `main` is gated by `scope` (`android:^android/`), and the guards' code and
+  tests patterns now cover Android. Plan and phases: `android/README.md`.
+
 ## 0.2.45 — 2026-11-16
 
 ### Added

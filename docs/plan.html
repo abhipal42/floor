@@ -91,6 +91,7 @@ footer{font-size:13px;color:var(--muted);border-top:1px solid var(--line);paddin
   <h2>Key decisions</h2>
   <div class="decisions">
     <div class="decision"><b>Native SwiftUI, iOS 17.2+</b><span>Live Activities, Dynamic Island and widgets are the core of the "sports app" feel. They need ActivityKit and WidgetKit, so the app is native Swift, not cross-platform.</span></div>
+    <div class="decision"><b>Native Android second (Kotlin, Jetpack Compose), from 2026-11-16</b><span>The owner asked for Android. It mirrors the iOS screens rather than sharing UI code, so each platform keeps its own widgets and conventions. Built in five phases (android/README.md); push (FCM) waits on a Firebase project.</span></div>
     <div class="decision"><b>Official sources first</b><span>House Clerk, Senate LIS, Congress.gov and GovInfo are free and authoritative. Third-party data covers two gaps only: district geocoding as a second option, and display-only market odds.</span></div>
     <div class="decision"><b>Always-on ingest worker</b><span>Votes need polling every 5–15 seconds while a chamber is in session. Minute-level serverless crons are too slow, so a small long-running worker owns ingestion and push.</span></div>
     <div class="decision"><b>Postgres + realtime channels</b><span>One Postgres database is the system of record. Live vote state reaches open apps over realtime channels and closed apps through APNs and Live Activity pushes.</span></div>

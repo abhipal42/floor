@@ -11,7 +11,8 @@ name: CI
 # red lands on `main` instead and is found here, after the fact.
 #
 # `node` runs on every push. `ios` runs only when the push touched `ios/` or
-# `.github/` — see the `scope` job.
+# `.github/`, and `android` only when it touched `android/`, the recorded API
+# fixtures both apps decode, or `.github/` — see the `scope` job.
 on:
   push:
     branches: [main]
@@ -30,6 +31,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       ios: ${{ steps.scope.outputs.ios }}
+      android: ${{ steps.scope.outputs.android }}
       ci_config: ${{ steps.scope.outputs.ci_config }}
     steps:
       - uses: actions/checkout@v7
@@ -53,7 +55,7 @@ jobs:
              || [ "$BASE_SHA" = "0000000000000000000000000000000000000000" ] \
              || ! git cat-file -e "${BASE_SHA}^{commit}" 2>/dev/null; then
             echo "no usable base — treating everything as changed"
-            for k in ios ci_config; do echo "$k=true" >> "$GITHUB_OUTPUT"; done
+            for k in ios android ci_config; do echo "$k=true" >> "$GITHUB_OUTPUT"; done
             exit 0
           fi
           # Let the shared rules decide first, into a scratch file so their
@@ -62,6 +64,7 @@ jobs:
           out=$(mktemp)
           GITHUB_OUTPUT="$out" bash .github/scripts/guards.sh scope
           ios=$(grep '^ios=' "$out" | tail -1 | cut -d= -f2)
+          android=$(grep '^android=' "$out" | tail -1 | cut -d= -f2)
           ci_config=$(grep '^ci_config=' "$out" | tail -1 | cut -d= -f2)
 
           # `ios:^ios/` is true on EVERY release, because version-sync requires
@@ -86,8 +89,9 @@ jobs:
           fi
 
           echo "ios=$ios"             >> "$GITHUB_OUTPUT"
+          echo "android=$android"     >> "$GITHUB_OUTPUT"
           echo "ci_config=$ci_config" >> "$GITHUB_OUTPUT"
-          echo "→ ios=$ios ci_config=$ci_config"
+          echo "→ ios=$ios android=$android ci_config=$ci_config"
 
   node:
     runs-on: ubuntu-latest
@@ -177,4 +181,46 @@ jobs:
         with:
           name: snapshot-failures
           path: ${{ runner.temp }}/snapshot-failures
+          if-no-files-found: ignore
+
+  android:
+    # Only when the push touched android/ or the recorded API responses under
+    # ios/FloorKit/Tests/ModelsTests/Fixtures, which the Android decode tests read
+    # in place (one copy for both apps) — or .github/, so a change to this
+    # workflow still proves the job it is changing. SCOPE_RULES in guards.conf
+    # holds the paths. Unlike `ios`, nothing mirrors VERSION under android/, so
+    # the raw answer needs no refining.
+    needs: scope
+    if: needs.scope.outputs.android == 'true' || needs.scope.outputs.ci_config == 'true'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash
+        working-directory: android
+    steps:
+      - uses: actions/checkout@v7
+      # JDK 21, as the app is built locally; AGP 9 needs 17 or newer.
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: 21
+      # Caches the Gradle distribution and dependencies between runs, and checks
+      # the committed gradle-wrapper.jar against Gradle's published checksums
+      # before anything runs it.
+      - uses: gradle/actions/setup-gradle@8da46b539cd8fe6ab27ca75128919a18d757604c # v6.4.1
+      # The runner image ships an Android SDK with its licences accepted; AGP
+      # downloads the compileSdk platform itself if the image lacks it.
+      # Unit tests (the decode tests read the iOS fixtures), then the screenshot
+      # tests against the PNGs committed in android/app/src/test/snapshots — a
+      # changed screen fails here until its references are re-recorded with
+      # `./gradlew recordRoborazziDebug` in the same PR — then the app build, then
+      # lint, whose errors fail the job.
+      - name: Test, verify screenshots, build, lint
+        run: ./gradlew testDebugUnitTest verifyRoborazziDebug assembleDebug lint
+      - name: Upload screenshot diffs
+        if: failure()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: android-screenshot-diffs
+          path: android/app/build/outputs/roborazzi
           if-no-files-found: ignore
