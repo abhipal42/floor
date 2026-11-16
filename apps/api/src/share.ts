@@ -37,6 +37,11 @@ export const DEFAULT_API_BASE = "https://floor-api.vercel.app";
 export const DEFAULT_GET_APP_URL = "https://floor-web-seven.vercel.app/#get";
 /** The app's bundle id (`FLOOR_BUNDLE_ID` in ios/project.yml). */
 export const DEFAULT_BUNDLE_ID = "app.floor.ios";
+/**
+ * The Apple team that signs the app: Ishan's (an individual team), chosen 2026-11-16 over a team
+ * account. `APPLE_TEAM_ID` overrides it. A team id is public (it is in every signed app).
+ */
+export const DEFAULT_APPLE_TEAM_ID = "DCCFA8MX7A";
 /** A page or card changes when the bill does: the catalog refreshes hourly at most. */
 export const SHARE_CACHE_CONTROL = "public, max-age=300, s-maxage=900, stale-while-revalidate=3600";
 
@@ -437,14 +442,15 @@ export async function renderCard(bill: Bill, week: FloorWeek | null, now: Date, 
 
 // MARK: - Universal links
 
-/** The association file, or null while there is no Apple team to name the app by. */
+/** The association file, naming `DEFAULT_APPLE_TEAM_ID`'s app unless told another team; null for a malformed team id. */
 export function appSiteAssociation(opts: ShareOptions): Record<string, unknown> | null {
-  if (!opts.appleTeamId || !/^[A-Z0-9]{10}$/.test(opts.appleTeamId)) return null;
+  const team = opts.appleTeamId ?? DEFAULT_APPLE_TEAM_ID;
+  if (!/^[A-Z0-9]{10}$/.test(team)) return null;
   return {
     applinks: {
       details: [
         {
-          appIDs: [`${opts.appleTeamId}.${opts.bundleId ?? DEFAULT_BUNDLE_ID}`],
+          appIDs: [`${team}.${opts.bundleId ?? DEFAULT_BUNDLE_ID}`],
           components: [{ "/": "/bill/*", comment: "A shared bill opens its bill screen" }],
         },
       ],

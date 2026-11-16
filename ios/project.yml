@@ -12,8 +12,12 @@ options:
 # group, instead of the app and widget colliding on one id or registering ours under your team.
 settings:
   base:
-    MARKETING_VERSION: "0.2.41"
+    MARKETING_VERSION: "0.2.42"
     CURRENT_PROJECT_VERSION: "1"
+    # Ishan's Apple team (an individual team), chosen 2026-11-16. Unsigned builds (CI) ignore it;
+    # a personal build on another team overrides it with FLOOR_BUNDLE_ID (above).
+    DEVELOPMENT_TEAM: DCCFA8MX7A
+    CODE_SIGN_STYLE: Automatic
     FLOOR_BUNDLE_ID: app.floor.ios
     FLOOR_APP_GROUP: group.$(FLOOR_BUNDLE_ID)
     # Universal links: the share page's domain (apps/api/src/share.ts serves its
