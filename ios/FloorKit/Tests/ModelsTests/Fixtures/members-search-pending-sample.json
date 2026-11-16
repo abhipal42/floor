@@ -1,0 +1,26 @@
+{
+    "members": [],
+    "elect": [],
+    "pending": [
+        {
+            "id": "elect-2026-la-5",
+            "state": "LA",
+            "district": 5,
+            "chamber": "house",
+            "status": "runoff",
+            "runoffOn": "2026-12-12",
+            "incumbent": null,
+            "sourceUrl": "https://example.com/sample-pending-seat"
+        },
+        {
+            "id": "elect-2026-la-6",
+            "state": "LA",
+            "district": 6,
+            "chamber": "house",
+            "status": "uncalled",
+            "runoffOn": null,
+            "incumbent": null,
+            "sourceUrl": "https://example.com/sample-pending-seat"
+        }
+    ]
+}

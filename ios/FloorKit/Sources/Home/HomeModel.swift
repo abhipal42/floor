@@ -180,6 +180,34 @@ public final class HomeModel {
         case catchUp
         /// The Alerts screen, from Following's top bar.
         case alerts
+        /// A member-elect's profile, by elect id (`elect-2026-mi-sen`).
+        case elect(id: String)
+    }
+
+    /// Members-elect and undecided seats among your own seats: your state's Senate seats and your
+    /// House district. Empty until ``loadSeats()`` finds some, and after they take office.
+    public internal(set) var seats = MembersElect()
+
+    /// Your delegation's rows with any seat changing hands: the departing member tagged LEAVING, the
+    /// elect under them, an undecided seat as its placeholder. A House seat with nothing from the
+    /// Clerk yet adds nothing.
+    public var seatRows: [SeatRow] {
+        SeatRow.rows(members: follows.state.visibleReps(reps), elect: seats.elect, pending: seats.pending)
+    }
+
+    /// Best effort, saved first then fresh: with neither, the strip just shows your members.
+    public func loadSeats() async {
+        guard let district = delegation?.district else { return }
+        do {
+            try await revalidate(api, report: { _ in }) { pass in
+                guard let found = await pass.bestEffort({ try await $0.membersElect(state: district.state) }) else { return }
+                seats = found.seats(state: district.state, district: district.district)
+            }
+        } catch {}
+    }
+
+    public func electScreen(id: String) -> ElectScreenModel {
+        ElectScreenModel(id: id, api: api)
     }
 
     /// Sends the Alerts screen's choices to the API. nil in previews and tests, where the screen

@@ -240,7 +240,9 @@ struct HomeNetworkTests {
             #expect(!model.foundNothing)
             #expect(model.error == nil)
             #expect(!model.isLoading)
-            let url = try #require(HomeStub.urls.last)
+            // Members-elect ride on `/v1/members?q=`, asked for beside the search (round 12).
+            #expect(HomeStub.urls.contains { $0.path == "/v1/members" })
+            let url = try #require(HomeStub.urls.last { $0.path == "/v1/search" })
             #expect(url.path == "/v1/search")
             #expect(URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems?.first { $0.name == "q" }?.value == "hr 1013")
         }
@@ -254,12 +256,12 @@ struct HomeNetworkTests {
             model.query = "texas"
             let both = model.key
             await model.search()
-            var url = try #require(HomeStub.urls.last)
+            var url = try #require(HomeStub.urls.last { $0.path == "/v1/search" })
             #expect(URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems?.contains { $0.name == "chamber" } == false)
             model.chamber = .senate
             #expect(model.key != both)
             await model.search()
-            url = try #require(HomeStub.urls.last)
+            url = try #require(HomeStub.urls.last { $0.path == "/v1/search" })
             #expect(URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems?.first { $0.name == "chamber" }?.value == "senate")
             let groups = FollowSearchModel.groups([jeffries, .sampleSenator, .sample])
             #expect(groups.map(\.chamber) == [.senate, .house])
@@ -309,6 +311,59 @@ struct HomeNetworkTests {
             _ = try await api.search(query: "rural health")
             _ = try await api.searchMembers(query: "New York")
             #expect(await cache.entries().isEmpty)
+        }
+
+        /// Members-elect come from `/v1/members?q=` beside the search and sit in the delegation, the
+        /// elect under the member leaving; a name that matches only an elect still has a section.
+        @MainActor
+        @Test func searchCarriesMembersElect() async throws {
+            let api = HomeStub.api { path in
+                (200, try HomeStub.fixture(path == "/v1/members" ? "members-search-michigan-senate" : "search-michigan-senate"))
+            }
+            let model = FollowSearchModel(api: api, debounce: .zero)
+            model.query = "michigan"
+            await model.search()
+            guard case let .members(members, elect, pending) = try #require(model.sections.last) else {
+                Issue.record("members last"); return
+            }
+            #expect(members.count == 2 && elect.map(\.id) == ["elect-2026-mi-sen"] && pending.isEmpty)
+            let groups = FollowSearchModel.seatGroups(members, elect: elect, pending: pending)
+            #expect(groups.map(\.chamber) == [.senate])
+            #expect(groups[0].rows.map(\.id) == ["member-P000595", "elect-2026-mi-sen", "member-S001208"])
+
+            let onlyElect = SearchResults(query: "el-sayed", billNumber: false, members: [], bills: [], topics: [])
+            #expect(FollowSearchModel.sections(onlyElect, seats: MembersElect(elect: [.sample]))
+                == [.members([], elect: [.sample], pending: [])])
+        }
+
+        /// The members-elect request failing (an older API's 404 too) never fails the search.
+        @MainActor
+        @Test func aFailedElectRequestIsNoFailure() async throws {
+            let api = HomeStub.api { path in
+                path == "/v1/members" ? (404, Data(#"{"error":"no"}"#.utf8)) : (200, try HomeStub.fixture("search-rural-health"))
+            }
+            let model = FollowSearchModel(api: api, debounce: .zero)
+            model.query = "rural health"
+            await model.search()
+            #expect(model.error == nil)
+            #expect(model.seats == MembersElect())
+            #expect(!model.sections.isEmpty)
+        }
+
+        /// Home's strip: only your own seats, the elect under the member leaving.
+        @MainActor
+        @Test func homeFindsYourSeatsChangingHands() async throws {
+            let api = HomeStub.api { path in
+                path == "/v1/members-elect" ? (200, try HomeStub.fixture("members-elect-mi")) : (404, Data(#"{"error":"no"}"#.utf8))
+            }
+            let peters = Member(bioguideId: "P000595", firstName: "Gary", lastName: "Peters", party: "D", state: "MI", district: nil, chamber: .senate)
+            let delegation = Delegation(district: District(congress: 119, state: "MI", district: 12, countyFips: nil), members: [peters])
+            let model = HomeModel(delegation: delegation, api: api)
+            #expect(!SeatRow.changing(model.seatRows))
+            await model.loadSeats()
+            #expect(HomeStub.urls.last?.query == "state=MI")
+            #expect(model.seatRows == [.member(peters, leavingOn: "2027-01-03"), .elect(.sample)])
+            #expect(model.electScreen(id: "elect-2026-mi-sen").id == "elect-2026-mi-sen")
         }
 
         /// Member rows keep v0.2.28's toggle; bills and topics get their own.

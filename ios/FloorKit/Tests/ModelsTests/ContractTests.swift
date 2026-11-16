@@ -102,8 +102,21 @@ struct ContractTests {
             "DisclosureAsset": fields(DisclosedAsset.sample),
             "DisclosureTrade": fields(DisclosedTrade.sample),
             "PaperFiling": fields(PaperFiling.sample),
+            "SeatHolder": fields(SeatHolder(bioguideId: "P000595", firstName: "Gary", lastName: "Peters", party: "D")),
+            "ElectCall": fields(MemberElect.sample.call),
+            "MemberElect": fields(MemberElect.sample),
+            "PendingSeat": fields(PendingSeat.sample),
+            "ElectSeats": fields(MembersElect(elect: [.sample], pending: [.sample])),
+            "ElectProfile": fields(ElectProfile(elect: .sample, funding: electFunding, disclosure: electDisclosure)),
         ]
     }
+
+    /// El-Sayed's FEC totals as the contract fixture has them; a disclosure shaped like the route's.
+    static let electFunding = ElectFunding(
+        cycle: 2026, receipts: 53_830_872, disbursements: 51_096_843, coverageEnd: "2026-10-14",
+        sourceUrl: "https://www.fec.gov/data/candidate/S6MI00418/"
+    )
+    static let electDisclosure = ElectDisclosure(filedAt: nil, sourceUrl: nil, assets: [], paper: false)
 
     @Test(arguments: [
         "Member", "VoteTotals", "Candidate", "Vote", "VoteDetail", "PartyTotals", "CandidateTotal",
@@ -115,10 +128,26 @@ struct ContractTests {
         "DeviceSubscription", "DeviceRegistration", "DeviceRegistered", "ActivityToken", "BillAlerts", "BillShare",
         "VoteExplainer", "VoteKindInfo", "MemberContact", "ScheduleItem", "SenateMeeting", "Schedule",
         "Disclosures", "DisclosureAsset", "DisclosureTrade", "PaperFiling",
+        "SeatHolder", "ElectCall", "MemberElect", "PendingSeat", "ElectSeats", "ElectProfile",
     ])
     func modelFieldsMatchItsSchema(name: String) throws {
         let model = try #require(Self.modelFields()[name], "no model registered for \(name)")
         #expect(model == (try Self.specFields(name)), "\(name) has drifted from the contract")
+    }
+
+    /// `ElectProfile.funding` and `.disclosure` are inline objects, not named schemas: checked here.
+    @Test func electProfileMatchesItsInlineSchemas() throws {
+        let schema = try #require(try Self.schemas()["ElectProfile"])
+        let properties = try #require(schema["properties"] as? [String: Any])
+        let models: [String: Set<String>] = [
+            "funding": Set(Mirror(reflecting: Self.electFunding).children.compactMap(\.label)),
+            "disclosure": Set(Mirror(reflecting: Self.electDisclosure).children.compactMap(\.label)),
+        ]
+        for (name, model) in models {
+            let inline = try #require(properties[name] as? [String: Any])
+            let fields = try #require(inline["properties"] as? [String: Any])
+            #expect(model == Set(fields.keys), "ElectProfile.\(name) has drifted from the contract")
+        }
     }
 
     /// `Disclosures.annual` is an inline object, not a named schema: checked against it here.

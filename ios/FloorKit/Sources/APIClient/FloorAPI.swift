@@ -204,6 +204,24 @@ public struct FloorAPI: Sendable {
         try await get("/v1/bills/\(escaped(id))")
     }
 
+    /// Members-elect and the seats with no winner yet, in one state or (nil) everywhere. Saved for
+    /// offline like any list. An API without the route yet (its 404) reads as none, saved as such.
+    public func membersElect(state: String? = nil) async throws -> MembersElect {
+        try await get(
+            "/v1/members-elect", query: state.map { [URLQueryItem(name: "state", value: $0)] } ?? [],
+            notFound: Self.noMembersElect
+        )
+    }
+
+    static let noMembersElect = Data(#"{"elect":[],"pending":[]}"#.utf8)
+
+    /// One member-elect's profile: who called the race, FEC totals, candidate disclosure. nil when
+    /// the API no longer lists them — unknown, or they have taken office (its 404) — saved as such,
+    /// so the screen says "no longer listed" offline too.
+    public func memberElect(id: String) async throws -> ElectProfile? {
+        try await get("/v1/members-elect/\(escaped(id))", notFound: Self.none)
+    }
+
     /// The week ahead: the House's list and when the Senate meets. `week` is any day of it
     /// (`YYYY-MM-DD`); nil is this week in Washington. Saved for offline like any list.
     public func schedule(week: String? = nil) async throws -> Schedule {

@@ -237,7 +237,7 @@ struct DisclosuresFigures: View {
             }
             let shown = allAssets ? annual.assets.count : min(annual.assets.count, Self.assetsShown)
             ForEach(Array(annual.assets.prefix(shown).enumerated()), id: \.offset) { _, asset in
-                range(
+                Self.range(
                     title: asset.name, value: asset.value,
                     detail: [asset.type, Self.owner(asset.owner), asset.account].compactMap(\.self).joined(separator: " · ")
                 )
@@ -273,7 +273,7 @@ struct DisclosuresFigures: View {
             let ticker = trade.ticker.flatMap { trade.asset.contains("(\($0))") ? nil : " (\($0))" } ?? ""
             let title = "\(trade.verb) · \(trade.asset)\(ticker)"
             VStack(alignment: .leading, spacing: 0) {
-                range(title: title, value: trade.amount, detail: tradeLine(trade), flagged: trade.pastDeadline)
+                Self.range(title: title, value: trade.amount, detail: tradeLine(trade), flagged: trade.pastDeadline)
             }
         }
     }
@@ -328,8 +328,9 @@ struct DisclosuresFigures: View {
             .padding(.horizontal, 2)
     }
 
-    /// The mock's `.rg`: what it is, its range as filed, and a line of detail.
-    private func range(title: String, value: String?, detail: String, flagged: Bool = false) -> some View {
+    /// The mock's `.rg`: what it is, its range as filed, and a line of detail. Static so a
+    /// member-elect's candidate report draws its rows the same way.
+    static func range(title: String, value: String?, detail: String, flagged: Bool = false) -> some View {
         VStack(alignment: .leading, spacing: 3) {
             ViewThatFits(in: .horizontal) {
                 HStack(alignment: .firstTextBaseline, spacing: 8) {

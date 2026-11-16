@@ -1,0 +1,10 @@
+{
+    "query": "michigan",
+    "billNumber": false,
+    "members": [
+        { "bioguideId": "P000595", "firstName": "Gary", "lastName": "Peters", "party": "D", "state": "MI", "district": null, "chamber": "senate", "leavingOn": "2027-01-03" },
+        { "bioguideId": "S001208", "firstName": "Elissa", "lastName": "Slotkin", "party": "D", "state": "MI", "district": null, "chamber": "senate", "leavingOn": null }
+    ],
+    "bills": [],
+    "topics": []
+}

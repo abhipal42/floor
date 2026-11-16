@@ -12,7 +12,7 @@ options:
 # group, instead of the app and widget colliding on one id or registering ours under your team.
 settings:
   base:
-    MARKETING_VERSION: "0.2.46"
+    MARKETING_VERSION: "0.2.47"
     CURRENT_PROJECT_VERSION: "1"
     # Ishan's Apple team (an individual team), chosen 2026-11-16. Unsigned builds (CI) ignore it;
     # a personal build on another team overrides it with FLOOR_BUNDLE_ID (above).

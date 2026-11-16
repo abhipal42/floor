@@ -24,6 +24,8 @@ public struct FollowingView: View {
     let onOpenMember: (Member) -> Void
     let onOpenBill: (String) -> Void
     let onOpenTopic: (String) -> Void
+    /// A member-elect's row in the "+ Add" sheet: their profile, by elect id.
+    let onOpenElect: (String) -> Void
     /// The bell in the top bar: the Alerts screen. nil (previews) shows no bell.
     let onOpenAlerts: (() -> Void)?
     let onFindReps: () -> Void
@@ -38,6 +40,7 @@ public struct FollowingView: View {
         onOpenMember: @escaping (Member) -> Void,
         onOpenBill: @escaping (String) -> Void = { _ in },
         onOpenTopic: @escaping (String) -> Void = { _ in },
+        onOpenElect: @escaping (String) -> Void = { _ in },
         onOpenAlerts: (() -> Void)? = nil,
         onFindReps: @escaping () -> Void,
         onChangeAddress: @escaping () -> Void
@@ -47,6 +50,7 @@ public struct FollowingView: View {
         self.onOpenMember = onOpenMember
         self.onOpenBill = onOpenBill
         self.onOpenTopic = onOpenTopic
+        self.onOpenElect = onOpenElect
         self.onOpenAlerts = onOpenAlerts
         self.onFindReps = onFindReps
         self.onChangeAddress = onChangeAddress
@@ -107,7 +111,8 @@ public struct FollowingView: View {
                 follows: model.follows,
                 reps: model.reps.map(\.bioguideId),
                 onOpenBill: onOpenBill,
-                onOpenTopic: onOpenTopic
+                onOpenTopic: onOpenTopic,
+                onOpenElect: onOpenElect
             )
         }
     }

@@ -66,7 +66,10 @@ public struct HomeView: View {
             .padding(.top, 8)
             .padding(.bottom, 24)
         }
-        .refreshable { await model.load() }
+        .refreshable {
+            await model.load()
+            await model.loadSeats()
+        }
         .background(alignment: .top) {
             LinearGradient(colors: [Palette.groundGlow, Palette.ground], startPoint: .top, endPoint: .bottom)
                 .frame(height: 420)
@@ -77,6 +80,7 @@ public struct HomeView: View {
         // new chamber fetches its latest finals, and anything else (a first load, a refresh that was
         // cancelled) loads everything. Reordering only regroups the cards.
         .task(id: model.syncKey) { await model.sync() }
+        .task(id: model.delegation?.district) { await model.loadSeats() }
         .onChange(of: model.orderKey) { model.regroup() }
     }
 
@@ -103,7 +107,38 @@ public struct HomeView: View {
     /// strip is the mock's three, and a long follow list would not fit across.
     private var stripMembers: [Member] { model.follows.state.visibleReps(model.reps) }
 
+    @ViewBuilder
     private var delegationStrip: some View {
+        let rows = model.seatRows
+        if SeatRow.changing(rows) {
+            seatChangeList(rows)
+        } else {
+            cardStrip
+        }
+    }
+
+    /// While a seat of yours is changing hands, the strip becomes the members-elect mock's "Your
+    /// three" list (round 12, section A): the departing member tagged LEAVING, the elect under
+    /// them, an undecided seat as its placeholder. Three across has no "under".
+    private func seatChangeList(_ rows: [SeatRow]) -> some View {
+        VStack(alignment: .leading, spacing: 7) {
+            ForEach(rows) { row in
+                switch row {
+                case let .member(member, leavingOn):
+                    Button { onOpenMember(member) } label: { SeatMemberRow(member, leavingOn: leavingOn) }
+                        .buttonStyle(.plain)
+                        .accessibilityHint("Opens their record")
+                case let .elect(elect):
+                    Button { onOpen(.elect(id: elect.id)) } label: { ElectRow(elect) }
+                        .buttonStyle(.plain)
+                case let .pending(seat):
+                    PendingSeatCard(seat)
+                }
+            }
+        }
+    }
+
+    private var cardStrip: some View {
         // Three across is the mock; at accessibility sizes a third of the width cannot hold a
         // surname and a seat, so the cards stack instead.
         let layout = dynamicTypeSize.isAccessibilitySize

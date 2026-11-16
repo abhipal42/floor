@@ -3,9 +3,23 @@ import Foundation
 /// `GET /v1/members?q=` — sitting members matching a name, a state or a seat, Senate first.
 public struct MemberSearch: Codable, Sendable, Hashable {
     public var members: [Member]
+    /// Members-elect matching the same query (a state, a seat, an elect's name), and the matching
+    /// seats with no winner yet. Empty from an older API and once they take office.
+    public var elect: [MemberElect]
+    public var pending: [PendingSeat]
 
-    public init(members: [Member]) {
+    public init(members: [Member], elect: [MemberElect] = [], pending: [PendingSeat] = []) {
         self.members = members
+        self.elect = elect
+        self.pending = pending
+    }
+
+    private enum CodingKeys: String, CodingKey { case members, elect, pending }
+
+    public init(from decoder: any Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        members = try c.decode([Member].self, forKey: .members)
+        (elect, pending) = ElectLists.decode(c, elect: .elect, pending: .pending)
     }
 }
 

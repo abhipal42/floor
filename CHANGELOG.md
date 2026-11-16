@@ -8,6 +8,24 @@ is a milestone and ships a retro under `docs/retros/`.
 Older series live in [`docs/changelog/`](docs/changelog) (0.1.x: [`0.1.md`](docs/changelog/0.1.md)).
 Before 0.1.0 the history is the commit log on `main`.
 
+## 0.2.47 — 2026-11-16
+
+### Added
+- **Members-elect in the iPhone app** (round 12, built to the locked mock).
+  - A member leaving their seat carries a LEAVING tag. Under them is the member-elect, with a ringed
+    avatar and an ELECT tag: "Senator-elect · takes office Jan 3", or "when Ohio certifies" for a
+    special election's winner. A seat still being counted is a dashed card with no name.
+  - These rows appear on Home's "Your three" when one of your seats changes hands, and in a state's
+    delegation in search.
+  - Tapping an elect opens their screen:
+    - **Votes:** "Takes office Jan 3, 2027", who called the race, with the link, and "No votes yet".
+    - **Money:** FEC raised and spent, with the FEC link, plus the candidate report or its placeholder.
+    - **Contact:** "No office yet".
+  - New `Palette.elect` tokens, with contrast tests. Contract tests compare the six new schemas
+    exactly. 8 new snapshot sets.
+  - Where it differs from the mock: no Follow button (following an elect needs new follow plumbing),
+    and no donors card (the API serves none for elects).
+
 ## 0.2.46 — 2026-11-16
 
 ### Added

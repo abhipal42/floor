@@ -117,6 +117,15 @@ public enum Tones {
     /// (`panelBorder`), in both appearances.
     public static let moneyBar: [Swatch] = [yea, teal, threshold, dim]
 
+    // From the members-elect mock (round 12): anything about a member-elect. Dark is the mock's
+    // #7DD3FC; light a deep sky blue that reads at 4.5:1 on the marble ground and on a panel. It is
+    // text (the ELECT tag's outline variant, the banner title), so it is contrast-tested.
+    public static let elect = Swatch(light: 0x0369A1, dark: 0x7DD3FC)
+    /// Text on an `elect` fill: the ELECT tag. The mock's #07263A on the dark blue; white on the light.
+    public static let electInk = Swatch(light: 0xFFFFFF, dark: 0x07263A)
+    /// How strongly the takes-office banner is washed with `elect` (the mock's `rgba(125,211,252,.08)`).
+    public static let electTint = 0.08
+
     // The home-screen widgets' ground: the widget mock's #0B0C0F in dark, a white panel in light.
     public static let widget = Swatch(light: 0xFFFFFF, dark: 0x0B0C0F)
 
@@ -141,7 +150,7 @@ public enum Tones {
     public static let textTokens: [(name: String, swatch: Swatch)] = [
         ("text", text), ("textSecondary", textSecondary), ("textMuted", textMuted), ("textFaint", textFaint),
         ("yea", yea), ("nay", nay), ("liveText", liveText), ("scheduled", scheduled),
-        ("accent", accent), ("threshold", threshold), ("ai", ai),
+        ("accent", accent), ("threshold", threshold), ("ai", ai), ("elect", elect),
         ("party D", party("D")), ("party R", party("R")), ("party I", party("I")),
     ]
 }
@@ -224,6 +233,10 @@ public enum Palette {
     public static let ai = Color(Tones.ai)
     /// Text on an ``ai`` fill.
     public static let aiInk = Color(Tones.aiInk)
+    /// A member-elect: the ring round their portrait, the ELECT tag, the takes-office banner.
+    public static let elect = Color(Tones.elect)
+    /// Text on an ``elect`` fill.
+    public static let electInk = Color(Tones.electInk)
 
     // Lit displays: the same in both appearances.
     /// The split-flap board: its frame, and the top and bottom halves of each cell.
