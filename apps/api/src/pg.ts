@@ -11,6 +11,10 @@ import type {
   DeviceRepository,
   DisclosureRepository,
   Disclosures,
+  ElectProfile,
+  ElectRepository,
+  MemberElect,
+  PendingSeat,
   TopicFilter,
   LiveRepository,
   CandidateTotal,
@@ -507,6 +511,7 @@ export function pgRepositories(db: Db): {
   devices: DeviceRepository;
   schedule: ScheduleRepository;
   disclosures: DisclosureRepository;
+  elect: ElectRepository;
 } {
   const registerOnce = async (keyHash: string, reg: DeviceRegistration, now: Date) => {
     // An APNs token belongs to one install. A phone that reinstalled Floor makes a new key and
@@ -586,6 +591,7 @@ export function pgRepositories(db: Db): {
 
   return {
     disclosures: pgDisclosures(db),
+    elect: pgElect(db),
     devices: {
       async register(keyHash, reg, now, caller) {
         if (!(await admitNew(keyHash, caller, now))) return "limited";
@@ -1375,6 +1381,205 @@ export function pgDisclosures(db: Db): DisclosureRepository {
           status: p.parse_status === "paper" ? ("paper" as const) : ("unparsed" as const),
         })),
       };
+    },
+  };
+}
+
+interface ElectRow {
+  id: string;
+  bioguide_id: string | null;
+  first_name: string;
+  last_name: string;
+  party: string;
+  state: string;
+  district: number | null;
+  chamber: "house" | "senate";
+  takes_office: string;
+  on_certification: boolean;
+  called_by: "AP" | "House Clerk";
+  called_on: string | null;
+  source_url: string;
+  fec_candidate_id: string | null;
+  r_id: string | null;
+  r_first: string | null;
+  r_last: string | null;
+  r_party: string | null;
+}
+
+const ELECT_SELECT = `
+  select e.id, e.bioguide_id, e.first_name, e.last_name, e.party, e.state, e.district, e.chamber,
+         to_char(e.takes_office, 'YYYY-MM-DD') as takes_office, e.on_certification, e.called_by, to_char(e.called_on, 'YYYY-MM-DD') as called_on,
+         e.source_url, e.fec_candidate_id,
+         r.bioguide_id as r_id, r.first_name as r_first, r.last_name as r_last, r.party as r_party
+    from members_elect e left join members r on r.bioguide_id = e.replaces`;
+
+/**
+ * An elect stops being served once congress-legislators lists someone sworn into that seat after the
+ * election (a special election's winner takes office on certification, weeks before January 3).
+ */
+/** The cycle's election day in SQL: the Tuesday after the first Monday in November. */
+const electionDay = (cycle: string) =>
+  `(make_date(${cycle}, 11, 2) + ((9 - extract(isodow from make_date(${cycle}, 11, 2))::int) % 7))`;
+
+/**
+ * The person an elect names has been sworn in: congress-legislators lists them with a term that
+ * started after election day — by bioguide ID, by the same House seat, or (a senator-elect has no
+ * bioguide ID yet) by surname and first name, folded as search folds them. A senator appointed to
+ * the state's other seat is someone else, and hides nothing.
+ */
+const NOT_SWORN = `not exists (
+    select 1 from members s
+     where s.state = e.state and s.chamber = e.chamber and s.term_start > ${electionDay("e.cycle")}
+       and (s.bioguide_id = e.bioguide_id
+            or (e.chamber = 'house' and s.district is not distinct from e.district)
+            or (${folded("s.last_name")} = ${folded("e.last_name")}
+                and (${folded("s.first_name")} like ${folded("e.first_name")} || '%'
+                     or ${folded("e.first_name")} like ${folded("s.first_name")} || '%'))))`;
+
+const holder = (id: string | null, first: string | null, last: string | null, party: string | null) =>
+  id && first !== null && last !== null && party !== null ? { bioguideId: id, firstName: first, lastName: last, party } : null;
+
+const toElect = (r: ElectRow): MemberElect => ({
+  id: r.id,
+  bioguideId: r.bioguide_id,
+  firstName: r.first_name,
+  lastName: r.last_name,
+  party: r.party,
+  state: r.state,
+  district: r.district,
+  chamber: r.chamber,
+  takesOffice: r.takes_office,
+  takesOfficeOnCertification: r.on_certification,
+  replaces: holder(r.r_id, r.r_first, r.r_last, r.r_party),
+  call: { by: r.called_by, on: r.called_on, sourceUrl: r.source_url },
+  fecCandidateId: r.fec_candidate_id,
+});
+
+/** How long one read of every elect and pending seat is reused: they change once a day, at most. */
+const ELECT_CACHE_MS = 60_000;
+
+/**
+ * Members-elect and pending seats (20261118000100_members_elect.sql). A database without that
+ * migration answers none rather than a 500: the API deploys on merge, before the migration is applied.
+ * The seats are read whole (a few hundred rows at most) and filtered in `electFor`.
+ */
+export function pgElect(db: Db, now: () => number = Date.now): ElectRepository {
+  const query = liveQuery(db);
+  let cached: { today: string; at: number; seats: Promise<{ elect: MemberElect[]; pending: PendingSeat[] }> } | null = null;
+  const read = async (today: string) => {
+    const [elect, pending] = await Promise.all([
+      query<ElectRow>(`${ELECT_SELECT} where e.takes_office > $1::date and ${NOT_SWORN} order by case e.chamber when 'senate' then 0 else 1 end, e.state, e.district, e.id`, [today]),
+      query<{
+        id: string;
+        state: string;
+        district: number | null;
+        chamber: "house" | "senate";
+        status: "uncalled" | "runoff";
+        runoff_on: string | null;
+        source_url: string;
+        i_id: string | null;
+        i_first: string | null;
+        i_last: string | null;
+        i_party: string | null;
+      }>(
+        `select p.id, p.state, p.district, p.chamber, p.status, to_char(p.runoff_on, 'YYYY-MM-DD') as runoff_on, p.source_url,
+                i.bioguide_id as i_id, i.first_name as i_first, i.last_name as i_last, i.party as i_party
+           from seats_pending p left join members i on i.bioguide_id = p.incumbent
+          where make_date(p.cycle + 1, 1, 3) > $1::date
+          order by case p.chamber when 'senate' then 0 else 1 end, p.state, p.district, p.id`,
+        [today],
+      ),
+    ]);
+    return {
+      elect: elect.rows.map(toElect),
+      pending: pending.rows.map((p) => ({
+        id: p.id,
+        state: p.state,
+        district: p.district,
+        chamber: p.chamber,
+        status: p.status,
+        runoffOn: p.runoff_on,
+        incumbent: holder(p.i_id, p.i_first, p.i_last, p.i_party),
+        sourceUrl: p.source_url,
+      })),
+    };
+  };
+  return {
+    seats(today) {
+      if (!cached || cached.today !== today || now() - cached.at > ELECT_CACHE_MS) {
+        const seats = read(today);
+        cached = { today, at: now(), seats };
+        // A failed read is not reused.
+        seats.catch(() => {
+          if (cached?.seats === seats) cached = null;
+        });
+      }
+      return cached.seats;
+    },
+    async profile(id, today, withDisclosure) {
+      const { rows } = await query<
+        ElectRow & { receipts: string | null; disbursements: string | null; coverage_end: string | null; finance_cycle: number | null }
+      >(
+        `${ELECT_SELECT.replace("e.fec_candidate_id,", "e.fec_candidate_id, e.receipts, e.disbursements, to_char(e.coverage_end, 'YYYY-MM-DD') as coverage_end, e.finance_cycle,")}
+          where e.id = $1 and e.takes_office > $2::date and ${NOT_SWORN}`,
+        [id, today],
+      );
+      const r = rows[0];
+      if (!r) return null;
+      const funding: ElectProfile["funding"] =
+        r.receipts !== null && r.disbursements !== null && r.finance_cycle !== null && r.fec_candidate_id
+          ? {
+              cycle: r.finance_cycle,
+              receipts: Number(r.receipts),
+              disbursements: Number(r.disbursements),
+              coverageEnd: r.coverage_end,
+              sourceUrl: `https://www.fec.gov/data/candidate/${r.fec_candidate_id}/`,
+            }
+          : null;
+      let disclosure: ElectProfile["disclosure"] = null;
+      if (withDisclosure) {
+        const { rows: filings } = await query<{ id: string; filed_on: string | null; source_url: string; parse_status: string }>(
+          `select id, to_char(filed_on, 'YYYY-MM-DD') as filed_on, source_url, parse_status from disclosure_filings
+            where elect_id = $1 order by filed_on desc nulls last, id desc limit 1`,
+          [id],
+        );
+        const f = filings[0];
+        // A report not read yet, or that failed to read, is not shown as one with no assets.
+        if (f && (f.parse_status === "parsed" || f.parse_status === "paper")) {
+          const { rows: assets } = await query<{
+            name: string;
+            asset_type: string | null;
+            asset_type_code: string | null;
+            account: string | null;
+            owner: Owner | null;
+            value_range: string | null;
+            income_type: string | null;
+            income_range: string | null;
+            description: string | null;
+          }>(
+            `select name, asset_type, asset_type_code, account, owner, value_range, income_type, income_range, description
+               from disclosure_assets where filing_id = $1 order by position`,
+            [f.id],
+          );
+          disclosure = {
+            filedAt: f.filed_on,
+            sourceUrl: f.source_url,
+            paper: f.parse_status === "paper",
+            assets: assets.map((a) => ({
+              name: a.name,
+              type: a.asset_type,
+              typeCode: a.asset_type_code,
+              account: a.account,
+              owner: a.owner,
+              value: a.value_range,
+              incomeType: a.income_type,
+              income: a.income_range,
+              description: a.description,
+            })),
+          };
+        }
+      }
+      return { elect: toElect(r), funding, disclosure };
     },
   };
 }

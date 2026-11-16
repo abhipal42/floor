@@ -37,6 +37,14 @@ const KINDS: Record<string, { kind: "annual" | "ptr"; amendment: boolean }> = {
 };
 
 /**
+ * A candidate's report (C), read for members-elect (elect.ts). Its Schedule A is the annual
+ * report's, so it is stored and parsed as an annual report, under the elect rather than a member.
+ */
+export const CANDIDATE_KINDS: Record<string, { kind: "annual" | "ptr"; amendment: boolean }> = {
+  C: { kind: "annual", amendment: false },
+};
+
+/**
  * Every asset type code the House uses, from fd.house.gov/reference/asset-type-codes.aspx (fetched
  * 2026-11-14). A filing writes the code in brackets after the asset ("GSK plc (GSK) [ST]").
  */
@@ -96,7 +104,7 @@ export const houseDocUrl = (kind: "annual" | "ptr", year: number, docId: string)
   `${HOUSE_BASE}/${kind === "ptr" ? "ptr-pdfs" : "financial-pdfs"}/${year}/${docId}.pdf`;
 
 /** The member reports in one year's index (the TXT inside <YEAR>FD.zip). */
-export function parseHouseIndex(txt: string): ListedFiling[] {
+export function parseHouseIndex(txt: string, kinds = KINDS): ListedFiling[] {
   const lines = txt.replace(/^\uFEFF/, "").split(/\r?\n/).filter((l) => l.trim());
   const header = lines.shift()?.split("\t") ?? [];
   const col = (name: string) => {
@@ -110,7 +118,7 @@ export function parseHouseIndex(txt: string): ListedFiling[] {
   const out = new Map<string, ListedFiling>();
   for (const line of lines) {
     const f = line.split("\t").map((s) => s.trim());
-    const kind = KINDS[f[cType!] ?? ""];
+    const kind = kinds[f[cType!] ?? ""];
     const docId = f[cDoc!] ?? "";
     const year = Number(f[cYear!]);
     if (!kind || !/^\d+$/.test(docId) || !Number.isInteger(year)) continue;
@@ -421,6 +429,8 @@ export interface HouseSourceOptions {
   fetchImpl?: typeof fetch;
   /** How old a cached index zip may be before it is downloaded again. The Clerk rebuilds it daily. */
   indexMaxAgeMs?: number;
+  /** The FilingType codes listed: members' reports by default, `CANDIDATE_KINDS` for members-elect. */
+  kinds?: typeof KINDS;
 }
 
 export function houseSource(opts: HouseSourceOptions): DisclosureSource {
@@ -445,7 +455,7 @@ export function houseSource(opts: HouseSourceOptions): DisclosureSource {
         const txt = Object.entries(zip).find(([name]) => name.toLowerCase().endsWith(".txt"));
         if (!txt) throw new Error(`${year}FD.zip has no TXT index`);
         out.push(
-          ...parseHouseIndex(strFromU8(txt[1])).filter((f) => f.kind === "annual" || (f.filedOn !== null && f.filedOn >= opts.ptrSince)),
+          ...parseHouseIndex(strFromU8(txt[1]), opts.kinds).filter((f) => f.kind === "annual" || (f.filedOn !== null && f.filedOn >= opts.ptrSince)),
         );
       }
       return out;

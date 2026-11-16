@@ -324,7 +324,8 @@ describe("API", () => {
     const res = await app.request("/v1/members/D000399");
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual({
-      member: members[0],
+      // No member-elect replaces him, so leavingOn is null rather than absent.
+      member: { ...members[0], leavingOn: null },
       partyLoyalty: { votes: 120, withParty: 111, againstParty: 9 },
       // No contact form: the House's own "Write Your Representative" form is the app's fallback.
       contact: { phone: "202-225-4865", contactForm: null, website: "https://doggett.house.gov", office: "2307 Rayburn House Office Building", address: null },
@@ -337,7 +338,7 @@ describe("API", () => {
     const res = await app.request("/v1/members/D000399/funding");
     expect(res.status).toBe(200);
     const body = await res.json();
-    expect(body.member).toEqual(members[0]);
+    expect(body.member).toEqual({ ...members[0], leavingOn: null });
     expect(body.funding).toMatchObject({ cycle: 2026, receipts: 2_412_880, cashOnHand: 884_398 });
     // What the campaign reported receiving is not a breakdown of what committees reported giving:
     // the PAC total and the listed committees come from different filings and need not agree.
@@ -473,7 +474,7 @@ describe("API", () => {
     searches.length = 0;
     const res = await app.request("/v1/members?q=New%20York");
     expect(res.status).toBe(200);
-    expect(await res.json()).toEqual({ members });
+    expect(await res.json()).toEqual({ members: members.map((m) => ({ ...m, leavingOn: null })), elect: [], pending: [] });
     await app.request("/v1/members?q=ny-8&chamber=house&limit=5");
     await app.request("/v1/members?q=%20Doggett%20");
     expect(searches).toEqual([
@@ -678,7 +679,8 @@ describe("API", () => {
     // LatestAction on Bill and Nomination, MeasureSummary on MemberVote (a procedural vote refers
     // to no measure), and Funding on MemberFunding, its only use, null when FEC has no totals for
     // the member; BillStage on BillListItem and Bill, both null until the worker has staged the
-    // bill; and VoteExplainer on Vote, null for a question with no written line. Anything else showing up here needs checking against how it is actually used
+    // bill; VoteExplainer on Vote, null for a question with no written line; and SeatHolder on
+    // MemberElect.replaces and PendingSeat.incumbent, null when the seat's holder is unknown. Anything else showing up here needs checking against how it is actually used
     // before the list is widened — and if Funding ever gains a use that must not accept null, it
     // has to come off this list and out of the component, not be left here.
     const doc = await (await app.request("/openapi.json")).json();
@@ -686,7 +688,7 @@ describe("API", () => {
     const hoisted = Object.entries(schemas)
       .filter(([, schema]) => schema.nullable)
       .map(([name]) => name);
-    expect(hoisted.sort()).toEqual(["BillStage", "Funding", "LatestAction", "MeasureSummary", "VoteExplainer"]);
+    expect(hoisted.sort()).toEqual(["BillStage", "Funding", "LatestAction", "MeasureSummary", "SeatHolder", "VoteExplainer"]);
   });
 });
 

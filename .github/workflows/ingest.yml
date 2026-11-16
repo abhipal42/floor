@@ -117,6 +117,22 @@ jobs:
       - name: Transcribed paper filings
         if: steps.install.outcome == 'success' && (github.event_name == 'workflow_dispatch' || github.event.schedule == '17 6 * * *') && !cancelled()
         run: npm run ingest -w @floor/worker -- transcriptions
+      # Members-elect, once a day: the Senate races as the AP called them (apps/worker/elections,
+      # reviewed in a diff), then the House Clerk's member-elect list (it 404s until late December,
+      # which is a clean "not published yet"), their FEC totals, and House elects' candidate reports.
+      # The API stops serving all of it on January 3, when congress-legislators takes over.
+      - name: Senate races (AP calls)
+        if: steps.install.outcome == 'success' && (github.event_name == 'workflow_dispatch' || github.event.schedule == '17 6 * * *') && !cancelled()
+        run: npm run ingest -w @floor/worker -- elections
+      - name: House members-elect (Clerk)
+        if: steps.install.outcome == 'success' && (github.event_name == 'workflow_dispatch' || github.event.schedule == '17 6 * * *') && !cancelled()
+        run: npm run ingest -w @floor/worker -- members-elect-house 120
+      - name: Members-elect FEC totals
+        if: steps.install.outcome == 'success' && env.CONGRESS_API_KEY != '' && (github.event_name == 'workflow_dispatch' || github.event.schedule == '17 6 * * *') && !cancelled()
+        run: npm run ingest -w @floor/worker -- fec-elect
+      - name: Members-elect candidate reports
+        if: steps.install.outcome == 'success' && (github.event_name == 'workflow_dispatch' || github.event.schedule == '17 6 * * *') && !cancelled()
+        run: npm run ingest -w @floor/worker -- elect-disclosures --budget 50
       - name: Bill catalog
         if: steps.install.outcome == 'success' && env.CONGRESS_API_KEY != '' && !cancelled()
         env:

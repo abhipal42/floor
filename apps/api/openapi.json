@@ -48,6 +48,12 @@
           },
           "chamber": {
             "$ref": "#/components/schemas/Chamber"
+          },
+          "leavingOn": {
+            "type": "string",
+            "nullable": true,
+            "description": "The day they leave the seat, when a member-elect replaces them and has not taken office yet; null otherwise. Absent where a response does not look it up",
+            "example": "2027-01-03"
           }
         },
         "required": [
@@ -60,6 +66,176 @@
           "chamber"
         ]
       },
+      "SeatHolder": {
+        "type": "object",
+        "nullable": true,
+        "properties": {
+          "bioguideId": {
+            "type": "string"
+          },
+          "firstName": {
+            "type": "string"
+          },
+          "lastName": {
+            "type": "string"
+          },
+          "party": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "bioguideId",
+          "firstName",
+          "lastName",
+          "party"
+        ],
+        "description": "The sitting member a member-elect replaces, or a pending seat's incumbent"
+      },
+      "ElectCall": {
+        "type": "object",
+        "properties": {
+          "by": {
+            "type": "string",
+            "enum": [
+              "AP",
+              "House Clerk"
+            ],
+            "description": "Who called the race. Floor never does"
+          },
+          "on": {
+            "type": "string",
+            "nullable": true,
+            "example": "2026-11-04"
+          },
+          "sourceUrl": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "by",
+          "on",
+          "sourceUrl"
+        ]
+      },
+      "MemberElect": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "example": "elect-2026-mi-sen"
+          },
+          "bioguideId": {
+            "type": "string",
+            "nullable": true,
+            "description": "Once assigned (the House Clerk's list has them); null for most senators-elect"
+          },
+          "firstName": {
+            "type": "string"
+          },
+          "lastName": {
+            "type": "string"
+          },
+          "party": {
+            "type": "string",
+            "example": "D"
+          },
+          "state": {
+            "type": "string",
+            "example": "MI"
+          },
+          "district": {
+            "type": "integer",
+            "nullable": true,
+            "description": "null for the Senate; 0 at large"
+          },
+          "chamber": {
+            "$ref": "#/components/schemas/Chamber"
+          },
+          "takesOffice": {
+            "type": "string",
+            "description": "The regular term's start; with takesOfficeOnCertification, only the latest date",
+            "example": "2027-01-03"
+          },
+          "takesOfficeOnCertification": {
+            "type": "boolean",
+            "description": "A special election's winner takes office once the state certifies the result, on a date no source gives in advance (Ohio, 2026)"
+          },
+          "replaces": {
+            "$ref": "#/components/schemas/SeatHolder"
+          },
+          "call": {
+            "$ref": "#/components/schemas/ElectCall"
+          },
+          "fecCandidateId": {
+            "type": "string",
+            "nullable": true,
+            "example": "S6MI00418"
+          }
+        },
+        "required": [
+          "id",
+          "bioguideId",
+          "firstName",
+          "lastName",
+          "party",
+          "state",
+          "district",
+          "chamber",
+          "takesOffice",
+          "takesOfficeOnCertification",
+          "replaces",
+          "call",
+          "fecCandidateId"
+        ]
+      },
+      "PendingSeat": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "example": "elect-2026-ga-sen"
+          },
+          "state": {
+            "type": "string"
+          },
+          "district": {
+            "type": "integer",
+            "nullable": true
+          },
+          "chamber": {
+            "$ref": "#/components/schemas/Chamber"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "uncalled",
+              "runoff"
+            ]
+          },
+          "runoffOn": {
+            "type": "string",
+            "nullable": true,
+            "description": "When status is runoff"
+          },
+          "incumbent": {
+            "$ref": "#/components/schemas/SeatHolder"
+          },
+          "sourceUrl": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "state",
+          "district",
+          "chamber",
+          "status",
+          "runoffOn",
+          "incumbent",
+          "sourceUrl"
+        ],
+        "description": "A seat whose race nobody has called. Never names a leader"
+      },
       "Error": {
         "type": "object",
         "properties": {
@@ -69,6 +245,171 @@
         },
         "required": [
           "error"
+        ]
+      },
+      "ElectSeats": {
+        "type": "object",
+        "properties": {
+          "elect": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/MemberElect"
+            }
+          },
+          "pending": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PendingSeat"
+            }
+          }
+        },
+        "required": [
+          "elect",
+          "pending"
+        ]
+      },
+      "DisclosureAsset": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "example": "GSK plc American Depositary Shares (GSK)"
+          },
+          "type": {
+            "type": "string",
+            "nullable": true,
+            "description": "The House code's name, or the Senate's type / subtype",
+            "example": "Stocks (including ADRs)"
+          },
+          "typeCode": {
+            "type": "string",
+            "nullable": true,
+            "description": "The House's two-letter asset code; null for the Senate",
+            "example": "ST"
+          },
+          "account": {
+            "type": "string",
+            "nullable": true,
+            "description": "The account or holding it sits in, when the filing says"
+          },
+          "owner": {
+            "type": "string",
+            "nullable": true,
+            "enum": [
+              "self",
+              "spouse",
+              "joint",
+              "dependent"
+            ],
+            "description": "Whose asset it is, as filed; dependent means a dependent child"
+          },
+          "value": {
+            "type": "string",
+            "nullable": true,
+            "description": "The value range exactly as filed. Never a number",
+            "example": "$15,001 - $50,000"
+          },
+          "incomeType": {
+            "type": "string",
+            "nullable": true
+          },
+          "income": {
+            "type": "string",
+            "nullable": true,
+            "description": "As filed",
+            "example": "$201 - $1,000"
+          },
+          "description": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "required": [
+          "name",
+          "type",
+          "typeCode",
+          "account",
+          "owner",
+          "value",
+          "incomeType",
+          "income",
+          "description"
+        ]
+      },
+      "ElectProfile": {
+        "type": "object",
+        "properties": {
+          "elect": {
+            "$ref": "#/components/schemas/MemberElect"
+          },
+          "funding": {
+            "type": "object",
+            "nullable": true,
+            "properties": {
+              "cycle": {
+                "type": "integer",
+                "example": 2026
+              },
+              "receipts": {
+                "type": "number"
+              },
+              "disbursements": {
+                "type": "number"
+              },
+              "coverageEnd": {
+                "type": "string",
+                "nullable": true,
+                "example": "2026-10-14"
+              },
+              "sourceUrl": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "cycle",
+              "receipts",
+              "disbursements",
+              "coverageEnd",
+              "sourceUrl"
+            ],
+            "description": "OpenFEC candidate totals; null when Floor holds none"
+          },
+          "disclosure": {
+            "type": "object",
+            "nullable": true,
+            "properties": {
+              "filedAt": {
+                "type": "string",
+                "nullable": true
+              },
+              "sourceUrl": {
+                "type": "string"
+              },
+              "assets": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/DisclosureAsset"
+                },
+                "description": "As filed: ranges, never a total"
+              },
+              "paper": {
+                "type": "boolean",
+                "description": "A scanned filing Floor holds only as a link; assets is empty"
+              }
+            },
+            "required": [
+              "filedAt",
+              "sourceUrl",
+              "assets",
+              "paper"
+            ],
+            "description": "The candidate report Floor has read; null when there is none, or while disclosures are off (DISCLOSURES_ENABLED)"
+          }
+        },
+        "required": [
+          "elect",
+          "funding",
+          "disclosure"
         ]
       },
       "VoteKind": {
@@ -725,74 +1066,6 @@
         ],
         "description": "funding is null for a member FEC has no current-campaign totals for"
       },
-      "DisclosureAsset": {
-        "type": "object",
-        "properties": {
-          "name": {
-            "type": "string",
-            "example": "GSK plc American Depositary Shares (GSK)"
-          },
-          "type": {
-            "type": "string",
-            "nullable": true,
-            "description": "The House code's name, or the Senate's type / subtype",
-            "example": "Stocks (including ADRs)"
-          },
-          "typeCode": {
-            "type": "string",
-            "nullable": true,
-            "description": "The House's two-letter asset code; null for the Senate",
-            "example": "ST"
-          },
-          "account": {
-            "type": "string",
-            "nullable": true,
-            "description": "The account or holding it sits in, when the filing says"
-          },
-          "owner": {
-            "type": "string",
-            "nullable": true,
-            "enum": [
-              "self",
-              "spouse",
-              "joint",
-              "dependent"
-            ],
-            "description": "Whose asset it is, as filed; dependent means a dependent child"
-          },
-          "value": {
-            "type": "string",
-            "nullable": true,
-            "description": "The value range exactly as filed. Never a number",
-            "example": "$15,001 - $50,000"
-          },
-          "incomeType": {
-            "type": "string",
-            "nullable": true
-          },
-          "income": {
-            "type": "string",
-            "nullable": true,
-            "description": "As filed",
-            "example": "$201 - $1,000"
-          },
-          "description": {
-            "type": "string",
-            "nullable": true
-          }
-        },
-        "required": [
-          "name",
-          "type",
-          "typeCode",
-          "account",
-          "owner",
-          "value",
-          "incomeType",
-          "income",
-          "description"
-        ]
-      },
       "DisclosureTrade": {
         "type": "object",
         "properties": {
@@ -1034,11 +1307,27 @@
             "items": {
               "$ref": "#/components/schemas/Member"
             }
+          },
+          "elect": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/MemberElect"
+            },
+            "description": "Members-elect for these seats (the state's Senate seats, this House seat)"
+          },
+          "pending": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PendingSeat"
+            },
+            "description": "These seats whose race is not called"
           }
         },
         "required": [
           "district",
-          "members"
+          "members",
+          "elect",
+          "pending"
         ]
       },
       "MemberVote": {
@@ -2398,10 +2687,26 @@
                       "items": {
                         "$ref": "#/components/schemas/Member"
                       }
+                    },
+                    "elect": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/MemberElect"
+                      },
+                      "description": "Members-elect matching the same query: state, seat or their name"
+                    },
+                    "pending": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/PendingSeat"
+                      },
+                      "description": "Uncalled seats matching the state or seat"
                     }
                   },
                   "required": [
-                    "members"
+                    "members",
+                    "elect",
+                    "pending"
                   ]
                 }
               }
@@ -2419,6 +2724,85 @@
           },
           "429": {
             "description": "Too many searches",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/members-elect": {
+      "get": {
+        "summary": "Members-elect not yet in office, and seats whose race is not called",
+        "description": "Senate races as the AP called them, House seats from the House Clerk's member-elect list. Floor calls no race and shows no leader: a seat nobody has called is a pending seat. Empty once the new members take office.",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^[A-Za-z]{2}$",
+              "example": "MI"
+            },
+            "required": false,
+            "name": "state",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Members-elect and pending seats, Senate first",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ElectSeats"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Not a state code",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/members-elect/{id}": {
+      "get": {
+        "summary": "A member-elect: who called the race, their campaign's FEC totals and their candidate report",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^elect-\\d{4}-[a-z]{2}-(sen|al|\\d{1,2})$",
+              "example": "elect-2026-mi-sen"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The member-elect",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ElectProfile"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No member-elect with that ID, or they have taken office",
             "content": {
               "application/json": {
                 "schema": {

@@ -168,6 +168,52 @@ export async function ingestFecTotals(
   return result;
 }
 
+/**
+ * Campaign totals for members-elect with an FEC candidate ID (members_elect.fec_candidate_id), from
+ * the same OpenFEC endpoint, for the election they won. Only raised and spent are kept: the elect
+ * screen shows those and the coverage date, nothing more. An elect the FEC has no totals for is
+ * marked fetched with null totals, and asked again after `staleHours`.
+ */
+export async function ingestFecElect(
+  db: Db,
+  get: FecGet,
+  opts: { staleHours?: number; log?: (msg: string) => void } = {},
+): Promise<{ loaded: number; noTotals: number; failed: number }> {
+  const finish = await startRun(db, "fec_elect");
+  const result = { loaded: 0, noTotals: 0, failed: 0 };
+  try {
+    const { rows } = await db.query<{ id: string; fec_candidate_id: string; cycle: number }>(
+      `select id, fec_candidate_id, cycle from members_elect
+        where fec_candidate_id is not null and takes_office > (now() at time zone 'America/New_York')::date
+          and (finance_fetched_at is null or finance_fetched_at < now() - make_interval(hours => $1))
+        order by id`,
+      [opts.staleHours ?? 20],
+    );
+    for (const e of rows) {
+      try {
+        const t = ((await get(`/candidate/${e.fec_candidate_id}/totals/?cycle=${e.cycle}`))["results"] as Json[] | undefined)?.[0];
+        if (!t) result.noTotals++;
+        else result.loaded++;
+        await withRetry(() =>
+          db.query(
+            `update members_elect set receipts = $2, disbursements = $3, coverage_end = $4, finance_cycle = $5, finance_fetched_at = now()
+              where id = $1`,
+            [e.id, t ? num(t["receipts"]) : null, t ? num(t["disbursements"]) : null, t ? day(t["coverage_end_date"]) : null, t ? e.cycle : null],
+          ),
+        );
+      } catch (err) {
+        result.failed++;
+        opts.log?.(`${e.id}: ${errorText(err)}`);
+      }
+    }
+    await finish(result.loaded, undefined, result.failed);
+  } catch (err) {
+    await finish(result.loaded, errorText(err), result.failed);
+    throw err;
+  }
+  return result;
+}
+
 export interface Committee {
   name: string;
   /** CMTE_DSGN. `J` marks a joint fundraising committee, whose transfers are not contributions. */

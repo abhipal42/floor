@@ -7,7 +7,7 @@ import { ingestSchedule } from "./schedule.js";
 import { congressClient, ingestVotedBills } from "./bills.js";
 import { DEFAULT_KEY_RESERVE, DEFAULT_RATE_PER_HOUR, ingestCatalog } from "./catalog.js";
 import { ingestVotedNominations } from "./nominations.js";
-import { fecClient, ingestFecTotals, ingestPacContributions } from "./fec.js";
+import { fecClient, ingestFecElect, ingestFecTotals, ingestPacContributions } from "./fec.js";
 import Anthropic from "@anthropic-ai/sdk";
 import { analyzeOptions, anthropicComplete, runAnalyses } from "./analysis.js";
 import { LiveWorker, parseLatencyDays, postingLatency, revalidatingFetch, runLive, summarize } from "./live.js";
@@ -18,6 +18,7 @@ import { PushBroadcaster, composeBroadcasters, pruneDevices } from "./push.js";
 import { disclosureSource, ingestDisclosures, parseDisclosureArgs } from "./disclosures.js";
 import { loadTranscription, readTranscriptions } from "./transcriptions.js";
 import { BillEventPusher } from "./billevents.js";
+import { ingestElectDisclosures, ingestHouseMembersElect, loadElections, readElections } from "./elect.js";
 
 const USAGE = `Usage:
   npm run ingest -w @floor/worker -- members
@@ -42,6 +43,14 @@ const USAGE = `Usage:
                                          (financial disclosures: annual reports' assets and PTR trades; default the last
                                           three years' indexes and 150 requests, one every 1.5 s; documents cached under
                                           apps/worker/.cache/. Served only when the API has DISCLOSURES_ENABLED=true)
+  npm run ingest -w @floor/worker -- elections                    (load apps/worker/elections/*.json: Senate races as the AP called them,
+                                          into members_elect and seats_pending)
+  npm run ingest -w @floor/worker -- members-elect-house [congress]
+                                         (the House Clerk's unofficial member-elect list; default the 120th; nothing
+                                          until the Clerk publishes it in late December)
+  npm run ingest -w @floor/worker -- fec-elect                    (OpenFEC totals for members-elect with an FEC ID; needs CONGRESS_API_KEY)
+  npm run ingest -w @floor/worker -- elect-disclosures [--budget N]
+                                         (House members-elect's candidate reports from the Clerk's index; default 50 requests)
   npm run ingest -w @floor/worker -- live                         (always-on: floor events, vote state, roll calls; until SIGTERM)
   npm run ingest -w @floor/worker -- latency [days]               (posting latency the live worker measured; default 30 days)
 
@@ -189,6 +198,35 @@ async function main() {
       for (const t of readTranscriptions(dir)) {
         console.log(`${t.filingId}: ${await loadTranscription(db, t)} (${t.assets.length} assets)`);
       }
+    } else if (command === "elections") {
+      const dir = new URL("../elections/", import.meta.url).pathname;
+      for (const e of readElections(dir)) {
+        const r = await loadElections(db, e, (msg) => console.log(msg));
+        console.log(`${e.cycle} senate: ${r.elect} members-elect, ${r.pending} seats pending, ${r.unmatched.length} incumbents unmatched`);
+      }
+    } else if (command === "members-elect-house") {
+      const congress = Number(args[0] ?? 120);
+      if (!Number.isInteger(congress) || congress <= 0) throw new Error("members-elect-house takes a Congress number, e.g. 120");
+      const r = await ingestHouseMembersElect(db, congress, { log: (msg) => console.log(msg) });
+      if (r.published) console.log(`${congress}th Congress: ${r.listed} listed, ${r.reElected} re-elected to their seat, ${r.elect} members-elect`);
+    } else if (command === "fec-elect") {
+      if (!process.env.CONGRESS_API_KEY) throw new Error("Set CONGRESS_API_KEY in .env (the api.data.gov key works for OpenFEC)");
+      const r = await ingestFecElect(db, fecClient(process.env.CONGRESS_API_KEY), { log: (msg) => console.log(msg) });
+      console.log(`Loaded totals for ${r.loaded} members-elect; ${r.noTotals} had none filed, ${r.failed} failed`);
+    } else if (command === "elect-disclosures") {
+      const i = args.indexOf("--budget");
+      const budget = i < 0 ? 50 : Number(args[i + 1]);
+      if (!Number.isInteger(budget) || budget <= 0) throw new Error("--budget needs a positive whole number");
+      const year = new Date().getUTCFullYear();
+      const r = await ingestElectDisclosures(db, {
+        years: [year, year - 1],
+        budget,
+        log: (msg) => console.log(`${new Date().toISOString()} ${msg}`),
+      });
+      console.log(
+        `${r.elects} House members-elect: ${r.matched} with a candidate report, ${r.parsed} parsed, ${r.paper} paper, ` +
+          `${r.failed} failed; ${r.requests} requests`,
+      );
     } else if (command === "disclosures") {
       const opts = parseDisclosureArgs(args, new Date());
       const result = await ingestDisclosures(db, await disclosureSource(opts), {
