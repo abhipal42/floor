@@ -1,3 +1,4 @@
+import Models
 import SwiftUI
 #if canImport(UIKit)
 import UIKit
@@ -143,6 +144,50 @@ public enum Tones {
     // The home-screen widgets' ground: the widget mock's #0B0C0F in dark, a white panel in light.
     public static let widget = Swatch(light: 0xFFFFFF, dark: 0x0B0C0F)
 
+    // The Finals feed's story cards (v0.2.57, locked option B, styled "Arena"). A story's band is
+    // its topic family's colour (`TopicGroup`) with white text in both appearances, so every topic
+    // colour holds 4.5:1 against white in both; `PaletteTests` checks it. Dark values are Arena's
+    // (armed forces #2D5F86, money #8A6512, courts #5E3FA0, other #4A5560) and four more in the same
+    // depth; light keeps the B mock's bands. The same values as Android's `Tones.topic*`.
+    public static let topicDefense = Swatch(light: 0x3B6E8F, dark: 0x2D5F86)
+    public static let topicMoney = Swatch(light: 0x7A5A12, dark: 0x8A6512)
+    public static let topicCourts = Swatch(light: 0x6A4C9C, dark: 0x5E3FA0)
+    public static let topicHealth = Swatch(light: 0xB0304A, dark: 0x962840)
+    public static let topicLand = Swatch(light: 0x2F6B3A, dark: 0x285C32)
+    public static let topicRights = Swatch(light: 0x1F6E73, dark: 0x1A5C60)
+    public static let topicGov = Swatch(light: 0x8C3F5D, dark: 0x783550)
+    public static let topicOther = Swatch(light: 0x5E6A66, dark: 0x4A5560)
+
+    public static func topic(_ group: TopicGroup) -> Swatch {
+        switch group {
+        case .defense: topicDefense
+        case .money: topicMoney
+        case .courts: topicCourts
+        case .health: topicHealth
+        case .land: topicLand
+        case .rights: topicRights
+        case .gov: topicGov
+        case .other: topicOther
+        }
+    }
+
+    /// The text on a band: white in both appearances, as Arena draws it.
+    public static let bandText = Swatch(light: 0xFFFFFF, dark: 0xFFFFFF)
+    /// The band's soft highlight at its top right, and its shade along the bottom.
+    public static let bandHighlight = Swatch(light: 0xFFFFFF, dark: 0xFFFFFF, lightOpacity: 0.25, darkOpacity: 0.25)
+    public static let bandShade = Swatch(light: 0x000000, dark: 0x000000, lightOpacity: 0.3, darkOpacity: 0.3)
+    /// The verdict chip at the band's top right: near-white with near-black ink.
+    public static let verdict = Swatch(light: 0xFFFFFF, dark: 0xFFFFFF, lightOpacity: 0.95, darkOpacity: 0.95)
+    public static let verdictInk = Swatch(light: 0x0B0C0F, dark: 0x0B0C0F)
+    /// A story card's hairline: brighter at the top left, fading out by 40% (Arena's
+    /// `linear-gradient(160deg, white 18%, white 2% at 40%)`); in light, the hairline ink.
+    public static let storyEdge = Swatch(light: 0x111816, dark: 0xFFFFFF, lightOpacity: 0.14, darkOpacity: 0.18)
+    public static let storyEdgeFaint = Swatch(light: 0x111816, dark: 0xFFFFFF, lightOpacity: 0.06, darkOpacity: 0.02)
+    /// The 1pt light along a story card's top edge, inside it.
+    public static let storyInnerHighlight = Swatch(light: 0xFFFFFF, dark: 0xFFFFFF, lightOpacity: 0.06, darkOpacity: 0.06)
+    /// A story card's soft drop shadow (Arena's `0 22px 40px -22px`).
+    public static let storyShadow = Swatch(light: 0x111816, dark: 0x000000, lightOpacity: 0.22, darkOpacity: 0.9)
+
     // Party
     public static func party(_ party: String) -> Swatch {
         switch party {
@@ -237,6 +282,18 @@ public enum Palette {
     public static let textFaint = Color(Tones.textFaint)
     /// The home-screen widgets' background.
     public static let widget = Color(Tones.widget)
+
+    // The Finals feed's story cards: see `Tones.topic`.
+    public static func topic(_ group: TopicGroup) -> Color { Color(Tones.topic(group)) }
+    public static let bandText = Color(Tones.bandText)
+    public static let bandHighlight = Color(Tones.bandHighlight)
+    public static let bandShade = Color(Tones.bandShade)
+    public static let verdict = Color(Tones.verdict)
+    public static let verdictInk = Color(Tones.verdictInk)
+    public static let storyEdge = Color(Tones.storyEdge)
+    public static let storyEdgeFaint = Color(Tones.storyEdgeFaint)
+    public static let storyInnerHighlight = Color(Tones.storyInnerHighlight)
+    public static let storyShadow = Color(Tones.storyShadow)
     /// The top of the promise deck's front card; it fades to ``panel``.
     public static let deckGlow = Color(Tones.deckGlow)
     /// An archived campaign page inside its browser frame: the page, its headings, its text.
@@ -267,8 +324,6 @@ public enum Palette {
     // Lit displays: the same in both appearances.
     /// The split-flap board: its frame, and the top and bottom halves of each cell.
     public static let flapBoard = Color(hex: 0x0B0C0F)
-    public static let flapTop = Color(hex: 0x1C1F25)
-    public static let flapBottom = Color(hex: 0x121418)
     /// The broadcast scoreboard on the vote screen: alternating turf stripes and its border.
     public static let turf = Color(hex: 0x0E1A14)
     public static let turfAlt = Color(hex: 0x0B1611)
@@ -337,6 +392,28 @@ public enum Typography {
     public static let eyebrow = Font.system(size: 11, weight: .bold)
     public static let body = Font.system(size: 13)
     public static let caption = Font.system(size: 12)
+
+    // The Finals feed's story cards (Arena): Barlow Condensed for the title, the verdict and the
+    // scores, which scale with Dynamic Type.
+    public static let storyTitle = display(26, weight: .extraBold)
+    public static let verdict = display(12, weight: .blackItalic)
+    public static let stepScore = display(17, weight: .blackItalic)
+    public static let mainScore = display(25, weight: .blackItalic)
+    public static let miniScore = display(19, weight: .blackItalic)
+    public static let weekTitle = display(23, weight: .blackItalic)
+
+    /// The story card's system-font sizes, scaled with ``View/scaledFont(_:weight:)``.
+    public enum Story {
+        public static let topic: CGFloat = 10.5
+        public static let citation: CGFloat = 12
+        public static let what: CGFloat = 13.5
+        public static let whatLabel: CGFloat = 9.5
+        public static let step: CGFloat = 12.5
+        public static let member: CGFloat = 12
+        public static let miniTitle: CGFloat = 13.5
+        public static let miniLine: CGFloat = 11.5
+        public static let weekRange: CGFloat = 12
+    }
 }
 
 public extension Color {

@@ -1,0 +1,436 @@
+{
+  "votes": [
+    {
+      "vote": {
+        "id": "house-119-2-323",
+        "kind": "question",
+        "candidates": [],
+        "chamber": "house",
+        "congress": 119,
+        "session": 2,
+        "rollNumber": 323,
+        "question": "On Passage",
+        "billId": "119-hr-2102",
+        "nominationId": null,
+        "billRef": "H R 2102",
+        "occurredAt": "2026-11-12T15:59:00.000Z",
+        "state": "final",
+        "threshold": "majority",
+        "totals": {
+          "yea": 392,
+          "nay": 18,
+          "present": 0,
+          "notVoting": 23
+        },
+        "result": "Passed",
+        "explainer": {
+          "kind": "passage",
+          "text": "The vote on the measure itself. Passing sends it to the other chamber, or to the President once both have passed it. A simple majority.",
+          "source": "U.S. Constitution, Art. I, Sec. 7"
+        }
+      },
+      "position": "yea",
+      "choice": null,
+      "measure": {
+        "id": "119-hr-2102",
+        "kind": "bill",
+        "citation": "H.R. 2102",
+        "title": "Major Richard Star Act",
+        "policyArea": "Armed Forces and National Security",
+        "sponsor": {
+          "bioguideId": "B001257",
+          "lastName": "Bilirakis",
+          "party": "R",
+          "state": "FL"
+        },
+        "summaryLead": "This bill allows a veteran with a combat-related disability to receive retirement pay, without reduction, concurrently with their disability compensation.",
+        "position": null,
+        "forBillId": null
+      }
+    },
+    {
+      "vote": {
+        "id": "house-119-2-322",
+        "kind": "question",
+        "candidates": [],
+        "chamber": "house",
+        "congress": 119,
+        "session": 2,
+        "rollNumber": 322,
+        "question": "On Agreeing to the Resolution",
+        "billId": "119-hres-1247",
+        "nominationId": null,
+        "billRef": "H RES 1247",
+        "occurredAt": "2026-11-12T14:45:00.000Z",
+        "state": "final",
+        "threshold": "majority",
+        "totals": {
+          "yea": 271,
+          "nay": 135,
+          "present": 0,
+          "notVoting": 26
+        },
+        "result": "Passed",
+        "explainer": {
+          "kind": "rule",
+          "text": "Sets the terms for debating a bill: time, amendments allowed. Not the bill itself.",
+          "source": "House Rule XIII, clause 6"
+        }
+      },
+      "position": "yea",
+      "choice": null,
+      "measure": {
+        "id": "119-hres-1247",
+        "kind": "bill",
+        "citation": "H.Res. 1247",
+        "title": "Providing for consideration of the bill (H.R. 2102) to amend title 10, United States Code, to provide for concurrent receipt of veterans' disability compensation and retired pay for disability retirees with combat-related disabilities, and for other purposes.",
+        "policyArea": "Congress",
+        "sponsor": {
+          "bioguideId": "T000472",
+          "lastName": "Takano",
+          "party": "D",
+          "state": "CA"
+        },
+        "summaryLead": "This resolution provides for the consideration of the bill (H.R. 2102) to amend title 10, United States Code, to provide for concurrent receipt of veterans' disability compensation and retired pay for disability retirees with combat-related disabilities, and for other purposes.",
+        "position": null,
+        "forBillId": "119-hr-2102"
+      }
+    },
+    {
+      "vote": {
+        "id": "house-119-2-321",
+        "kind": "question",
+        "candidates": [],
+        "chamber": "house",
+        "congress": 119,
+        "session": 2,
+        "rollNumber": 321,
+        "question": "On Passage",
+        "billId": "119-hr-1013",
+        "nominationId": null,
+        "billRef": "H R 1013",
+        "occurredAt": "2026-11-11T19:43:00.000Z",
+        "state": "final",
+        "threshold": "majority",
+        "totals": {
+          "yea": 295,
+          "nay": 128,
+          "present": 0,
+          "notVoting": 10
+        },
+        "result": "Passed",
+        "explainer": {
+          "kind": "passage",
+          "text": "The vote on the measure itself. Passing sends it to the other chamber, or to the President once both have passed it. A simple majority.",
+          "source": "U.S. Constitution, Art. I, Sec. 7"
+        }
+      },
+      "position": "nay",
+      "choice": null,
+      "measure": {
+        "id": "119-hr-1013",
+        "kind": "bill",
+        "citation": "H.R. 1013",
+        "title": "Retirement Fairness for Charities and Educational Institutions Act of 2025",
+        "policyArea": "Finance and Financial Sector",
+        "sponsor": {
+          "bioguideId": "L000491",
+          "lastName": "Lucas",
+          "party": "R",
+          "state": "OK"
+        },
+        "summaryLead": "This bill allows 403(b) retirement plans (i.e., retirement plans designed for certain employees of public schools, charities, and churches) to invest in collective investment trusts, which are a group of pooled investment assets held by a bank or trust company, and in insurance company separate accounts.",
+        "position": null,
+        "forBillId": null
+      }
+    },
+    {
+      "vote": {
+        "id": "house-119-2-320",
+        "kind": "question",
+        "candidates": [],
+        "chamber": "house",
+        "congress": 119,
+        "session": 2,
+        "rollNumber": 320,
+        "question": "On Motion to Discharge",
+        "billId": "119-hres-1247",
+        "nominationId": null,
+        "billRef": "H RES 1247",
+        "occurredAt": "2026-11-11T18:04:00.000Z",
+        "state": "final",
+        "threshold": "majority",
+        "totals": {
+          "yea": 245,
+          "nay": 175,
+          "present": 0,
+          "notVoting": 13
+        },
+        "result": "Passed",
+        "explainer": {
+          "kind": "discharge",
+          "text": "Takes a measure away from a committee that hasn't acted on it, so the House can vote on it. It comes up once a majority of the House has signed a discharge petition.",
+          "source": "House Rule XV, clause 2"
+        }
+      },
+      "position": "yea",
+      "choice": null,
+      "measure": {
+        "id": "119-hres-1247",
+        "kind": "bill",
+        "citation": "H.Res. 1247",
+        "title": "Providing for consideration of the bill (H.R. 2102) to amend title 10, United States Code, to provide for concurrent receipt of veterans' disability compensation and retired pay for disability retirees with combat-related disabilities, and for other purposes.",
+        "policyArea": "Congress",
+        "sponsor": {
+          "bioguideId": "T000472",
+          "lastName": "Takano",
+          "party": "D",
+          "state": "CA"
+        },
+        "summaryLead": "This resolution provides for the consideration of the bill (H.R. 2102) to amend title 10, United States Code, to provide for concurrent receipt of veterans' disability compensation and retired pay for disability retirees with combat-related disabilities, and for other purposes.",
+        "position": null,
+        "forBillId": "119-hr-2102"
+      }
+    },
+    {
+      "vote": {
+        "id": "house-119-2-319",
+        "kind": "question",
+        "candidates": [],
+        "chamber": "house",
+        "congress": 119,
+        "session": 2,
+        "rollNumber": 319,
+        "question": "On Agreeing to the Resolution",
+        "billId": "119-hres-1650",
+        "nominationId": null,
+        "billRef": "H RES 1650",
+        "occurredAt": "2026-11-10T23:20:00.000Z",
+        "state": "final",
+        "threshold": "majority",
+        "totals": {
+          "yea": 215,
+          "nay": 209,
+          "present": 0,
+          "notVoting": 9
+        },
+        "result": "Passed",
+        "explainer": {
+          "kind": "rule",
+          "text": "Sets the terms for debating a bill: time, amendments allowed. Not the bill itself.",
+          "source": "House Rule XIII, clause 6"
+        }
+      },
+      "position": "nay",
+      "choice": null,
+      "measure": {
+        "id": "119-hres-1650",
+        "kind": "bill",
+        "citation": "H.Res. 1650",
+        "title": "Providing for consideration of the bill (H.R. 1013) to amend the Federal securities laws to enhance 403(b) plans, and for other purposes.",
+        "policyArea": "Congress",
+        "sponsor": {
+          "bioguideId": "G000568",
+          "lastName": "Griffith",
+          "party": "R",
+          "state": "VA"
+        },
+        "summaryLead": "This resolution provides for the consideration of the bill (H.R. 1013) to amend the Federal securities laws to enhance 403(b) plans, and for other purposes.",
+        "position": null,
+        "forBillId": "119-hr-1013"
+      }
+    },
+    {
+      "vote": {
+        "id": "house-119-2-318",
+        "kind": "question",
+        "candidates": [],
+        "chamber": "house",
+        "congress": 119,
+        "session": 2,
+        "rollNumber": 318,
+        "question": "On Ordering the Previous Question",
+        "billId": "119-hres-1650",
+        "nominationId": null,
+        "billRef": "H RES 1650",
+        "occurredAt": "2026-11-10T23:10:00.000Z",
+        "state": "final",
+        "threshold": "majority",
+        "totals": {
+          "yea": 213,
+          "nay": 207,
+          "present": 0,
+          "notVoting": 13
+        },
+        "result": "Passed",
+        "explainer": {
+          "kind": "previous_question",
+          "text": "Ends debate on a rule and blocks changes to it. Usually splits by party. Not a vote on the bill.",
+          "source": "House Rule XIX, clause 1"
+        }
+      },
+      "position": "nay",
+      "choice": null,
+      "measure": {
+        "id": "119-hres-1650",
+        "kind": "bill",
+        "citation": "H.Res. 1650",
+        "title": "Providing for consideration of the bill (H.R. 1013) to amend the Federal securities laws to enhance 403(b) plans, and for other purposes.",
+        "policyArea": "Congress",
+        "sponsor": {
+          "bioguideId": "G000568",
+          "lastName": "Griffith",
+          "party": "R",
+          "state": "VA"
+        },
+        "summaryLead": "This resolution provides for the consideration of the bill (H.R. 1013) to amend the Federal securities laws to enhance 403(b) plans, and for other purposes.",
+        "position": null,
+        "forBillId": "119-hr-1013"
+      }
+    },
+    {
+      "vote": {
+        "id": "house-119-2-317",
+        "kind": "question",
+        "candidates": [],
+        "chamber": "house",
+        "congress": 119,
+        "session": 2,
+        "rollNumber": 317,
+        "question": "On Motion to Refer",
+        "billId": "119-hres-1655",
+        "nominationId": null,
+        "billRef": "H RES 1655",
+        "occurredAt": "2026-11-10T23:02:00.000Z",
+        "state": "final",
+        "threshold": "majority",
+        "totals": {
+          "yea": 211,
+          "nay": 204,
+          "present": 0,
+          "notVoting": 18
+        },
+        "result": "Passed",
+        "explainer": {
+          "kind": "refer",
+          "text": "Whether to send the measure to a committee instead of acting on it now.",
+          "source": "House Rule XVI, clause 4"
+        }
+      },
+      "position": "nay",
+      "choice": null,
+      "measure": {
+        "id": "119-hres-1655",
+        "kind": "bill",
+        "citation": "H.Res. 1655",
+        "title": "Impeaching Peter Brian Hegseth, Secretary of Defense, for high crimes and misdemeanors.",
+        "policyArea": null,
+        "sponsor": {
+          "bioguideId": "M001184",
+          "lastName": "Massie",
+          "party": "R",
+          "state": "KY"
+        },
+        "summaryLead": null,
+        "position": null,
+        "forBillId": null
+      }
+    },
+    {
+      "vote": {
+        "id": "house-119-2-316",
+        "kind": "question",
+        "candidates": [],
+        "chamber": "house",
+        "congress": 119,
+        "session": 2,
+        "rollNumber": 316,
+        "question": "On Motion to Suspend the Rules and Pass, as Amended",
+        "billId": "119-hr-9612",
+        "nominationId": null,
+        "billRef": "H R 9612",
+        "occurredAt": "2026-11-10T00:07:00.000Z",
+        "state": "final",
+        "threshold": "two_thirds",
+        "totals": {
+          "yea": 394,
+          "nay": 3,
+          "present": 0,
+          "notVoting": 36
+        },
+        "result": "Passed",
+        "explainer": {
+          "kind": "suspension",
+          "text": "House fast track for bills with broad support. Short debate, no amendments, needs two-thirds.",
+          "source": "House Rule XV, clause 1"
+        }
+      },
+      "position": "yea",
+      "choice": null,
+      "measure": {
+        "id": "119-hr-9612",
+        "kind": "bill",
+        "citation": "H.R. 9612",
+        "title": "American Enrichment Deployment Act",
+        "policyArea": "Energy",
+        "sponsor": {
+          "bioguideId": "F000478",
+          "lastName": "Fry",
+          "party": "R",
+          "state": "SC"
+        },
+        "summaryLead": "This bill allows for the construction of a uranium enrichment facility before a license is issued by the Nuclear Regulatory Commission (NRC).",
+        "position": null,
+        "forBillId": null
+      }
+    },
+    {
+      "vote": {
+        "id": "house-119-2-315",
+        "kind": "question",
+        "candidates": [],
+        "chamber": "house",
+        "congress": 119,
+        "session": 2,
+        "rollNumber": 315,
+        "question": "On Motion to Suspend the Rules and Pass, as Amended",
+        "billId": "119-hr-3978",
+        "nominationId": null,
+        "billRef": "H R 3978",
+        "occurredAt": "2026-11-09T23:59:00.000Z",
+        "state": "final",
+        "threshold": "two_thirds",
+        "totals": {
+          "yea": 397,
+          "nay": 2,
+          "present": 0,
+          "notVoting": 34
+        },
+        "result": "Passed",
+        "explainer": {
+          "kind": "suspension",
+          "text": "House fast track for bills with broad support. Short debate, no amendments, needs two-thirds.",
+          "source": "House Rule XV, clause 1"
+        }
+      },
+      "position": "yea",
+      "choice": null,
+      "measure": {
+        "id": "119-hr-3978",
+        "kind": "bill",
+        "citation": "H.R. 3978",
+        "title": "Nuclear REFUEL (Recycling Efficient Fuels Utilizing Expedited Licensing) Act",
+        "policyArea": "Energy",
+        "sponsor": {
+          "bioguideId": "L000566",
+          "lastName": "Latta",
+          "party": "R",
+          "state": "OH"
+        },
+        "summaryLead": "This bill directs the Nuclear Regulatory Commission (NRC) to license future recycling facilities that reprocess certain spent nuclear fuel (i.e., radioactive waste) under regulations for special nuclear material rather than regulations for production and utilization facilities.",
+        "position": null,
+        "forBillId": null
+      }
+    }
+  ]
+}

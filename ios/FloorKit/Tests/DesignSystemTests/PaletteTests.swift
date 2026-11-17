@@ -1,3 +1,4 @@
+import Models
 import Testing
 @testable import DesignSystem
 
@@ -171,5 +172,16 @@ struct PaletteTests {
         #expect(Tones.nay.dark == 0xFB923C)
         #expect(Tones.threshold.dark == 0xFACC15)
         #expect(Tones.accent.dark == 0x34D399)
+    }
+
+    /// A story band's text is white in both appearances, so every topic colour holds 4.5:1 to white;
+    /// the band's bottom shade only darkens it further.
+    @Test func everyTopicBandReadsInWhite() {
+        for group in TopicGroup.allCases {
+            let tone = Tones.topic(group)
+            for (look, hex) in [("light", tone.light), ("dark", tone.dark)] {
+                #expect(Swatch.contrast(Tones.bandText.light, hex) >= 4.5, "\(group) \(look) band is under 4.5:1 to white")
+            }
+        }
     }
 }

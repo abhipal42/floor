@@ -28,12 +28,25 @@ public struct RecentVote: Codable, Sendable, Hashable, Identifiable {
     public var vote: Vote
     /// nil for a procedural vote that refers to no measure.
     public var measure: MeasureSummary?
+    /// Per-party counts, as on ``VoteDetail``. Empty for an election, and in a response from before
+    /// v0.2.57.
+    public var partyTotals: [PartyTotals]
 
     public var id: String { vote.id }
 
-    public init(vote: Vote, measure: MeasureSummary?) {
+    public init(vote: Vote, measure: MeasureSummary?, partyTotals: [PartyTotals] = []) {
         self.vote = vote
         self.measure = measure
+        self.partyTotals = partyTotals
+    }
+
+    private enum CodingKeys: String, CodingKey { case vote, measure, partyTotals }
+
+    public init(from decoder: any Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        vote = try c.decode(Vote.self, forKey: .vote)
+        measure = try c.decodeIfPresent(MeasureSummary.self, forKey: .measure)
+        partyTotals = try c.decodeIfPresent([PartyTotals].self, forKey: .partyTotals) ?? []
     }
 }
 

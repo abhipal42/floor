@@ -55,6 +55,7 @@ struct ContractTests {
             "MemberFunding": fields(MemberFunding.sample),
             "MemberVote": fields(MemberVote.sample),
             "MeasureSummary": fields(MeasureSummary.sample),
+            "MeasureSponsor": fields(MeasureSponsor(bioguideId: "B001257", lastName: "Bilirakis", party: "R", state: "FL")),
             "District": fields(District.sample),
             "Reps": fields(Reps.sample),
             "LatestAction": fields(LatestAction.sample),
@@ -129,7 +130,7 @@ struct ContractTests {
 
     @Test(arguments: [
         "Member", "VoteTotals", "Candidate", "Vote", "VoteDetail", "PartyTotals", "CandidateTotal",
-        "MemberPosition", "PartyLoyalty", "MemberDetail", "PacCheck", "Funding", "MemberFunding", "MemberVote", "MeasureSummary", "District",
+        "MemberPosition", "PartyLoyalty", "MemberDetail", "PacCheck", "Funding", "MemberFunding", "MemberVote", "MeasureSummary", "MeasureSponsor", "District",
         "Reps", "LatestAction", "CboEstimate", "BillAction", "Bill", "Nomination", "SourceStatus", "Error",
         "AnalysisCitation", "AnalysisClaim", "AnalysisSource", "BillAnalysis",
         "ChamberStatus", "Live", "LiveVote", "RecentVote",

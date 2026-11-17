@@ -322,18 +322,22 @@ public struct SpeakUpSheet: View {
     }
 }
 
-/// Chips that wrap onto the next line when they run out of room.
-struct FlowLayout: Layout {
+/// Chips that wrap onto the next line when they run out of room. Public for Finals' story cards.
+public struct FlowLayout: Layout {
     var spacing: CGFloat
 
-    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
+    public init(spacing: CGFloat) {
+        self.spacing = spacing
+    }
+
+    public func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
         let rows = arrange(width: proposal.width ?? .infinity, subviews: subviews)
         let height = rows.last.map { $0.y + $0.height } ?? 0
         let width = rows.map { $0.width }.max() ?? 0
         return CGSize(width: proposal.width ?? width, height: height)
     }
 
-    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
+    public func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
         for row in arrange(width: bounds.width, subviews: subviews) {
             var x = bounds.minX
             for index in row.indices {
