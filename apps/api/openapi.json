@@ -21,6 +21,44 @@
           "senate"
         ]
       },
+      "MemberSocial": {
+        "type": "object",
+        "properties": {
+          "twitter": {
+            "type": "string",
+            "description": "An X handle, without the @",
+            "example": "SenSchumer"
+          },
+          "facebook": {
+            "type": "string",
+            "example": "senschumer"
+          },
+          "instagram": {
+            "type": "string",
+            "example": "senschumer"
+          },
+          "youtube": {
+            "type": "string",
+            "description": "A legacy YouTube user name: youtube.com/<name>",
+            "example": "SenatorSchumer"
+          },
+          "youtubeId": {
+            "type": "string",
+            "description": "The channel ID: youtube.com/channel/<id>. Some members have only this, some only `youtube`",
+            "example": "UC-ABttxh8uQv_10qmwGaidw"
+          },
+          "mastodon": {
+            "type": "string",
+            "example": "@RepDonBeyer@mas.to"
+          },
+          "bluesky": {
+            "type": "string",
+            "description": "Verified by Bluesky, or an official .senate.gov/.house.gov handle",
+            "example": "schumer.senate.gov"
+          }
+        },
+        "description": "Official accounts. Only on GET /v1/members/{id}, as {} when Floor holds none"
+      },
       "Member": {
         "type": "object",
         "properties": {
@@ -54,6 +92,9 @@
             "nullable": true,
             "description": "The day they leave the seat, when a member-elect replaces them and has not taken office yet; null otherwise. Absent where a response does not look it up",
             "example": "2027-01-03"
+          },
+          "social": {
+            "$ref": "#/components/schemas/MemberSocial"
           }
         },
         "required": [
@@ -924,6 +965,260 @@
           "member",
           "partyLoyalty",
           "contact"
+        ]
+      },
+      "PromisesStatus": {
+        "type": "string",
+        "enum": [
+          "promises",
+          "no_platform",
+          "no_site",
+          "no_snapshot",
+          "unchecked"
+        ],
+        "description": "promises: lines found. no_platform: the archived site listed no issues. no_site: the FEC lists no website for their campaign committee. no_snapshot: the Wayback Machine has no capture from before election day. unchecked: not looked at yet (a look that failed is served as unchecked too, and retried)"
+      },
+      "CampaignPromise": {
+        "type": "object",
+        "properties": {
+          "heading": {
+            "type": "string",
+            "nullable": true,
+            "description": "The site's own section heading, as written",
+            "example": "Making Things in America"
+          },
+          "quote": {
+            "type": "string",
+            "description": "Verbatim from the archived page: checked by machine to be on it, up to spacing and quote marks",
+            "example": "In the Senate, Elissa will work every day to bring critical supply chains and manufacturing back home."
+          },
+          "headline": {
+            "type": "string",
+            "description": "A clause of `quote`, verbatim",
+            "example": "bring critical supply chains and manufacturing back home"
+          },
+          "topic": {
+            "type": "string",
+            "nullable": true,
+            "description": "One of the 32 policy areas (GET /v1/topics), or null",
+            "example": "Commerce"
+          }
+        },
+        "required": [
+          "heading",
+          "quote",
+          "headline",
+          "topic"
+        ],
+        "description": "Picked by AI, quoted exactly. Label it AI, say it may miss some, and link snapshotUrl"
+      },
+      "MemberPromises": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "$ref": "#/components/schemas/PromisesStatus"
+          },
+          "electionYear": {
+            "type": "integer",
+            "nullable": true,
+            "description": "The race that won this term",
+            "example": 2024
+          },
+          "siteUrl": {
+            "type": "string",
+            "nullable": true,
+            "example": "https://elissaslotkin.org/"
+          },
+          "snapshotUrl": {
+            "type": "string",
+            "nullable": true,
+            "description": "The Wayback Machine capture the promises were read from",
+            "example": "https://web.archive.org/web/20241027183232/https://elissaslotkin.org/priorities/"
+          },
+          "snapshotAt": {
+            "type": "string",
+            "nullable": true,
+            "description": "Always before election day",
+            "example": "2024-10-27T18:32:32.000Z"
+          },
+          "pageUrl": {
+            "type": "string",
+            "nullable": true,
+            "description": "The issues page within the site; null when the home page was read",
+            "example": "https://elissaslotkin.org/priorities/"
+          },
+          "promises": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CampaignPromise"
+            },
+            "description": "In the page's order; empty unless status is promises"
+          }
+        },
+        "required": [
+          "status",
+          "electionYear",
+          "siteUrl",
+          "snapshotUrl",
+          "snapshotAt",
+          "pageUrl",
+          "promises"
+        ]
+      },
+      "PostNetwork": {
+        "type": "string",
+        "enum": [
+          "youtube",
+          "bluesky",
+          "mastodon"
+        ]
+      },
+      "MemberPost": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "example": "youtube:JlA2eRiVeB8"
+          },
+          "network": {
+            "$ref": "#/components/schemas/PostNetwork"
+          },
+          "postedAt": {
+            "type": "string",
+            "example": "2026-11-16T20:04:48.000Z"
+          },
+          "text": {
+            "type": "string",
+            "nullable": true,
+            "description": "As posted; a YouTube video's title"
+          },
+          "url": {
+            "type": "string",
+            "description": "The original",
+            "example": "https://www.youtube.com/watch?v=JlA2eRiVeB8"
+          },
+          "mediaUrl": {
+            "type": "string",
+            "nullable": true,
+            "description": "A thumbnail: YouTube's, or the first Bluesky image"
+          }
+        },
+        "required": [
+          "id",
+          "network",
+          "postedAt",
+          "text",
+          "url",
+          "mediaUrl"
+        ],
+        "description": "No like or repost counts: Floor stores none"
+      },
+      "PostLinks": {
+        "type": "object",
+        "properties": {
+          "x": {
+            "type": "string",
+            "example": "https://x.com/SenSchumer"
+          },
+          "facebook": {
+            "type": "string",
+            "example": "https://www.facebook.com/senschumer"
+          },
+          "instagram": {
+            "type": "string",
+            "example": "https://www.instagram.com/senschumer"
+          }
+        },
+        "description": "Profiles on networks Floor cannot read for free: links only"
+      },
+      "MemberPosts": {
+        "type": "object",
+        "properties": {
+          "posts": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/MemberPost"
+            },
+            "description": "Newest first, at most 30"
+          },
+          "links": {
+            "$ref": "#/components/schemas/PostLinks"
+          }
+        },
+        "required": [
+          "posts",
+          "links"
+        ]
+      },
+      "WallPost": {
+        "type": "object",
+        "properties": {
+          "memberId": {
+            "type": "string",
+            "example": "S000148"
+          },
+          "id": {
+            "type": "string",
+            "example": "youtube:JlA2eRiVeB8"
+          },
+          "network": {
+            "$ref": "#/components/schemas/PostNetwork"
+          },
+          "postedAt": {
+            "type": "string",
+            "example": "2026-11-16T20:04:48.000Z"
+          },
+          "text": {
+            "type": "string",
+            "nullable": true,
+            "description": "As posted; a YouTube video's title"
+          },
+          "url": {
+            "type": "string",
+            "description": "The original",
+            "example": "https://www.youtube.com/watch?v=JlA2eRiVeB8"
+          },
+          "mediaUrl": {
+            "type": "string",
+            "nullable": true,
+            "description": "A thumbnail: YouTube's, or the first Bluesky image"
+          }
+        },
+        "required": [
+          "memberId",
+          "id",
+          "network",
+          "postedAt",
+          "text",
+          "url",
+          "mediaUrl"
+        ],
+        "description": "A MemberPost with whose it is"
+      },
+      "PostsWall": {
+        "type": "object",
+        "properties": {
+          "posts": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/WallPost"
+            },
+            "description": "Every asked-for member's posts together, newest first"
+          },
+          "unreadable": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Asked-for members with no YouTube, Bluesky or Mastodon account: they post only where Floor links out (X, Facebook)",
+            "example": [
+              "G000555"
+            ]
+          }
+        },
+        "required": [
+          "posts",
+          "unreadable"
         ]
       },
       "PacCheck": {
@@ -2982,6 +3277,126 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/members/{id}/promises": {
+      "get": {
+        "summary": "What the campaign that won this term promised, quoted from its archived site",
+        "description": "The site is the website the FEC lists for the member's own principal campaign committee; the page is the Wayback Machine's last capture before election day. An AI picks the lines and every one is checked to be on the page verbatim; it may miss some. Never lined up against votes.",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^[A-Z]\\d{6}$",
+              "example": "S001208"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The promises, or which step found none",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MemberPromises"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No member with that ID",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/members/{id}/posts": {
+      "get": {
+        "summary": "A member's recent posts on YouTube, Bluesky and Mastodon, and links to the networks Floor cannot read",
+        "description": "Newest first, never ranked, no like or repost counts. Kept about 30 days.",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^[A-Z]\\d{6}$",
+              "example": "S001208"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Posts, newest first",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MemberPosts"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No member with that ID",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/posts": {
+      "get": {
+        "summary": "Several members' posts together, newest first: the Following wall",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^[A-Z]\\d{6}(,[A-Z]\\d{6})*$",
+              "example": "S000148,G000555"
+            },
+            "required": true,
+            "name": "members",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 50
+            },
+            "required": false,
+            "name": "limit",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Posts, newest first",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PostsWall"
                 }
               }
             }

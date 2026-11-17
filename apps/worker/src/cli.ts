@@ -2,7 +2,9 @@ import pg from "pg";
 import type { Chamber } from "@floor/shared";
 import { type Db } from "./db.js";
 import { ingestMembers } from "./members.js";
-import { defaultFetch, ingestSessions, sessionsToPoll } from "./rollcalls.js";
+import { defaultFetch, fetchWithTimeout, ingestSessions, sessionsToPoll } from "./rollcalls.js";
+import { ingestPosts, ingestSocial } from "./social.js";
+import { parsePromisesArgs, runPromises } from "./promises.js";
 import { ingestSchedule } from "./schedule.js";
 import { congressClient, ingestVotedBills } from "./bills.js";
 import { DEFAULT_KEY_RESERVE, DEFAULT_RATE_PER_HOUR, ingestCatalog } from "./catalog.js";
@@ -51,7 +53,14 @@ const USAGE = `Usage:
   npm run ingest -w @floor/worker -- fec-elect                    (OpenFEC totals for members-elect with an FEC ID; needs CONGRESS_API_KEY)
   npm run ingest -w @floor/worker -- elect-disclosures [--budget N]
                                          (House members-elect's candidate reports from the Clerk's index; default 50 requests)
-  npm run ingest -w @floor/worker -- live                         (always-on: floor events, vote state, roll calls; until SIGTERM)
+  npm run ingest -w @floor/worker -- social                       (official accounts from congress-legislators, plus a Bluesky account only
+                                          when Bluesky verified it or it is a .senate.gov/.house.gov handle)
+  npm run ingest -w @floor/worker -- posts                        (recent posts from YouTube, Bluesky and Mastodon; free, no keys)
+  npm run ingest -w @floor/worker -- promises [--budget N] [--recheck] [--member ID]
+                                         (campaign promises from the FEC committee's site as the Wayback Machine held
+                                          it before election day; default 25 members not yet checked; needs
+                                          CONGRESS_API_KEY and ANTHROPIC_API_KEY)
+  npm run ingest -w @floor/worker -- live                     (always-on: floor events, vote state, roll calls; until SIGTERM)
   npm run ingest -w @floor/worker -- latency [days]               (posting latency the live worker measured; default 30 days)
 
 Reads DATABASE_URL from the environment (use the Supabase service connection string).`;
@@ -238,6 +247,37 @@ async function main() {
           `(${result.assets} assets, ${result.trades} trades), ${result.paper} paper, ${result.failed} failed, ` +
           `${result.stillDue} still due; ${result.requests} requests`,
       );
+    } else if (command === "social") {
+      const r = await ingestSocial(db, fetchWithTimeout(fetch, 30_000), { log: (msg) => console.log(msg) });
+      console.log(`Social accounts for ${r.members} members, ${r.bluesky} with a Bluesky account; ${r.failed} Bluesky searches failed`);
+    } else if (command === "posts") {
+      const r = await ingestPosts(db, fetchWithTimeout(fetch, 30_000), { log: (msg) => console.log(msg) });
+      console.log(`${r.posts} posts from ${r.members} members; ${r.failed} feeds failed`);
+    } else if (command === "promises") {
+      const opts = parsePromisesArgs(args);
+      if (!process.env.CONGRESS_API_KEY) throw new Error("Set CONGRESS_API_KEY in .env (the api.data.gov key works for OpenFEC)");
+      const ai = analyzeOptions(process.env, undefined);
+      // Credentials come from the SDK's usual chain (ANTHROPIC_API_KEY first). Never log them.
+      const complete = anthropicComplete(new Anthropic(), ai.model, ai);
+      // One connection for the whole run: the run's advisory lock is held on it.
+      const conn = await pool.connect();
+      try {
+        const r = await runPromises(
+          conn as unknown as Db,
+          // fecClient never puts its URL, which carries the key, in an error (lesson 7).
+          { fec: fecClient(process.env.CONGRESS_API_KEY), fetchText: fetchWithTimeout(fetch, 60_000), complete, log: (msg) => console.log(msg) },
+          opts,
+        );
+        if (r.ran) {
+          const s = r.byStatus;
+          console.log(
+            `Checked ${r.checked} members: ${s.promises} with promises, ${s.no_platform} no platform, ${s.no_site} no site, ` +
+              `${s.no_snapshot} no snapshot, ${s.failed} failed; est. ${r.costUsd === null ? "unknown" : `$${r.costUsd.toFixed(2)}`}`,
+          );
+        }
+      } finally {
+        conn.release();
+      }
     } else if (command === "nominations") {
       if (!process.env.CONGRESS_API_KEY) throw new Error("Set CONGRESS_API_KEY in .env (free key: https://api.data.gov/signup)");
       const refresh = args.includes("--refresh");

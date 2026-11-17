@@ -15,6 +15,7 @@ name: Ingest
 #                     postgres.<ref>@aws-1-us-east-1.pooler.supabase.com:5432
 #                     (GitHub's runners have no IPv6, so not the direct host)
 #   CONGRESS_API_KEY  the api.data.gov key, for bills and nominations
+#   ANTHROPIC_API_KEY for campaign promises (optional: without it that step skips)
 # Without DATABASE_URL the job says so and stops, rather than failing every hour.
 #
 # GitHub turns a schedule off after 60 days with no activity in a public repo,
@@ -46,6 +47,8 @@ jobs:
     env:
       DATABASE_URL: ${{ secrets.DATABASE_URL }}
       CONGRESS_API_KEY: ${{ secrets.CONGRESS_API_KEY }}
+      # Campaign promises only (one Claude call a member). Until it is set, that step skips.
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
     steps:
       - name: Secrets present
         id: secrets
@@ -133,6 +136,21 @@ jobs:
       - name: Members-elect candidate reports
         if: steps.install.outcome == 'success' && (github.event_name == 'workflow_dispatch' || github.event.schedule == '17 6 * * *') && !cancelled()
         run: npm run ingest -w @floor/worker -- elect-disclosures --budget 50
+      # Official accounts once a day (congress-legislators' social file, and a Bluesky account only
+      # when Bluesky verified it): ~540 Bluesky searches, free and keyless.
+      - name: Social accounts
+        if: steps.install.outcome == 'success' && (github.event_name == 'workflow_dispatch' || github.event.schedule == '17 6 * * *') && !cancelled()
+        run: npm run ingest -w @floor/worker -- social
+      # Members' recent posts every hour: YouTube channel feeds, Bluesky author feeds and the
+      # Mastodon accounts. Free, no keys; kept 30 days, at most 30 a member.
+      - name: Posts
+        if: steps.install.outcome == 'success' && !cancelled()
+        run: npm run ingest -w @floor/worker -- posts
+      # Campaign promises once a day, 25 members a run (one Claude call each, at most; about 22 runs
+      # to cover everyone once), only members not yet checked. Skips without ANTHROPIC_API_KEY.
+      - name: Campaign promises
+        if: steps.install.outcome == 'success' && env.CONGRESS_API_KEY != '' && env.ANTHROPIC_API_KEY != '' && (github.event_name == 'workflow_dispatch' || github.event.schedule == '17 6 * * *') && !cancelled()
+        run: npm run ingest -w @floor/worker -- promises --budget 25
       - name: Bill catalog
         if: steps.install.outcome == 'success' && env.CONGRESS_API_KEY != '' && !cancelled()
         env:

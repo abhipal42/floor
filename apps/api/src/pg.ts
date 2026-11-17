@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { AI_DISCLAIMER, DEVICE_SIGNUPS_PER_DAY, NO_CONTACT, STOCK_ACT_DEADLINE_DAYS } from "./app.js";
+import { AI_DISCLAIMER, DEVICE_SIGNUPS_PER_DAY, NO_CONTACT, STOCK_ACT_DEADLINE_DAYS, UNCHECKED_PROMISES } from "./app.js";
 import { billCitation, billLabel } from "./bills.js";
 import type {
   Bill,
@@ -14,6 +14,10 @@ import type {
   ElectProfile,
   ElectRepository,
   MemberElect,
+  MemberPromises,
+  MemberSocial,
+  SaidRepository,
+  WallPost,
   PendingSeat,
   TopicFilter,
   LiveRepository,
@@ -512,6 +516,7 @@ export function pgRepositories(db: Db): {
   schedule: ScheduleRepository;
   disclosures: DisclosureRepository;
   elect: ElectRepository;
+  said: SaidRepository;
 } {
   const registerOnce = async (keyHash: string, reg: DeviceRegistration, now: Date) => {
     // An APNs token belongs to one install. A phone that reinstalled Floor makes a new key and
@@ -592,6 +597,7 @@ export function pgRepositories(db: Db): {
   return {
     disclosures: pgDisclosures(db),
     elect: pgElect(db),
+    said: pgSaid(db),
     devices: {
       async register(keyHash, reg, now, caller) {
         if (!(await admitNew(keyHash, caller, now))) return "limited";
@@ -1580,6 +1586,93 @@ export function pgElect(db: Db, now: () => number = Date.now): ElectRepository {
         }
       }
       return { elect: toElect(r), funding, disclosure };
+    },
+  };
+}
+
+/** The keys of members.social the API serves; anything else in the column is not passed on. */
+const SOCIAL_KEYS = ["twitter", "facebook", "instagram", "youtube", "youtubeId", "mastodon", "bluesky"] as const;
+
+/**
+ * Social accounts, campaign promises and posts (20261119000000_said_and_posts.sql). Through
+ * liveQuery: before that migration is applied every member has no accounts, no posts, and promises
+ * unchecked, rather than a 500 (the API deploys on merge, before the migration).
+ */
+export function pgSaid(db: Db): SaidRepository {
+  const query = liveQuery(db);
+  return {
+    async social(bioguideIds) {
+      const { rows } = await query<{ bioguide_id: string; social: Record<string, unknown> | null }>(
+        "select bioguide_id, social from members where bioguide_id = any($1::text[])",
+        [bioguideIds],
+      );
+      return new Map(
+        rows.map((r) => {
+          const s: MemberSocial = {};
+          for (const k of SOCIAL_KEYS) {
+            const v = r.social?.[k];
+            if (typeof v === "string" && v) s[k] = v;
+          }
+          return [r.bioguide_id, s];
+        }),
+      );
+    },
+
+    async promises(bioguideId) {
+      const { rows } = await query<{
+        election_year: number;
+        site_url: string | null;
+        snapshot_url: string | null;
+        snapshot_at: Date | null;
+        page_url: string | null;
+        status: string;
+        promises: { heading: string | null; quote: string; headline: string; topic: string | null }[];
+      }>(
+        `select s.election_year, s.site_url, s.snapshot_url, s.snapshot_at, s.page_url, s.status,
+                coalesce((select jsonb_agg(jsonb_build_object('heading', p.heading, 'quote', p.quote, 'headline', p.headline, 'topic', p.topic)
+                                           order by p.position)
+                            from campaign_promises p where p.member_id = s.member_id), '[]'::jsonb) as promises
+           from campaign_sites s where s.member_id = $1`,
+        [bioguideId],
+      );
+      const r = rows[0];
+      // A look that failed is retried by the worker: until then it is unchecked, not a finding.
+      if (!r || r.status === "failed") return UNCHECKED_PROMISES;
+      const result: MemberPromises = {
+        status: r.status as MemberPromises["status"],
+        electionYear: r.election_year,
+        siteUrl: r.site_url,
+        snapshotUrl: r.snapshot_url,
+        snapshotAt: r.snapshot_at ? new Date(r.snapshot_at).toISOString() : null,
+        pageUrl: r.page_url,
+        promises: r.status === "promises" ? r.promises : [],
+      };
+      return result;
+    },
+
+    async posts(bioguideIds, limit) {
+      const { rows } = await query<{
+        id: string;
+        member_id: string;
+        network: WallPost["network"];
+        posted_at: Date;
+        text: string | null;
+        url: string;
+        media_url: string | null;
+      }>(
+        `select id, member_id, network, posted_at, text, url, media_url from member_posts
+          where member_id = any($1::text[]) order by posted_at desc, id limit $2`,
+        [bioguideIds, limit],
+      );
+      return rows.map((r) => ({
+        id: r.id,
+        memberId: r.member_id,
+        network: r.network,
+        postedAt: new Date(r.posted_at).toISOString(),
+        text: r.text,
+        url: r.url,
+        mediaUrl: r.media_url,
+      }));
     },
   };
 }

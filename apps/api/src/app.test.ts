@@ -325,7 +325,7 @@ describe("API", () => {
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual({
       // No member-elect replaces him, so leavingOn is null rather than absent.
-      member: { ...members[0], leavingOn: null },
+      member: { ...members[0], leavingOn: null, social: {} },
       partyLoyalty: { votes: 120, withParty: 111, againstParty: 9 },
       // No contact form: the House's own "Write Your Representative" form is the app's fallback.
       contact: { phone: "202-225-4865", contactForm: null, website: "https://doggett.house.gov", office: "2307 Rayburn House Office Building", address: null },

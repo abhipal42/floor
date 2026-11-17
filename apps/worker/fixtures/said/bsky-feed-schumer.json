@@ -1,0 +1,284 @@
+{
+ "feed": [
+  {
+   "post": {
+    "uri": "at://did:plc:zlgotdjaxzuhw4nefvkxxvxa/app.bsky.feed.post/3n2hjpq5urk2i",
+    "cid": "bafyreihflulrozd3keikftohpvkmttchcwrh5u5jbl7sg6t744j7vel27y",
+    "author": {
+     "did": "did:plc:zlgotdjaxzuhw4nefvkxxvxa",
+     "handle": "schumer.senate.gov",
+     "displayName": "Chuck Schumer",
+     "labels": [],
+     "createdAt": "2024-11-22T19:19:22.854Z",
+     "verification": {
+      "verifications": [
+       {
+        "issuer": "did:plc:z72i7hdynmk6r22z27h6tvur",
+        "issuerDisplayName": "Bluesky",
+        "issuerHandle": "bsky.app",
+        "uri": "at://did:plc:z72i7hdynmk6r22z27h6tvur/app.bsky.graph.verification/3lndy75lg3o2l",
+        "isValid": true,
+        "createdAt": "2025-04-21T13:16:14.545Z"
+       }
+      ],
+      "verifiedStatus": "valid",
+      "trustedVerifierStatus": "none"
+     }
+    },
+    "record": {
+     "$type": "app.bsky.feed.post",
+     "createdAt": "2026-11-16T22:01:27.090Z",
+     "langs": [
+      "en"
+     ],
+     "text": "Grocery prices are higher than ever. Trump's response?\n \nKick another 6 million off of food stamps and stop nearly 2 million kids from getting free school lunches."
+    },
+    "bookmarkCount": 0,
+    "replyCount": 66,
+    "repostCount": 20,
+    "likeCount": 74,
+    "quoteCount": 3,
+    "indexedAt": "2026-11-16T22:01:28.845Z",
+    "labels": []
+   },
+   "opThreadPostIndex": 1,
+   "opThreadPostCount": 2
+  },
+  {
+   "post": {
+    "uri": "at://did:plc:zlgotdjaxzuhw4nefvkxxvxa/app.bsky.feed.post/3n25dkegsmc2c",
+    "cid": "bafyreifjgjhdusrnm6qwmqmaz4fdrdsr6tr4o52kqontxt5x6cqlwsb5nm",
+    "author": {
+     "did": "did:plc:zlgotdjaxzuhw4nefvkxxvxa",
+     "handle": "schumer.senate.gov",
+     "displayName": "Chuck Schumer",
+     "labels": [],
+     "createdAt": "2024-11-22T19:19:22.854Z",
+     "verification": {
+      "verifications": [
+       {
+        "issuer": "did:plc:z72i7hdynmk6r22z27h6tvur",
+        "issuerDisplayName": "Bluesky",
+        "issuerHandle": "bsky.app",
+        "uri": "at://did:plc:z72i7hdynmk6r22z27h6tvur/app.bsky.graph.verification/3lndy75lg3o2l",
+        "isValid": true,
+        "createdAt": "2025-04-21T13:16:14.545Z"
+       }
+      ],
+      "verifiedStatus": "valid",
+      "trustedVerifierStatus": "none"
+     }
+    },
+    "record": {
+     "$type": "app.bsky.feed.post",
+     "createdAt": "2026-11-12T20:44:27.193Z",
+     "embed": {
+      "$type": "app.bsky.embed.images",
+      "images": [
+       {
+        "alt": "",
+        "aspectRatio": {
+         "height": 841,
+         "width": 1320
+        },
+        "image": {
+         "$type": "blob",
+         "ref": {
+          "$link": "bafkreigqd5rm3nc7xkfhuib2vnndbfoabltkxhvnsccejxmjrka5us2zta"
+         },
+         "mimeType": "image/jpeg",
+         "size": 487314
+        }
+       }
+      ]
+     },
+     "langs": [
+      "en"
+     ],
+     "text": "I\u2019m actually referring to your 30,000 stock trades (more than all of Congress combined), your Qatari-gifted luxury jet, your crypto scams, your Truth Social pay to play scheme, your billionaire-funded ballroom, your insurrectionist slush fund, and your pardons for big donors\u2014just to name a few."
+    },
+    "embed": {
+     "images": [
+      {
+       "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:zlgotdjaxzuhw4nefvkxxvxa/bafkreigqd5rm3nc7xkfhuib2vnndbfoabltkxhvnsccejxmjrka5us2zta",
+       "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:zlgotdjaxzuhw4nefvkxxvxa/bafkreigqd5rm3nc7xkfhuib2vnndbfoabltkxhvnsccejxmjrka5us2zta",
+       "alt": "",
+       "aspectRatio": {
+        "height": 841,
+        "width": 1320
+       }
+      }
+     ],
+     "$type": "app.bsky.embed.images#view"
+    },
+    "bookmarkCount": 22,
+    "replyCount": 415,
+    "repostCount": 253,
+    "likeCount": 1024,
+    "quoteCount": 38,
+    "indexedAt": "2026-11-12T20:44:29.988Z",
+    "labels": []
+   },
+   "opThreadPostIndex": 1,
+   "opThreadPostCount": 2
+  },
+  {
+   "post": {
+    "uri": "at://did:plc:zlgotdjaxzuhw4nefvkxxvxa/app.bsky.feed.post/3mzyaa62py22q",
+    "cid": "bafyreihtf4tahygonxmqgrd7v2mlhzx4h3uq7v2ki5t7p56imohcjmdkcq",
+    "author": {
+     "did": "did:plc:zlgotdjaxzuhw4nefvkxxvxa",
+     "handle": "schumer.senate.gov",
+     "displayName": "Chuck Schumer",
+     "labels": [],
+     "createdAt": "2024-11-22T19:19:22.854Z",
+     "verification": {
+      "verifications": [
+       {
+        "issuer": "did:plc:z72i7hdynmk6r22z27h6tvur",
+        "issuerDisplayName": "Bluesky",
+        "issuerHandle": "bsky.app",
+        "uri": "at://did:plc:z72i7hdynmk6r22z27h6tvur/app.bsky.graph.verification/3lndy75lg3o2l",
+        "isValid": true,
+        "createdAt": "2025-04-21T13:16:14.545Z"
+       }
+      ],
+      "verifiedStatus": "valid",
+      "trustedVerifierStatus": "none"
+     }
+    },
+    "record": {
+     "$type": "app.bsky.feed.post",
+     "createdAt": "2026-11-10T20:01:45.049Z",
+     "embed": {
+      "$type": "app.bsky.embed.recordWithMedia",
+      "media": {
+       "$type": "app.bsky.embed.video",
+       "aspectRatio": {
+        "height": 1080,
+        "width": 1920
+       },
+       "presentation": "default",
+       "video": {
+        "$type": "blob",
+        "ref": {
+         "$link": "bafkreih2q43q5a5iprwbo4u25dftq5wklng3ayr2stitcb5hqjf6cqajqe"
+        },
+        "mimeType": "video/mp4",
+        "size": 9152095
+       }
+      },
+      "record": {
+       "$type": "app.bsky.embed.record",
+       "record": {
+        "cid": "bafyreihvt6zfazzt4m4b7xb22cwkikucwmkqd3hcu67z2etuwkiewxwa74",
+        "uri": "at://did:plc:eclio37ymobqex2ncko63h4r/app.bsky.feed.post/3mzt5lny3ek22"
+       }
+      }
+     },
+     "langs": [
+      "en"
+     ],
+     "text": "Trump was briefed over A YEAR AGO on Nvidia\u2019s CEO having an affair with a Chinese spy. He did nothing about it.\n\nInstead, Trump took him to Beijing, took his advice to give China access to our AI chips, & accepted a $25M donation from Nvidia.\n\nWe need answers immediately."
+    },
+    "embed": {
+     "media": {
+      "cid": "bafkreih2q43q5a5iprwbo4u25dftq5wklng3ayr2stitcb5hqjf6cqajqe",
+      "playlist": "https://video.bsky.app/watch/did%3Aplc%3Azlgotdjaxzuhw4nefvkxxvxa/bafkreih2q43q5a5iprwbo4u25dftq5wklng3ayr2stitcb5hqjf6cqajqe/playlist.m3u8",
+      "thumbnail": "https://video.bsky.app/watch/did%3Aplc%3Azlgotdjaxzuhw4nefvkxxvxa/bafkreih2q43q5a5iprwbo4u25dftq5wklng3ayr2stitcb5hqjf6cqajqe/thumbnail.jpg",
+      "aspectRatio": {
+       "height": 1080,
+       "width": 1920
+      },
+      "presentation": "default",
+      "$type": "app.bsky.embed.video#view"
+     },
+     "record": {
+      "record": {
+       "uri": "at://did:plc:eclio37ymobqex2ncko63h4r/app.bsky.feed.post/3mzt5lny3ek22",
+       "cid": "bafyreihvt6zfazzt4m4b7xb22cwkikucwmkqd3hcu67z2etuwkiewxwa74",
+       "author": {
+        "did": "did:plc:eclio37ymobqex2ncko63h4r",
+        "handle": "nytimes.com",
+        "displayName": "The New York Times",
+        "avatar": "https://cdn.bsky.app/img/avatar/plain/did:plc:eclio37ymobqex2ncko63h4r/bafkreidvvqj5jymmpaeklwkpq6gi532el447mjy2yultuukypzqm5ohfju",
+        "associated": {
+         "chat": {
+          "allowIncoming": "none",
+          "allowGroupInvites": "none"
+         },
+         "activitySubscription": {
+          "allowSubscriptions": "followers"
+         }
+        },
+        "labels": [],
+        "createdAt": "2023-06-05T18:50:31.498Z",
+        "verification": {
+         "verifications": [
+          {
+           "issuer": "did:plc:z72i7hdynmk6r22z27h6tvur",
+           "issuerDisplayName": "Bluesky",
+           "issuerHandle": "bsky.app",
+           "uri": "at://did:plc:z72i7hdynmk6r22z27h6tvur/app.bsky.graph.verification/3lndptszmee2u",
+           "isValid": true,
+           "createdAt": "2025-04-21T10:46:44.369Z"
+          }
+         ],
+         "verifiedStatus": "valid",
+         "trustedVerifierStatus": "valid"
+        }
+       },
+       "value": {
+        "$type": "app.bsky.feed.post",
+        "createdAt": "2026-11-08T19:31:10.881693Z",
+        "embed": {
+         "$type": "app.bsky.embed.external",
+         "external": {
+          "description": "The secretary of state\u2019s role in drafting a secret memo highlights how top officials were concerned by last spring about Jensen Huang\u2019s relationship with a woman tied to Chinese intelligence.",
+          "thumb": {
+           "$type": "blob",
+           "ref": {
+            "$link": "bafkreifydg4neyam6s7n4i5iagoxx6cgbkcg4hvtejrlig7j5me3ac4vja"
+           },
+           "mimeType": "image/jpeg",
+           "size": 82713
+          },
+          "title": "Rubio Warned Officials About Nvidia Chief\u2019s Entanglement With Chinese Spy",
+          "uri": "https://nyti.ms/4sKvKuU"
+         }
+        },
+        "text": "Breaking News: Secretary of State Marco Rubio had warned Trump officials that Nvidia\u2019s CEO, Jensen Huang, was entangled with a Chinese spy, multiple people briefed on the matter said."
+       },
+       "labels": [],
+       "likeCount": 165,
+       "replyCount": 32,
+       "repostCount": 54,
+       "quoteCount": 24,
+       "indexedAt": "2026-11-08T19:31:11.378Z",
+       "embeds": [
+        {
+         "external": {
+          "uri": "https://nyti.ms/4sKvKuU",
+          "title": "Rubio Warned Officials About Nvidia Chief\u2019s Entanglement With Chinese Spy",
+          "description": "The secretary of state\u2019s role in drafting a secret memo highlights how top officials were concerned by last spring about Jensen Huang\u2019s relationship with a woman tied to Chinese intelligence.",
+          "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:eclio37ymobqex2ncko63h4r/bafkreifydg4neyam6s7n4i5iagoxx6cgbkcg4hvtejrlig7j5me3ac4vja"
+         },
+         "$type": "app.bsky.embed.external#view"
+        }
+       ],
+       "$type": "app.bsky.embed.record#viewRecord"
+      }
+     },
+     "$type": "app.bsky.embed.recordWithMedia#view"
+    },
+    "bookmarkCount": 5,
+    "replyCount": 254,
+    "repostCount": 73,
+    "likeCount": 236,
+    "quoteCount": 6,
+    "indexedAt": "2026-11-10T20:01:46.571Z",
+    "labels": []
+   }
+  }
+ ]
+}
