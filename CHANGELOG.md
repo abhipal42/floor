@@ -8,6 +8,15 @@ is a milestone and ships a retro under `docs/retros/`.
 Older series live in [`docs/changelog/`](docs/changelog) (0.1.x: [`0.1.md`](docs/changelog/0.1.md)).
 Before 0.1.0 the history is the commit log on `main`.
 
+## 0.2.52 — 2026-11-16
+
+### Added
+- **iOS and Android ship together, enforced.** The owner's rule: every app feature lands on both
+  platforms in the same PR. The new project guard `platform-parity` (`.github/scripts/guards.d/`,
+  run by `guards.sh all` on every PR) fails a PR whose app code changes on one side only. The
+  `single-platform` label or a `[skip parity]` tag is for a genuinely one-platform change, with the
+  reason in the PR. Seven guard self-tests. CLAUDE.md › Shipping.
+
 ## 0.2.51 — 2026-11-16
 
 ### Added

@@ -72,6 +72,24 @@ check() {
 # SB=$(sandbox); echo 'bad thing' > "$SB/src/x.py"; commit "$SB" "add x [skip my-guard]"
 # check "the commit tag opts out" 0 "skipping" my-guard
 
+echo "platform-parity"
+ios_src() { mkdir -p "$1/ios/FloorKit/Sources/Home" && echo "// x" > "$1/ios/FloorKit/Sources/Home/New.swift"; }
+android_src() { mkdir -p "$1/android/app/src/main/java/app/floor/android" && echo "// x" > "$1/android/app/src/main/java/app/floor/android/New.kt"; }
+SB=$(sandbox); ios_src "$SB"; commit "$SB" "feat: an iOS screen"
+check "iOS app code without Android fails, naming Android" 1 "android/app/src/main" platform-parity
+SB=$(sandbox); android_src "$SB"; commit "$SB" "feat: an Android screen"
+check "Android app code without iOS fails, naming iOS" 1 "ios/FloorKit/Sources" platform-parity
+SB=$(sandbox); mkdir -p "$SB/ios/Floor"; echo "// x" > "$SB/ios/Floor/FloorApp.swift"; commit "$SB" "feat: the iOS app target"
+check "the iOS app target counts as iOS app code" 1 "not Android" platform-parity
+SB=$(sandbox); ios_src "$SB"; android_src "$SB"; commit "$SB" "feat: both"
+check "both platforms pass" 0 "both iOS and Android" platform-parity
+SB=$(sandbox); mkdir -p "$SB/ios/FloorKit/Tests/X" "$SB/android/app/src/test"; echo x > "$SB/ios/FloorKit/Tests/X/T.swift"; echo x > "$SB/android/app/src/test/T.kt"; commit "$SB" "test: tests only"
+check "tests on one side don't count as app code" 0 "no app code" platform-parity
+SB=$(sandbox); ios_src "$SB"; commit "$SB" "fix: an iOS-only crash"
+LABELS="single-platform" check "the single-platform label opts out" 0 "skipping" platform-parity
+SB=$(sandbox); ios_src "$SB"; commit "$SB" "fix: an iOS-only crash [skip parity]"
+check "the [skip parity] tag opts out" 0 "skipping" platform-parity
+
 echo
 echo "$PASS passed, $FAIL failed"
 
