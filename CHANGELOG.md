@@ -8,6 +8,18 @@ is a milestone and ships a retro under `docs/retros/`.
 Older series live in [`docs/changelog/`](docs/changelog) (0.1.x: [`0.1.md`](docs/changelog/0.1.md)).
 Before 0.1.0 the history is the commit log on `main`.
 
+## 0.2.55 — 2026-11-17
+
+### Fixed
+- **`main` CI is green again.** It had been red since v0.2.53, with snapshots passing on the Mac but
+  failing on the runners.
+  - iOS: `repWithUnity` still held the three-segment member screen from v0.2.37. Round 13's five
+    segments changed 0.596% of it, over CI's 0.5% tolerance but under it locally, so it was never
+    re-recorded. It is now re-recorded and within 0.15% of the runner's render.
+  - Android: the swipe deck's back cards were drawn through a scaled, faded `graphicsLayer`, which
+    macOS and Linux resample differently. They are now plain whole-dp insets and offsets with
+    colour alpha, the same look with no resampling. Lesson 76.
+
 ## 0.2.54 — 2026-11-17
 
 ### Changed

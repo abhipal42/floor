@@ -714,6 +714,15 @@ Real data broke our first assumptions several times. Each case below is now hand
     chuckschumer.com account), so only a Bluesky-verified account or a `.senate.gov`/`.house.gov`
     handle is shown.
 
+76. **A snapshot that passes on the Mac can fail on CI; after a layout change, re-record with `all`.**
+    Round 13 left `main` red for two merges. The cause: (a) an iOS reference from v0.2.37 that a new
+    segment bar moved 0.596% on the runner but under 0.5% locally, so `RECORD=failed` never touched
+    it; (b) an Android `graphicsLayer` scale and alpha on the deck's back cards, resampled differently
+    by macOS and Linux Robolectric. Any change that touches a shared bar or layout re-records every
+    screen showing it with `RECORD=all`. Android views avoid fractional layer scales in anything a
+    screenshot covers. Also: combining branches means re-running each platform's gate on the
+    combined tree, not only on each branch; the round 13 combine skipped Android's.
+
 ---
 
 ## 4. Finish M1 (small)

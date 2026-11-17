@@ -43,8 +43,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.TransformOrigin
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.CustomAccessibilityAction
 import androidx.compose.ui.semantics.Role
@@ -58,6 +56,7 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import app.floor.android.bill.open
@@ -204,8 +203,8 @@ private fun Deck(said: Promises, index: Int, locale: Locale, onIndex: (Int) -> U
         Box(Modifier.fillMaxWidth().padding(bottom = if (count > 1) 14.dp else 0.dp)) {
             // Every card laid out unseen, so the deck is as tall as its tallest card and doesn't jump.
             Box(Modifier.alpha(0f).clearAndSetSemantics { }) { promises.indices.forEach { card(it, Modifier) } }
-            if (count > 2) Behind(colors, colors.card, 14f, 0.92f, 0.5f)
-            if (count > 1) Behind(colors, colors.cardSunken, 7f, 0.96f, 0.8f)
+            if (count > 2) Behind(colors, colors.card, drop = 14.dp, inset = 14.dp, opacity = 0.5f)
+            if (count > 1) Behind(colors, colors.cardSunken, drop = 7.dp, inset = 7.dp, opacity = 0.8f)
             HorizontalPager(
                 pager,
                 Modifier.matchParentSize(),
@@ -226,18 +225,18 @@ private fun Deck(said: Promises, index: Int, locale: Locale, onIndex: (Int) -> U
 }
 
 @Composable
-private fun androidx.compose.foundation.layout.BoxScope.Behind(colors: FloorColors, fill: Color, drop: Float, scale: Float, opacity: Float) {
+private fun androidx.compose.foundation.layout.BoxScope.Behind(colors: FloorColors, fill: Color, drop: Dp, inset: Dp, opacity: Float) {
+    // Whole-dp insets and offsets and colour alpha, not a scaled, faded graphics layer: a scaled
+    // layer is resampled, and macOS and Linux resample it differently, so the deck's screenshot
+    // drifted between this Mac and CI (v0.2.55).
     val shape = RoundedCornerShape(18.dp)
     Box(
         Modifier.matchParentSize()
-            .graphicsLayer {
-                transformOrigin = TransformOrigin(0.5f, 1f)
-                translationY = drop.dp.toPx()
-                scaleX = scale
-                scaleY = scale
-                alpha = opacity
-            }
-            .clip(shape).background(fill, shape).border(1.dp, colors.panelBorder, shape),
+            .offset(y = drop)
+            .padding(horizontal = inset)
+            .clip(shape)
+            .background(fill.copy(alpha = fill.alpha * opacity), shape)
+            .border(1.dp, colors.panelBorder.copy(alpha = colors.panelBorder.alpha * opacity), shape),
     )
 }
 
