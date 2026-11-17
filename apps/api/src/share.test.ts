@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import { EMPTY_SCHEDULE, NO_CONTACT, createApp, type Bill, type ScheduleRepository } from "./app.js";
 import {
   appSiteAssociation,
+  assetLinks,
   billIdFromPath,
   cardTitleSize,
   road,
@@ -214,5 +215,28 @@ describe("share routes", () => {
       applinks: { details: [{ appIDs: ["ABCDE12345.app.floor.ios"], components: [{ "/": "/bill/*", comment: "A shared bill opens its bill screen" }] }] },
     });
     expect(appSiteAssociation({ appleTeamId: "not a team" })).toBeNull();
+  });
+
+  it("serves Android's asset links for the debug key unless told the release ones", async () => {
+    const byDefault = await appWith().request("/.well-known/assetlinks.json");
+    expect(byDefault.status).toBe(200);
+    expect(byDefault.headers.get("content-type")).toMatch(/^application\/json/);
+    expect(await byDefault.json()).toEqual([
+      {
+        relation: ["delegate_permission/common.handle_all_urls"],
+        target: {
+          namespace: "android_app",
+          package_name: "app.floor.android",
+          sha256_cert_fingerprints: [
+            "AC:7D:DB:82:85:C7:84:3F:D5:44:FC:6D:EB:DF:E4:95:DF:A0:9B:BF:39:3F:61:15:6B:23:CA:62:F3:37:D5:46",
+          ],
+        },
+      },
+    ]);
+    const release = "14:6D:E9:83:C5:73:06:50:D8:EE:B9:95:2F:34:FC:64:16:A0:83:42:E6:1D:BE:A8:8A:04:96:B2:3F:CF:44:E5";
+    const res = await appWith({ androidCertSha256: [` ${release.toLowerCase()}`, "not a print"] }).request("/.well-known/assetlinks.json");
+    const body = (await res.json()) as { target: { sha256_cert_fingerprints: string[] } }[];
+    expect(body[0]?.target.sha256_cert_fingerprints).toEqual([release]);
+    expect(assetLinks({ androidCertSha256: ["AC:7D"] })).toBeNull();
   });
 });

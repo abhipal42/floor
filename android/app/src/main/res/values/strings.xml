@@ -1,4 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">Floor</string>
+    <string name="widget_latest_final">Latest final</string>
+    <string name="widget_latest_final_description">The last final vote in your members\' records, and how one of them voted.</string>
+    <string name="widget_members">Your members</string>
+    <string name="widget_members_description">How your members voted most recently: your reps, or the first three you follow.</string>
 </resources>

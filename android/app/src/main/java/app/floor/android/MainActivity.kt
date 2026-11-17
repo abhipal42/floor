@@ -42,6 +42,13 @@ import app.floor.android.following.FollowingSegment
 import app.floor.android.following.FollowingState
 import app.floor.android.home.HomeModel
 import app.floor.android.home.HomeScreen
+import app.floor.android.model.FloorLink
+import app.floor.android.week.WeekModel
+import app.floor.android.widget.FloorWidgets
+import androidx.lifecycle.lifecycleScope
+import kotlinx.coroutines.launch
+import app.floor.android.week.WeekScreen
+import android.content.Intent
 import app.floor.android.member.ElectModel
 import app.floor.android.member.ElectScreen
 import app.floor.android.member.MemberFollow
@@ -65,8 +72,13 @@ import java.time.ZoneId
 
 @OptIn(ExperimentalMaterial3Api::class)
 class MainActivity : ComponentActivity() {
+    /** A link the app was opened with and has not shown yet: a shared bill, or the widget's vote. */
+    private var link by mutableStateOf<FloorLink?>(null)
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        // Recreated (a rotation, a theme change), the intent is the one already shown.
+        if (savedInstanceState == null) link = FloorLink.parse(intent?.dataString ?: "")
         // Every response a screen reads is saved, so the app opens on what it last showed when
         // offline or slow, then refreshes.
         val api = FloorApi(BuildConfig.API_BASE_URL, cache = FileResponseCache(File(cacheDir, "responses")))
@@ -101,7 +113,7 @@ class MainActivity : ComponentActivity() {
                         onFinished = session::finish,
                     )
                 } else {
-                    App(api, session, appearance) {
+                    App(api, session, appearance, link, onLinkHandled = { link = null }) {
                         appearance = it
                         Appearance.save(this, it)
                     }
@@ -109,11 +121,31 @@ class MainActivity : ComponentActivity() {
             }
         }
     }
+
+    /** Leaving the app: the widgets redraw from what it now holds (a new district, a follow). */
+    override fun onStop() {
+        super.onStop()
+        lifecycleScope.launch { FloorWidgets.updateAll(applicationContext) }
+    }
+
+    /** A link while the app is open: the widget tapped, or a shared bill opened from another app. */
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        link = FloorLink.parse(intent.dataString ?: "")
+    }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun App(api: FloorApi, session: Session, appearance: Appearance, onAppearance: (Appearance) -> Unit) {
+private fun App(
+    api: FloorApi,
+    session: Session,
+    appearance: Appearance,
+    link: FloorLink?,
+    onLinkHandled: () -> Unit,
+    onAppearance: (Appearance) -> Unit,
+) {
     // Finals and Following share one feed: the Following tab's rings and latest votes come from it.
     val home: HomeModel = viewModel(key = "home") { HomeModel(api, session) }
     val follows = session.follows
@@ -140,6 +172,19 @@ private fun App(api: FloorApi, session: Session, appearance: Appearance, onAppea
                     onOpenMember = { navigate(Routes.member(it.bioguideId)) },
                     onOpenElect = { navigate(Routes.elect(it)) },
                     onFindReps = session::findReps,
+                )
+            },
+            week = { onOpenBill ->
+                val model: WeekModel = viewModel { WeekModel(api) }
+                LaunchedEffect(Unit) { model.appear() }
+                WeekScreen(
+                    state = model.state,
+                    follows = follows.state,
+                    onWeek = model::show,
+                    onChamber = model::select,
+                    onExpand = model::expand,
+                    onRetry = model::reload,
+                    onOpenBill = onOpenBill,
                 )
             },
             bills = { onOpenBill, onOpenTopic ->
@@ -319,5 +364,7 @@ private fun App(api: FloorApi, session: Session, appearance: Appearance, onAppea
                 ElectScreen(model.state, back, locale, onBack, model::select, model::selectMoney) { model.reload() }
             },
         ),
+        link = link,
+        onLinkHandled = onLinkHandled,
     )
 }

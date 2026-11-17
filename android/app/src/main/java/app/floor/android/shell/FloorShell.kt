@@ -5,6 +5,8 @@ import androidx.activity.OnBackPressedDispatcherOwner
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.LocalOnBackPressedDispatcherOwner
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.LaunchedEffect
+import app.floor.android.model.FloorLink
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.lifecycle.Lifecycle
@@ -89,6 +91,8 @@ enum class Tab(val title: String, val icon: Int) {
 class FloorScreens(
     /** The Finals tab's root; it gets a callback that opens a vote. */
     val finals: @Composable (onOpenVote: (String) -> Unit) -> Unit = {},
+    /** The Week tab's root: the House's list and the Senate's meetings; a bill opens on its stack. */
+    val week: @Composable (onOpenBill: (String) -> Unit) -> Unit = {},
     /** The Bills tab's root: topics and search. */
     val bills: @Composable (onOpenBill: (String) -> Unit, onOpenTopic: (String) -> Unit) -> Unit = { _, _ -> },
     /** The Following tab's root: your members, bills and topics. */
@@ -109,19 +113,38 @@ class FloorScreens(
 
 /**
  * The app (iOS `FloorShell`): four tabs — Finals, Week, Bills, Following — under the locked mocks'
- * floating tab bar. Finals, Bills and Following each keep their own navigation stack, so switching tabs never
+ * floating tab bar. Every tab keeps their own navigation stack, so switching tabs never
  * loses your place; a vote, a bill, a topic, a member or a member-elect can be pushed on any of the
- * three stacks (Finals, Bills, Following). Week is a placeholder until its phase lands.
+ * four stacks.
  */
 @Composable
 fun FloorShell(
     screens: FloorScreens,
     initialTab: Tab = Tab.FINALS,
     finalsNav: NavHostController = rememberNavController(),
+    weekNav: NavHostController = rememberNavController(),
     billsNav: NavHostController = rememberNavController(),
     followingNav: NavHostController = rememberNavController(),
+    /** A link the app was opened with (a shared bill, the widget's vote), not yet shown. */
+    link: FloorLink? = null,
+    onLinkHandled: () -> Unit = {},
 ) {
     var tab by rememberSaveable { mutableStateOf(initialTab) }
+    // A link opens its screen on the Finals stack, over wherever Finals was.
+    LaunchedEffect(link) {
+        when (link) {
+            is FloorLink.Bill -> {
+                tab = Tab.FINALS
+                finalsNav.navigate(Routes.bill(link.id))
+            }
+            is FloorLink.Vote -> {
+                tab = Tab.FINALS
+                finalsNav.navigate(Routes.vote(link.id))
+            }
+            FloorLink.Open, null -> {}
+        }
+        if (link != null) onLinkHandled()
+    }
     val colors = Palette
     // System back on another tab returns to Finals before it leaves the app (once that tab's own
     // stack is at its root: NavHost handles back first while it has somewhere to go).
@@ -131,6 +154,9 @@ fun FloorShell(
         Box(if (tab == Tab.FINALS) Modifier.fillMaxSize() else Modifier.hidden()) {
             TabStack(finalsNav, "finals", screens, active = tab == Tab.FINALS) { screens.finals { id -> finalsNav.navigate("vote/$id") } }
         }
+        Box(if (tab == Tab.WEEK) Modifier.fillMaxSize() else Modifier.hidden()) {
+            TabStack(weekNav, "week", screens, active = tab == Tab.WEEK) { screens.week { id -> weekNav.navigate("bill/$id") } }
+        }
         Box(if (tab == Tab.BILLS) Modifier.fillMaxSize() else Modifier.hidden()) {
             TabStack(billsNav, "bills", screens, active = tab == Tab.BILLS) {
                 screens.bills({ id -> billsNav.navigate("bill/$id") }, { name -> billsNav.navigate("topic/${Uri.encode(name)}") })
@@ -139,12 +165,10 @@ fun FloorShell(
         Box(if (tab == Tab.FOLLOWING) Modifier.fillMaxSize() else Modifier.hidden()) {
             TabStack(followingNav, "following", screens, active = tab == Tab.FOLLOWING) { screens.following() }
         }
-        if (tab == Tab.WEEK) {
-            ComingSoon(title = tab.title.uppercase(), body = "The ${tab.title} tab is coming to Android. It is on iPhone today.")
-        }
         TabBar(tab) { picked ->
             // A second tap on the current tab goes back to its top, as system tab bars do.
             if (picked == tab && picked == Tab.FINALS) finalsNav.popBackStack("finals", inclusive = false)
+            if (picked == tab && picked == Tab.WEEK) weekNav.popBackStack("week", inclusive = false)
             if (picked == tab && picked == Tab.BILLS) billsNav.popBackStack("bills", inclusive = false)
             if (picked == tab && picked == Tab.FOLLOWING) followingNav.popBackStack("following", inclusive = false)
             tab = picked
@@ -236,6 +260,7 @@ private fun backLabel(entry: NavBackStackEntry?): String {
     val route = entry?.destination?.route ?: return "Back"
     return when {
         route == "finals" -> "Finals"
+        route == "week" -> "Week"
         route == "bills" -> "Bills"
         route == "following" -> "Following"
         route.startsWith("vote/") -> "Vote"
@@ -283,42 +308,6 @@ private fun TabBar(selected: Tab, onSelect: (Tab) -> Unit) {
                     Text(item.title, style = FloorType.text(10f, FontWeight.SemiBold, scales = false), color = tint)
                 }
             }
-        }
-    }
-}
-
-/**
- * A tab or screen not built on Android yet: a visible placeholder, never an invented one
- * (CLAUDE.md, "Real data or a visible placeholder").
- */
-@Composable
-fun ComingSoon(title: String, body: String, back: String = "Finals", onBack: (() -> Unit)? = null) {
-    val colors = Palette
-    Column(
-        Modifier
-            .fillMaxSize()
-            .background(colors.ground)
-            .windowInsetsPadding(WindowInsets.statusBars)
-            .padding(start = 16.dp, end = 16.dp, top = 8.dp, bottom = TabBarClearance),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
-    ) {
-        if (onBack != null) {
-            Text(
-                "‹ $back",
-                style = FloorType.text(15f, FontWeight.SemiBold),
-                color = colors.accent,
-                modifier = Modifier
-                    .clip(RoundedCornerShape(7.dp))
-                    .clickable(role = Role.Button, onClick = onBack)
-                    .padding(vertical = 6.dp),
-            )
-        }
-        Text(title, style = FloorType.headline(34f), color = colors.text, modifier = Modifier.semantics { heading() })
-        Spacer(Modifier.height(4.dp))
-        Column(Modifier.panel(colors)) {
-            Text("COMING SOON", style = FloorType.label(16f), color = colors.threshold)
-            Spacer(Modifier.height(6.dp))
-            Text(body, style = FloorType.body(), color = colors.textSecondary)
         }
     }
 }

@@ -5,6 +5,10 @@
     {
       "source": "/.well-known/apple-app-site-association",
       "destination": "https://floor-api.vercel.app/.well-known/apple-app-site-association"
+    },
+    {
+      "source": "/.well-known/assetlinks.json",
+      "destination": "https://floor-api.vercel.app/.well-known/assetlinks.json"
     }
   ]
 }

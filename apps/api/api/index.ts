@@ -94,6 +94,9 @@ const app = createApp({
     getAppUrl: process.env.FLOOR_GET_APP_URL || undefined,
     appleTeamId: process.env.APPLE_TEAM_ID || undefined,
     bundleId: process.env.FLOOR_BUNDLE_ID || undefined,
+    // Android's assetlinks.json: share.ts's DEFAULT_ANDROID_CERT_SHA256 (a DEBUG key) unless set.
+    // A release key must be added here before the Play Store.
+    androidCertSha256: process.env.ANDROID_CERT_SHA256 ? process.env.ANDROID_CERT_SHA256.split(",") : undefined,
   },
 });
 

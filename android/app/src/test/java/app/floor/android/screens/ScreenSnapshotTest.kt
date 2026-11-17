@@ -15,7 +15,6 @@ import app.floor.android.home.HomeState
 import app.floor.android.model.RecentVotes
 import app.floor.android.shell.FloorScreens
 import app.floor.android.shell.FloorShell
-import app.floor.android.shell.Tab
 import com.github.takahirom.roborazzi.captureRoboImage
 import org.junit.Rule
 import org.junit.Test
@@ -98,15 +97,5 @@ class ScreenSnapshotTest {
     @Test
     fun shellFinalsDark() = snap("shellFinals", Appearance.DARK) {
         FloorShell(FloorScreens(finals = { Home(loaded, Appearance.DARK) }))
-    }
-
-    @Test
-    fun shellComingSoonLight() = snap("shellWeekComingSoon", Appearance.LIGHT) {
-        FloorShell(FloorScreens(finals = { Home(loaded, Appearance.LIGHT) }), initialTab = Tab.WEEK)
-    }
-
-    @Test
-    fun shellComingSoonDark() = snap("shellWeekComingSoon", Appearance.DARK) {
-        FloorShell(FloorScreens(finals = { Home(loaded, Appearance.DARK) }), initialTab = Tab.WEEK)
     }
 }

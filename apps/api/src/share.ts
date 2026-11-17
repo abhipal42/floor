@@ -11,7 +11,8 @@
  * `/.well-known/apple-app-site-association` here (the root `vercel.json`, the `floor-web` project).
  * With the app installed and the associated-domains entitlement signed, iOS opens the same link in
  * the app instead (`FloorLink` reads it); until the Apple team exists, the association file answers
- * 404 rather than name an app id that is not real.
+ * 404 rather than name an app id that is not real. Android's `/.well-known/assetlinks.json` is
+ * served the same way, for the app's verified `/bill/` app links.
  *
  * Everything shown is public record. The member lookup runs in the reader's browser against the
  * existing `/v1/reps` and `/v1/votes/{id}` routes; the page saves nothing it is given.
@@ -42,6 +43,18 @@ export const DEFAULT_BUNDLE_ID = "app.floor.ios";
  * account. `APPLE_TEAM_ID` overrides it. A team id is public (it is in every signed app).
  */
 export const DEFAULT_APPLE_TEAM_ID = "DCCFA8MX7A";
+/** The Android app's package (`applicationId` in android/app/build.gradle.kts). */
+export const DEFAULT_ANDROID_PACKAGE = "app.floor.android";
+/**
+ * The DEBUG keystore's certificate (`~/.android/debug.keystore`, alias androiddebugkey) on the Mac
+ * the Android app was first built on, so a debug build there verifies its app links. It is not a
+ * release key: before the Play Store, set `ANDROID_CERT_SHA256` to the release (or Play App
+ * Signing) certificate's fingerprint — with this one after it, comma-separated, to keep debug builds
+ * verifying. A fingerprint is public (it is in every signed APK).
+ */
+export const DEFAULT_ANDROID_CERT_SHA256 = [
+  "AC:7D:DB:82:85:C7:84:3F:D5:44:FC:6D:EB:DF:E4:95:DF:A0:9B:BF:39:3F:61:15:6B:23:CA:62:F3:37:D5:46",
+];
 /** A page or card changes when the bill does: the catalog refreshes hourly at most. */
 export const SHARE_CACHE_CONTROL = "public, max-age=300, s-maxage=900, stale-while-revalidate=3600";
 
@@ -59,6 +72,12 @@ export interface ShareOptions {
   /** The Apple Developer team id. Until it is set the association file is a 404. */
   appleTeamId?: string;
   bundleId?: string;
+  /**
+   * The SHA-256 fingerprints of the certificates that sign the Android app, `AA:BB:…` (32 pairs).
+   * Defaults to `DEFAULT_ANDROID_CERT_SHA256`; `ANDROID_CERT_SHA256` (comma-separated) overrides it.
+   */
+  androidCertSha256?: string[];
+  androidPackage?: string;
 }
 
 const LAW_TYPES = ["hr", "s", "hjres", "sjres"];
@@ -458,6 +477,28 @@ export function appSiteAssociation(opts: ShareOptions): Record<string, unknown> 
   };
 }
 
+/**
+ * Android's Digital Asset Links statement: the app may open `https://<share host>/bill/*` (its
+ * intent filter names the path; this file names the app). Fingerprints that are not 32 hex pairs
+ * are dropped; none left is null.
+ */
+export function assetLinks(opts: ShareOptions): Record<string, unknown>[] | null {
+  const prints = (opts.androidCertSha256 ?? DEFAULT_ANDROID_CERT_SHA256)
+    .map((print) => print.trim().toUpperCase())
+    .filter((print) => /^[0-9A-F]{2}(:[0-9A-F]{2}){31}$/.test(print));
+  if (prints.length === 0) return null;
+  return [
+    {
+      relation: ["delegate_permission/common.handle_all_urls"],
+      target: {
+        namespace: "android_app",
+        package_name: opts.androidPackage ?? DEFAULT_ANDROID_PACKAGE,
+        sha256_cert_fingerprints: prints,
+      },
+    },
+  ];
+}
+
 // MARK: - Routes
 
 export function mountShare(
@@ -508,4 +549,9 @@ export function mountShare(
   };
   app.get("/.well-known/apple-app-site-association", (c) => association(c));
   app.get("/apple-app-site-association", (c) => association(c));
+  app.get("/.well-known/assetlinks.json", (c) => {
+    const body = assetLinks(deps.options);
+    c.header("Cache-Control", "public, max-age=3600");
+    return body ? c.json(body, 200) : c.json({ error: "No Android signing certificate is configured (ANDROID_CERT_SHA256)." }, 404);
+  });
 }

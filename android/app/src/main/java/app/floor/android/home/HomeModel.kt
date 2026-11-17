@@ -191,6 +191,12 @@ data class HomeState(
 }
 
 /**
+ * How many votes the feed asks for per member (`/v1/members/{id}/votes?limit=`). The home-screen
+ * widget asks for the same, so the two read one saved response.
+ */
+const val RECORD_LIMIT = 25
+
+/**
  * Finals (iOS `HomeModel`): the latest finals in both chambers or the one the filter picks, and
  * beside them "Following": the recent votes of your members (your reps unless hidden, then those you
  * follow), every vote on a bill you follow, and the latest finals in topics you follow, merged one
@@ -215,7 +221,7 @@ class HomeModel(private val api: FloorApi, private val session: Session? = null)
     private var loadedKey: String? = null
 
     private val limit = 40
-    private val perMember = 25
+    private val perMember = RECORD_LIMIT
 
     /** How many followed bills the feed fetches, one request each: the most recently followed. */
     private val billFetchLimit = 20
