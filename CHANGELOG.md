@@ -8,6 +8,25 @@ is a milestone and ships a retro under `docs/retros/`.
 Older series live in [`docs/changelog/`](docs/changelog) (0.1.x: [`0.1.md`](docs/changelog/0.1.md)).
 Before 0.1.0 the history is the commit log on `main`.
 
+## 0.2.57 — 2026-11-17
+
+### Added
+- **Finals as stories.** The Finals feed is now one card per bill or nominee rather than one per roll call, on iOS
+  and Android, in the new Arena look:
+  - a topic-coloured band;
+  - the CRS summary's own sentence on what the bill does;
+  - every vote it took, in order;
+  - the deciding vote's party split;
+  - your members' votes, with their faces.
+
+  Procedural-only measures and unnamed votes become short rows under "Also this week". The weeks read "This
+  week" and "Last week". The split-flap board is gone.
+- **API:**
+  - every vote's `measure` carries `sponsor`, `summaryLead`, `position` and `forBillId`;
+  - `GET /v1/votes` rows carry `partyTotals`.
+
+  All are additive and nullable.
+
 ## 0.2.56 — 2026-11-17
 
 ### Fixed
