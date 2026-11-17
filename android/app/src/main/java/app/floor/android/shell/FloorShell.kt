@@ -58,13 +58,18 @@ enum class Tab(val title: String, val icon: Int) {
 /**
  * The app (iOS `FloorShell`): four tabs — Finals, Week, Bills, Following — under the locked mocks'
  * floating tab bar. Finals keeps its own navigation stack, so switching tabs never loses your place.
- * Week, Bills and Following are placeholders until their phases land.
+ * Week, Bills and Following are placeholders until their phases land, and so is the bill a vote
+ * links to.
  *
  * @param finals the Finals tab's root; it gets a callback that opens a vote.
+ * @param vote one vote, by id, with callbacks that open the kinds of vote, open a bill, and go back.
+ * @param voteKinds the "Kinds of vote" list, with its back callback.
  */
 @Composable
 fun FloorShell(
     finals: @Composable (onOpenVote: (String) -> Unit) -> Unit,
+    vote: @Composable (id: String, onOpenKinds: () -> Unit, onOpenBill: (String) -> Unit, onBack: () -> Unit) -> Unit,
+    voteKinds: @Composable (onBack: () -> Unit) -> Unit,
     initialTab: Tab = Tab.FINALS,
     finalsNav: NavHostController = rememberNavController(),
 ) {
@@ -77,10 +82,20 @@ fun FloorShell(
         Box(if (tab == Tab.FINALS) Modifier.fillMaxSize() else Modifier.hidden()) {
             NavHost(finalsNav, startDestination = "finals") {
                 composable("finals") { finals { id -> finalsNav.navigate("vote/$id") } }
-                composable("vote/{id}") {
+                composable("vote/{id}") { entry ->
+                    vote(
+                        entry.arguments?.getString("id").orEmpty(),
+                        { finalsNav.navigate("vote-kinds") },
+                        { billId -> finalsNav.navigate("bill/$billId") },
+                        { finalsNav.popBackStack() },
+                    )
+                }
+                composable("vote-kinds") { voteKinds { finalsNav.popBackStack() } }
+                composable("bill/{id}") {
                     ComingSoon(
-                        title = "VOTE",
-                        body = "The vote screen is coming to Android next. It is on iPhone today.",
+                        title = "BILL",
+                        body = "The bill screen is coming to Android next. It is on iPhone today.",
+                        back = "Vote",
                         onBack = { finalsNav.popBackStack() },
                     )
                 }
@@ -142,7 +157,7 @@ private fun TabBar(selected: Tab, onSelect: (Tab) -> Unit) {
  * (CLAUDE.md, "Real data or a visible placeholder").
  */
 @Composable
-fun ComingSoon(title: String, body: String, onBack: (() -> Unit)? = null) {
+fun ComingSoon(title: String, body: String, back: String = "Finals", onBack: (() -> Unit)? = null) {
     val colors = Palette
     Column(
         Modifier
@@ -154,7 +169,7 @@ fun ComingSoon(title: String, body: String, onBack: (() -> Unit)? = null) {
     ) {
         if (onBack != null) {
             Text(
-                "‹ Finals",
+                "‹ $back",
                 style = FloorType.text(15f, FontWeight.SemiBold),
                 color = colors.accent,
                 modifier = Modifier

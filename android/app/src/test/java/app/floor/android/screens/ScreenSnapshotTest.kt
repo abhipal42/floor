@@ -90,21 +90,21 @@ class ScreenSnapshotTest {
 
     @Test
     fun shellFinalsLight() = snap("shellFinals", Appearance.LIGHT) {
-        FloorShell(finals = { Home(loaded, Appearance.LIGHT) })
+        FloorShell(finals = { Home(loaded, Appearance.LIGHT) }, vote = { _, _, _, _ -> }, voteKinds = {})
     }
 
     @Test
     fun shellFinalsDark() = snap("shellFinals", Appearance.DARK) {
-        FloorShell(finals = { Home(loaded, Appearance.DARK) })
+        FloorShell(finals = { Home(loaded, Appearance.DARK) }, vote = { _, _, _, _ -> }, voteKinds = {})
     }
 
     @Test
     fun shellComingSoonLight() = snap("shellWeekComingSoon", Appearance.LIGHT) {
-        FloorShell(finals = { Home(loaded, Appearance.LIGHT) }, initialTab = Tab.WEEK)
+        FloorShell(finals = { Home(loaded, Appearance.LIGHT) }, vote = { _, _, _, _ -> }, voteKinds = {}, initialTab = Tab.WEEK)
     }
 
     @Test
     fun shellComingSoonDark() = snap("shellWeekComingSoon", Appearance.DARK) {
-        FloorShell(finals = { Home(loaded, Appearance.DARK) }, initialTab = Tab.WEEK)
+        FloorShell(finals = { Home(loaded, Appearance.DARK) }, vote = { _, _, _, _ -> }, voteKinds = {}, initialTab = Tab.WEEK)
     }
 }

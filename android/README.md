@@ -8,11 +8,22 @@ edge-to-edge, Material ripple. Product rules: the repo's `CLAUDE.md`.
 
 Phase 1 of the Android plan: the Gradle project, the CI job, the design system, the API client and
 models for the Finals feed, the app shell (the iOS tab bar: Finals, Week, Bills, Following) and the
-Finals screen with its loading, error, empty and offline states. Week, Bills, Following and the vote
-screen are visible "Coming soon" placeholders.
+Finals screen with its loading, error, empty and offline states.
 
-What Finals leaves out until a later phase, because it needs a district or follows: the delegation
-strip, the All / Following switch, the catch-up deck and the district chip in the header.
+Phase 2: the vote screen, opened from any card in the Finals feed (`GET /v1/votes/{id}`): "What
+this vote is" (folds; its "?" opens the full "Kinds of vote" list from `GET /v1/vote-kinds`), the
+broadcast scoreboard, the threshold bar, the box score with who crossed party lines, the bill or
+nomination, and the full roll as squares by party; a Speaker election gets its own board and the
+ballot. Loading, error and saved-copy states as on Finals. The vote's time is printed in the
+device's zone and locale, both passed in (`whenLabel`), never read behind the screen's back.
+
+Week, Bills and Following are visible "Coming soon" placeholders, and so is the bill a vote links to.
+
+What Android leaves out until a later phase, because it needs a district or follows: on Finals the
+delegation strip, the All / Following switch, the catch-up deck and the district chip; on a vote,
+"Your members" (iOS draws none without a district either). The bill card names the bill without
+its "level N of 6" until the Bills phase brings the bill model and its road to law. iOS shows
+"Kinds of vote" as a sheet; Android pushes it as a screen so system back closes it.
 
 ## Stack
 
@@ -49,6 +60,10 @@ cd android
   `app/src/test/snapshots`; CI's `verifyRoborazziDebug` fails on any pixel change, and uploads the
   diffs. Robolectric 4.17 runs them on SDK 36 (`@Config(sdk = [36])`), its newest.
 - Cards print the vote's day in the reader's zone; the tests pin `America/New_York`.
+- The vote screen's snapshots (`VoteSnapshotTest`) draw each screen light, dark and `large`: the
+  200% font scale, Android's largest and the stand-in for iOS's ax5. A size meant not to grow goes
+  through `Dp.toSp()`, not a division by the font scale: Android 14 scales large text non-linearly,
+  so dividing drew the scoreboard's numbers at half size at 200%.
 
 ## CI
 
