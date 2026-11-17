@@ -17,13 +17,13 @@ import app.floor.android.model.MemberPosition
 import app.floor.android.model.MemberVote
 import app.floor.android.model.MembersElect
 import app.floor.android.model.PartyLoyalty
+import app.floor.android.model.PartyTotals
 import app.floor.android.model.RecentVote
 import app.floor.android.model.SavedCopy
 import app.floor.android.model.SeatRow
 import app.floor.android.model.StateName
 import app.floor.android.model.Topic
 import app.floor.android.model.Vote
-import app.floor.android.model.VoteState
 import app.floor.android.store.FollowKind
 import app.floor.android.store.Session
 import app.floor.android.store.listItem
@@ -35,8 +35,16 @@ import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
 import java.time.Instant
 
-/** One card in the feed: a vote, and how each of your members voted on it. */
-data class FeedItem(val vote: Vote, val measure: MeasureSummary? = null, val positions: List<MemberPosition> = emptyList()) {
+/**
+ * One vote in the feed: the vote, how each of your members voted on it, and its party split where
+ * the API sent one (`GET /v1/votes` rows carry it from v0.2.57; a member's record does not).
+ */
+data class FeedItem(
+    val vote: Vote,
+    val measure: MeasureSummary? = null,
+    val positions: List<MemberPosition> = emptyList(),
+    val partyTotals: List<PartyTotals> = emptyList(),
+) {
     val id: String get() = vote.id
 }
 
@@ -89,16 +97,25 @@ data class HomeState(
     /** The scope actually shown: "Following" needs something followed. */
     val shownScope: Scope get() = if (followsAnything) scope else Scope.ALL
 
-    /** The feed for the scope: the latest finals carry your members' chips where your feed has them. */
+    /**
+     * The feed for the scope: the latest finals carry your members' chips where your feed has them,
+     * and your feed takes the party splits the latest finals carry.
+     */
     val scopedItems: List<FeedItem>
-        get() = if (shownScope == Scope.YOURS) yours else annotate(items, yours)
+        get() = if (shownScope == Scope.YOURS) withSplits(yours, items) else annotate(items, yours)
 
     /** The feed under the chamber filter (filtered here too, so it stays right while a fetch is out). */
     val visibleItems: List<FeedItem>
         get() = filter.chamber?.let { c -> scopedItems.filter { it.vote.chamber == c } } ?: scopedItems
 
-    /** The most recent final in the feed, for the split-flap board. */
-    val latestFinal: FeedItem? get() = scopedItems.firstOrNull { it.vote.state == VoteState.FINAL }
+    /** The feed as stories, one per bill or nominee, newest first. */
+    val stories: List<Story> get() = Stories.group(visibleItems)
+
+    /**
+     * Whose chips a story shows: your three in "All"; in "Following", everyone the feed has
+     * positions for (your three and the members you follow), so null.
+     */
+    val chipMembers: Set<String>? get() = if (shownScope == Scope.YOURS) null else strip.map { it.bioguideId }.toSet()
 
     /** The strip's rows when a seat is changing hands. */
     val seatRows: List<SeatRow> get() = SeatRow.rows(strip, seats.elect, seats.pending)
@@ -128,9 +145,16 @@ data class HomeState(
         fun annotate(recent: List<RecentVote>, yours: List<FeedItem>): List<FeedItem> {
             val byVote = yours.associateBy { it.vote.id }
             return recent.map { row ->
-                val known = byVote[row.vote.id] ?: return@map FeedItem(row.vote, row.measure)
-                known.copy(vote = row.vote, measure = known.measure ?: row.measure)
+                val known = byVote[row.vote.id] ?: return@map FeedItem(row.vote, row.measure, partyTotals = row.partyTotals.orEmpty())
+                known.copy(vote = row.vote, measure = known.measure ?: row.measure, partyTotals = row.partyTotals ?: known.partyTotals)
             }
+        }
+
+        /** [items] with the party split of any [recent] row for the same vote they lack. */
+        fun withSplits(items: List<FeedItem>, recent: List<RecentVote>): List<FeedItem> {
+            val splits = recent.mapNotNull { row -> row.partyTotals?.takeIf { it.isNotEmpty() }?.let { row.vote.id to it } }.toMap()
+            if (splits.isEmpty()) return items
+            return items.map { item -> if (item.partyTotals.isEmpty()) splits[item.vote.id]?.let { item.copy(partyTotals = it) } ?: item else item }
         }
 
         /** Newest vote first; a vote with no timestamp last; ties by id, so the order is stable. */
@@ -166,12 +190,13 @@ data class HomeState(
             val byVote = LinkedHashMap(items.associateBy { it.vote.id })
             for (row in extra) {
                 val known = byVote[row.vote.id]
+                val splits = row.partyTotals.orEmpty()
                 byVote[row.vote.id] = when {
-                    known == null -> FeedItem(row.vote, row.measure)
+                    known == null -> FeedItem(row.vote, row.measure, partyTotals = splits)
                     known.measure == null -> known.copy(measure = row.measure)
                     known.measure.policyArea == null && row.measure?.id == known.measure.id -> known.copy(measure = known.measure.copy(policyArea = row.measure.policyArea))
                     else -> known
-                }
+                }.let { if (it.partyTotals.isEmpty() && splits.isNotEmpty()) it.copy(partyTotals = splits) else it }
             }
             return newestFirst(byVote.values.toList())
         }

@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- A story band's topic icon (v0.2.57 Finals mock): a leaf. Tinted by the view that draws it. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <path
+        android:fillColor="#FF000000"
+        android:pathData="M20,3C11,3 5,7.5 5,14.5c0,1.6 0.4,3.1 1.1,4.4L3.3,21.7l1.4,1.4 2.8,-2.8C8.8,21 10.3,21.4 11.9,21.4 18.6,21.4 20,13 20,3z" />
+</vector>

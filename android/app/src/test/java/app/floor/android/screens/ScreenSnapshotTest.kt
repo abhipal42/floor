@@ -22,6 +22,9 @@ import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 import org.robolectric.annotation.GraphicsMode
+import java.time.Instant
+import java.time.ZoneId
+import java.util.Locale
 
 /**
  * The Finals screen in each state, light and dark, at the iOS references' width (402 points, drawn
@@ -40,7 +43,9 @@ class ScreenSnapshotTest {
     @get:Rule
     val compose = createAndroidComposeRule<ComponentActivity>()
 
-    private val recent = Fixtures.decode("votes-recent", RecentVotes.serializer()).votes
+    /** The latest finals as stories, recorded the day the v0.2.57 mock was locked (Nov 17, 2026). */
+    private val recent = Fixtures.decode("votes-stories", RecentVotes.serializer()).votes
+    private val today = Instant.parse("2026-11-17T15:00:00Z")
 
     private fun snap(name: String, appearance: Appearance, content: @Composable () -> Unit) {
         compose.setContent {
@@ -55,7 +60,7 @@ class ScreenSnapshotTest {
     @Composable
     private fun Home(state: HomeState, appearance: Appearance) = HomeScreen(
         state = state, appearance = appearance, onAppearance = {}, onFilter = {}, onRetry = {}, onRefresh = {},
-        onOpenVote = {},
+        onOpenVote = {}, zone = ZoneId.of("America/New_York"), locale = Locale.US, now = today,
     )
 
     private val loaded get() = HomeState(phase = HomeState.Phase.Loaded, items = recent)
