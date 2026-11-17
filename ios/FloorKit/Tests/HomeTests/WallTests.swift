@@ -30,7 +30,7 @@ struct WallTests {
     @Test func anUnreadableMemberIsSaidPlainly() {
         let notes = WallText.notes(members: [nadler], wall: PostsWall(posts: [], unreadable: ["N000002"]))
         #expect(notes.first?.title == "Nadler posts only on X, Facebook or Instagram")
-        #expect(notes.first?.body.contains("Contact tab") == true)
+        #expect(notes.first?.body.contains("Posts tab") == true)
     }
 
     @Test func notesKeepYourOrder() {

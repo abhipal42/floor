@@ -59,9 +59,24 @@ struct SaidTextTests {
         #expect(SaidText.gap(.unchecked, name: "Doe").body.contains("Doe's campaign site"))
     }
 
-    @Test func contactTilesSayWhatEachIs() {
-        #expect(SocialNetwork.allCases.map(OfficialAccounts.caption) == [
-            "link only", "link only", "link only", "posts in Posts", "verified", "posts in Posts",
+    /// The Posts row: the networks Floor reads first, the record's handles over the route's, and a
+    /// label that says which kind each is.
+    @Test func accountMarksOrderAndLabels() {
+        let member = Member(
+            bioguideId: "S000148", firstName: "Chuck", lastName: "Schumer", party: "D", state: "NY", district: nil,
+            chamber: .senate,
+            social: MemberSocial(twitter: "SenSchumer", facebook: "senschumer", youtube: "SenatorSchumer", bluesky: "schumer.senate.gov")
+        )
+        let posts = MemberPosts(posts: [], links: PostLinks(x: "https://x.com/Other", instagram: "senschumer"))
+        let links = AccountMarks.links(member: member, posts: posts)
+        #expect(links.map(\.network) == [.bluesky, .youtube, .x, .instagram, .facebook])
+        #expect(links.map(AccountMarks.label) == [
+            "Bluesky, schumer.senate.gov, posts shown in Floor",
+            "YouTube, SenatorSchumer, posts shown in Floor",
+            "X, @SenSchumer, opens X",
+            "Instagram, senschumer, opens Instagram",
+            "Facebook, senschumer, opens Facebook",
         ])
+        #expect(AccountMarks.links(member: nil, posts: MemberPosts(posts: [])).isEmpty)
     }
 }

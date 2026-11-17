@@ -189,6 +189,9 @@ public struct FloorShell: View {
         }
     }
 
+    /// How far above the tab bar the page's ground fades in.
+    private static let fade: CGFloat = 14
+
     private var tabBar: some View {
         HStack(spacing: 0) {
             ForEach(Tab.allCases, id: \.self) { item in
@@ -219,10 +222,22 @@ public struct FloorShell: View {
             }
         }
         .padding(8)
-        .background(Palette.panel.opacity(0.94), in: .rect(cornerRadius: 22))
+        // Solid, so a card scrolling under the bar never shows through its icons and labels.
+        .background(Palette.panel, in: .rect(cornerRadius: 22))
         .overlay(RoundedRectangle(cornerRadius: 22).stroke(Palette.panelBorder, lineWidth: 1))
         .padding(.horizontal, 16)
         .padding(.bottom, 4)
+        // The page's own ground behind and round the bar, fading in just above it (round 13 polish).
+        .background(alignment: .top) {
+            VStack(spacing: 0) {
+                LinearGradient(colors: [Palette.ground.opacity(0), Palette.ground], startPoint: .top, endPoint: .bottom)
+                    .frame(height: Self.fade)
+                Palette.ground
+            }
+            .padding(.top, -Self.fade)
+            .ignoresSafeArea(edges: .bottom)
+            .allowsHitTesting(false)
+        }
         .accessibilityElement(children: .contain)
         .accessibilityLabel("Tabs")
     }

@@ -506,27 +506,22 @@ struct PostsContent: View {
     }
 }
 
-/// One member's posts, then the networks Floor only links.
+/// One member's accounts as a row of marks, then their posts.
 struct PostsList: View {
     let posts: MemberPosts
     let member: Member?
 
     private var name: String { member?.lastName ?? "This member" }
 
-    /// The route's links-only accounts, else the record's.
-    private var linksOnly: [SocialLink] {
-        let fromRoute = posts.links?.links ?? []
-        if !fromRoute.isEmpty { return fromRoute }
-        return (member?.social?.links ?? []).filter { !$0.network.readable }
-    }
-
     var body: some View {
         VStack(alignment: .leading, spacing: 7) {
+            let accounts = AccountMarks.links(member: member, posts: posts)
+            if !accounts.isEmpty { AccountMarks(links: accounts) }
             if posts.posts.isEmpty {
                 if let social = member?.social, !social.links.contains(where: \.network.readable) {
                     DashedPlaceholder(
                         title: "\(name) isn't on YouTube, Bluesky or Mastodon",
-                        body: "X, Facebook and Instagram don't let apps read posts for free, so \(name)'s accounts there are links below."
+                        body: "X, Facebook and Instagram don't let apps read posts for free, so \(name)'s accounts there are links above."
                     )
                 } else {
                     DashedPlaceholder(
@@ -536,32 +531,6 @@ struct PostsList: View {
                 }
             }
             ForEach(posts.posts) { post in PostCard(post: post) }
-            if !linksOnly.isEmpty {
-                Text("ALSO ON · LINKS ONLY")
-                    .font(Typography.label(10.5)).tracking(1.0).foregroundStyle(Palette.textMuted)
-                    .padding(.horizontal, 2)
-                    .padding(.top, 6)
-                    .accessibilityAddTraits(.isHeader)
-                ForEach(linksOnly) { link in
-                    if let url = link.url {
-                        Link(destination: url) {
-                            HStack(spacing: 8) {
-                                Text(link.network.name).scaledFont(12, weight: .bold).foregroundStyle(Palette.text)
-                                Text(link.displayHandle).scaledFont(12).foregroundStyle(Palette.textSecondary).lineLimit(1)
-                                Spacer(minLength: 4)
-                                Text("›").scaledFont(14).foregroundStyle(Palette.textMuted).accessibilityHidden(true)
-                            }
-                            .padding(.horizontal, 10)
-                            .padding(.vertical, 8)
-                            .background(Palette.panel, in: .rect(cornerRadius: 10))
-                            .overlay(RoundedRectangle(cornerRadius: 10).stroke(Palette.panelBorder, lineWidth: 1))
-                        }
-                        .accessibilityElement(children: .ignore)
-                        .accessibilityLabel("\(name) on \(link.network.name), \(link.displayHandle)")
-                        .accessibilityAddTraits(.isLink)
-                    }
-                }
-            }
             Text(PostText.footnote)
                 .scaledFont(10.5, weight: .medium)
                 .foregroundStyle(Palette.textMuted)
@@ -572,7 +541,57 @@ struct PostsList: View {
     }
 }
 
-/// One post as written: the network chip and time, the thumbnail, the text, a link to the original.
+/// The row of network marks at the top of Posts (round 13 polish, option 3): one per account, the
+/// networks Floor reads first, each opening the member's profile there (the app when installed,
+/// else the web). If they don't fit, the row scrolls.
+struct AccountMarks: View {
+    let links: [SocialLink]
+
+    /// The networks Floor reads, then the ones it only links.
+    nonisolated static let order: [SocialNetwork] = [.bluesky, .youtube, .mastodon, .x, .instagram, .facebook]
+
+    /// The member's accounts, with the posts route's links-only profiles filling any the record lacks.
+    nonisolated static func links(member: Member?, posts: MemberPosts?) -> [SocialLink] {
+        var byNetwork: [SocialNetwork: SocialLink] = [:]
+        for link in posts?.links?.links ?? [] { byNetwork[link.network] = link }
+        for link in member?.social?.links ?? [] { byNetwork[link.network] = link }
+        return order.compactMap { byNetwork[$0] }.filter { $0.url != nil }
+    }
+
+    /// `Bluesky, chuckschumer.bsky.social, posts shown in Floor`; `X, @SenSchumer, opens X`.
+    nonisolated static func label(_ link: SocialLink) -> String {
+        "\(link.network.name), \(link.displayHandle), "
+            + (link.network.readable ? "posts shown in Floor" : "opens \(link.network.name)")
+    }
+
+    var body: some View {
+        ViewThatFits(in: .horizontal) {
+            HStack(alignment: .top, spacing: 6) {
+                ForEach(links) { link in badge(link).frame(maxWidth: .infinity) }
+            }
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(alignment: .top, spacing: 14) {
+                    ForEach(links) { link in badge(link) }
+                }
+                .padding(.horizontal, 2)
+            }
+        }
+        .padding(.vertical, 4)
+        .padding(.horizontal, 2)
+    }
+
+    @ViewBuilder
+    private func badge(_ link: SocialLink) -> some View {
+        if let url = link.url {
+            Link(destination: url) { NetworkBadge(link.network) }
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel(Self.label(link))
+                .accessibilityAddTraits(.isLink)
+        }
+    }
+}
+
+/// One post as written: the network's mark and name, the time, the thumbnail, the text, a link to the original.
 /// No counts. On the wall it names whose it is and clips long text.
 public struct PostCard: View {
     let post: MemberPost
@@ -591,31 +610,57 @@ public struct PostCard: View {
         self.lineLimit = lineLimit
     }
 
+    /// The tallest a post's image gets, so a big link card never fills the screen.
+    static let mediaCap: CGFloat = 220
+    @ScaledMetric(relativeTo: .caption2) private var markSize: CGFloat = 15
+
+    /// The network's mark and name, and on the wall whose post it is.
+    private var source: some View {
+        HStack(alignment: .center, spacing: 6) {
+            NetworkMark(post.network.social)
+                .fill(Palette.text)
+                .frame(width: markSize, height: markSize)
+                .accessibilityHidden(true)
+            Text(([post.network.name] + [author].compactMap(\.self)).joined(separator: " · "))
+                .scaledFont(10.5, weight: .bold)
+                .foregroundStyle(Palette.textMuted)
+        }
+    }
+
+    @ViewBuilder
+    private var time: some View {
+        if let when { Text(when).scaledFont(10.5, weight: .bold).foregroundStyle(Palette.textMuted) }
+    }
+
     private var when: String? { post.postedDate.map { PostText.when($0, timeZone: timeZone, locale: locale) } }
 
     public var body: some View {
-        let chip = ([post.network.name.uppercased()] + [author?.uppercased()].compactMap(\.self)).joined(separator: " · ")
         let content = VStack(alignment: .leading, spacing: 6) {
-            HStack(alignment: .center) {
-                Text(chip)
-                    .font(Typography.label(10.5))
-                    .tracking(1.0)
-                    .foregroundStyle(Palette.text)
-                    .padding(.horizontal, 5)
-                    .padding(.vertical, 3)
-                    .background(Palette.chip, in: .rect(cornerRadius: 4))
-                Spacer(minLength: 6)
-                if let when { Text(when).scaledFont(10.5, weight: .bold).foregroundStyle(Palette.textMuted) }
+            // The time sits on the right, or under the name when large text leaves no room.
+            ViewThatFits(in: .horizontal) {
+                HStack(alignment: .center, spacing: 6) {
+                    source.fixedSize()
+                    Spacer(minLength: 6)
+                    time.fixedSize()
+                }
+                VStack(alignment: .leading, spacing: 3) {
+                    source
+                    time
+                }
             }
             if let media = post.mediaUrl.flatMap(URL.init(string:)) {
                 AsyncImage(url: media) { image in
-                    image.resizable().aspectRatio(16 / 9, contentMode: .fill)
+                    // The fitted copy only sizes the box: the card's width, the image's own height up
+                    // to the cap. The filled copy is what shows, cropped to it.
+                    image.resizable().scaledToFit()
+                        .frame(maxWidth: .infinity, maxHeight: Self.mediaCap)
+                        .hidden()
+                        .overlay { image.resizable().scaledToFill() }
                 } placeholder: {
-                    Palette.chip
+                    Palette.chip.aspectRatio(16 / 9, contentMode: .fit)
+                        .frame(maxWidth: .infinity, maxHeight: Self.mediaCap)
                 }
-                .frame(maxWidth: .infinity)
-                .aspectRatio(16 / 9, contentMode: .fit)
-                .clipShape(.rect(cornerRadius: 8))
+                .clipShape(.rect(cornerRadius: 9))
                 .accessibilityHidden(true)
             }
             if let text = post.text, !text.isEmpty {
@@ -647,81 +692,6 @@ public struct PostCard: View {
                 .accessibilityAddTraits(.isLink)
         } else {
             content.accessibilityElement(children: .ignore).accessibilityLabel(label)
-        }
-    }
-}
-
-// MARK: - Official accounts (Contact)
-
-/// Contact's "Official accounts" grid: each tile opens the network's app or site.
-struct OfficialAccounts: View {
-    let member: Member
-    let social: MemberSocial
-    @ScaledMetric(relativeTo: .caption) private var tileWidth: CGFloat = 100
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 7) {
-            Text("OFFICIAL ACCOUNTS")
-                .font(Typography.label(10.5)).tracking(1.0).foregroundStyle(Palette.textMuted)
-                .padding(.horizontal, 2)
-                .padding(.top, 6)
-                .accessibilityAddTraits(.isHeader)
-            LazyVGrid(columns: [GridItem(.adaptive(minimum: tileWidth), spacing: 6)], spacing: 6) {
-                ForEach(social.links) { link in
-                    if let url = link.url { tile(link, url: url) }
-                }
-            }
-            Text("From congress-legislators; Bluesky only when Bluesky verifies it.")
-                .scaledFont(10.5, weight: .medium)
-                .foregroundStyle(Palette.textMuted)
-                .fixedSize(horizontal: false, vertical: true)
-                .padding(.horizontal, 2)
-        }
-    }
-
-    private func tile(_ link: SocialLink, url: URL) -> some View {
-        Link(destination: url) {
-            VStack(spacing: 3) {
-                Text(Self.glyph(link.network))
-                    .font(Typography.label(14))
-                    .foregroundStyle(Palette.threshold)
-                Text(link.displayHandle)
-                    .scaledFont(10.5, weight: .semibold)
-                    .foregroundStyle(Palette.text)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.7)
-                Text(Self.caption(link.network))
-                    .font(.caption2.monospaced())
-                    .foregroundStyle(Palette.textMuted)
-            }
-            .padding(.horizontal, 4)
-            .padding(.vertical, 8)
-            .frame(maxWidth: .infinity)
-            .background(Palette.panel, in: .rect(cornerRadius: 10))
-            .overlay(RoundedRectangle(cornerRadius: 10).stroke(Palette.panelBorder, lineWidth: 1))
-        }
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel("\(member.lastName) on \(link.network.name), \(link.displayHandle), \(Self.caption(link.network))")
-        .accessibilityAddTraits(.isLink)
-    }
-
-    nonisolated static func glyph(_ network: SocialNetwork) -> String {
-        switch network {
-        case .x: "X"
-        case .facebook: "f"
-        case .instagram: "IG"
-        case .youtube: "▶"
-        case .bluesky: "🦋"
-        case .mastodon: "M"
-        }
-    }
-
-    /// Links only, or where the posts are; Bluesky's tile says it is verified, the only way one is listed.
-    nonisolated static func caption(_ network: SocialNetwork) -> String {
-        switch network {
-        case .x, .facebook, .instagram: "link only"
-        case .youtube, .mastodon: "posts in Posts"
-        case .bluesky: "verified"
         }
     }
 }
