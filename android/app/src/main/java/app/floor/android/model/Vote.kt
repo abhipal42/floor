@@ -127,6 +127,17 @@ data class MeasureSummary(
     val title: String,
     /** A bill's CRS policy area; null for a nomination or a bill CRS has not classified. */
     val policyArea: String? = null,
+    /** A bill's sponsor; null for a nomination, and from an API older than v0.2.57. */
+    val sponsor: Sponsor? = null,
+    /**
+     * The opening of a bill's CRS summary, its title line removed, cut at a sentence end (about 320
+     * characters at most). CRS's text, not AI. Null when CRS has none.
+     */
+    val summaryLead: String? = null,
+    /** A nomination's position: `United States Circuit Judge for the Tenth Circuit`. Null for a bill. */
+    val position: String? = null,
+    /** For a House rule ("Providing for consideration of the bill (H.R. 2102) ..."), the bill it names. */
+    val forBillId: String? = null,
 ) {
     @Serializable
     enum class Kind {
@@ -135,9 +146,16 @@ data class MeasureSummary(
     }
 }
 
-/** One row of `GET /v1/votes`: a final vote and what it was on, with nobody's position. */
+/** A bill's sponsor as [MeasureSummary] carries it: enough for `Sponsor Bilirakis (R-FL)`. */
 @Serializable
-data class RecentVote(val vote: Vote, val measure: MeasureSummary? = null) {
+data class Sponsor(val bioguideId: String, val lastName: String, val party: String, val state: String)
+
+/**
+ * One row of `GET /v1/votes`: a final vote and what it was on, with nobody's position. [partyTotals]
+ * is new in v0.2.57; an older API sends none, which decodes as null.
+ */
+@Serializable
+data class RecentVote(val vote: Vote, val measure: MeasureSummary? = null, val partyTotals: List<PartyTotals>? = null) {
     val id: String get() = vote.id
 }
 

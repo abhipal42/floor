@@ -1,0 +1,197 @@
+{
+ "_note": "GET /v1/members/N000002/votes?limit=25 recorded 2026-11-17, trimmed to the votes in votes-stories; measure fields extended as there.",
+ "votes": [
+  {
+   "vote": {
+    "id": "house-119-2-323",
+    "kind": "question",
+    "candidates": [],
+    "chamber": "house",
+    "congress": 119,
+    "session": 2,
+    "rollNumber": 323,
+    "question": "On Passage",
+    "billId": "119-hr-2102",
+    "nominationId": null,
+    "billRef": "H R 2102",
+    "occurredAt": "2026-11-12T15:59:00.000Z",
+    "state": "final",
+    "threshold": "majority",
+    "totals": {
+     "yea": 392,
+     "nay": 18,
+     "present": 0,
+     "notVoting": 23
+    },
+    "result": "Passed",
+    "explainer": {
+     "kind": "passage",
+     "text": "The vote on the measure itself. Passing sends it to the other chamber, or to the President once both have passed it. A simple majority.",
+     "source": "U.S. Constitution, Art. I, Sec. 7"
+    }
+   },
+   "position": "yea",
+   "choice": null,
+   "measure": {
+    "id": "119-hr-2102",
+    "kind": "bill",
+    "citation": "H.R. 2102",
+    "title": "Major Richard Star Act",
+    "policyArea": "Armed Forces and National Security",
+    "sponsor": {
+     "bioguideId": "B001257",
+     "lastName": "Bilirakis",
+     "party": "R",
+     "state": "FL"
+    },
+    "summaryLead": "This bill allows a veteran with a combat-related disability to receive retirement pay, without reduction, concurrently with their disability compensation.",
+    "position": null,
+    "forBillId": null
+   }
+  },
+  {
+   "vote": {
+    "id": "house-119-2-322",
+    "kind": "question",
+    "candidates": [],
+    "chamber": "house",
+    "congress": 119,
+    "session": 2,
+    "rollNumber": 322,
+    "question": "On Agreeing to the Resolution",
+    "billId": "119-hres-1247",
+    "nominationId": null,
+    "billRef": "H RES 1247",
+    "occurredAt": "2026-11-12T14:45:00.000Z",
+    "state": "final",
+    "threshold": "majority",
+    "totals": {
+     "yea": 271,
+     "nay": 135,
+     "present": 0,
+     "notVoting": 26
+    },
+    "result": "Passed",
+    "explainer": {
+     "kind": "rule",
+     "text": "Sets the terms for debating a bill: time, amendments allowed. Not the bill itself.",
+     "source": "House Rule XIII, clause 6"
+    }
+   },
+   "position": "yea",
+   "choice": null,
+   "measure": {
+    "id": "119-hres-1247",
+    "kind": "bill",
+    "citation": "H.Res. 1247",
+    "title": "Providing for consideration of the bill (H.R. 2102) to amend title 10, United States Code, to provide for concurrent receipt of veterans' disability compensation and retired pay for disability retirees with combat-related disabilities, and for other purposes.",
+    "policyArea": "Congress",
+    "sponsor": {
+     "bioguideId": "T000472",
+     "lastName": "Takano",
+     "party": "D",
+     "state": "CA"
+    },
+    "summaryLead": null,
+    "position": null,
+    "forBillId": "119-hr-2102"
+   }
+  },
+  {
+   "vote": {
+    "id": "house-119-2-321",
+    "kind": "question",
+    "candidates": [],
+    "chamber": "house",
+    "congress": 119,
+    "session": 2,
+    "rollNumber": 321,
+    "question": "On Passage",
+    "billId": "119-hr-1013",
+    "nominationId": null,
+    "billRef": "H R 1013",
+    "occurredAt": "2026-11-11T19:43:00.000Z",
+    "state": "final",
+    "threshold": "majority",
+    "totals": {
+     "yea": 295,
+     "nay": 128,
+     "present": 0,
+     "notVoting": 10
+    },
+    "result": "Passed",
+    "explainer": {
+     "kind": "passage",
+     "text": "The vote on the measure itself. Passing sends it to the other chamber, or to the President once both have passed it. A simple majority.",
+     "source": "U.S. Constitution, Art. I, Sec. 7"
+    }
+   },
+   "position": "nay",
+   "choice": null,
+   "measure": {
+    "id": "119-hr-1013",
+    "kind": "bill",
+    "citation": "H.R. 1013",
+    "title": "Retirement Fairness for Charities and Educational Institutions Act of 2025",
+    "policyArea": "Finance and Financial Sector",
+    "sponsor": {
+     "bioguideId": "L000491",
+     "lastName": "Lucas",
+     "party": "R",
+     "state": "OK"
+    },
+    "summaryLead": "This bill allows 403(b) retirement plans (i.e., retirement plans designed for certain employees of public schools, charities, and churches) to invest in collective investment trusts, which are a group of pooled investment assets held by a bank or trust company, and in insurance company separate accounts.",
+    "position": null,
+    "forBillId": null
+   }
+  },
+  {
+   "vote": {
+    "id": "house-119-2-320",
+    "kind": "question",
+    "candidates": [],
+    "chamber": "house",
+    "congress": 119,
+    "session": 2,
+    "rollNumber": 320,
+    "question": "On Motion to Discharge",
+    "billId": "119-hres-1247",
+    "nominationId": null,
+    "billRef": "H RES 1247",
+    "occurredAt": "2026-11-11T18:04:00.000Z",
+    "state": "final",
+    "threshold": "majority",
+    "totals": {
+     "yea": 245,
+     "nay": 175,
+     "present": 0,
+     "notVoting": 13
+    },
+    "result": "Passed",
+    "explainer": {
+     "kind": "discharge",
+     "text": "Takes a measure away from a committee that hasn't acted on it, so the House can vote on it. It comes up once a majority of the House has signed a discharge petition.",
+     "source": "House Rule XV, clause 2"
+    }
+   },
+   "position": "yea",
+   "choice": null,
+   "measure": {
+    "id": "119-hres-1247",
+    "kind": "bill",
+    "citation": "H.Res. 1247",
+    "title": "Providing for consideration of the bill (H.R. 2102) to amend title 10, United States Code, to provide for concurrent receipt of veterans' disability compensation and retired pay for disability retirees with combat-related disabilities, and for other purposes.",
+    "policyArea": "Congress",
+    "sponsor": {
+     "bioguideId": "T000472",
+     "lastName": "Takano",
+     "party": "D",
+     "state": "CA"
+    },
+    "summaryLead": null,
+    "position": null,
+    "forBillId": "119-hr-2102"
+   }
+  }
+ ]
+}

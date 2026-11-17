@@ -29,6 +29,18 @@ class PaletteTest {
         }
     }
 
+    /** A story band's text is white in both appearances, so every topic colour must carry it. */
+    @Test
+    fun whiteReadsOnEveryTopicBand() {
+        for (group in app.floor.android.model.TopicGroup.entries) {
+            val band = Tones.topic(group)
+            val light = Swatch.contrast(Tones.BAND_INK, band.light)
+            val dark = Swatch.contrast(Tones.BAND_INK, band.dark)
+            assertTrue("white on $group, light: $light", light >= 4.5)
+            assertTrue("white on $group, dark: $dark", dark >= 4.5)
+        }
+    }
+
     /** Chips print the ground colour on an outcome or state colour, so those must read in light. */
     @Test
     fun groundReadsOnAChip() {

@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- A story band's topic icon (v0.2.57 Finals mock): the scales. Tinted by the view that draws it. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <path
+        android:fillColor="#FF000000"
+        android:pathData="M11,3h2v16h4v2H7v-2h4z M4,6h16v2H4z M2,15L5,8.5 8,15z M16,15L19,8.5 22,15z" />
+</vector>

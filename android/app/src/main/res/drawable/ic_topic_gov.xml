@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- A story band's topic icon (v0.2.57 Finals mock): a domed capitol. Tinted by the view that draws it. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <path
+        android:fillColor="#FF000000"
+        android:pathData="M11,2h2v3h-2z M7,10a5,5 0 0,1 10,0z M4,11h16v2H4z M5,14h2v5H5z M9,14h2v5H9z M13,14h2v5h-2z M17,14h2v5h-2z M3,20h18v2H3z" />
+</vector>

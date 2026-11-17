@@ -35,6 +35,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.Role
@@ -48,28 +50,29 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.layout.width
 import app.floor.android.R
 import app.floor.android.design.ChipSwitch
+import app.floor.android.model.MeasureSummary
 import app.floor.android.model.Member
-import app.floor.android.model.RecentVote
 import app.floor.android.model.seatCaption
+import java.time.Instant
+import java.time.ZoneId
+import java.util.Locale
 import androidx.compose.foundation.border
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import app.floor.android.design.Appearance
 import app.floor.android.design.FloorType
 import app.floor.android.design.Palette
 import app.floor.android.design.SavedDataNote
-import app.floor.android.design.ScoreboardCard
 import app.floor.android.design.panel
 
 /** Room under every screen for the floating tab bar, so the last card scrolls clear of it. */
 val TabBarClearance = 76.dp
 
 /**
- * The Finals tab, as the locked Home mock draws it for someone who follows nobody yet (iOS
- * `HomeView`): the header, the latest final on a split-flap board, then the finals by chamber.
- *
- * Above the board: your three with a loyalty ring each (or, while a seat changes hands, the
- * members-elect list), and the All / Following switch once you follow anything. The catch-up deck
- * is not built on Android yet.
+ * The Finals tab (iOS `HomeView`): the header, your three with a loyalty ring each (or, while a
+ * seat changes hands, the members-elect list), the All / Following switch once you follow
+ * anything, then the finals as stories (the locked v0.2.57 mock, option B): one card per bill or
+ * nominee by week, newest first, and each week's procedural-only measures as "Also this week" rows.
+ * The catch-up deck is not built on Android yet.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -81,7 +84,14 @@ fun HomeScreen(
     onRetry: () -> Unit,
     onRefresh: () -> Unit,
     onOpenVote: (String) -> Unit,
+    /** The reader's zone and locale, passed rather than read inside (lesson 69): the weeks and step dates. */
+    zone: ZoneId,
+    locale: Locale,
     modifier: Modifier = Modifier,
+    /** What "This week" is measured from. */
+    now: Instant = Instant.now(),
+    /** A story card's band or body: the bill's screen. */
+    onOpenBill: (String) -> Unit = {},
     onScope: (HomeState.Scope) -> Unit = {},
     onOpenMember: (Member) -> Unit = {},
     onOpenElect: (String) -> Unit = {},
@@ -98,11 +108,21 @@ fun HomeScreen(
             .fillMaxSize()
             .background(colors.ground),
     ) {
+        // Arena's ground: a soft radial glow from the top centre, fading out by 60% of its reach.
+        val glow = colors.groundGlow
         Box(
             Modifier
                 .fillMaxWidth()
                 .height(420.dp)
-                .background(Brush.verticalGradient(listOf(colors.groundGlow, colors.ground))),
+                .drawBehind {
+                    drawRect(
+                        Brush.radialGradient(
+                            0f to glow, 0.6f to glow.copy(alpha = 0f),
+                            center = Offset(size.width / 2, 0f),
+                            radius = size.height,
+                        ),
+                    )
+                },
         )
         Column(
             Modifier
@@ -133,25 +153,39 @@ fun HomeScreen(
                     state.saved?.let { SavedDataNote(it) }
                     state.unavailableNote?.let { Text(it, style = FloorType.text(12f), color = colors.textMuted) }
                     if (state.shownScope == HomeState.Scope.YOURS) state.billLimitNote?.let { Text(it, style = FloorType.text(12f), color = colors.textMuted) }
-                    state.latestFinal?.let { latest ->
-                        SplitFlapBoard(RecentVote(latest.vote, latest.measure), Modifier.clickable(role = Role.Button) { onOpenVote(latest.vote.id) })
-                    }
                     FinalsHeader(state.filter, state.shownScope == HomeState.Scope.YOURS, onFilter)
-                    val items = state.visibleItems
-                    if (items.isEmpty()) {
+                    val stories = state.stories
+                    if (stories.isEmpty()) {
                         Text(state.emptyFeedMessage, style = FloorType.body(), color = colors.textMuted)
                     } else {
-                        items.forEach { item ->
-                            ScoreboardCard(
-                                vote = item.vote,
-                                title = item.measure?.title ?: item.vote.question,
-                                citation = item.measure?.citation,
-                                positions = item.positions,
-                                matches = state.matches(item).map { it.shown to it.spoken },
-                                modifier = Modifier
-                                    .clip(RoundedCornerShape(16.dp))
-                                    .clickable(role = Role.Button) { onOpenVote(item.vote.id) },
-                            )
+                        val chipMembers = state.chipMembers
+                        Stories.sections(stories, now, zone, locale).forEach { section ->
+                            if (section.full.isNotEmpty()) {
+                                Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                                    StorySectionLabel(section.title)
+                                    section.full.forEach { story ->
+                                        StoryCard(
+                                            story = story,
+                                            members = Stories.members(story, chipMembers),
+                                            zone = zone,
+                                            locale = locale,
+                                            onOpen = {
+                                                // A nomination has no screen of its own yet, so its card opens the confirmation vote.
+                                                val measure = story.measure
+                                                if (measure?.kind == MeasureSummary.Kind.BILL) onOpenBill(measure.id)
+                                                else onOpenVote((story.main ?: story.latest).vote.id)
+                                            },
+                                            onOpenVote = { onOpenVote(it.id) },
+                                        )
+                                    }
+                                }
+                            }
+                            if (section.minis.isNotEmpty()) {
+                                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                    StorySectionLabel(if (section.full.isEmpty()) section.title else section.alsoTitle)
+                                    section.minis.forEach { StoryMini(it, zone, locale) { vote -> onOpenVote(vote.id) } }
+                                }
+                            }
                         }
                     }
                 }

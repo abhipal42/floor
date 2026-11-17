@@ -1,0 +1,253 @@
+{
+ "_note": "GET /v1/members/G000555/votes?limit=25 recorded 2026-11-17, trimmed to the votes in votes-stories; measure fields extended as there.",
+ "votes": [
+  {
+   "vote": {
+    "id": "senate-119-2-264",
+    "kind": "question",
+    "candidates": [],
+    "chamber": "senate",
+    "congress": 119,
+    "session": 2,
+    "rollNumber": 264,
+    "question": "On the Cloture Motion",
+    "billId": null,
+    "nominationId": null,
+    "billRef": null,
+    "occurredAt": "2026-11-16T23:27:00.000Z",
+    "state": "final",
+    "threshold": "three_fifths_sworn",
+    "totals": {
+     "yea": 70,
+     "nay": 27,
+     "present": 0,
+     "notVoting": 3
+    },
+    "result": "Cloture Motion Agreed to",
+    "explainer": {
+     "kind": "cloture",
+     "text": "A vote to end debate so the Senate can move to a final vote. On a bill it needs three-fifths of senators sworn in, 60 when the Senate is full. Passing cloture doesn't pass the bill.",
+     "source": "Senate Rule XXII, paragraph 2"
+    }
+   },
+   "position": "yea",
+   "choice": null,
+   "measure": null
+  },
+  {
+   "vote": {
+    "id": "senate-119-2-263",
+    "kind": "question",
+    "candidates": [],
+    "chamber": "senate",
+    "congress": 119,
+    "session": 2,
+    "rollNumber": 263,
+    "question": "On the Nomination",
+    "billId": null,
+    "nominationId": "119-pn-999-2",
+    "billRef": "PN999-2",
+    "occurredAt": "2026-11-16T22:27:00.000Z",
+    "state": "final",
+    "threshold": "majority",
+    "totals": {
+     "yea": 51,
+     "nay": 46,
+     "present": 0,
+     "notVoting": 3
+    },
+    "result": "Nomination Confirmed",
+    "explainer": {
+     "kind": "nomination",
+     "text": "The confirmation vote. A simple majority.",
+     "source": "U.S. Constitution, Art. II, Sec. 2; Senate Rule XXXI"
+    }
+   },
+   "position": "nay",
+   "choice": null,
+   "measure": {
+    "id": "119-pn-999-2",
+    "kind": "nomination",
+    "citation": "PN999-2",
+    "title": "Daniel Desmond Domenico",
+    "policyArea": null,
+    "sponsor": null,
+    "summaryLead": null,
+    "position": "United States Circuit Judge for the Tenth Circuit",
+    "forBillId": null
+   }
+  },
+  {
+   "vote": {
+    "id": "senate-119-2-262",
+    "kind": "question",
+    "candidates": [],
+    "chamber": "senate",
+    "congress": 119,
+    "session": 2,
+    "rollNumber": 262,
+    "question": "On the Cloture Motion",
+    "billId": null,
+    "nominationId": "119-pn-1181-7",
+    "billRef": "PN1181-7",
+    "occurredAt": "2026-11-12T20:21:00.000Z",
+    "state": "final",
+    "threshold": "majority",
+    "totals": {
+     "yea": 49,
+     "nay": 26,
+     "present": 0,
+     "notVoting": 25
+    },
+    "result": "Cloture Motion Agreed to",
+    "explainer": {
+     "kind": "cloture",
+     "text": "A vote to end debate so the Senate can move to a final vote. On nominations it needs only a simple majority. Passing cloture isn't the final vote.",
+     "source": "Senate Rule XXII; precedents of Nov. 21, 2013 and Apr. 6, 2017"
+    }
+   },
+   "position": "not_voting",
+   "choice": null,
+   "measure": {
+    "id": "119-pn-1181-7",
+    "kind": "nomination",
+    "citation": "PN1181-7",
+    "title": "Anna St. John",
+    "policyArea": null,
+    "sponsor": null,
+    "summaryLead": null,
+    "position": "United States Circuit Judge for the Fifth Circuit",
+    "forBillId": null
+   }
+  },
+  {
+   "vote": {
+    "id": "senate-119-2-261",
+    "kind": "question",
+    "candidates": [],
+    "chamber": "senate",
+    "congress": 119,
+    "session": 2,
+    "rollNumber": 261,
+    "question": "On the Cloture Motion",
+    "billId": null,
+    "nominationId": "119-pn-999-2",
+    "billRef": "PN999-2",
+    "occurredAt": "2026-11-12T19:49:00.000Z",
+    "state": "final",
+    "threshold": "majority",
+    "totals": {
+     "yea": 51,
+     "nay": 27,
+     "present": 0,
+     "notVoting": 22
+    },
+    "result": "Cloture Motion Agreed to",
+    "explainer": {
+     "kind": "cloture",
+     "text": "A vote to end debate so the Senate can move to a final vote. On nominations it needs only a simple majority. Passing cloture isn't the final vote.",
+     "source": "Senate Rule XXII; precedents of Nov. 21, 2013 and Apr. 6, 2017"
+    }
+   },
+   "position": "not_voting",
+   "choice": null,
+   "measure": {
+    "id": "119-pn-999-2",
+    "kind": "nomination",
+    "citation": "PN999-2",
+    "title": "Daniel Desmond Domenico",
+    "policyArea": null,
+    "sponsor": null,
+    "summaryLead": null,
+    "position": "United States Circuit Judge for the Tenth Circuit",
+    "forBillId": null
+   }
+  },
+  {
+   "vote": {
+    "id": "senate-119-2-260",
+    "kind": "question",
+    "candidates": [],
+    "chamber": "senate",
+    "congress": 119,
+    "session": 2,
+    "rollNumber": 260,
+    "question": "On the Nomination",
+    "billId": null,
+    "nominationId": "119-pn-1181-1",
+    "billRef": "PN1181-1",
+    "occurredAt": "2026-11-12T19:03:00.000Z",
+    "state": "final",
+    "threshold": "majority",
+    "totals": {
+     "yea": 49,
+     "nay": 27,
+     "present": 0,
+     "notVoting": 24
+    },
+    "result": "Nomination Confirmed",
+    "explainer": {
+     "kind": "nomination",
+     "text": "The confirmation vote. A simple majority.",
+     "source": "U.S. Constitution, Art. II, Sec. 2; Senate Rule XXXI"
+    }
+   },
+   "position": "nay",
+   "choice": null,
+   "measure": {
+    "id": "119-pn-1181-1",
+    "kind": "nomination",
+    "citation": "PN1181-1",
+    "title": "Gregory Carl Cook",
+    "policyArea": null,
+    "sponsor": null,
+    "summaryLead": null,
+    "position": "United States District Judge for the Northern District of Alabama",
+    "forBillId": null
+   }
+  },
+  {
+   "vote": {
+    "id": "senate-119-2-259",
+    "kind": "question",
+    "candidates": [],
+    "chamber": "senate",
+    "congress": 119,
+    "session": 2,
+    "rollNumber": 259,
+    "question": "On the Cloture Motion",
+    "billId": null,
+    "nominationId": "119-pn-1181-1",
+    "billRef": "PN1181-1",
+    "occurredAt": "2026-11-12T18:01:00.000Z",
+    "state": "final",
+    "threshold": "majority",
+    "totals": {
+     "yea": 50,
+     "nay": 27,
+     "present": 0,
+     "notVoting": 23
+    },
+    "result": "Cloture Motion Agreed to",
+    "explainer": {
+     "kind": "cloture",
+     "text": "A vote to end debate so the Senate can move to a final vote. On nominations it needs only a simple majority. Passing cloture isn't the final vote.",
+     "source": "Senate Rule XXII; precedents of Nov. 21, 2013 and Apr. 6, 2017"
+    }
+   },
+   "position": "nay",
+   "choice": null,
+   "measure": {
+    "id": "119-pn-1181-1",
+    "kind": "nomination",
+    "citation": "PN1181-1",
+    "title": "Gregory Carl Cook",
+    "policyArea": null,
+    "sponsor": null,
+    "summaryLead": null,
+    "position": "United States District Judge for the Northern District of Alabama",
+    "forBillId": null
+   }
+  }
+ ]
+}

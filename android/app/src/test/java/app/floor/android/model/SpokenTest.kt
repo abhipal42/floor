@@ -1,13 +1,12 @@
 package app.floor.android.model
 
 import app.floor.android.Fixtures
-import app.floor.android.home.FlapBoardRows
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.time.Instant
 
-/** What TalkBack reads, the split-flap board's letters, and the saved-data line. */
+/** What TalkBack reads and the saved-data line. */
 class SpokenTest {
     private val hr1013 = Fixtures.decode("vote-passage-hr1013", Vote.serializer())
 
@@ -24,19 +23,6 @@ class SpokenTest {
     fun aSpeakerBallotSaysNobodyWasElected() {
         val ballot = Fixtures.decode("vote-election", Vote.serializer())
         assertTrue(Spoken.result(ballot).startsWith("Jeffries led with 212, McCarthy had 201; nobody was elected"))
-    }
-
-    @Test
-    fun lettersTheSplitFlapBoard() {
-        val measure = MeasureSummary("119-hr-1013", MeasureSummary.Kind.BILL, "H.R. 1013", "Retirement Fairness Act")
-        val rows = FlapBoardRows.rows(RecentVote(hr1013.copy(rollNumber = 321), measure))
-        assertEquals(listOf("HOUSE  ROLL 321 ", "H.R. 1013 PASSED", "YEA 295 NAY 128 "), rows)
-        assertTrue(rows.all { it.length == 16 })
-        val long = RecentVote(hr1013, MeasureSummary("x", MeasureSummary.Kind.BILL, "H.Con.Res. 1000", "x"))
-        assertEquals("     PASSED     ", FlapBoardRows.rows(long)[1])
-        val ballot = FlapBoardRows.rows(RecentVote(Fixtures.decode("vote-election", Vote.serializer()), null))
-        assertEquals("NO SPEAKER YET", ballot[1].trim())
-        assertEquals("JEFFRIES 212", ballot[2].trim())
     }
 
     @Test
