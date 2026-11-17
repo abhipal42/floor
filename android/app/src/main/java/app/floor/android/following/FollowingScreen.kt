@@ -52,6 +52,10 @@ import app.floor.android.design.PositionChip
 import app.floor.android.design.TopicRow
 import app.floor.android.design.dashedPanel
 import app.floor.android.home.TabBarClearance
+import app.floor.android.member.DashedNote
+import app.floor.android.member.Load
+import app.floor.android.member.PostCard
+import app.floor.android.model.PostsWall
 import app.floor.android.model.BillRoad
 import app.floor.android.model.Delegation
 import app.floor.android.model.Member
@@ -68,7 +72,7 @@ import java.time.ZoneId
 import java.util.Locale
 
 /** The switch at the top of the tab. */
-enum class FollowingSegment { MEMBERS, BILLS, TOPICS }
+enum class FollowingSegment { MEMBERS, BILLS, TOPICS, POSTS }
 
 /** Everything the Following tab draws, so a test can draw any state. */
 data class FollowingState(
@@ -81,8 +85,13 @@ data class FollowingState(
     val records: Map<String, List<MemberVote>> = emptyMap(),
     /** The 32 topics with their counts: the Topics segment's counts and suggestions. */
     val topics: BillsState.Phase = BillsState.Phase.Loading,
+    /** Your members' posts: the Posts segment. */
+    val wall: Load<PostsWall> = Load.Loading,
 ) {
     val reps: List<Member> get() = delegation?.members.orEmpty()
+
+    /** Whose posts the wall shows: your reps, then who you follow, the API's first twelve. */
+    val wallMembers: List<Member> get() = follows.yourMembers(reps).take(PostsWall.MAX_MEMBERS)
 
     /** Everyone you follow who is not one of your reps. */
     val followed: List<Member> get() = follows.followed(reps)
@@ -94,7 +103,12 @@ data class FollowingState(
         FollowingSegment.MEMBERS -> follows.yourMembers(reps).size
         FollowingSegment.BILLS -> follows.followedBills.size
         FollowingSegment.TOPICS -> follows.followedTopics.size
+        FollowingSegment.POSTS -> 0
     }
+
+    /** `MEMBERS · 3`; Posts carries no count (posts are never tallied). */
+    fun label(segment: FollowingSegment): String =
+        if (segment == FollowingSegment.POSTS) segment.name else "${segment.name} · ${count(segment)}"
 
     /** Topics you don't follow, biggest first: the suggestions. */
     val suggestedTopics: List<Topic>
@@ -117,6 +131,7 @@ class FollowingActions(
     val onOpenTopic: (String) -> Unit = {},
     val onFindReps: () -> Unit = {},
     val onRetryTopics: () -> Unit = {},
+    val onRetryWall: () -> Unit = {},
 )
 
 /**
@@ -130,7 +145,7 @@ class FollowingActions(
  * and the tab says so rather than drawing switches that would do nothing.
  */
 @Composable
-fun FollowingScreen(state: FollowingState, actions: FollowingActions, zone: ZoneId) {
+fun FollowingScreen(state: FollowingState, actions: FollowingActions, zone: ZoneId, locale: Locale) {
     val colors = Palette
     LazyColumn(
         Modifier.fillMaxSize().background(colors.ground).windowInsetsPadding(WindowInsets.statusBars),
@@ -140,8 +155,11 @@ fun FollowingScreen(state: FollowingState, actions: FollowingActions, zone: Zone
         item { Header(state, actions) }
         item {
             ChipSwitch(
-                FollowingSegment.entries, state.segment, { "${it.name} · ${state.count(it)}" }, actions.onSegment,
-                spoken = { "${it.name.lowercase().replaceFirstChar { c -> c.uppercase() }}, ${state.count(it)} followed" },
+                FollowingSegment.entries, state.segment, state::label, actions.onSegment,
+                spoken = {
+                    val name = it.name.lowercase().replaceFirstChar { c -> c.uppercase() }
+                    if (it == FollowingSegment.POSTS) "$name from your members" else "$name, ${state.count(it)} followed"
+                },
             )
         }
         when (state.segment) {
@@ -151,6 +169,56 @@ fun FollowingScreen(state: FollowingState, actions: FollowingActions, zone: Zone
             }
             FollowingSegment.BILLS -> bills(state, actions)
             FollowingSegment.TOPICS -> topics(state, actions)
+            FollowingSegment.POSTS -> posts(state, actions, zone, locale)
+        }
+    }
+}
+
+// MARK: Posts
+
+/**
+ * The wall (round 13): your members' posts from YouTube, Bluesky and Mastodon, newest first, never
+ * ranked or counted; then one dashed note naming everyone whose accounts are all links-only.
+ */
+private fun LazyListScope.posts(state: FollowingState, actions: FollowingActions, zone: ZoneId, locale: Locale) {
+    val members = state.wallMembers
+    if (members.isEmpty()) {
+        item {
+            EmptyCard(
+                "NO MEMBERS YET",
+                "Set your district or follow members, and their posts from YouTube, Bluesky and Mastodon show here.",
+                "FIND MEMBERS TO FOLLOW", filled = true, onClick = actions.onAdd,
+            )
+        }
+        return
+    }
+    item { GroupHeader("YOUR MEMBERS' POSTS", "Newest first") }
+    when (val wall = state.wall) {
+        Load.Loading -> item { Spinner("Loading your members' posts") }
+        is Load.Failed -> item { Failed(wall.message, actions.onRetryWall) }
+        is Load.Loaded -> {
+            wall.saved?.let { saved -> item { app.floor.android.design.SavedDataNote(saved) } }
+            val byId = members.associateBy { it.bioguideId }
+            val posts = wall.value.shown
+            if (posts.isEmpty()) {
+                item {
+                    DashedNote("Nothing posted lately", "None of your members has posted on YouTube, Bluesky or Mastodon in the last 30 days.")
+                }
+            }
+            items(posts, key = { "post-" + it.id }) { post ->
+                PostCard(post, zone, locale, byline = post.memberId?.let { byId[it]?.lastName }, compact = true)
+            }
+            val unreadable = wall.value.unreadable.mapNotNull { byId[it] }
+            if (unreadable.isNotEmpty()) {
+                item {
+                    val names = unreadable.map { it.lastName }
+                    val who = if (names.size == 1) names[0] else names.dropLast(1).joinToString(", ") + " and " + names.last()
+                    DashedNote(
+                        "$who ${if (names.size == 1) "posts" else "post"} only on X or Facebook",
+                        "Neither lets apps read posts for free, so ${if (names.size == 1) "those posts are" else "their posts are"} links on the Contact tab.",
+                    )
+                }
+            }
         }
     }
 }

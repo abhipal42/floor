@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -75,7 +76,10 @@ import java.util.Locale
  */
 val LocalLoadsPortraits = staticCompositionLocalOf { true }
 
-/** Portraits from the `unitedstates/images` project, keyed by Bioguide ID (iOS `MemberPortrait.url`). */
+/**
+ * Portraits from the `unitedstates/images` project, keyed by Bioguide ID (iOS `MemberPortrait.url`),
+ * and any other picture by its URL (a post's YouTube thumbnail): held in memory, fetched once.
+ */
 private object Portraits {
     private val client = OkHttpClient()
     private val memory = LruCache<String, Bitmap>(60)
@@ -83,22 +87,41 @@ private object Portraits {
 
     fun url(id: String) = "https://unitedstates.github.io/images/congress/225x275/$id.jpg"
 
-    fun cached(id: String): Bitmap? = memory.get(id)
+    fun cached(id: String): Bitmap? = memory.get(url(id))
 
-    suspend fun load(id: String): Bitmap? = withContext(Dispatchers.IO) {
-        memory.get(id)?.let { return@withContext it }
-        if (synchronized(missing) { id in missing }) return@withContext null
+    suspend fun load(id: String): Bitmap? = image(url(id))
+
+    fun cachedImage(url: String): Bitmap? = memory.get(url)
+
+    suspend fun image(url: String): Bitmap? = withContext(Dispatchers.IO) {
+        memory.get(url)?.let { return@withContext it }
+        if (synchronized(missing) { url in missing }) return@withContext null
         try {
-            client.newCall(Request.Builder().url(url(id)).build()).execute().use { response ->
+            client.newCall(Request.Builder().url(url).build()).execute().use { response ->
                 if (!response.isSuccessful) {
-                    synchronized(missing) { missing += id }
+                    synchronized(missing) { missing += url }
                     return@use null
                 }
-                BitmapFactory.decodeStream(response.body.byteStream())?.also { memory.put(id, it) }
+                BitmapFactory.decodeStream(response.body.byteStream())?.also { memory.put(url, it) }
             }
         } catch (_: Exception) {
             null
         }
+    }
+}
+
+/**
+ * A picture from the web, cropped to fill [modifier], over [placeholder] until it arrives (or for
+ * good, when it can't be fetched, or in a screenshot test: [LocalLoadsPortraits]). Decorative.
+ */
+@Composable
+fun RemoteImage(url: String, modifier: Modifier = Modifier, placeholder: @Composable () -> Unit) {
+    val loads = LocalLoadsPortraits.current
+    var bitmap by remember(url) { mutableStateOf(if (loads) Portraits.cachedImage(url) else null) }
+    if (loads) LaunchedEffect(url) { if (bitmap == null) bitmap = Portraits.image(url) }
+    Box(modifier.clearAndSetSemantics { }, contentAlignment = Alignment.Center) {
+        val image = bitmap
+        if (image != null) Image(image.asImageBitmap(), null, Modifier.fillMaxSize(), contentScale = ContentScale.Crop) else placeholder()
     }
 }
 
@@ -144,18 +167,22 @@ fun Ring(share: Double?, color: Color, lineWidth: Dp, modifier: Modifier = Modif
     }
 }
 
-/** The mocks' segmented control: Votes · Money · Contact, or Funding · Disclosures. */
+/**
+ * The mocks' segmented control: Votes · Said · Posts · Money · Contact, or Funding · Disclosures.
+ * At the largest type sizes more than three options go on rows of three rather than cut off.
+ */
 @Composable
 fun <T> SectionSwitch(options: List<T>, selected: T, label: (T) -> String, onSelect: (T) -> Unit, modifier: Modifier = Modifier) {
     val colors = Palette
-    Row(
+    val rows = if (options.size > 3 && LocalDensity.current.fontScale >= 1.5f) options.chunked(3) else listOf(options)
+    Column(
         modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(10.dp))
             .background(colors.panel)
             .padding(3.dp),
-    ) {
-        options.forEach { option ->
+    ) { rows.forEach { row -> Row {
+        row.forEach { option ->
             val on = option == selected
             Text(
                 label(option),
@@ -172,18 +199,24 @@ fun <T> SectionSwitch(options: List<T>, selected: T, label: (T) -> String, onSel
                     .padding(7.dp),
             )
         }
-    }
+        repeat(rows[0].size - row.size) { Spacer(Modifier.weight(1f)) }
+    } } }
 }
 
-/** The switch the Following tab, Finals' scope and "+ Add" use: chips on a panel, the chosen one raised. */
+/**
+ * The switch the Following tab, Finals' scope and "+ Add" use: chips on a panel, the chosen one
+ * raised. At the largest type sizes more than three chips go two to a row rather than cut off.
+ */
 @Composable
 fun <T> ChipSwitch(options: List<T>, selected: T, label: (T) -> String, onSelect: (T) -> Unit, size: Float = 12f, spoken: (T) -> String = label) {
     val colors = Palette
-    Row(
+    val rows = if (options.size > 3 && LocalDensity.current.fontScale >= 1.5f) options.chunked(2) else listOf(options)
+    Column(
         Modifier.fillMaxWidth().clip(RoundedCornerShape(9.dp)).background(colors.panel).padding(3.dp),
-        horizontalArrangement = Arrangement.spacedBy(4.dp),
+        verticalArrangement = Arrangement.spacedBy(4.dp),
     ) {
-        options.forEach { option ->
+        rows.forEach { row ->
+            Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) { row.forEach { option ->
             val on = option == selected
             Text(
                 label(option),
@@ -203,6 +236,7 @@ fun <T> ChipSwitch(options: List<T>, selected: T, label: (T) -> String, onSelect
                     }
                     .padding(vertical = 7.dp),
             )
+            } }
         }
     }
 }

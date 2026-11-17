@@ -46,6 +46,7 @@ import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 import org.robolectric.annotation.GraphicsMode
 import java.time.ZoneId
+import java.util.Locale
 
 /**
  * Your district and what you follow: onboarding, Finals with your three (and while a seat changes
@@ -204,7 +205,7 @@ class DistrictSnapshotTest {
     )
 
     @Composable
-    private fun Following(state: FollowingState) = FollowingScreen(state, FollowingActions(), eastern)
+    private fun Following(state: FollowingState) = FollowingScreen(state, FollowingActions(), eastern, Locale.US)
 
     @Test fun followingMembersLight() = snap("followingMembers", light) { Following(following(FollowingSegment.MEMBERS)) }
 

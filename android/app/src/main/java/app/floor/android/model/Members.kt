@@ -54,7 +54,12 @@ data class MemberDetail(
     /** Always sent by the API; zero (no figure) only in a hand-built value. */
     val partyLoyalty: PartyLoyalty = PartyLoyalty(0, 0, 0),
     val contact: MemberContact? = null,
-)
+    /** The contract puts `social` on the member; read here too, should the API send it beside it. */
+    private val social: MemberSocial? = null,
+) {
+    /** The member's official accounts, wherever the response put them. */
+    val accounts: List<MemberSocial.Account> get() = (member.social ?: social)?.accounts.orEmpty()
+}
 
 /** One row of a member's voting record. */
 @Serializable

@@ -1,0 +1,33 @@
+{
+  "_note": "Hand-built: the wall for Schumer and Nadler, Schumer's real posts (fixture links) and Nadler as the mock records him, on X and Facebook only. The API's recorded response replaces it when it lands.",
+  "posts": [
+    {
+      "id": "bluesky:fixture-2026-11-16",
+      "memberId": "S000148",
+      "network": "bluesky",
+      "postedAt": "2026-11-16T22:01:00Z",
+      "text": "Grocery prices are higher than ever. Trump's response?   Kick another 6 million off of food stamps and stop nearly 2 million kids from getting free school lunches.",
+      "url": "https://bsky.app/profile/schumer.senate.gov",
+      "mediaUrl": null
+    },
+    {
+      "id": "youtube:fixture-2026-11-16",
+      "memberId": "S000148",
+      "network": "youtube",
+      "postedAt": "2026-11-16T20:04:48Z",
+      "text": "Speaking live from the floor of the U.S. Senate",
+      "url": "https://www.youtube.com/@SenatorSchumer",
+      "mediaUrl": null
+    },
+    {
+      "id": "youtube:fixture-2026-11-10",
+      "memberId": "S000148",
+      "network": "youtube",
+      "postedAt": "2026-11-10T17:24:47Z",
+      "text": "Senator Schumer speaks from the Senate floor, 11.10.26",
+      "url": "https://www.youtube.com/@SenatorSchumer",
+      "mediaUrl": null
+    }
+  ],
+  "unreadable": ["N000002"]
+}

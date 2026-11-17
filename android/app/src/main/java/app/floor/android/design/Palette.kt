@@ -104,6 +104,9 @@ object Tones {
     /** How strongly the takes-office banner is washed with [elect]. */
     const val ELECT_TINT = 0.08f
 
+    // From the round 13 mock (Said): the top of the deck's front card, washed down into the panel.
+    val deckTop = Swatch(0xE2E8F2, 0x23304A)
+
     // The home-screen widget's ground.
     val widget = Swatch(0xFFFFFF, 0x0B0C0F)
 
@@ -170,6 +173,7 @@ class FloorColors(val isDark: Boolean) {
     val widget = of(Tones.widget)
     val elect = of(Tones.elect)
     val electInk = of(Tones.electInk)
+    val deckTop = of(Tones.deckTop)
 
     fun party(party: String) = of(Tones.party(party))
     fun partyTint(party: String) = of(Tones.partyTint(party))
@@ -184,6 +188,19 @@ class FloorColors(val isDark: Boolean) {
     val turf = hex(0x0E1A14)
     val turfAlt = hex(0x0B1611)
     val turfBorder = hex(0x1E2A23)
+
+    /**
+     * The no-platform card's browser frame (round 13): an archived web page, drawn as paper in both
+     * appearances as a page is, with the Wayback stamp's red.
+     */
+    val browserBar = hex(0x22252C)
+    val browserUrl = hex(0x14161B)
+    val browserChrome = hex(0xC4C9D2)
+    val browserDot = hex(0x3A3F49)
+    val paper = hex(0xF4F2EC)
+    val paperInk = hex(0x14161B)
+    val paperRule = hex(0xD9D5CB)
+    val wayback = hex(0xB4232A)
 
     /** The silver frame around a player card, light in both appearances, and the text on it. */
     val silver = listOf(hex(0xE5E7EB), hex(0x6B7280), hex(0xC4C9D2))
