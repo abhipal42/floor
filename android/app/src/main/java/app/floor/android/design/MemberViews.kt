@@ -373,9 +373,7 @@ fun ElectAvatar(elect: MemberElect, size: Dp = 30.dp) {
 private fun Modifier.seatRowSurface(colors: FloorColors, elect: Boolean): Modifier {
     val shape = RoundedCornerShape(12.dp)
     return fillMaxWidth()
-        .clip(shape)
-        .background(colors.panel, shape)
-        .border(1.dp, if (elect) colors.elect.copy(alpha = 0.35f) else colors.panelBorder, shape)
+        .glass(colors, shape, edge = androidx.compose.ui.graphics.SolidColor(if (elect) colors.elect.copy(alpha = 0.35f) else colors.panelBorder))
 }
 
 /** The current locale, for the dates the elect rows print. */

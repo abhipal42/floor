@@ -29,17 +29,12 @@ import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.draw.dropShadow
 import androidx.compose.ui.geometry.Size
-import androidx.compose.ui.graphics.LinearGradientShader
-import androidx.compose.ui.graphics.Shader
-import androidx.compose.ui.graphics.ShaderBrush
 import androidx.compose.ui.graphics.shadow.Shadow
 import androidx.compose.ui.unit.DpOffset
-import kotlin.math.abs
-import kotlin.math.cos
-import kotlin.math.sin
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
@@ -55,6 +50,8 @@ import androidx.compose.ui.unit.sp
 import app.floor.android.R
 import app.floor.android.design.FloorType
 import app.floor.android.design.MemberPortrait
+import app.floor.android.design.edgeBrush
+import app.floor.android.design.glass
 import app.floor.android.design.Palette
 import app.floor.android.model.MeasureSummary
 import app.floor.android.model.Position
@@ -63,26 +60,6 @@ import app.floor.android.model.Vote
 import app.floor.android.model.chip
 import java.time.ZoneId
 import java.util.Locale
-
-/**
- * Arena's story hairline: [top] at the top left fading to [fade] by 40% along a 160-degree line,
- * as CSS lays a `linear-gradient(160deg, ...)` over a box of any size.
- */
-private fun edgeBrush(top: Color, fade: Color): Brush = object : ShaderBrush() {
-    override fun createShader(size: Size): Shader {
-        val radians = Math.toRadians(160.0)
-        val dx = sin(radians).toFloat()
-        val dy = -cos(radians).toFloat()
-        val half = (abs(size.width * dx) + abs(size.height * dy)) / 2
-        val center = Offset(size.width / 2, size.height / 2)
-        return LinearGradientShader(
-            from = center - Offset(dx * half, dy * half),
-            to = center + Offset(dx * half, dy * half),
-            colors = listOf(top, fade, fade),
-            colorStops = listOf(0f, 0.4f, 1f),
-        )
-    }
-}
 
 /** At these font scales the steps stack, as iOS does at accessibility sizes. */
 @Composable
@@ -360,9 +337,7 @@ fun StoryMini(story: Story, zone: ZoneId, locale: Locale, onOpenVote: (Vote) -> 
         Modifier
             .fillMaxWidth()
             .height(IntrinsicSize.Min)
-            .clip(shape)
-            .background(colors.card, shape)
-            .border(1.dp, colors.cardBorder, shape)
+            .glass(colors, shape, fill = SolidColor(colors.card))
             .clickable(role = Role.Button, onClickLabel = "Open the vote") { onOpenVote(vote) }
             .clearAndSetSemantics { contentDescription = "$title. $line. ${Stories.spokenScore(vote)}." }
             .padding(horizontal = 13.dp, vertical = 11.dp),

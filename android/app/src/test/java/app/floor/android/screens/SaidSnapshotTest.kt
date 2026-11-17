@@ -11,6 +11,9 @@ import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onRoot
+import androidx.compose.ui.test.onAllNodesWithContentDescription
+import androidx.compose.ui.test.onFirst
+import androidx.compose.ui.test.assertHasClickAction
 import androidx.compose.ui.unit.Density
 import app.floor.android.Fixtures
 import app.floor.android.design.Appearance
@@ -42,14 +45,16 @@ import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 import org.robolectric.annotation.GraphicsMode
+import java.time.Instant
 import java.time.ZoneId
 import java.util.Locale
 
 /**
  * Round 13 against the locked mock (`floor-said.html`): Said's swipe deck (Slotkin, card 2 of 3), the
- * no-platform browser frame (Gillibrand), the three dashed placeholders, Posts and Contact's official
- * accounts (Schumer), and the Following wall (Schumer's posts, Nadler on X and Facebook only). Light,
- * dark and 200% as the other member snapshots; the fixtures are hand-built from real content.
+ * no-platform browser frame (Gillibrand) and the three dashed placeholders, each on Said's own
+ * screen; and, rebuilt in Arena (v0.2.58), Schumer's full posts list and the Following wall (NY-12's
+ * three, Nov 13-17, 2026, as the API served them: day dividers, filter chips, video, photo, link and
+ * thread cards). Light, dark and 200% as the other member snapshots.
  */
 @RunWith(RobolectricTestRunner::class)
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
@@ -94,20 +99,23 @@ class SaidSnapshotTest {
         record = record(member("S001208")),
         promises = Load.Loaded(Fixtures.decode("promises-slotkin", Promises.serializer())),
         promise = 1,
-        section = MemberSection.SAID,
+        page = MemberSection.SAID,
     )
 
     private val schumer get() = MemberState(
-        record = Load.Loaded(MemberRecord(Fixtures.decode("member-detail-schumer", MemberDetail.serializer()), emptyList())),
-        posts = Load.Loaded(Fixtures.decode("posts-schumer", MemberPosts.serializer())),
-        section = MemberSection.POSTS,
+        record = Load.Loaded(MemberRecord(Fixtures.decode("arena-schumer-detail", MemberDetail.serializer()), emptyList())),
+        posts = Load.Loaded(Fixtures.decode("arena-schumer-posts", MemberPosts.serializer())),
+        page = MemberSection.POSTS,
     )
 
+    /** The evening the Arena mock was locked (6 PM in New York). */
+    private val today = Instant.parse("2026-11-17T23:00:00Z")
+
     private fun said(id: String, promises: Promises) =
-        MemberState(record = record(member(id)), promises = Load.Loaded(promises), section = MemberSection.SAID)
+        MemberState(record = record(member(id)), promises = Load.Loaded(promises), page = MemberSection.SAID)
 
     @Composable
-    private fun Member(state: MemberState) = MemberScreen(state, "Following", eastern, Locale.US, {}, {}, {}, {}, {}, {}, {}, {})
+    private fun Member(state: MemberState) = MemberScreen(state, "Following", eastern, Locale.US, {}, {}, {}, {}, {}, {}, {}, {}, now = today)
 
     // MARK: Said
 
@@ -166,25 +174,17 @@ class SaidSnapshotTest {
     @Config(qualifiers = "w402dp-h2600dp-xhdpi")
     fun postsLarge() = snap("memberPosts", Look.LARGE) { Member(schumer) }
 
-    @Test fun accountsLight() = snap("memberAccounts", Look.LIGHT) { Member(schumer.copy(section = MemberSection.CONTACT)) }
-
-    @Test fun accountsDark() = snap("memberAccounts", Look.DARK) { Member(schumer.copy(section = MemberSection.CONTACT)) }
-
-    @Test
-    @Config(qualifiers = "w402dp-h1800dp-xhdpi")
-    fun accountsLarge() = snap("memberAccounts", Look.LARGE) { Member(schumer.copy(section = MemberSection.CONTACT)) }
-
     // MARK: The wall
 
     /** NY-12's three: Nadler, Schumer and Gillibrand. */
     private val wall get() = FollowingState(
         delegation = Delegation(District(119, "NY", 12), listOf(member("N000002"), member("S000148"), member("G000555"))),
         segment = FollowingSegment.POSTS,
-        wall = Load.Loaded(Fixtures.decode("posts-wall-ny", PostsWall.serializer())),
+        wall = Load.Loaded(Fixtures.decode("arena-wall-ny", PostsWall.serializer())),
     )
 
     @Composable
-    private fun Following(state: FollowingState) = FollowingScreen(state, FollowingActions(), eastern, Locale.US)
+    private fun Following(state: FollowingState) = FollowingScreen(state, FollowingActions(), eastern, Locale.US, now = today)
 
     @Test fun wallLight() = snap("followingPosts", Look.LIGHT) { Following(wall) }
 
@@ -193,4 +193,16 @@ class SaidSnapshotTest {
     @Test
     @Config(qualifiers = "w402dp-h1800dp-xhdpi")
     fun wallLarge() = snap("followingPosts", Look.LARGE) { Following(wall) }
+
+    /** The Nadler chip on: only his posts, still under their days. */
+    @Test
+    @Config(qualifiers = "w402dp-h2400dp-xhdpi")
+    fun wallFilteredDark() = snap("followingPostsNadler", Look.DARK) { Following(wall.copy(wallFilter = "N000002")) }
+
+    /** The rebuilt card says where it opens, for TalkBack, on its round arrow. */
+    @Test
+    fun theArrowSaysWhereThePostOpens() {
+        show(Look.LIGHT) { Following(wall.copy(wallFilter = "N000002")) }
+        compose.onAllNodesWithContentDescription("Open on Bluesky").onFirst().assertHasClickAction()
+    }
 }

@@ -1,0 +1,53 @@
+{
+ "_note": "GET /v1/members/S000148/promises, recorded 2026-11-17 from floor-api.vercel.app.",
+ "status": "promises",
+ "electionYear": 2022,
+ "siteUrl": "http://www.chuckschumer.com/",
+ "snapshotUrl": "https://web.archive.org/web/20220930164753/https://www.chuckschumer.com/issues/",
+ "snapshotAt": "2022-09-30T16:47:53.000Z",
+ "pageUrl": "https://www.chuckschumer.com/issues/",
+ "promises": [
+  {
+   "quote": "From climate change to voting rights and student debt to criminal justice reform, Chuck\u2019s fighting for bold action to move us all forward.",
+   "topic": null,
+   "heading": "On the Issues",
+   "headline": "fighting for bold action to move us all forward"
+  },
+  {
+   "quote": "It's time to cancel student debt and make education accessible for all.",
+   "topic": "Education",
+   "heading": "Education & Student Debt",
+   "headline": "cancel student debt and make education accessible for all"
+  },
+  {
+   "quote": "Pass the Equality Act and end anti-LGBTQ+ discrimination once and for all.",
+   "topic": "Civil Rights and Liberties, Minority Issues",
+   "heading": "LGBTQ+ Equality",
+   "headline": "Pass the Equality Act and end anti-LGBTQ+ discrimination"
+  },
+  {
+   "quote": "We need bold action to stop the climate emergency.",
+   "topic": "Environmental Protection",
+   "heading": "Climate Change",
+   "headline": "bold action to stop the climate emergency"
+  },
+  {
+   "quote": "Every American deserves access to quality, affordable health care.",
+   "topic": "Health",
+   "heading": "Health Care",
+   "headline": "Every American deserves access to quality, affordable health care"
+  },
+  {
+   "quote": "We need record investment in infrastructure \u2013 both physical and human.",
+   "topic": "Transportation and Public Works",
+   "heading": "Jobs & The Economy",
+   "headline": "record investment in infrastructure"
+  },
+  {
+   "quote": "We must address past wrongs and ensure equal justice for all.",
+   "topic": "Civil Rights and Liberties, Minority Issues",
+   "heading": "Criminal Justice & Racial Equity",
+   "headline": "address past wrongs and ensure equal justice for all"
+  }
+ ]
+}

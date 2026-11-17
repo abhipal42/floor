@@ -61,13 +61,17 @@ suspend fun <T> revalidate(current: Load<T>, saved: Saved<T>?, fallback: String,
     }
 }
 
-/** The member screen's switch: Votes · Said · Posts · Money · Contact (round 13). */
+/**
+ * The member page's sections, in the one scroll's order (Arena, v0.2.58), each a jump chip:
+ * Votes · Said · Posts · Money · Contact. Every section but Contact opens its full content on its
+ * own screen ([MemberState.page]).
+ */
 enum class MemberSection(val title: String) {
     RECORD("Votes"), SAID("Said"), POSTS("Posts"), MONEY("Money"), CONTACT("Contact");
 
     companion object {
-        /** A member-elect's: no campaign promises or posts are gathered for them. */
-        val elect = listOf(RECORD, MONEY, CONTACT)
+        /** A member-elect's: no record, campaign promises or posts are gathered for them yet. */
+        val elect = listOf(MONEY, CONTACT)
     }
 }
 
@@ -86,7 +90,11 @@ data class MemberState(
     val posts: Load<MemberPosts> = Load.Loading,
     /** The promise on top of the Said deck. */
     val promise: Int = 0,
-    val section: MemberSection = MemberSection.RECORD,
+    /**
+     * The section open on its own screen over the one scroll ("All 40 ›", "7 promises ›", "All ›",
+     * "Details ›"); null for the one scroll itself.
+     */
+    val page: MemberSection? = null,
     val moneySegment: MoneySegment = MoneySegment.FUNDING,
     /** The grid square picked, oldest-first index; null for the latest. */
     val selectedCall: Int? = null,
@@ -97,7 +105,9 @@ data class MemberState(
 
 /**
  * One member (iOS `RepScreenModel`, `MoneyModel`, `DisclosuresModel`): the record with its last 40
- * votes; Money's funding and disclosures load only when first shown. Each is saved for offline.
+ * votes, what the campaign said, the posts and the FEC funding, all on the one scroll and so loaded
+ * on arrival; the disclosures load only when Money's details first show them. Each is saved for
+ * offline.
  */
 class MemberModel(private val api: FloorApi, private val id: String, private val limit: Int = 40) : ViewModel() {
     var state by mutableStateOf(MemberState())
@@ -105,8 +115,12 @@ class MemberModel(private val api: FloorApi, private val id: String, private val
 
     private var job: Job? = null
 
+    /** Everything the one scroll shows loads on arrival; anything already fresh is kept. */
     fun appear() {
         if (state.record.needsRefresh) reload()
+        if (state.promises.needsRefresh) reloadPromises()
+        if (state.posts.needsRefresh) reloadPosts()
+        if (state.money.needsRefresh) reloadMoney()
         showing()
     }
 
@@ -115,8 +129,16 @@ class MemberModel(private val api: FloorApi, private val id: String, private val
         job = viewModelScope.launch { loadRecord() }
     }
 
-    fun select(section: MemberSection) {
-        state = state.copy(section = section)
+    /** The disclosures load the first time Money's details show them. */
+    private fun showing() {
+        if (state.page == MemberSection.MONEY && state.moneySegment == MoneySegment.DISCLOSURES && state.disclosures.needsRefresh) {
+            reloadDisclosures()
+        }
+    }
+
+    /** Opens [section]'s own screen; null goes back to the one scroll. */
+    fun open(section: MemberSection?) {
+        state = state.copy(page = section)
         showing()
     }
 
@@ -140,15 +162,6 @@ class MemberModel(private val api: FloorApi, private val id: String, private val
     fun reloadPosts() = viewModelScope.launch { loadPosts() }
 
     fun reloadDisclosures() = viewModelScope.launch { loadDisclosures() }
-
-    /** Said, Posts and Money's halves load the first time they are on screen. */
-    private fun showing() {
-        if (state.section == MemberSection.SAID && state.promises.needsRefresh) reloadPromises()
-        if (state.section == MemberSection.POSTS && state.posts.needsRefresh) reloadPosts()
-        if (state.section != MemberSection.MONEY) return
-        if (state.moneySegment == MoneySegment.FUNDING && state.money.needsRefresh) reloadMoney()
-        if (state.moneySegment == MoneySegment.DISCLOSURES && state.disclosures.needsRefresh) reloadDisclosures()
-    }
 
     suspend fun loadRecord() {
         val saved = api.savedMember(id)?.let { detail ->
@@ -185,11 +198,7 @@ class MemberModel(private val api: FloorApi, private val id: String, private val
 }
 
 /** What the member-elect screen draws. A null profile: the API's 404, no longer listed. */
-data class ElectState(
-    val profile: Load<ElectProfile?> = Load.Loading,
-    val section: MemberSection = MemberSection.RECORD,
-    val moneySegment: MoneySegment = MoneySegment.FUNDING,
-)
+data class ElectState(val profile: Load<ElectProfile?> = Load.Loading)
 
 /** One member-elect's profile (iOS `ElectScreenModel`): `/v1/members-elect/{id}`, saved for offline. */
 class ElectModel(private val api: FloorApi, private val id: String) : ViewModel() {
@@ -201,14 +210,6 @@ class ElectModel(private val api: FloorApi, private val id: String) : ViewModel(
     }
 
     fun reload() = viewModelScope.launch { load() }
-
-    fun select(section: MemberSection) {
-        state = state.copy(section = section)
-    }
-
-    fun selectMoney(segment: MoneySegment) {
-        state = state.copy(moneySegment = segment)
-    }
 
     suspend fun load() {
         revalidate(state.profile, api.savedMemberElect(id), "Couldn't load this member-elect.", { state = state.copy(profile = it) }) {

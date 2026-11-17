@@ -41,6 +41,37 @@ class PaletteTest {
         }
     }
 
+    /** The member hero's text is white in both appearances, over both ends of its party gradient. */
+    @Test
+    fun whiteReadsOnEveryHero() {
+        for (party in listOf("D", "R", "I")) {
+            for ((end, swatch) in listOf("top" to Tones.heroTop(party), "bottom" to Tones.heroBottom(party))) {
+                val light = Swatch.contrast(0xFFFFFF, swatch.light)
+                val dark = Swatch.contrast(0xFFFFFF, swatch.dark)
+                assertTrue("white on hero $party $end, light: $light", light >= 4.5)
+                assertTrue("white on hero $party $end, dark: $dark", dark >= 4.5)
+            }
+        }
+    }
+
+    /** A post's party chip, "D-NY", prints the party ink on the party tint. */
+    @Test
+    fun partyInkReadsOnItsTint() {
+        for (party in listOf("D", "R", "I")) {
+            val ink = Tones.partyInk(party)
+            val tint = Tones.partyTint(party)
+            assertTrue("party ink $party, light", Swatch.contrast(ink.light, tint.light) >= 4.5)
+            assertTrue("party ink $party, dark", Swatch.contrast(ink.dark, tint.dark) >= 4.5)
+        }
+    }
+
+    /** The call button prints its ink on the yea fill. */
+    @Test
+    fun callInkReadsOnYea() {
+        assertTrue(Swatch.contrast(Tones.callInk.light, Tones.yea.light) >= 4.5)
+        assertTrue(Swatch.contrast(Tones.callInk.dark, Tones.yea.dark) >= 4.5)
+    }
+
     /** Chips print the ground colour on an outcome or state colour, so those must read in light. */
     @Test
     fun groundReadsOnAChip() {

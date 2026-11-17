@@ -337,7 +337,7 @@ private fun App(
                     zone = zone,
                     locale = locale,
                     onBack = onBack,
-                    onSection = model::select,
+                    onOpen = model::open,
                     onMoneySegment = model::selectMoney,
                     onSelectCall = model::selectCall,
                     onRetry = model::reload,
@@ -351,12 +351,13 @@ private fun App(
                     onOpenTopic = { navigate(Routes.topic(it)) },
                     onRetryPromises = { model.reloadPromises() },
                     onRetryPosts = { model.reloadPosts() },
+                    now = java.time.Instant.now(),
                 )
             },
             elect = { id, back, onBack ->
                 val model: ElectModel = viewModel { ElectModel(api, id) }
                 LaunchedEffect(id) { model.appear() }
-                ElectScreen(model.state, back, locale, onBack, model::select, model::selectMoney) { model.reload() }
+                ElectScreen(model.state, back, locale, onBack) { model.reload() }
             },
         ),
         link = link,

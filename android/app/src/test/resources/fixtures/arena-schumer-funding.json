@@ -1,0 +1,118 @@
+{
+ "_note": "GET /v1/members/S000148/funding, recorded 2026-11-17 from floor-api.vercel.app.",
+ "member": {
+  "bioguideId": "S000148",
+  "firstName": "Chuck",
+  "lastName": "Schumer",
+  "party": "D",
+  "state": "NY",
+  "district": null,
+  "chamber": "senate",
+  "leavingOn": null
+ },
+ "funding": {
+  "cycle": 2028,
+  "coverageStart": "2023-01-01",
+  "coverageEnd": "2026-09-30",
+  "receipts": 3950604.4,
+  "smallDollar": 1661250.2,
+  "itemized": 1364483.14,
+  "pac": 365675,
+  "party": 0,
+  "other": 559196.06,
+  "cashOnHand": 7853430.04,
+  "committeesCycle": 2026,
+  "committees": [
+   {
+    "committeeId": "C00271007",
+    "name": "HUMANA INC. POLITICAL ACTION COMMITTEE",
+    "kind": "Company",
+    "orgType": "C",
+    "connectedOrg": "HUMANA INC.",
+    "direct": 10000,
+    "earmarked": 0
+   },
+   {
+    "committeeId": "C00781963",
+    "name": "BEYOND FINANCE EMPLOYEE POLITICAL ACTION COMMITTEE",
+    "kind": "Company",
+    "orgType": "C",
+    "connectedOrg": "BEYOND FINANCE LLC",
+    "direct": 10000,
+    "earmarked": 0
+   },
+   {
+    "committeeId": "C00257329",
+    "name": "THE PROCTER & GAMBLE COMPANY GOOD GOVERNMENT FUND",
+    "kind": "Company",
+    "orgType": "C",
+    "connectedOrg": "THE PROCTER & GAMBLE COMPANY",
+    "direct": 7500,
+    "earmarked": 0
+   },
+   {
+    "committeeId": "C00366013",
+    "name": "NASDAQ, INC. PAC (NASDAQ PAC)",
+    "kind": "Company",
+    "orgType": "C",
+    "connectedOrg": "NASDAQ, INC.",
+    "direct": 5500,
+    "earmarked": 0
+   },
+   {
+    "committeeId": "C00008268",
+    "name": "TRANSPORT WORKERS UNION OF AMERICA POLITICAL CONTRIBUTIONS COMMITTEE",
+    "kind": "Union",
+    "orgType": "L",
+    "connectedOrg": "TRANSPORT WORKERS UNION OF AMERICA",
+    "direct": 5000,
+    "earmarked": 0
+   },
+   {
+    "committeeId": "C00010322",
+    "name": "AMERICAN POSTAL WORKERS UNION COMMITTEE ON POLITICAL ACTION",
+    "kind": "Union",
+    "orgType": "L",
+    "connectedOrg": "AMERICAN POSTAL WORKERS UNION",
+    "direct": 5000,
+    "earmarked": 0
+   },
+   {
+    "committeeId": "C00029447",
+    "name": "INTERNATIONAL ASSOCIATION OF FIREFIGHTERS INTERESTED IN REGISTRATION AND EDUCATION PAC",
+    "kind": "Union",
+    "orgType": "L",
+    "connectedOrg": "INTERNATIONAL ASSOCIATION OF FIRE FIGHTERS",
+    "direct": 5000,
+    "earmarked": 0
+   },
+   {
+    "committeeId": "C00074096",
+    "name": "DOW INC. PAC (DOWPAC)",
+    "kind": "Company",
+    "orgType": "C",
+    "connectedOrg": "DOW INC.",
+    "direct": 5000,
+    "earmarked": 0
+   },
+   {
+    "committeeId": "C00076299",
+    "name": "CME GROUP INC. PAC",
+    "kind": "Company",
+    "orgType": "C",
+    "connectedOrg": null,
+    "direct": 5000,
+    "earmarked": 0
+   },
+   {
+    "committeeId": "C00082792",
+    "name": "ELI LILLY AND COMPANY POLITICAL ACTION COMMITTEE",
+    "kind": "Company",
+    "orgType": "C",
+    "connectedOrg": "ELI LILLY AND COMPANY",
+    "direct": 5000,
+    "earmarked": 0
+   }
+  ]
+ }
+}

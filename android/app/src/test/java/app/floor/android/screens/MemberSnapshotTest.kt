@@ -26,6 +26,8 @@ import app.floor.android.model.Disclosures
 import app.floor.android.model.ElectProfile
 import app.floor.android.model.MemberDetail
 import app.floor.android.model.MemberFunding
+import app.floor.android.model.MemberPosts
+import app.floor.android.model.Promises
 import app.floor.android.model.MemberVotes
 import app.floor.android.model.VoteDetail
 import app.floor.android.vote.VoteScreen
@@ -37,15 +39,17 @@ import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 import org.robolectric.annotation.GraphicsMode
+import java.time.Instant
 import java.time.ZoneId
 import java.util.Locale
 
 /**
- * The member screen (Votes, Money's Funding and Disclosures, Contact), the member-elect screen and
- * the vote screen's "Your members", light, dark and at 200%, at the iOS references' width. Compare
- * with `ios/FloorKit/Tests/SnapshotTests/__Snapshots__/{Screen,Round11,Round12}SnapshotTests/`:
- * `repWithUnity`, `memberContact`, `disclosuresOn`, `disclosuresTranscribed`, `disclosuresOff`,
- * `elect*`, `voteWithYourRep`. Portraits are drawn as initials, as iOS's `NoPortraits` draws them.
+ * The one-scroll member page (Arena, v0.2.58: Schumer with everything, recorded from the live API on
+ * Nov 17, 2026), its sections on their own screens (all 40 votes, Money's Funding and Disclosures),
+ * the member-elect page and the vote screen's "Your members", light, dark and at 200%, at the iOS
+ * references' width. Compare with `ios/FloorKit/Tests/SnapshotTests/__Snapshots__/`: `memberOneScroll`,
+ * `repWithUnity`, `disclosuresOn`, `disclosuresTranscribed`, `disclosuresOff`, `electOneScroll`,
+ * `voteWithYourRep`. Portraits are drawn as initials, as iOS's `NoPortraits` draws them.
  */
 @RunWith(RobolectricTestRunner::class)
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
@@ -80,13 +84,50 @@ class MemberSnapshotTest {
         MemberRecord(Fixtures.decode(detail, MemberDetail.serializer()), Fixtures.decode("member-votes-$id-40", MemberVotes.serializer()).votes),
     )
 
+    /** The evening the Arena mock was locked: Schumer's posts of the day print their time alone. */
+    private val today = Instant.parse("2026-11-17T23:00:00Z")
+
     @Composable
     private fun Member(state: MemberState, follow: MemberFollow? = null) = MemberScreen(
-        state, "Finals", eastern, Locale.US, {}, {}, {}, {}, {}, {}, {}, {}, follow,
+        state, "Finals", eastern, Locale.US, {}, {}, {}, {}, {}, {}, {}, {}, follow, now = today,
     )
 
-    /** Cruz's record: iOS's `repWithUnity`. */
-    private val cruz get() = MemberState(record = record("cruz", "member-detail-cruz"))
+    /** Schumer with everything: his record, promises, posts and funding, as the API served them. */
+    private val schumer get() = MemberState(
+        record = Load.Loaded(
+            MemberRecord(
+                Fixtures.decode("arena-schumer-detail", MemberDetail.serializer()),
+                Fixtures.decode("arena-schumer-votes-40", MemberVotes.serializer()).votes,
+            ),
+        ),
+        promises = Load.Loaded(Fixtures.decode("arena-schumer-promises", Promises.serializer())),
+        posts = Load.Loaded(Fixtures.decode("arena-schumer-posts", MemberPosts.serializer())),
+        money = Load.Loaded(Fixtures.decode("arena-schumer-funding", MemberFunding.serializer())),
+    )
+
+    /** New York's senator, read from NY-12: "YOUR SENATOR · NEW YORK", no Follow on the hero. */
+    private val yourSenator = MemberFollow(following = false, isRep = true) {}
+
+    @Test
+    @Config(qualifiers = "w402dp-h3000dp-xhdpi")
+    fun oneScrollLight() = snap("memberOneScroll", Look.LIGHT) { Member(schumer, yourSenator) }
+
+    @Test
+    @Config(qualifiers = "w402dp-h3000dp-xhdpi")
+    fun oneScrollDark() = snap("memberOneScroll", Look.DARK) { Member(schumer, yourSenator) }
+
+    @Test
+    @Config(qualifiers = "w402dp-h6400dp-xhdpi")
+    fun oneScrollLarge() = snap("memberOneScroll", Look.LARGE) { Member(schumer, yourSenator) }
+
+    /** Followed, not yours: the hero's Follow pill reads "Following ✓" and the eyebrow "FOLLOWING". */
+    @Test
+    fun oneScrollFollowedDark() = snap("memberOneScrollFollowed", Look.DARK) {
+        Member(schumer, MemberFollow(following = true, isRep = false) {})
+    }
+
+    /** Cruz's record, "All 40 ›" on its own screen: iOS's `repWithUnity`. */
+    private val cruz get() = MemberState(record = record("cruz", "member-detail-cruz"), page = MemberSection.RECORD)
 
     /** Doggett: Contact (no form, so Write goes to the House's), Funding, and disclosures on. */
     private val doggett get() = MemberState(
@@ -99,14 +140,14 @@ class MemberSnapshotTest {
     private val nadler get() = MemberState(
         record = Load.Loaded(MemberRecord(Fixtures.decode("member-detail-nadler", MemberDetail.serializer()), emptyList())),
         disclosures = Load.Loaded(Fixtures.decode("disclosures-nadler", Disclosures.serializer())),
-        section = MemberSection.MONEY, moneySegment = MoneySegment.DISCLOSURES,
+        page = MemberSection.MONEY, moneySegment = MoneySegment.DISCLOSURES,
     )
 
     /** Cornyn: disclosures off, with the API's reason. */
     private val cornynOff get() = MemberState(
         record = record("cornyn", "member-detail-cornyn"),
         disclosures = Load.Loaded(Fixtures.decode("disclosures-off", Disclosures.serializer())),
-        section = MemberSection.MONEY, moneySegment = MoneySegment.DISCLOSURES,
+        page = MemberSection.MONEY, moneySegment = MoneySegment.DISCLOSURES,
     )
 
     private val follow = MemberFollow(following = false, isRep = false) {}
@@ -119,27 +160,19 @@ class MemberSnapshotTest {
     @Config(qualifiers = "w402dp-h2600dp-xhdpi")
     fun repLarge() = snap("repWithUnity", Look.LARGE) { Member(cruz, follow) }
 
-    @Test fun yourRepLight() = snap("repYourRep", Look.LIGHT) { Member(doggett, MemberFollow(false, isRep = true) {}) }
-
-    @Test fun contactLight() = snap("memberContact", Look.LIGHT) { Member(doggett.copy(section = MemberSection.CONTACT)) }
-
-    @Test fun contactDark() = snap("memberContact", Look.DARK) { Member(doggett.copy(section = MemberSection.CONTACT)) }
-
-    @Test fun contactLarge() = snap("memberContact", Look.LARGE) { Member(doggett.copy(section = MemberSection.CONTACT)) }
+    @Test
+    @Config(qualifiers = "w402dp-h2000dp-xhdpi")
+    fun fundingLight() = snap("memberFunding", Look.LIGHT) { Member(doggett.copy(page = MemberSection.MONEY)) }
 
     @Test
     @Config(qualifiers = "w402dp-h2000dp-xhdpi")
-    fun fundingLight() = snap("memberFunding", Look.LIGHT) { Member(doggett.copy(section = MemberSection.MONEY)) }
-
-    @Test
-    @Config(qualifiers = "w402dp-h2000dp-xhdpi")
-    fun fundingDark() = snap("memberFunding", Look.DARK) { Member(doggett.copy(section = MemberSection.MONEY)) }
+    fun fundingDark() = snap("memberFunding", Look.DARK) { Member(doggett.copy(page = MemberSection.MONEY)) }
 
     @Test
     @Config(qualifiers = "w402dp-h3600dp-xhdpi")
-    fun fundingLarge() = snap("memberFunding", Look.LARGE) { Member(doggett.copy(section = MemberSection.MONEY)) }
+    fun fundingLarge() = snap("memberFunding", Look.LARGE) { Member(doggett.copy(page = MemberSection.MONEY)) }
 
-    private val disclosuresOn get() = doggett.copy(section = MemberSection.MONEY, moneySegment = MoneySegment.DISCLOSURES)
+    private val disclosuresOn get() = doggett.copy(page = MemberSection.MONEY, moneySegment = MoneySegment.DISCLOSURES)
 
     @Test
     @Config(qualifiers = "w402dp-h2000dp-xhdpi")
@@ -180,51 +213,19 @@ class MemberSnapshotTest {
     private val elSayed get() = Load.Loaded(Fixtures.decode("member-elect-mi-sen", ElectProfile.serializer()))
 
     @Composable
-    private fun Elect(state: ElectState) = ElectScreen(state, "Finals", Locale.US, {}, {}, {}, {})
+    private fun Elect(state: ElectState) = ElectScreen(state, "Finals", Locale.US, {}, {})
 
     @Test
-    @Config(qualifiers = "w402dp-h874dp-xhdpi")
-    fun electVotesLight() = snap("electVotes", Look.LIGHT) { Elect(ElectState(elSayed)) }
+    @Config(qualifiers = "w402dp-h1400dp-xhdpi")
+    fun electLight() = snap("electOneScroll", Look.LIGHT) { Elect(ElectState(elSayed)) }
 
     @Test
-    @Config(qualifiers = "w402dp-h874dp-xhdpi")
-    fun electVotesDark() = snap("electVotes", Look.DARK) { Elect(ElectState(elSayed)) }
+    @Config(qualifiers = "w402dp-h1400dp-xhdpi")
+    fun electDark() = snap("electOneScroll", Look.DARK) { Elect(ElectState(elSayed)) }
 
     @Test
-    @Config(qualifiers = "w402dp-h1800dp-xhdpi")
-    fun electVotesLarge() = snap("electVotes", Look.LARGE) { Elect(ElectState(elSayed)) }
-
-    @Test
-    @Config(qualifiers = "w402dp-h874dp-xhdpi")
-    fun electFundingLight() = snap("electMoneyFunding", Look.LIGHT) { Elect(ElectState(elSayed, MemberSection.MONEY)) }
-
-    @Test
-    @Config(qualifiers = "w402dp-h874dp-xhdpi")
-    fun electFundingDark() = snap("electMoneyFunding", Look.DARK) { Elect(ElectState(elSayed, MemberSection.MONEY)) }
-
-    @Test
-    @Config(qualifiers = "w402dp-h1800dp-xhdpi")
-    fun electFundingLarge() = snap("electMoneyFunding", Look.LARGE) { Elect(ElectState(elSayed, MemberSection.MONEY)) }
-
-    @Test
-    @Config(qualifiers = "w402dp-h874dp-xhdpi")
-    fun electDisclosuresLight() = snap("electMoneyDisclosures", Look.LIGHT) {
-        Elect(ElectState(elSayed, MemberSection.MONEY, MoneySegment.DISCLOSURES))
-    }
-
-    @Test
-    @Config(qualifiers = "w402dp-h874dp-xhdpi")
-    fun electDisclosuresDark() = snap("electMoneyDisclosures", Look.DARK) {
-        Elect(ElectState(elSayed, MemberSection.MONEY, MoneySegment.DISCLOSURES))
-    }
-
-    @Test
-    @Config(qualifiers = "w402dp-h874dp-xhdpi")
-    fun electContactLight() = snap("electContact", Look.LIGHT) { Elect(ElectState(elSayed, MemberSection.CONTACT)) }
-
-    @Test
-    @Config(qualifiers = "w402dp-h874dp-xhdpi")
-    fun electContactDark() = snap("electContact", Look.DARK) { Elect(ElectState(elSayed, MemberSection.CONTACT)) }
+    @Config(qualifiers = "w402dp-h3000dp-xhdpi")
+    fun electLarge() = snap("electOneScroll", Look.LARGE) { Elect(ElectState(elSayed)) }
 
     @Test
     @Config(qualifiers = "w402dp-h874dp-xhdpi")

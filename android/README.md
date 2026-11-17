@@ -84,6 +84,22 @@ Phase 5: the Week tab, app links and the home-screen widgets.
   the vote (`floor://vote/…`, an explicit intent to `MainActivity`), or the app from an empty or
   error state.
 
+Arena (v0.2.57-58, the locked app-wide direction): Finals as stories, then every card as glass
+(`Modifier.glass`: the panel fill, a 1dp top highlight, a soft long drop shadow; post and story
+cards add a gradient Brush hairline), the radial ground glow on each tab's root (`arenaGround`), and
+the tab bar as a 92% panel (iOS blurs; Android can't portably). The member page is one scroll
+(`member/MemberPage.kt`, `MemberHero.kt`): the party hero (portrait, three glass tiles, the 40-call
+streak, each bar opening its vote), sticky jump chips that follow the scroll, then Votes (three
+rows, "All 40 ›" to the rings and grid), Said (a snap rail of promise cards, "N promises ›" to the
+deck), Posts (marks, two posts, "All ›"), Money (Raised and Cash on hand, the bar, "Details ›" to
+Funding and Disclosures) and Contact (the call button, then form, website and address). A section
+opens on its own screen inside the member route (`MemberState.page`), so the screen keeps one model.
+Members-elect get the same hero without the figures, then Money and Contact. Posts are rebuilt
+(`member/PostViews.kt`, `model/PostParts.kt`): portrait with the network's badge, name, party chip,
+handle and time, the round open arrow, video, photo, link and thread cards built only from what the
+post has; Following › Posts adds member filter chips and day dividers. All of it is Brushes and
+shadows, never a scaled or faded layer (lesson 76).
+
 Where Android differs from iOS, and why: no catch-up deck yet. The Week tab's "Nothing you follow
 is scheduled" leaves out "and you can get an alert". The widgets draw headlines in the system's
 condensed sans (RemoteViews can't carry the bundled Barlow), head with the app icon's F rather than

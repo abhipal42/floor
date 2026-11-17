@@ -111,9 +111,7 @@ fun BillRow(
     Row(
         Modifier
             .fillMaxWidth()
-            .clip(shape)
-            .background(colors.panel, shape)
-            .border(1.dp, colors.panelBorder, shape),
+            .glass(colors, shape),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Column(
@@ -166,9 +164,7 @@ fun TopicRow(name: String, detail: String?, spoken: String, onOpen: () -> Unit, 
     Row(
         Modifier
             .fillMaxWidth()
-            .clip(shape)
-            .background(colors.panel, shape)
-            .border(1.dp, colors.panelBorder, shape)
+            .glass(colors, shape)
             .then(
                 if (trailing == null) {
                     Modifier.clickable(role = Role.Button, onClickLabel = "Open the topic's bills", onClick = onOpen)

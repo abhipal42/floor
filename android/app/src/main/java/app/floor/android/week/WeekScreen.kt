@@ -1,7 +1,6 @@
 package app.floor.android.week
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -55,8 +54,10 @@ import app.floor.android.R
 import app.floor.android.bills.Failed
 import app.floor.android.bills.Spinner
 import app.floor.android.design.FloorColors
+import app.floor.android.design.glass
 import app.floor.android.design.FloorType
 import app.floor.android.design.Palette
+import app.floor.android.design.arenaGround
 import app.floor.android.design.SavedDataNote
 import app.floor.android.design.dashedPanel
 import app.floor.android.home.TabBarClearance
@@ -86,7 +87,7 @@ fun WeekScreen(
     modifier: Modifier = Modifier,
 ) {
     val colors = Palette
-    PullToRefreshBox(isRefreshing = false, onRefresh = onRetry, modifier = modifier.fillMaxSize().background(colors.ground)) {
+    PullToRefreshBox(isRefreshing = false, onRefresh = onRetry, modifier = modifier.fillMaxSize().arenaGround(colors)) {
         Column(
             Modifier
                 .fillMaxSize()
@@ -327,7 +328,7 @@ private fun Placeholder(title: String, body: String, modifier: Modifier = Modifi
 /** The mock's `.wk` card: panel, hairline, 12dp corners. */
 private fun Modifier.card(colors: FloorColors, vertical: androidx.compose.ui.unit.Dp = 9.dp): Modifier {
     val shape = RoundedCornerShape(12.dp)
-    return fillMaxWidth().clip(shape).background(colors.panel, shape).border(1.dp, colors.panelBorder, shape).padding(horizontal = 11.dp, vertical = vertical)
+    return fillMaxWidth().glass(colors, shape).padding(horizontal = 11.dp, vertical = vertical)
 }
 
 @Composable
@@ -347,9 +348,7 @@ internal fun WeekRow(row: WeekSort.Row, onOpen: (() -> Unit)?) {
             .fillMaxWidth()
             .height(IntrinsicSize.Min)
             .alpha(if (row.pulled) 0.6f else 1f)
-            .clip(shape)
-            .background(colors.panel, shape)
-            .border(1.dp, colors.panelBorder, shape)
+            .glass(colors, shape)
             .then(if (onOpen != null) Modifier.clickable(role = Role.Button, onClickLabel = "Open the bill", onClick = onOpen) else Modifier)
             .clearAndSetSemantics { contentDescription = WeekSort.spoken(row) },
     ) {

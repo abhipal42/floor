@@ -5,6 +5,7 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Color
+import app.floor.android.model.SocialNetwork
 import app.floor.android.model.TopicGroup
 import kotlin.math.pow
 
@@ -129,6 +130,55 @@ object Tones {
     val storyEdgeFade = Swatch(0x111816, 0xFFFFFF, lightOpacity = 0.06f, darkOpacity = 0.02f)
     val storyShadow = Swatch(0x111816, 0x000000, lightOpacity = 0.22f, darkOpacity = 0.9f)
 
+    // Arena app-wide (phase 2, v0.2.58): every card is glass, a fill with a 1dp top highlight and a
+    // soft long drop shadow (`.d1 --shadowS`); a post card's fill runs down from [postTop] to
+    // [postBottom]; a promise card's from [promiseTop] to [promiseBottom] (`--promiseBg`).
+    val cardShadow = Swatch(0x111816, 0x000000, lightOpacity = 0.14f, darkOpacity = 0.8f)
+    val cardHighlight = Swatch(0xFFFFFF, 0xFFFFFF, lightOpacity = 0f, darkOpacity = 0.05f)
+    val postTop = Swatch(0xFFFFFF, 0x181B22)
+    val postBottom = Swatch(0xF4F7F6, 0x13161B)
+    val promiseTop = Swatch(0xE2E8F2, 0x1F2530)
+    val promiseBottom = Swatch(0xFFFFFF, 0x14171D)
+
+    /** Text on the call button's [yea] fill (`--callInk`). */
+    val callInk = Swatch(0xFFFFFF, 0x06231A)
+
+    /**
+     * The member hero, by party (`--heroBg`, `--heroFx`): a deep gradient from [heroTop] at the top
+     * left to [heroBottom], with [heroLight] as a radial light at the top right. White text in both
+     * appearances, like a story band, so each value reads at 4.5:1 or better under white.
+     * The dark Democratic values are Arena's own; Republican and independent follow the same recipe.
+     */
+    fun heroTop(party: String): Swatch = when (party) {
+        "D" -> Swatch(0x2F5FD0, 0x1E3A8A)
+        "R" -> Swatch(0xB43636, 0x7F1D1D)
+        else -> Swatch(0x5E6A66, 0x3F4652)
+    }
+
+    fun heroBottom(party: String): Swatch = when (party) {
+        "D" -> Swatch(0x1A2F6E, 0x0B1430)
+        "R" -> Swatch(0x5C1616, 0x2A0B0B)
+        else -> Swatch(0x2B3230, 0x14171C)
+    }
+
+    fun heroLight(party: String): Swatch = when (party) {
+        "D" -> Swatch(0x8DB8FF, 0x6EA8FE, lightOpacity = 0.5f, darkOpacity = 0.5f)
+        "R" -> Swatch(0xFCA5A5, 0xF87171, lightOpacity = 0.45f, darkOpacity = 0.45f)
+        else -> Swatch(0xD1D5DB, 0xC9CED6, lightOpacity = 0.35f, darkOpacity = 0.3f)
+    }
+
+    /** The party chip's text on [partyTint] (`--partyInk`): "D-NY" on a post. Contrast-tested. */
+    fun partyInk(party: String): Swatch = when (party) {
+        "D" -> Swatch(0x1E4AB0, 0xBFD6FF)
+        "R" -> Swatch(0x9B2C2C, 0xFECACA)
+        else -> Swatch(0x38433F, 0xE4E4E7)
+    }
+
+    /** The three networks Floor reads, in their own brand colours (allowed as tokens by the spec). */
+    const val BLUESKY = 0x1185FEL
+    const val YOUTUBE = 0xFF0033L
+    const val MASTODON = 0x6364FFL
+
     /** The band text on a topic colour, and the verdict chip on the band: the same in both appearances. */
     const val BAND_INK = 0xFFFFFFL
     const val VERDICT_INK = 0x0B0C0FL
@@ -230,6 +280,44 @@ class FloorColors(val isDark: Boolean) {
 
     /** The 1dp inner highlight along a story card's top edge (Arena's `inset 0 1px 0`). */
     val storyHighlight = hex(0xFFFFFF, 0.06f)
+
+    val cardShadow = of(Tones.cardShadow)
+    val cardHighlight = of(Tones.cardHighlight)
+    val postTop = of(Tones.postTop)
+    val postBottom = of(Tones.postBottom)
+    val promiseTop = of(Tones.promiseTop)
+    val promiseBottom = of(Tones.promiseBottom)
+    val callInk = of(Tones.callInk)
+    fun heroTop(party: String) = of(Tones.heroTop(party))
+    fun heroBottom(party: String) = of(Tones.heroBottom(party))
+    fun heroLight(party: String) = of(Tones.heroLight(party))
+    fun partyInk(party: String) = of(Tones.partyInk(party))
+
+    /** A network's brand colour: its badge on a post's portrait. */
+    fun network(network: SocialNetwork): Color = when (network) {
+        SocialNetwork.BLUESKY -> hex(Tones.BLUESKY)
+        SocialNetwork.YOUTUBE -> hex(Tones.YOUTUBE)
+        SocialNetwork.MASTODON -> hex(Tones.MASTODON)
+        else -> text
+    }
+
+    // The member hero is a lit surface, the same in both appearances: white text, glass tiles, the
+    // streak in Arena's own yea and nay, a missed call as translucent white.
+    val heroInk = hex(0xFFFFFF)
+    val heroTile = hex(0xFFFFFF, 0.12f)
+    val heroTileBorder = hex(0xFFFFFF, 0.16f)
+    val heroRing = hex(0xFFFFFF, 0.2f)
+    val heroButtonDim = hex(0xFFFFFF, 0.16f)
+    val heroShadow = hex(0x000000, 0.6f)
+    val heroGreen = hex(0x34D399, 0.18f)
+    val streakYea = hex(0x34D399)
+    val streakNay = hex(0xFB923C)
+    val streakOther = hex(0xFFFFFF, 0.25f)
+
+    /** A video thumbnail's centred play button (`.post .play i`). */
+    val playScrim = hex(0x000000, 0.55f)
+    val playRing = hex(0xFFFFFF, 0.7f)
+    val playInk = hex(0xFFFFFF)
 
     // Lit displays: the same in both appearances.
     /** The split-flap board: its frame, and the top and bottom halves of each cell. */

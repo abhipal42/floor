@@ -1,7 +1,5 @@
 package app.floor.android.bills
 
-import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -40,10 +38,12 @@ import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.unit.dp
 import app.floor.android.R
 import app.floor.android.design.BillRow
+import app.floor.android.design.glass
 import app.floor.android.design.FloorType
 import app.floor.android.design.ListHeading
 import app.floor.android.design.Notice
 import app.floor.android.design.Palette
+import app.floor.android.design.arenaGround
 import app.floor.android.design.SavedDataNote
 import app.floor.android.design.TopicRow
 import app.floor.android.design.panel
@@ -76,7 +76,7 @@ fun BillsScreen(
     LazyColumn(
         modifier
             .fillMaxSize()
-            .background(colors.ground)
+            .arenaGround(colors)
             .windowInsetsPadding(WindowInsets.statusBars),
         contentPadding = androidx.compose.foundation.layout.PaddingValues(
             start = 16.dp, end = 16.dp, top = 8.dp, bottom = 24.dp + TabBarClearance,
@@ -122,9 +122,7 @@ internal fun SearchField(search: SearchState, onQuery: (String) -> Unit, onSubmi
     Row(
         Modifier
             .fillMaxWidth()
-            .clip(shape)
-            .background(colors.panel, shape)
-            .border(1.dp, colors.panelBorder, shape)
+            .glass(colors, shape)
             .padding(horizontal = 11.dp, vertical = 9.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(8.dp),
