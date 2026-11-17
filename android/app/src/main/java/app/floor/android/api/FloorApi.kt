@@ -144,12 +144,13 @@ class FloorApi(
 
     fun savedBillShare(id: String): Saved<BillShare>? = saved(billUrl(id, "share"), BillShare.serializer())
 
-    /** This week's floor lists, in Washington's week. */
-    suspend fun schedule(): Schedule = get(scheduleUrl(), Schedule.serializer())
+    /** A week's floor lists: this week in Washington's week, or the week of [week], a Monday `YYYY-MM-DD`. */
+    suspend fun schedule(week: String? = null): Schedule = get(scheduleUrl(week), Schedule.serializer())
 
-    fun savedSchedule(): Saved<Schedule>? = saved(scheduleUrl(), Schedule.serializer())
+    fun savedSchedule(week: String? = null): Saved<Schedule>? = saved(scheduleUrl(week), Schedule.serializer())
 
-    private fun scheduleUrl(): HttpUrl = base.newBuilder().addPathSegments("v1/schedule").build()
+    private fun scheduleUrl(week: String?): HttpUrl =
+        base.newBuilder().addPathSegments("v1/schedule").apply { if (week != null) addQueryParameter("week", week) }.build()
 
     /** The 32 topics with their bill counts, for the Congress in session. */
     suspend fun topics(): TopicList = get(topicsUrl(), TopicList.serializer())

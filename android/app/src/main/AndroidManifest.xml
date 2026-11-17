@@ -16,14 +16,54 @@
         android:roundIcon="@mipmap/ic_launcher"
         android:supportsRtl="true"
         android:theme="@style/Theme.Floor">
+        <!-- singleTask: a shared link or the widget opens the running app rather than a second copy. -->
         <activity
             android:name=".MainActivity"
-            android:exported="true">
+            android:exported="true"
+            android:launchMode="singleTask">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
+            <!--
+                The share link, https://floor-web-seven.vercel.app/bill/119/hr/5267, as a verified App
+                Link: the API serves /.well-known/assetlinks.json naming this package and its signing
+                certificate (apps/api/src/share.ts). Anything under /bill/ reaches the activity, which
+                opens only what FloorLink parses (a bill's page, not its card.png) and ignores the rest.
+            -->
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="https" />
+                <data android:host="floor-web-seven.vercel.app" />
+                <data android:pathPrefix="/bill/" />
+            </intent-filter>
         </activity>
+
+        <!-- The home-screen widgets (widget/FloorWidgets.kt): the latest final, and your members. -->
+        <receiver
+            android:name=".widget.LatestFinalWidgetReceiver"
+            android:exported="true"
+            android:label="@string/widget_latest_final">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_latest_final" />
+        </receiver>
+        <receiver
+            android:name=".widget.MembersWidgetReceiver"
+            android:exported="true"
+            android:label="@string/widget_members">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_members" />
+        </receiver>
     </application>
 
 </manifest>

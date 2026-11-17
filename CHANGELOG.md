@@ -8,6 +8,22 @@ is a milestone and ships a retro under `docs/retros/`.
 Older series live in [`docs/changelog/`](docs/changelog) (0.1.x: [`0.1.md`](docs/changelog/0.1.md)).
 Before 0.1.0 the history is the commit log on `main`.
 
+## 0.2.51 — 2026-11-16
+
+### Added
+- **Floor for Android, phase 5 of 5: the Week tab, app links, widgets.** This completes the five phases.
+  - **The Week tab:** House "under a rule" and "fast track, needs ⅔", with followed items first.
+    The Senate's next meeting and the Daily Digest program, word for word. Placeholders for weeks
+    not posted yet.
+  - **App links:** `https://floor-web-seven.vercel.app/bill/…` opens the bill screen, parsed exactly
+    like iOS's FloorLink. The API serves `/.well-known/assetlinks.json` (proxied by the landing
+    page) with `ANDROID_CERT_SHA256`, which defaults to the debug key until a release key exists.
+  - **Two Glance widgets:** "Latest final" and "Your members". They refresh every 30 minutes and
+    when the app is backgrounded.
+  - `android/README.md` lists what isn't built: push (needs a Firebase project), sync, the catch-up
+    deck, release signing.
+- 15 new screenshots, 286 Android tests.
+
 ## 0.2.50 — 2026-11-16
 
 ### Added

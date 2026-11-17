@@ -56,9 +56,39 @@ Phase 4: members, your district and following.
   reorder) and "+ Add" (search over members, bills and topics with All / Senate / House). The
   Bills tab's search now has members too, each opening the member screen.
 
-Week is still a visible "Coming soon" placeholder.
+Phase 5: the Week tab, app links and the home-screen widgets.
 
-Where Android differs from iOS, and why: no catch-up deck yet. No alerts: iOS's bell and switches
+- **Week** (`week/`, `GET /v1/schedule?week=`): THIS WEEK / NEXT WEEK / WEEK OF with arrows to step
+  a week at a time (the Monday is Washington's, `Schedule.monday`), House · N and Senate. The House
+  side groups the Majority Leader's list as the House does ("Debated under a rule", "Fast track,
+  needs ⅔", "Other items"), what you follow first with the gold edge and a FOLLOWING tag (a bill, or
+  through a followed topic), five rows then "+ N more", items taken off the list dimmed at the end.
+  The Senate side is the next meeting, the Daily Digest's program verbatim with each measure it
+  names linked to its bill, the measures named, and "plans a day at a time". An unpublished week says
+  so in dashed placeholders, never "recess". A bill opens on the Week tab's own stack.
+- **App links**: `https://floor-web-seven.vercel.app/bill/{congress}/{type}/{number}` opens the bill
+  screen (an `autoVerify` intent filter on that host and `/bill/`). `model/FloorLink.kt` parses it
+  exactly as iOS `FloorLink` does, its tests ported case for case; anything else under `/bill/`
+  (the `card.png`) just opens the app. The API serves `/.well-known/assetlinks.json` for
+  `app.floor.android` (`apps/api/src/share.ts`, `assetLinks`; the landing page's `vercel.json`
+  proxies it). **Its default fingerprint is the DEBUG keystore of the Mac the app was first built
+  on: a release (or Play App Signing) certificate's SHA-256 must be added through
+  `ANDROID_CERT_SHA256` (comma-separated, on floor-api) before the Play Store**, or release builds
+  open the link in the browser.
+- **Widgets** (`widget/`, Jetpack Glance): "Latest final" (small: the newest final vote in your
+  members' records, the score, and your rep's chip) and "Your members" (medium: your three's latest
+  votes, each row opening its vote). Both read your district and follows from the app's DataStore and
+  fetch `/v1/members/{id}/votes?limit=25` through the app's own response cache, the same request the
+  Finals feed makes, so offline they show what the app last saw, with "As of …" past two hours. They
+  refresh every 30 minutes (`updatePeriodMillis`) and when the app goes to the background. A tap opens
+  the vote (`floor://vote/…`, an explicit intent to `MainActivity`), or the app from an empty or
+  error state.
+
+Where Android differs from iOS, and why: no catch-up deck yet. The Week tab's "Nothing you follow
+is scheduled" leaves out "and you can get an alert". The widgets draw headlines in the system's
+condensed sans (RemoteViews can't carry the bundled Barlow), head with the app icon's F rather than
+the chamber glyph, keep no snapshot of their own (the response cache is the saved copy), and the
+medium one has no member pick (iOS's Edit Widget): it is your reps, else the first three you follow. No alerts: iOS's bell and switches
 need push, which needs FCM, so the Following tab says "Alerts come to Android later" instead. No
 iCloud sync (and no tombstones for it). Following is reordered with Move up / Move down rather than
 a drag handle. Any change to what you follow reloads Finals' feed whole, where iOS fetches only what
@@ -67,6 +97,16 @@ the Bills tab too. iOS shows "Kinds of vote" and Speak up as sheets; Android pus
 screen so system back closes it, and shows Speak up and "+ Add" as bottom sheets. Portraits are
 fetched with OkHttp from the same `unitedstates/images` files iOS reads; tests draw initials
 (`LocalLoadsPortraits`).
+
+## What's not built
+
+- **Push** (vote and bill alerts, and the Live Activity's equivalent, an ongoing notification for an
+  open vote): needs a Firebase project for FCM, and the API's device registration taught to send to
+  it. Until then Following says "Alerts come to Android later".
+- **Sync across devices** (iOS's iCloud follow sync): the follow list stays on this phone.
+- **The catch-up deck.**
+- **Release signing and the Play Store**: no release keystore, no listing, `versionName` still
+  hand-set. A release certificate's fingerprint also has to go into `ANDROID_CERT_SHA256` (above).
 
 ## Stack
 
@@ -111,6 +151,11 @@ cd android
   disclosures, Nadler's transcribed report, disclosures off), the member-elect screen and the vote's
   "Your members"; `DistrictSnapshotTest` draws onboarding, Finals with your three (and Michigan's
   seat changing hands), the Following tab and search with members-elect.
+- `WeekSnapshotTest` draws the House (light, dark, large) and Senate sides of the week of Nov 16,
+  the empty week of Nov 23 on both sides, and a failed load. `WidgetSnapshotTest` has Glance compose
+  each widget's RemoteViews, applies them to a view and captures it: both widgets light and dark,
+  stale, no members and failed. `WidgetFeedTest` checks what they show on the TX-37 records, as iOS's
+  `WidgetFeedTests` do.
 - `BillsSnapshotTest` draws the Bills tab, search, a topic's page, H.R. 5267 (on the floor) and
   H.R. 1013, the AI section on its own (the only analysis fixture is H.R. 6363's, with no bill
   response to put it under, as on iOS) and Speak up with and without a district (Austin, TX-37,

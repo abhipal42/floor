@@ -248,10 +248,18 @@ enum class ScheduleCategory { RULE, SUSPENSION, OTHER }
 @Serializable
 data class ScheduleItem(
     @SerialName("category") val categoryRaw: String,
+    val categoryText: String = "",
+    /** Null for a resolution not yet numbered, or a bill not in Floor's catalog yet. */
     val billId: String? = null,
     /** The citation, e.g. `H.R. 5267`. */
     val label: String,
     val title: String,
+    /** What the source printed for the item. */
+    val sourceText: String = "",
+    val policyArea: String? = null,
+    @SerialName("stage") val stageRaw: String? = null,
+    val latestAction: LatestAction? = null,
+    val addedAt: String? = null,
     /** Set once the item was taken off the week's list. */
     val removedAt: String? = null,
 ) {
@@ -261,19 +269,87 @@ data class ScheduleItem(
             "suspension" -> ScheduleCategory.SUSPENSION
             else -> ScheduleCategory.OTHER
         }
+
+    /** Null until staged, and for a stage newer than this build. */
+    val stage: BillStage? get() = BillStage.of(stageRaw)
+
+    /** `Placed on the Union Calendar, Calendar No. 702 · Oct 29`: the latest step, as a row says it. */
+    val latestLine: String?
+        get() {
+            val action = latestAction ?: return null
+            val text = action.text.trim('.', ' ')
+            return listOfNotNull(text, Formats.monthDay(action.on)).joinToString(" · ")
+        }
 }
 
-/** `GET /v1/schedule`: the week ahead, as much of it as the bill screen's banner reads. */
+/** One day the Senate meets, from senate.gov and the Congressional Record's Daily Digest. */
 @Serializable
-data class Schedule(val week: String, val house: Items, val senate: Items? = null) {
+data class SenateMeeting(
+    /** `YYYY-MM-DD`. */
+    val date: String,
+    val convenesAt: String? = null,
+    /** The Senate meets for seconds and does no business. */
+    val proForma: Boolean = false,
+    /** The Daily Digest's heading, e.g. `3 p.m., Monday, November 16`. */
+    val heading: String? = null,
+    /** The Daily Digest's program, in its own words; null until the Record is out. */
+    val program: String? = null,
+    val recordIssue: String? = null,
+)
+
+/**
+ * `GET /v1/schedule`: the week ahead. The House's list of what may come up, and when the Senate
+ * meets with the Daily Digest's program for that day. Listed is not scheduled: items move.
+ */
+@Serializable
+data class Schedule(
+    /** The Monday, `YYYY-MM-DD`. */
+    val week: String,
+    val house: House = House(),
+    val senate: Senate? = null,
+    /** Why [senate] is null. */
+    val senateReason: String? = null,
+    val sourceUpdatedAt: String? = null,
+) {
     @Serializable
-    data class Items(val items: List<ScheduleItem> = emptyList())
+    data class House(
+        /** True when the House has published a list for the week; null when it has not. */
+        val inSession: Boolean? = null,
+        val items: List<ScheduleItem> = emptyList(),
+    )
+
+    @Serializable
+    data class Senate(val meetings: List<SenateMeeting> = emptyList(), val items: List<ScheduleItem> = emptyList())
 
     /** Where a bill is on this week's lists, if it is (and was not taken off). */
     fun listing(billId: String): Pair<Chamber, ScheduleItem>? {
         house.items.firstOrNull { it.billId == billId && it.removedAt == null }?.let { return Chamber.HOUSE to it }
         senate?.items?.firstOrNull { it.billId == billId && it.removedAt == null }?.let { return Chamber.SENATE to it }
         return null
+    }
+
+    /** `Nov 16–20`: Monday to Friday, the days the House lists. */
+    val weekRange: String get() = weekRange(week)
+
+    companion object {
+        /** `Nov 16–20`, or `Nov 30 – Dec 4` across a month; the text itself when it is not a day. */
+        fun weekRange(week: String): String {
+            val monday = Formats.day(week) ?: return week
+            val friday = monday.plusDays(4)
+            val month = java.time.format.DateTimeFormatter.ofPattern("MMM", java.util.Locale.US)
+            val start = "${monday.format(month)} ${monday.dayOfMonth}"
+            return if (monday.month == friday.month) "$start–${friday.dayOfMonth}" else "$start – ${friday.format(month)} ${friday.dayOfMonth}"
+        }
+
+        /**
+         * The Monday (`YYYY-MM-DD`) of the week [at] falls in, in Washington, [offsetWeeks] weeks on:
+         * the API's own rule (`scheduleWeek` in apps/api/src/app.ts), so the app asks for the week it shows.
+         */
+        fun monday(at: java.time.Instant, offsetWeeks: Int = 0): String {
+            val day = at.atZone(java.time.ZoneId.of("America/New_York")).toLocalDate()
+            val back = (day.dayOfWeek.value - 1).toLong() // Monday is 1
+            return day.minusDays(back).plusWeeks(offsetWeeks.toLong()).toString()
+        }
     }
 }
 
