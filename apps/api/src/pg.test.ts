@@ -376,6 +376,12 @@ describe("Postgres repositories", () => {
       title: "Example Act",
       // Its topic, so the Following feed can say a vote is in one you follow.
       policyArea: "Taxation",
+      // Who sponsored it, for the feed card's citation line.
+      sponsor: { bioguideId: "H000037", lastName: "Current", party: "D", state: "TX" },
+      // The opening of its CRS summary, and nothing a nomination would carry.
+      summaryLead: "This bill does things.",
+      position: null,
+      forBillId: null,
     });
     // A procedural vote refers to no measure at all.
     expect(try0(votes.find((v) => v.vote.id === "house-119-1-2")).measure).toBeNull();
@@ -389,6 +395,10 @@ describe("Postgres repositories", () => {
       citation: "H.R. 1",
       title: "Example Act",
       policyArea: "Taxation",
+      sponsor: { bioguideId: "H000037", lastName: "Current", party: "D", state: "TX" },
+      summaryLead: "This bill does things.",
+      position: null,
+      forBillId: null,
     });
     // The same builder as the feed, so the two can never describe one measure differently.
     const inTheFeed = (await repos.members.recentVotes("H000037", 10))
@@ -406,6 +416,11 @@ describe("Postgres repositories", () => {
       citation: "PN12-12",
       title: "Daniel Driscoll",
       policyArea: null,
+      sponsor: null,
+      summaryLead: null,
+      // The post, for the feed card's citation line.
+      position: "Secretary of the Army",
+      forBillId: null,
     });
     // Military nominations promote officers in bulk and carry no name.
     expect(try0(votes.find((v) => v.vote.id === "senate-119-1-91")).measure).toEqual({
@@ -414,6 +429,10 @@ describe("Postgres repositories", () => {
       citation: "PN900",
       title: "General, Army",
       policyArea: null,
+      sponsor: null,
+      summaryLead: null,
+      position: "General",
+      forBillId: null,
     });
   });
 
@@ -672,12 +691,38 @@ describe("recent votes", () => {
     ]);
     expect(all[1]!.measure).toEqual({
       id: "119-pn-12-12", kind: "nomination", citation: "PN12-12", title: "Daniel Driscoll", policyArea: null,
+      sponsor: null, summaryLead: null, position: "Secretary of the Army", forBillId: null,
     });
     expect(all.find((r) => r.vote.id === "house-119-1-2")!.measure).toBeNull();
     expect((await repos.votes.recentVotes("house", 2)).map((r) => r.vote.id)).toEqual(["house-119-1-4", "house-119-1-3"]);
     // The next page: before the last one shown.
     const next = await repos.votes.recentVotes(undefined, 2, new Date("2025-01-12T15:00:00Z"));
     expect(next.map((r) => r.vote.id)).toEqual(["house-119-1-2", "house-119-1-1"]);
+  });
+
+  it("carries each vote's party split, counted as the vote screen counts it, in the same query", async () => {
+    const all = await repos.votes.recentVotes(undefined, 10);
+    const onTheBill = all.find((r) => r.vote.id === "house-119-1-1")!;
+    expect(onTheBill.partyTotals).toEqual((await repos.votes.voteBreakdown("house-119-1-1", [])).partyTotals);
+    expect(onTheBill.partyTotals.find((t) => t.party === "R")).toMatchObject({ yea: 0, nay: 2 });
+    // An election records candidates, not yeas and nays, so it has no party rows.
+    expect(all.find((r) => r.vote.id === "house-119-1-4")!.partyTotals).toEqual([]);
+  });
+
+  it("files a special rule's measure under the bill it brings up (H.Res. 1247, its real title)", async () => {
+    await pg.exec(`
+      insert into bills (id, congress, bill_type, number, title, short_title)
+        values ('119-hres-1247', 119, 'hres', 1247,
+                'Providing for consideration of the bill (H.R. 2102) to amend title 10, United States Code, to provide for concurrent receipt of veterans'' disability compensation and retired pay for disability retirees with combat-related disabilities, and for other purposes.',
+                null);
+      insert into votes (id, chamber, congress, session, roll_number, question, state, yea, nay, result, occurred_at, bill_id)
+        values ('house-119-2-9001', 'house', 119, 2, 9001, 'On Agreeing to the Resolution', 'final', 271, 135, 'Passed', '2026-11-12T15:00:00Z', '119-hres-1247');
+    `);
+    const [rule] = await repos.votes.recentVotes("house", 1);
+    expect(rule!.measure).toMatchObject({ id: "119-hres-1247", forBillId: "119-hr-2102", sponsor: null, summaryLead: null });
+    // Any other bill names no bill.
+    expect((await repos.votes.voteBreakdown("house-119-1-1", [])).measure?.forBillId).toBeNull();
+    await pg.exec("delete from votes where id = 'house-119-2-9001'; delete from bills where id = '119-hres-1247'");
   });
 
   it("narrows to votes on bills in the topics asked for, and to nothing for a topic with none", async () => {
@@ -988,6 +1033,10 @@ describe("live votes name their measure", () => {
       citation: "H.R. 1",
       title: "Example Act",
       policyArea: "Taxation",
+      sponsor: { bioguideId: "H000037", lastName: "Current", party: "D", state: "TX" },
+      summaryLead: "This bill does things.",
+      position: null,
+      forBillId: null,
     });
     expect(byId["house-119-3-7901"]!.measure).toBeNull();
     await pg.exec("delete from votes where id in ('house-119-3-7900', 'house-119-3-7901')");

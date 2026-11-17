@@ -4,6 +4,8 @@
  * titles in `bills.test.ts`.
  */
 
+import { RULE_TITLE } from "./votekinds.js";
+
 /**
  * How each chamber writes a bill number. Defined once because every route that names a bill uses
  * it: if they formatted it separately, the same bill could appear as "H.R. 1013" on one screen and
@@ -130,17 +132,93 @@ function clamp(s: string): string {
   return `${cut.slice(0, cut.lastIndexOf(" ") > 80 ? cut.lastIndexOf(" ") : cut.length).replace(/[,;:]$/, "")}…`;
 }
 
-/** Every bill a title cites in parentheses, "(H.R. 140)", in Floor's spelling. */
-function citedBills(title: string): string[] {
-  const cites: string[] = [];
+/** Every measure a title cites in parentheses, "(H.R. 140)", "(H. Res. 1182)", "(S. 1383)", in order. */
+function citedNumbers(title: string): { type: string; number: number }[] {
+  const cites: { type: string; number: number }[] = [];
   for (const m of title.matchAll(/\(((?:H|S)\.?\s?(?:R|Res|J\.?\s?Res|Con\.?\s?Res)?\.?\s?\d+)\)/gi)) {
     const parsed = parseBillNumber(m[1]!);
-    if (parsed) {
-      const c = billCitation(parsed.type, parsed.number);
-      if (!cites.includes(c)) cites.push(c);
-    }
+    if (parsed) cites.push({ type: parsed.type, number: parsed.number });
   }
   return cites;
+}
+
+/** Every bill a title cites in parentheses, "(H.R. 140)", in Floor's spelling. */
+function citedBills(title: string): string[] {
+  return [...new Set(citedNumbers(title).map((c) => billCitation(c.type, c.number)))];
+}
+
+/**
+ * The bill a House special rule is for: "Providing for consideration of the bill (H.R. 2102) …" →
+ * "119-hr-2102", so a feed can file the rule's votes under that bill's story. A rule often covers
+ * several measures; the first one it names is taken. Null for a title that is not a rule
+ * (`RULE_TITLE`) or that cites nothing.
+ */
+export function ruleForBill(title: string, congress: number): string | null {
+  if (!RULE_TITLE.test(title.trim())) return null;
+  const first = citedNumbers(title)[0];
+  return first ? `${congress}-${first.type}-${first.number}` : null;
+}
+
+const LEAD_MAX = 320;
+/** A first sentence shorter than this takes the next one too, while the lead stays within `LEAD_MAX`. */
+const LEAD_SHORT = 120;
+
+/** A paragraph CRS puts before the summary proper: the bill's title on a line of its own, or the draft-text note. */
+const isPreamble = (p: string) => !/[.!?:;]["')”]*$/.test(p) || /^The following analysis is based on draft bill text/i.test(p);
+
+/** A period that ends an abbreviation rather than a sentence: "H.R.", "U.S.", "i.e.", "No.", "Res.". */
+const ABBREVIATION = /(?:^|[\s(])(?:(?:[A-Z]\.)+|i\.e\.|e\.g\.|(?:Mr|Mrs|Ms|Dr|St|No|Nos|Sec|Secs|Jr|Sr|Inc|Co|Corp|Ltd|vs|Gen|Res|Con|Pub|Stat|etc)\.)$/;
+
+/** The sentences of a paragraph, each with its closing punctuation. */
+function sentences(p: string): string[] {
+  const out: string[] = [];
+  let start = 0;
+  for (const m of p.matchAll(/[.!?]["')\]”]*(?=\s+["(“]?[A-Z]|\s*$)/g)) {
+    const end = m.index + m[0].length;
+    if (m[0].startsWith(".") && ABBREVIATION.test(p.slice(start, m.index + 1)) && end < p.length) continue;
+    out.push(p.slice(start, end).trim());
+    start = end;
+  }
+  const rest = p.slice(start).trim();
+  if (rest) out.push(rest);
+  return out;
+}
+
+/**
+ * The opening of a bill's CRS summary, for a feed card: its first sentence, cut at the sentence's
+ * end (a short one takes the next sentence too), at most about 320 characters. The title line CRS
+ * starts most summaries with, and the note on draft text it starts some with, are skipped. Null when
+ * there is no summary. A first sentence longer than the limit is cut at a word with an ellipsis.
+ */
+export function summaryLead(summary: string | null): string | null {
+  const paragraphs = (summary ?? "")
+    .split(/\n\s*\n/)
+    .flatMap((p) => {
+      // A title on its own line directly above the text (no blank line between, as in some 118th
+      // Congress summaries) is a paragraph of its own. A line before a bullet list is not.
+      const lines = p.trim().split("\n");
+      return lines.length > 1 && isPreamble(lines[0]!.trim()) && !lines[1]!.trim().startsWith("•")
+        ? [lines[0]!, lines.slice(1).join("\n")]
+        : [p];
+    })
+    // Bullets read on as one sentence: "the House • condemns …; • reaffirms …" → "the House condemns …; reaffirms …".
+    .map((p) => p.replace(/\n\s*•\s*/g, " ").replace(/\s+/g, " ").trim())
+    .filter(Boolean);
+  const found = paragraphs.find((p) => !isPreamble(p));
+  if (!found) return null;
+  // Some 118th Congress summaries run the title into the text with only a space ("… Act of 2023 This bill requires").
+  const body = found.replace(/^[^.!?]*?\s?(?=This (?:bill|joint resolution|concurrent resolution|resolution)\b)/, "");
+  const [first, ...more] = sentences(body);
+  let lead = first!;
+  if (lead.length > LEAD_MAX) {
+    const cut = lead.slice(0, LEAD_MAX - 1);
+    return `${cut.slice(0, cut.lastIndexOf(" ")).replace(/[,;:]$/, "")}…`;
+  }
+  for (const next of more) {
+    if (lead.length >= LEAD_SHORT || lead.length + 1 + next.length > LEAD_MAX) break;
+    lead = `${lead} ${next}`;
+  }
+  return lead;
 }
 
 const listOf = (items: string[]) =>

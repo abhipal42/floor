@@ -629,6 +629,35 @@
           "explainer"
         ]
       },
+      "MeasureSponsor": {
+        "type": "object",
+        "nullable": true,
+        "properties": {
+          "bioguideId": {
+            "type": "string",
+            "example": "B001257"
+          },
+          "lastName": {
+            "type": "string",
+            "example": "Bilirakis"
+          },
+          "party": {
+            "type": "string",
+            "example": "R"
+          },
+          "state": {
+            "type": "string",
+            "example": "FL"
+          }
+        },
+        "required": [
+          "bioguideId",
+          "lastName",
+          "party",
+          "state"
+        ],
+        "description": "A bill's sponsor; null for a nomination and for a bill whose sponsor is not in the members table"
+      },
       "MeasureSummary": {
         "type": "object",
         "nullable": true,
@@ -658,6 +687,27 @@
             "nullable": true,
             "description": "A bill's CRS policy area (its topic), so a feed can say a vote is in a topic you follow; null for a nomination and for a bill CRS has not classified",
             "example": "Health"
+          },
+          "sponsor": {
+            "$ref": "#/components/schemas/MeasureSponsor"
+          },
+          "summaryLead": {
+            "type": "string",
+            "nullable": true,
+            "description": "The opening of the bill's CRS summary (the text the bill route serves as `summary`) without its title line: the first sentence, or two when the first is short, cut at a sentence end, at most about 320 characters. CRS's words, not AI. Null for a nomination and for a bill CRS has not summarized",
+            "example": "This bill allows a veteran with a combat-related disability to receive retirement pay, without reduction, concurrently with their disability compensation."
+          },
+          "position": {
+            "type": "string",
+            "nullable": true,
+            "description": "A nomination's position title; null for a bill",
+            "example": "United States Circuit Judge for the Tenth Circuit"
+          },
+          "forBillId": {
+            "type": "string",
+            "nullable": true,
+            "description": "For a House special rule (\"Providing for consideration of the bill (H.R. 2102) ...\"), the id of the bill it brings to the floor: the first one its title names when it names several. Null for anything else",
+            "example": "119-hr-2102"
           }
         },
         "required": [
@@ -665,24 +715,13 @@
           "kind",
           "citation",
           "title",
-          "policyArea"
+          "policyArea",
+          "sponsor",
+          "summaryLead",
+          "position",
+          "forBillId"
         ],
         "description": "null for a procedural vote that refers to no measure"
-      },
-      "RecentVote": {
-        "type": "object",
-        "properties": {
-          "vote": {
-            "$ref": "#/components/schemas/Vote"
-          },
-          "measure": {
-            "$ref": "#/components/schemas/MeasureSummary"
-          }
-        },
-        "required": [
-          "vote",
-          "measure"
-        ]
       },
       "PartyTotals": {
         "type": "object",
@@ -710,6 +749,29 @@
           "nay",
           "present",
           "notVoting"
+        ]
+      },
+      "RecentVote": {
+        "type": "object",
+        "properties": {
+          "vote": {
+            "$ref": "#/components/schemas/Vote"
+          },
+          "measure": {
+            "$ref": "#/components/schemas/MeasureSummary"
+          },
+          "partyTotals": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PartyTotals"
+            },
+            "description": "Per-party counts, as on `VoteDetail`; empty for an election, which has no yea or nay"
+          }
+        },
+        "required": [
+          "vote",
+          "measure",
+          "partyTotals"
         ]
       },
       "CandidateTotal": {

@@ -86,13 +86,13 @@ const repo: VoteRepository = {
       const member = members.find((m) => m.bioguideId === id);
       return member ? [{ member, position: "yea" as const, choice: null }] : [];
     }),
-    measure: { id: "119-hconres-14", kind: "bill" as const, citation: "H.Con.Res. 14", title: "FY2025 Budget", policyArea: "Economics and Public Finance" },
+    measure: { id: "119-hconres-14", kind: "bill" as const, citation: "H.Con.Res. 14", title: "FY2025 Budget", policyArea: "Economics and Public Finance", sponsor: null, summaryLead: null, position: null, forBillId: null },
   }),
   recentVotes: async (chamber, limit, before, topics) => {
     topicCalls.push(topics);
     return [
-      { vote: nominationVote, measure: null },
-      { vote: sample, measure: { id: "119-hconres-14", kind: "bill" as const, citation: "H.Con.Res. 14", title: "FY2025 Budget", policyArea: "Economics and Public Finance" } },
+      { vote: nominationVote, measure: null, partyTotals: [] },
+      { vote: sample, partyTotals, measure: { id: "119-hconres-14", kind: "bill" as const, citation: "H.Con.Res. 14", title: "FY2025 Budget", policyArea: "Economics and Public Finance", sponsor: null, summaryLead: null, position: null, forBillId: null } },
     ]
       .filter((r) => !chamber || r.vote.chamber === chamber)
       .filter((r) => !before || new Date(r.vote.occurredAt!) < before)
@@ -130,7 +130,17 @@ const openVote: LiveVote = {
   openedAt: "2026-11-10T23:20:53.000Z",
   announcedAt: "2026-11-10T23:33:00.000Z",
   postedAt: null,
-  measure: { id: "119-hres-1650", kind: "bill", citation: "H.Res. 1650", title: "Providing for consideration", policyArea: null },
+  measure: {
+    id: "119-hres-1650",
+    kind: "bill",
+    citation: "H.Res. 1650",
+    title: "Providing for consideration",
+    policyArea: null,
+    sponsor: null,
+    summaryLead: null,
+    position: null,
+    forBillId: "119-hr-1013",
+  },
 };
 const houseStatus: ChamberStatus = {
   chamber: "house",
@@ -170,7 +180,7 @@ const app = createApp({
             vote: sample,
             position: "yea" as const,
             choice: null,
-            measure: { id: "119-hconres-14", kind: "bill" as const, citation: "H.Con.Res. 14", title: "FY2025 Budget", policyArea: "Economics and Public Finance" },
+            measure: { id: "119-hconres-14", kind: "bill" as const, citation: "H.Con.Res. 14", title: "FY2025 Budget", policyArea: "Economics and Public Finance", sponsor: null, summaryLead: null, position: null, forBillId: null },
           }].slice(0, limit)
         : [],
     getMember: async (id) => members.find((m) => m.bioguideId === id) ?? null,
@@ -465,7 +475,7 @@ describe("API", () => {
         vote: sample,
         position: "yea",
         choice: null,
-        measure: { id: "119-hconres-14", kind: "bill", citation: "H.Con.Res. 14", title: "FY2025 Budget", policyArea: "Economics and Public Finance" },
+        measure: { id: "119-hconres-14", kind: "bill", citation: "H.Con.Res. 14", title: "FY2025 Budget", policyArea: "Economics and Public Finance", sponsor: null, summaryLead: null, position: null, forBillId: null },
       }],
     });
   });
@@ -501,6 +511,9 @@ describe("API", () => {
     const all = await (await app.request("/v1/votes")).json();
     expect(all.votes.map((r: { vote: Vote }) => r.vote.id)).toEqual([nominationVote.id, sample.id]);
     expect(all.votes[1].measure.citation).toBe("H.Con.Res. 14");
+    // Each row carries its party split, so a feed's party bars need no request per card.
+    expect(all.votes[1].partyTotals).toEqual(partyTotals);
+    expect(all.votes[0].partyTotals).toEqual([]);
     const house = await (await app.request("/v1/votes?chamber=house&limit=10")).json();
     expect(house.votes.map((r: { vote: Vote }) => r.vote.id)).toEqual([sample.id]);
     expect((await app.request("/v1/votes?limit=101")).status).toBe(400);
@@ -680,7 +693,8 @@ describe("API", () => {
     // to no measure), and Funding on MemberFunding, its only use, null when FEC has no totals for
     // the member; BillStage on BillListItem and Bill, both null until the worker has staged the
     // bill; VoteExplainer on Vote, null for a question with no written line; and SeatHolder on
-    // MemberElect.replaces and PendingSeat.incumbent, null when the seat's holder is unknown. Anything else showing up here needs checking against how it is actually used
+    // MemberElect.replaces and PendingSeat.incumbent, null when the seat's holder is unknown; and MeasureSponsor
+    // on MeasureSummary, its only use, null for a nomination. Anything else showing up here needs checking against how it is actually used
     // before the list is widened — and if Funding ever gains a use that must not accept null, it
     // has to come off this list and out of the component, not be left here.
     const doc = await (await app.request("/openapi.json")).json();
@@ -688,7 +702,7 @@ describe("API", () => {
     const hoisted = Object.entries(schemas)
       .filter(([, schema]) => schema.nullable)
       .map(([name]) => name);
-    expect(hoisted.sort()).toEqual(["BillStage", "Funding", "LatestAction", "MeasureSummary", "SeatHolder", "VoteExplainer"]);
+    expect(hoisted.sort()).toEqual(["BillStage", "Funding", "LatestAction", "MeasureSponsor", "MeasureSummary", "SeatHolder", "VoteExplainer"]);
   });
 });
 
