@@ -10,6 +10,7 @@ import androidx.compose.ui.unit.Density
 import app.floor.android.Fixtures
 import app.floor.android.design.Appearance
 import app.floor.android.design.FloorTheme
+import app.floor.android.design.LocalLoadsPortraits
 import app.floor.android.design.LocalPlaysArrivalAnimations
 import app.floor.android.model.Bill
 import app.floor.android.model.VoteDetail
@@ -55,6 +56,7 @@ class VoteSnapshotTest {
             val density = LocalDensity.current
             CompositionLocalProvider(
                 LocalPlaysArrivalAnimations provides false,
+                LocalLoadsPortraits provides false,
                 LocalDensity provides Density(density.density, look.fontScale),
             ) {
                 FloorTheme(look.appearance, content)

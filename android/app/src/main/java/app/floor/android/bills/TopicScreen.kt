@@ -57,6 +57,8 @@ fun TopicScreen(
     onLoadMore: () -> Unit,
     onOpenBill: (String) -> Unit,
     modifier: Modifier = Modifier,
+    /** Follow / Following beside the name, and its toggle; null draws none. */
+    follow: Pair<Boolean, () -> Unit>? = null,
 ) {
     val colors = Palette
     Column(modifier.fillMaxSize().background(colors.ground).windowInsetsPadding(WindowInsets.statusBars)) {
@@ -68,7 +70,12 @@ fun TopicScreen(
         ) {
             state.saved?.let { item { SavedDataNote(it) } }
             item {
-                Text(state.name.uppercase(), style = FloorType.headline(34f), color = colors.text, modifier = Modifier.semantics { heading() })
+                androidx.compose.foundation.layout.Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+                    Text(state.name.uppercase(), style = FloorType.headline(34f), color = colors.text, modifier = Modifier.weight(1f).semantics { heading() })
+                    follow?.let { (on, toggle) ->
+                        app.floor.android.design.FollowPill(on, state.name, onTitle = "✓ FOLLOWING", onToggle = toggle)
+                    }
+                }
             }
             state.topic?.let { item { Text(TopicText.detail(it), style = FloorType.text(12f), color = colors.textMuted) } }
             item { FilterSwitch(state.filter, onSelect) }

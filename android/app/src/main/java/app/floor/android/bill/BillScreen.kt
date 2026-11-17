@@ -50,6 +50,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import app.floor.android.design.FloorType
 import app.floor.android.design.Palette
+import app.floor.android.design.position
+import app.floor.android.model.shortLabel
+import app.floor.android.model.questionKind
 import app.floor.android.design.SavedDataNote
 import app.floor.android.design.SkewChip
 import app.floor.android.design.outcome
@@ -82,9 +85,9 @@ fun playDay(vote: Vote, zone: ZoneId, locale: Locale): String {
  * with its disclaimer), six levels to law with the votes that moved it, its topic, the CRS summary
  * itself, Speak up and Share, and what it costs.
  *
- * Without a follow list (follows arrive in phase 4) the citation sits at the top right, as iOS
- * draws it with none. "Your members on this bill" needs a district (phase 4); iOS draws none
- * without one either.
+ * With a follow list ([follow]) the citation moves above the title beside Follow bill, and the topic
+ * card says whether you follow it; without one it sits at the top right, as iOS draws it. "Your
+ * members on this bill" follows Speak up when you have members.
  *
  * @param onSpeakUp opens the Speak up sheet ([SpeakUpSheet]), which the caller presents.
  * @param zone the zone a vote's day is printed in; pass it explicitly (lesson 69).
@@ -103,11 +106,12 @@ fun BillScreen(
     onOpenTopic: (String) -> Unit,
     onSpeakUp: () -> Unit,
     modifier: Modifier = Modifier,
+    follow: BillFollow? = null,
 ) {
     val colors = Palette
     Column(modifier.fillMaxSize().background(colors.ground).windowInsetsPadding(WindowInsets.statusBars)) {
         val bill = (state.phase as? BillScreenState.Phase.Loaded)?.bill
-        TopBar(back = back, onBack = onBack, trailing = bill?.let(::citationLine))
+        TopBar(back = back, onBack = onBack, trailing = if (follow == null) bill?.let(::citationLine) else null)
         when (val phase = state.phase) {
             BillScreenState.Phase.Loading -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 CircularProgressIndicator(
@@ -141,17 +145,62 @@ fun BillScreen(
             ) {
                 val loaded = phase.bill
                 state.saved?.let { SavedDataNote(it) }
+                if (follow != null) FollowRow(loaded, follow)
                 Header(loaded)
                 state.listing?.let { FloorBanner(it) }
                 AIAnalysisSection(state.analysis, state.openCitation, onToggleCitation, onRetryAnalysis)
                 Levels(loaded, zone, locale, onOpenVote)
                 // Only one of the 32 topics: anything else has no page to open.
-                loaded.policyArea?.let(Topic::canonical)?.let { TopicCard(it, onOpenTopic) }
+                loaded.policyArea?.let(Topic::canonical)?.let { TopicCard(it, follow?.followingTopic?.invoke(it) == true, onOpenTopic) }
                 loaded.summary?.takeIf { it.isNotEmpty() }?.let {
                     WhatItDoes(it, loaded.summaryStage, analysisShown = state.analysis is AnalysisPhase.Loaded)
                 }
                 SpeakUpAndShare(state, loaded, onSpeakUp)
+                if (state.yourMembers.isNotEmpty()) YourMembers(state.yourMembers)
                 if (loaded.cboEstimates.isNotEmpty()) Cost(loaded)
+            }
+        }
+    }
+}
+
+/** Follow bill on the bill screen, and whether you follow a topic (for the topic card). */
+data class BillFollow(val following: Boolean, val followingTopic: (String) -> Boolean, val onToggle: () -> Unit)
+
+/** The citation and Follow bill, above the title. */
+@Composable
+private fun FollowRow(bill: Bill, follow: BillFollow) {
+    val colors = Palette
+    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text(citationLine(bill), style = FloorType.label(12f).copy(letterSpacing = 1.2.sp), color = colors.threshold, modifier = Modifier.weight(1f))
+        app.floor.android.design.FollowPill(follow.following, bill.citation, offTitle = "FOLLOW BILL", onTitle = "✓ FOLLOWING", onToggle = follow.onToggle)
+    }
+}
+
+/** "Your members on this bill": their position on its latest roll call in their chamber, or that there is none. */
+@Composable
+private fun YourMembers(members: List<MemberOnBill>) {
+    val colors = Palette
+    Column(Modifier.panel(colors), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text("YOUR MEMBERS ON THIS BILL", style = FloorType.label(20f), color = colors.text, modifier = Modifier.semantics { heading() })
+        members.forEach { entry ->
+            Row(Modifier.semantics(mergeDescendants = true) {}, verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                app.floor.android.design.MemberPortrait(entry.member, Modifier.size(34.dp))
+                val vote = entry.vote
+                Text(
+                    androidx.compose.ui.text.buildAnnotatedString {
+                        pushStyle(androidx.compose.ui.text.SpanStyle(fontWeight = FontWeight.Bold))
+                        append(entry.member.lastName)
+                        pop()
+                        append(if (vote != null) " · ${vote.chamber.title} ${vote.questionKind.lowercase()}" else " · no ${entry.member.chamber.title} vote on it yet")
+                    },
+                    style = FloorType.text(13f), color = colors.text, modifier = Modifier.weight(1f),
+                )
+                entry.position?.let { position ->
+                    Text(
+                        if (position == app.floor.android.model.Position.CANDIDATE) (entry.choice ?: "BALLOT").uppercase() else position.shortLabel,
+                        style = FloorType.display(20f, FloorType.Face.BLACK_ITALIC), color = colors.position(position),
+                    )
+                }
             }
         }
     }
@@ -333,20 +382,20 @@ private fun Play(vote: Vote, zone: ZoneId, locale: Locale, onOpen: () -> Unit) {
 
 /** The bill's CRS policy area as a link to its topic's page. */
 @Composable
-private fun TopicCard(area: String, onOpen: (String) -> Unit) {
+private fun TopicCard(area: String, following: Boolean, onOpen: (String) -> Unit) {
     val colors = Palette
     val shape = RoundedCornerShape(14.dp)
     Column(Modifier.panel(colors), verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Text("TOPIC", style = FloorType.label(20f), color = colors.text, modifier = Modifier.semantics { heading() })
         Text(
-            "$area ›",
+            if (following) "$area ✓ Following" else "$area ›",
             style = FloorType.text(12f, FontWeight.Bold),
             color = colors.threshold,
             modifier = Modifier
                 .clip(shape)
                 .border(1.dp, colors.threshold, shape)
                 .clickable(role = Role.Button, onClickLabel = "Open every bill in $area") { onOpen(area) }
-                .semantics { contentDescription = "Topic: $area" }
+                .semantics { contentDescription = if (following) "Topic: $area, following" else "Topic: $area" }
                 .padding(horizontal = 10.dp, vertical = 5.dp),
         )
     }

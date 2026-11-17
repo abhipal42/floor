@@ -8,6 +8,10 @@ import androidx.lifecycle.viewModelScope
 import app.floor.android.api.FloorApi
 import app.floor.android.api.FloorApiError
 import app.floor.android.model.BillListItem
+import app.floor.android.model.Chamber
+import app.floor.android.model.MembersElect
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import app.floor.android.model.SavedCopy
 import app.floor.android.model.SearchResults
 import app.floor.android.model.Topic
@@ -17,9 +21,13 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
-/** The search on the Bills tab (iOS `FollowSearchModel`, less its members: see [BillsModel]). */
+/** One search over members, bills and topics (iOS `FollowSearchModel`): the Bills tab's and "+ Add"'s. */
 data class SearchState(
     val query: String = "",
+    /** Null for both chambers: narrows the members only. */
+    val chamber: Chamber? = null,
+    /** Members-elect and undecided seats matching the same text (`/v1/members?q=`); empty when that fails. */
+    val seats: MembersElect = MembersElect(),
     /** The results for [searched]; kept while a newer search loads, so the list doesn't blink. */
     val results: SearchResults? = null,
     /** The text the results are for, or null before any search has finished. */
@@ -27,9 +35,16 @@ data class SearchState(
     val loading: Boolean = false,
     val error: String? = null,
 ) {
-    /** A search finished and found no bills or topics. */
+    /** A search finished and found nothing at all. */
     val foundNothing: Boolean
-        get() = searched != null && error == null && results != null && results.bills.isEmpty() && results.topics.isEmpty()
+        get() = searched != null && error == null && results != null && results.bills.isEmpty() &&
+            (results.billNumber || (results.topics.isEmpty() && results.members.isEmpty() && seats.elect.isEmpty() && seats.pending.isEmpty()))
+
+    /**
+     * Whether to draw a Members group: words (not a bill number) that found something anywhere. It
+     * says so when no member matched but topics or bills did, as the mock does.
+     */
+    val showsMembers: Boolean get() = results != null && !results.billNumber && !foundNothing && error == null
 
     /** The topics to list: none when the query was read as a bill number. */
     val topics: List<Topic> get() = if (results?.billNumber == true) emptyList() else results?.topics.orEmpty()
@@ -59,9 +74,8 @@ data class BillsState(
  * The Bills tab: one search over bills and topics (`GET /v1/search`, a short pause after the last
  * keystroke), and the 32 topics CRS sorts every bill into (`GET /v1/topics`), each opening its page.
  *
- * iOS reaches the same search and topics through Following's "+ Add" and the topic pages; Android
- * has no Following tab until the follows phase, so they live here. Search's members are left out
- * until then too: a member has no screen on Android yet, and iOS's member rows are Follow toggles.
+ * iOS reaches the same search and topics only through Following's "+ Add"; Android keeps them on
+ * the Bills tab too, where a member row opens the member screen. "+ Add" is another of these.
  */
 class BillsModel(private val api: FloorApi, private val debounceMillis: Long = 300) : ViewModel() {
     var state by mutableStateOf(BillsState())
@@ -116,17 +130,41 @@ class BillsModel(private val api: FloorApi, private val debounceMillis: Long = 3
         }
     }
 
+    /** All, Senate or House: narrows the members, and searches again as a keystroke does. */
+    fun selectChamber(chamber: Chamber?) {
+        state = state.copy(search = state.search.copy(chamber = chamber))
+        type(state.search.query)
+    }
+
     /** Searches what is typed straight away, without the pause. */
     suspend fun searchNow() {
         val text = SearchState.normalized(state.search.query)
         if (text == null) {
-            state = state.copy(search = SearchState(query = state.search.query))
+            state = state.copy(search = SearchState(query = state.search.query, chamber = state.search.chamber))
             return
         }
+        val chamber = state.search.chamber
         state = state.copy(search = state.search.copy(loading = true))
         state = try {
-            val found = api.search(text)
-            state.copy(search = state.search.copy(results = found, searched = text, error = null, loading = false))
+            val (found, seats) = coroutineScope {
+                // Side by side: the elects ride on `/v1/members?q=`, and its failure is no failure.
+                val elect = async {
+                    try {
+                        api.searchMembers(text, chamber)
+                    } catch (e: CancellationException) {
+                        throw e
+                    } catch (_: FloorApiError) {
+                        null
+                    }
+                }
+                api.search(text, chamber) to elect.await()
+            }
+            state.copy(
+                search = state.search.copy(
+                    results = found, seats = MembersElect(seats?.elect.orEmpty(), seats?.pending.orEmpty()),
+                    searched = text, error = null, loading = false,
+                ),
+            )
         } catch (e: CancellationException) {
             throw e
         } catch (e: FloorApiError) {

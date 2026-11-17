@@ -52,9 +52,9 @@ import app.floor.android.model.SpokenBill
 import app.floor.android.model.TopicText
 
 /**
- * The Bills tab: a search over bills by number or words and the 32 topics, then — with nothing
- * typed — the 32 topics, each opening its page (see [BillsModel] for why these live here on Android).
- * Search results are drawn as iOS's "+ Add" sheet draws them: topics, then bills.
+ * The Bills tab: a search over members, bills by number or words, and the 32 topics, then — with
+ * nothing typed — the 32 topics, each opening its page (see [BillsModel] for why these live here on
+ * Android). Search results are drawn as iOS's "+ Add" sheet draws them: topics, bills, members.
  */
 @Composable
 fun BillsScreen(
@@ -65,6 +65,10 @@ fun BillsScreen(
     onOpenBill: (String) -> Unit,
     onOpenTopic: (String) -> Unit,
     modifier: Modifier = Modifier,
+    onChamber: (app.floor.android.model.Chamber?) -> Unit = {},
+    onOpenMember: (app.floor.android.model.Member) -> Unit = {},
+    onOpenElect: (String) -> Unit = {},
+    follow: FollowActions? = null,
 ) {
     val colors = Palette
     val search = state.search
@@ -84,11 +88,12 @@ fun BillsScreen(
         }
         item { SearchField(search, onQuery, onSubmit) }
         if (searching || search.searched != null) {
-            searchResults(search, onOpenBill, onOpenTopic)
+            item { ChamberSwitch(search.chamber, onChamber) }
+            searchResults(search, follow, onOpenBill, onOpenTopic, onOpenMember, onOpenElect)
         } else {
             item {
                 Text(
-                    "Search bills by words or number (“hr 1013”, “S. 2”), or open one of the 32 topics CRS sorts every bill into.",
+                    "Search sitting members by name, state or district; bills by words or number (“hr 1013”, “S. 2”); or open one of the 32 topics CRS sorts every bill into.",
                     style = FloorType.text(13f),
                     color = colors.textMuted,
                     modifier = Modifier.padding(top = 2.dp, bottom = 4.dp),
@@ -101,7 +106,7 @@ fun BillsScreen(
                 is BillsState.Phase.Loaded -> {
                     item { ListHeading("TOPICS · ${phase.topics.size}") }
                     items(phase.topics, key = { "topic-" + it.name }) { topic ->
-                        TopicRow(topic.name, TopicText.detail(topic), SpokenBill.topicRow(topic)) { onOpenTopic(topic.name) }
+                        TopicRow(topic.name, TopicText.detail(topic), SpokenBill.topicRow(topic), onOpen = { onOpenTopic(topic.name) })
                     }
                 }
             }
@@ -109,43 +114,8 @@ fun BillsScreen(
     }
 }
 
-private fun androidx.compose.foundation.lazy.LazyListScope.searchResults(
-    search: SearchState,
-    onOpenBill: (String) -> Unit,
-    onOpenTopic: (String) -> Unit,
-) {
-    val error = search.error
-    val searched = search.searched
-    when {
-        error != null -> item { Notice("COULDN'T SEARCH", error) }
-        search.foundNothing && searched != null -> item {
-            Notice(
-                "NOTHING MATCHES “${searched.uppercase()}”",
-                "Try words from a bill, a topic like Health, or a bill number like hr 1013.",
-            )
-        }
-        searched == null && search.loading -> item { Spinner("Searching") }
-    }
-    if (error != null) return
-    val topics = search.topics
-    if (topics.isNotEmpty()) {
-        item { ListHeading(if (topics.size == 1) "TOPIC" else "TOPICS · ${topics.size}") }
-        items(topics, key = { "result-topic-" + it.name }) { topic ->
-            TopicRow(topic.name, TopicText.detail(topic), SpokenBill.topicRow(topic)) { onOpenTopic(topic.name) }
-        }
-    }
-    val bills = search.bills
-    if (bills.isNotEmpty()) {
-        val billNumber = search.results?.billNumber == true
-        item { ListHeading(if (billNumber && bills.size == 1) "BILL" else "BILLS · ${bills.size}") }
-        items(bills, key = { "result-bill-" + it.id }) { bill ->
-            BillRow(bill, onOpen = { onOpenBill(bill.id) }, showsLatest = billNumber, showsRoad = false)
-        }
-    }
-}
-
 @Composable
-private fun SearchField(search: SearchState, onQuery: (String) -> Unit, onSubmit: () -> Unit) {
+internal fun SearchField(search: SearchState, onQuery: (String) -> Unit, onSubmit: () -> Unit) {
     val colors = Palette
     val focus = LocalFocusManager.current
     val shape = RoundedCornerShape(10.dp)
@@ -163,7 +133,7 @@ private fun SearchField(search: SearchState, onQuery: (String) -> Unit, onSubmit
         Box(Modifier.weight(1f)) {
             val style = FloorType.text(15f, FontWeight.Medium)
             if (search.query.isEmpty()) {
-                Text("Bills, topics, or a bill number", style = style, color = colors.textMuted, maxLines = 1)
+                Text("Members, bills, topics, or a bill number", style = style, color = colors.textMuted, maxLines = 1)
             }
             BasicTextField(
                 value = search.query,
@@ -178,7 +148,7 @@ private fun SearchField(search: SearchState, onQuery: (String) -> Unit, onSubmit
                     focus.clearFocus()
                     onSubmit()
                 }),
-                modifier = Modifier.fillMaxWidth().semantics { contentDescription = "Search bills and topics" },
+                modifier = Modifier.fillMaxWidth().semantics { contentDescription = "Search members, bills and topics" },
             )
         }
         if (search.loading) {

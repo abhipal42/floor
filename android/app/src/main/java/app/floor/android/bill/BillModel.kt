@@ -13,6 +13,9 @@ import app.floor.android.model.BillAnalysis
 import app.floor.android.model.BillShare
 import app.floor.android.model.Delegation
 import app.floor.android.model.Member
+import app.floor.android.model.MemberPosition
+import app.floor.android.model.Position
+import app.floor.android.model.Vote
 import app.floor.android.model.MemberContact
 import app.floor.android.model.SavedCopy
 import kotlinx.coroutines.CancellationException
@@ -45,6 +48,9 @@ sealed interface AnalysisPhase {
     }
 }
 
+/** One of your members on a bill: the latest roll call in their chamber, and their position on it. */
+data class MemberOnBill(val member: Member, val vote: Vote?, val position: Position?, val choice: String?)
+
 /** What the bill screen shows: everything it draws, so a test can draw any state. */
 data class BillScreenState(
     val phase: Phase = Phase.Loading,
@@ -56,6 +62,8 @@ data class BillScreenState(
     val listing: FloorListing? = null,
     /** What Share sends, from the API; null until it answers (Share then builds its own). */
     val share: BillShare? = null,
+    /** "Your members on this bill": each of your members and how they voted on its latest roll call in their chamber. */
+    val yourMembers: List<MemberOnBill> = emptyList(),
 ) {
     sealed interface Phase {
         data object Loading : Phase
@@ -79,15 +87,15 @@ data class BillScreenState(
  * Then, best-effort, its AI analysis, this week's schedule (for the banner) and its share line,
  * each fresh or else saved; a bill whose extras can't be had still shows.
  *
- * [delegation] is who Speak up writes to. Android has no district until the "Your three" phase, so
- * the app passes none, and the sheet says to set a district first, as iOS does without one. For the
- * same reason the screen has no "Your members on this bill" section yet: iOS draws none without
- * members either.
+ * [delegation] is who Speak up writes to; without one the sheet says to set a district first. [members]
+ * are your members: each one's position on the bill's latest roll call in their chamber is asked
+ * for best-effort (`?members=`), for "Your members on this bill".
  */
 class BillModel(
     private val api: FloorApi,
     private val billId: String,
     val delegation: Delegation? = null,
+    private val members: List<Member> = emptyList(),
 ) : ViewModel() {
     var state by mutableStateOf(BillScreenState())
         private set
@@ -162,6 +170,23 @@ class BillModel(
             listing = schedule?.let { FloorListing.of(it, billId) } ?: state.listing,
             share = share ?: state.share,
         )
+        loadYourMembers(fresh)
+    }
+
+    private suspend fun loadYourMembers(bill: Bill) {
+        if (members.isEmpty()) return
+        // Newest first, so the first per chamber is its latest.
+        val latest = bill.votes.groupBy { it.chamber }.mapValues { it.value.first() }
+        val positions = mutableMapOf<String, MemberPosition>()
+        for (vote in latest.values) {
+            val ids = members.filter { it.chamber == vote.chamber }.map { it.bioguideId }.take(10)
+            if (ids.isEmpty()) continue
+            bestEffort({ api.vote(vote.id, ids) }, { api.savedVote(vote.id, ids) })?.positions?.forEach { positions[it.member.bioguideId] = it }
+        }
+        state = state.copy(yourMembers = members.map { m ->
+            val found = positions[m.bioguideId]
+            MemberOnBill(m, latest[m.chamber], found?.position, found?.choice)
+        })
     }
 
     /** The saved pass: whatever of the analysis, schedule and share line was saved. */

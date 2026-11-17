@@ -6,6 +6,7 @@ import androidx.activity.compose.BackHandler
 import androidx.activity.compose.LocalOnBackPressedDispatcherOwner
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.compose.foundation.background
@@ -56,6 +57,22 @@ import app.floor.android.design.Palette
 import app.floor.android.design.panel
 import app.floor.android.home.TabBarClearance
 
+/**
+ * Pushes a route onto the stack of the tab the caller sits in: `member/{id}`, `elect/{id}`,
+ * `vote/{id}`, `bill/{id}`, `topic/{name}` ([Routes]). A screen anywhere in a stack can open a member
+ * without every screen above it threading the callback through.
+ */
+val LocalNavigate = staticCompositionLocalOf<(String) -> Unit> { {} }
+
+/** The routes a stack can push. */
+object Routes {
+    fun member(id: String) = "member/$id"
+    fun elect(id: String) = "elect/$id"
+    fun vote(id: String) = "vote/$id"
+    fun bill(id: String) = "bill/$id"
+    fun topic(name: String) = "topic/${Uri.encode(name)}"
+}
+
 /** The iOS tab bar's four tabs, in its order. */
 enum class Tab(val title: String, val icon: Int) {
     FINALS("Finals", R.drawable.ic_tab_finals),
@@ -74,6 +91,8 @@ class FloorScreens(
     val finals: @Composable (onOpenVote: (String) -> Unit) -> Unit = {},
     /** The Bills tab's root: topics and search. */
     val bills: @Composable (onOpenBill: (String) -> Unit, onOpenTopic: (String) -> Unit) -> Unit = { _, _ -> },
+    /** The Following tab's root: your members, bills and topics. */
+    val following: @Composable () -> Unit = {},
     val vote: @Composable (id: String, back: String, onOpenKinds: () -> Unit, onOpenBill: (String) -> Unit, onBack: () -> Unit) -> Unit =
         { _, _, _, _, _ -> },
     val voteKinds: @Composable (onBack: () -> Unit) -> Unit = {},
@@ -81,13 +100,18 @@ class FloorScreens(
         { _, _, _, _, _ -> },
     val topic: @Composable (name: String, back: String, onOpenBill: (String) -> Unit, onBack: () -> Unit) -> Unit =
         { _, _, _, _ -> },
+    /** A member's record; its grid's readout opens a vote. */
+    val member: @Composable (id: String, back: String, onOpenVote: (String) -> Unit, onBack: () -> Unit) -> Unit =
+        { _, _, _, _ -> },
+    /** A member-elect's profile, by elect id. */
+    val elect: @Composable (id: String, back: String, onBack: () -> Unit) -> Unit = { _, _, _ -> },
 )
 
 /**
  * The app (iOS `FloorShell`): four tabs — Finals, Week, Bills, Following — under the locked mocks'
- * floating tab bar. Finals and Bills each keep their own navigation stack, so switching tabs never
- * loses your place; a vote, a bill and a topic can be pushed on either. Week and Following are
- * placeholders until their phases land.
+ * floating tab bar. Finals, Bills and Following each keep their own navigation stack, so switching tabs never
+ * loses your place; a vote, a bill, a topic, a member or a member-elect can be pushed on any of the
+ * three stacks (Finals, Bills, Following). Week is a placeholder until its phase lands.
  */
 @Composable
 fun FloorShell(
@@ -95,6 +119,7 @@ fun FloorShell(
     initialTab: Tab = Tab.FINALS,
     finalsNav: NavHostController = rememberNavController(),
     billsNav: NavHostController = rememberNavController(),
+    followingNav: NavHostController = rememberNavController(),
 ) {
     var tab by rememberSaveable { mutableStateOf(initialTab) }
     val colors = Palette
@@ -111,13 +136,17 @@ fun FloorShell(
                 screens.bills({ id -> billsNav.navigate("bill/$id") }, { name -> billsNav.navigate("topic/${Uri.encode(name)}") })
             }
         }
-        if (tab == Tab.WEEK || tab == Tab.FOLLOWING) {
+        Box(if (tab == Tab.FOLLOWING) Modifier.fillMaxSize() else Modifier.hidden()) {
+            TabStack(followingNav, "following", screens, active = tab == Tab.FOLLOWING) { screens.following() }
+        }
+        if (tab == Tab.WEEK) {
             ComingSoon(title = tab.title.uppercase(), body = "The ${tab.title} tab is coming to Android. It is on iPhone today.")
         }
         TabBar(tab) { picked ->
             // A second tap on the current tab goes back to its top, as system tab bars do.
             if (picked == tab && picked == Tab.FINALS) finalsNav.popBackStack("finals", inclusive = false)
             if (picked == tab && picked == Tab.BILLS) billsNav.popBackStack("bills", inclusive = false)
+            if (picked == tab && picked == Tab.FOLLOWING) followingNav.popBackStack("following", inclusive = false)
             tab = picked
         }
     }
@@ -143,7 +172,10 @@ private fun TabStack(
         }
     }
     val real = LocalOnBackPressedDispatcherOwner.current
-    CompositionLocalProvider(LocalOnBackPressedDispatcherOwner provides if (active && real != null) real else inert) {
+    CompositionLocalProvider(
+        LocalOnBackPressedDispatcherOwner provides if (active && real != null) real else inert,
+        LocalNavigate provides { route -> nav.navigate(route) },
+    ) {
         Stack(nav, root, screens, ::back, rootScreen)
     }
 }
@@ -177,6 +209,17 @@ private fun Stack(
                 { nav.popBackStack() },
             )
         }
+        composable("member/{id}") { entry ->
+            screens.member(
+                entry.arguments?.getString("id").orEmpty(),
+                back(),
+                { voteId -> nav.navigate("vote/$voteId") },
+                { nav.popBackStack() },
+            )
+        }
+        composable("elect/{id}") { entry ->
+            screens.elect(entry.arguments?.getString("id").orEmpty(), back()) { nav.popBackStack() }
+        }
         composable("topic/{name}") { entry ->
             screens.topic(
                 entry.arguments?.getString("name").orEmpty(),
@@ -194,8 +237,11 @@ private fun backLabel(entry: NavBackStackEntry?): String {
     return when {
         route == "finals" -> "Finals"
         route == "bills" -> "Bills"
+        route == "following" -> "Following"
         route.startsWith("vote/") -> "Vote"
         route.startsWith("bill/") -> "Bill"
+        route.startsWith("member/") -> "Member"
+        route.startsWith("elect/") -> "Member-elect"
         route.startsWith("topic/") -> entry.arguments?.getString("name")?.takeIf { it.length <= 14 } ?: "Topic"
         else -> "Back"
     }

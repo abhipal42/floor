@@ -97,6 +97,13 @@ object Tones {
     /** The Money bar's four fills, left to right. */
     val moneyBar = listOf(yea, teal, threshold, dim)
 
+    // From the members-elect mock (round 12): anything about a member-elect. Text, so contrast-tested.
+    val elect = Swatch(0x0369A1, 0x7DD3FC)
+    /** Text on an [elect] fill: the ELECT tag. */
+    val electInk = Swatch(0xFFFFFF, 0x07263A)
+    /** How strongly the takes-office banner is washed with [elect]. */
+    const val ELECT_TINT = 0.08f
+
     // The home-screen widget's ground.
     val widget = Swatch(0xFFFFFF, 0x0B0C0F)
 
@@ -116,7 +123,7 @@ object Tones {
     val textTokens: List<Pair<String, Swatch>> = listOf(
         "text" to text, "textSecondary" to textSecondary, "textMuted" to textMuted, "textFaint" to textFaint,
         "yea" to yea, "nay" to nay, "liveText" to liveText, "scheduled" to scheduled,
-        "accent" to accent, "threshold" to threshold, "ai" to ai,
+        "accent" to accent, "threshold" to threshold, "ai" to ai, "elect" to elect,
         "party D" to party("D"), "party R" to party("R"), "party I" to party("I"),
     )
 }
@@ -161,6 +168,8 @@ class FloorColors(val isDark: Boolean) {
     val ai = of(Tones.ai)
     val aiInk = of(Tones.aiInk)
     val widget = of(Tones.widget)
+    val elect = of(Tones.elect)
+    val electInk = of(Tones.electInk)
 
     fun party(party: String) = of(Tones.party(party))
     fun partyTint(party: String) = of(Tones.partyTint(party))
@@ -175,6 +184,10 @@ class FloorColors(val isDark: Boolean) {
     val turf = hex(0x0E1A14)
     val turfAlt = hex(0x0B1611)
     val turfBorder = hex(0x1E2A23)
+
+    /** The silver frame around a player card, light in both appearances, and the text on it. */
+    val silver = listOf(hex(0xE5E7EB), hex(0x6B7280), hex(0xC4C9D2))
+    val silverInk = hex(0x07080A)
 
     companion object {
         val Light = FloorColors(isDark = false)

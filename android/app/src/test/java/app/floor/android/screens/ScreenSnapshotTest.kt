@@ -8,6 +8,7 @@ import androidx.compose.ui.test.onRoot
 import app.floor.android.Fixtures
 import app.floor.android.design.Appearance
 import app.floor.android.design.FloorTheme
+import app.floor.android.design.LocalLoadsPortraits
 import app.floor.android.design.LocalPlaysArrivalAnimations
 import app.floor.android.home.HomeScreen
 import app.floor.android.home.HomeState
@@ -44,7 +45,7 @@ class ScreenSnapshotTest {
 
     private fun snap(name: String, appearance: Appearance, content: @Composable () -> Unit) {
         compose.setContent {
-            CompositionLocalProvider(LocalPlaysArrivalAnimations provides false) {
+            CompositionLocalProvider(LocalPlaysArrivalAnimations provides false, LocalLoadsPortraits provides false) {
                 FloorTheme(appearance, content)
             }
         }

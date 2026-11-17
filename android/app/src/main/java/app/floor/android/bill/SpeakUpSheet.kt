@@ -82,6 +82,8 @@ fun SpeakUpSheet(
     recipientId: String? = null,
     startCalling: Boolean = false,
     contacts: Map<String, MemberContact> = emptyMap(),
+    /** "Set your district": closes the sheet and opens onboarding; null draws no button. */
+    onSetDistrict: (() -> Unit)? = null,
 ) {
     val recipients = remember(delegation) { delegation?.let(::recipients).orEmpty() }
     var recipient by remember { mutableStateOf(recipients.firstOrNull { it.bioguideId == recipientId } ?: recipients.firstOrNull()) }
@@ -156,7 +158,7 @@ fun SpeakUpSheet(
                 modifier = Modifier.semantics { heading() },
             )
             if (delegation == null) {
-                NoDistrict()
+                NoDistrict(onSetDistrict)
             } else {
                 SheetLabel("TO · YOUR MEMBERS")
                 Chips(recipients.map { it.shortName }, recipients.indexOfFirst { it.bioguideId == member?.bioguideId }) {
@@ -186,7 +188,7 @@ fun recipients(delegation: Delegation): List<Member> =
     delegation.members.filter { it.chamber == Chamber.HOUSE } + delegation.members.filter { it.chamber == Chamber.SENATE }
 
 @Composable
-private fun NoDistrict() {
+private fun NoDistrict(onSetDistrict: (() -> Unit)?) {
     val colors = Palette
     Column(
         Modifier.dashedPanel(colors.raised, Color.Transparent, 12.dp).padding(12.dp),
@@ -199,6 +201,18 @@ private fun NoDistrict() {
             style = FloorType.text(13f),
             color = colors.textSecondary,
         )
+        if (onSetDistrict != null) {
+            val shape = RoundedCornerShape(9.dp)
+            Text(
+                "SET YOUR DISTRICT",
+                style = FloorType.label(14f).copy(letterSpacing = 0.6.sp),
+                color = colors.ground,
+                modifier = Modifier.clip(shape).background(colors.threshold, shape)
+                    .clickable(role = androidx.compose.ui.semantics.Role.Button, onClick = onSetDistrict)
+                    .padding(horizontal = 12.dp, vertical = 10.dp),
+            )
+        }
+        Text("You can still call any member from the Contact tab on their page.", style = FloorType.text(11f), color = colors.textMuted)
     }
 }
 

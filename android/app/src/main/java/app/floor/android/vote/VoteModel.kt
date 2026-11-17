@@ -9,6 +9,7 @@ import app.floor.android.api.FloorApi
 import app.floor.android.api.FloorApiError
 import app.floor.android.model.Bill
 import app.floor.android.model.MeasureSummary
+import app.floor.android.model.Member
 import app.floor.android.model.SavedCopy
 import app.floor.android.model.VoteDetail
 import app.floor.android.model.VoteKindInfo
@@ -30,6 +31,8 @@ data class VoteScreenState(
      * card's level of six. Null for a nomination, or a bill that could not be had fresh or saved.
      */
     val bill: Bill? = null,
+    /** Your members (reps unless hidden, then those you follow): "Your members" and its other-chamber note. */
+    val members: List<Member> = emptyList(),
 ) {
     sealed interface Phase {
         data object Loading : Phase
@@ -42,9 +45,8 @@ data class VoteScreenState(
  * Loads one vote with its breakdown (iOS `VoteScreenModel`): the saved copy first, marked as saved,
  * then the network; a failed refresh leaves the saved copy up and says why.
  *
- * [memberIds] is your delegation, asked for in the same request. Android has no district until the
- * "Your three" phase, so the app passes none and the screen draws no "Your members" section, which
- * is what iOS draws for someone with no district and nobody followed.
+ * [members] are your members, their positions asked for in the same request (`?members=`, at most
+ * ten). With none (no district, nobody followed) the screen draws no "Your members", as iOS.
  *
  * The bill the vote was on follows, best-effort (fresh, else saved), for the card's level of six;
  * until it lands the card names the bill, as iOS does.
@@ -52,9 +54,11 @@ data class VoteScreenState(
 class VoteModel(
     private val api: FloorApi,
     private val voteId: String,
-    private val memberIds: List<String> = emptyList(),
+    members: List<Member> = emptyList(),
 ) : ViewModel() {
-    var state by mutableStateOf(VoteScreenState())
+    private val memberIds = members.take(10).map { it.bioguideId }
+
+    var state by mutableStateOf(VoteScreenState(members = members))
         private set
 
     private var job: Job? = null

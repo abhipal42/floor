@@ -75,6 +75,15 @@ import app.floor.android.design.outcome
 import app.floor.android.design.panel
 import app.floor.android.home.TabBarClearance
 import app.floor.android.model.MeasureSummary
+import app.floor.android.model.Member
+import app.floor.android.model.MemberPosition
+import app.floor.android.model.SpokenMember
+import app.floor.android.model.fullName
+import app.floor.android.model.seatCaption
+import app.floor.android.model.shortLabel
+import app.floor.android.design.MemberPortrait
+import app.floor.android.design.position
+import androidx.compose.ui.draw.alpha
 import app.floor.android.model.PartyName
 import app.floor.android.model.PartyTotals
 import app.floor.android.model.Position
@@ -116,8 +125,8 @@ private fun largeText(): Boolean = LocalDensity.current.fontScale >= 1.5f
  * broadcast scoreboard, the threshold bar, the box score by party, the bill, and the full roll as
  * squares by party. A Speaker election gets its own board and the ballot instead.
  *
- * "Your members" needs a district or follows, which arrive in a later phase; without them iOS draws
- * no such section either. The bill card gives the bill's level of six once the bill has loaded
+ * "Your members" lists your members' own positions on it (and who sits in the other chamber); with
+ * no district and nobody followed it is left out, as on iOS. The bill card gives the bill's level of six once the bill has loaded
  * (see [VoteModel]), and names the bill until then.
  *
  * @param zone the zone the vote's time is printed in; pass it explicitly (lesson 69).
@@ -135,6 +144,7 @@ fun VoteScreen(
     onOpenMeasure: (MeasureSummary) -> Unit,
     modifier: Modifier = Modifier,
     back: String = "Finals",
+    onOpenMember: (Member) -> Unit = {},
 ) {
     val colors = Palette
     Column(
@@ -170,7 +180,7 @@ fun VoteScreen(
                 }
             }
             is VoteScreenState.Phase.Loaded -> Loaded(
-                state, phase.detail, zone, locale, onToggleExplainer, onOpenKinds, onSelectRollParty, onOpenMeasure,
+                state, phase.detail, zone, locale, onToggleExplainer, onOpenKinds, onSelectRollParty, onOpenMeasure, onOpenMember,
             )
         }
     }
@@ -214,6 +224,7 @@ private fun Loaded(
     onOpenKinds: () -> Unit,
     onSelectRollParty: (String) -> Unit,
     onOpenMeasure: (MeasureSummary) -> Unit,
+    onOpenMember: (Member) -> Unit,
 ) {
     val vote = detail.vote
     val day = vote.occurredAtInstant?.let { whenLabel(it, zone, locale) }
@@ -235,6 +246,8 @@ private fun Loaded(
             vote.line?.let { ThresholdSection(it, vote.totals) }
             BoxScore(detail)
         }
+        // With no district and nobody followed there is nobody to list.
+        if (state.members.isNotEmpty()) YourMembers(detail, state.members, onOpenMember)
         detail.measure?.let { MeasureLink(it, state.bill?.takeIf { bill -> bill.id == it.id }, onOpenMeasure) }
         if (vote.kind == VoteKind.QUESTION && detail.rollParties.isNotEmpty()) {
             FullRoll(detail, state.rollParty, onSelectRollParty)
@@ -731,6 +744,84 @@ private fun Squares(party: PartyTotals) {
                     Position.NOT_VOTING, Position.CANDIDATE -> colors.raised
                 }
                 drawRoundRect(color, Offset((i % columns) * (s + g), (i / columns) * (s + g)), Size(s, s), r)
+            }
+        }
+    }
+}
+
+// MARK: - Your members
+
+/** "with 128 of 211 Democrats": how many of the member's own party took the same side. */
+private fun withParty(detail: VoteDetail, position: MemberPosition): String? {
+    if (position.position != Position.YEA && position.position != Position.NAY) return null
+    val party = detail.partyTotals.firstOrNull { it.party == position.member.party } ?: return null
+    val same = if (position.position == Position.YEA) party.yea else party.nay
+    val sided = party.yea + party.nay
+    if (sided <= 1) return null
+    return "with $same of $sided ${PartyName.plural(party.party)}"
+}
+
+/** "Cornyn and Cruz vote in the Senate — this was a House vote." */
+private fun otherChamberNote(detail: VoteDetail, members: List<Member>): Pair<List<Member>, String>? {
+    val absent = members.filter { it.chamber != detail.vote.chamber }
+    val chamber = absent.firstOrNull()?.chamber ?: return null
+    val names = absent.map { it.lastName }
+    val who = when (names.size) {
+        1 -> "${names[0]} votes"
+        2 -> "${names[0]} and ${names[1]} vote"
+        else -> "${names.size} of your members vote"
+    }
+    return absent to "$who in the ${chamber.title} — this was a ${detail.vote.chamber.title} vote."
+}
+
+@Composable
+private fun YourMembers(detail: VoteDetail, members: List<Member>, onOpenMember: (Member) -> Unit) {
+    val colors = Palette
+    val note = otherChamberNote(detail, members)
+    val large = largeText()
+    Column(Modifier.panel(colors), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        Text("YOUR MEMBERS", style = FloorType.label(20f), color = colors.text, modifier = Modifier.semantics { heading() })
+        detail.positions.forEach { position ->
+            val sub = listOfNotNull(position.member.seatCaption, withParty(detail, position)).joinToString(" · ")
+            val label = when (position.position) {
+                Position.CANDIDATE -> (position.choice ?: "BALLOT").uppercase()
+                Position.NOT_VOTING -> "DNP"
+                else -> position.position.shortLabel
+            }
+            val content: @Composable () -> Unit = {
+                MemberPortrait(position.member, Modifier.size(40.dp))
+                Column(if (large) Modifier else Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(1.dp)) {
+                    Text(position.member.fullName, style = FloorType.text(15f, FontWeight.SemiBold), color = colors.text)
+                    Text(sub, style = FloorType.text(12f), color = colors.textMuted)
+                }
+                Text(label, style = FloorType.display(24f, FloorType.Face.BLACK_ITALIC), color = colors.position(position.position), maxLines = 1)
+            }
+            val modifier = Modifier
+                .fillMaxWidth()
+                .clickable(role = Role.Button, onClickLabel = "Open their record") { onOpenMember(position.member) }
+                .clearAndSetSemantics { contentDescription = SpokenMember.memberPosition(position, withParty(detail, position)) }
+            if (large) {
+                Column(modifier, verticalArrangement = Arrangement.spacedBy(6.dp)) { content() }
+            } else {
+                Row(modifier, verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) { content() }
+            }
+        }
+        if (detail.positions.isEmpty() && note == null) {
+            Text("None of your members were on this roll call.", style = FloorType.text(13f), color = colors.textMuted)
+        }
+        if (note != null) {
+            Row(
+                Modifier.alpha(0.55f).semantics(mergeDescendants = true) {},
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                val shown = note.first.take(2)
+                Box(Modifier.width((40 + (shown.size - 1) * 10).dp).height(40.dp)) {
+                    shown.forEachIndexed { index, member ->
+                        MemberPortrait(member, Modifier.padding(start = (index * 10).dp).size(40.dp))
+                    }
+                }
+                Text(note.second, style = FloorType.text(13f), color = colors.text, modifier = Modifier.weight(1f))
             }
         }
     }

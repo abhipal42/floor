@@ -51,6 +51,11 @@ data class Member(
     val state: String,
     val district: Int? = null,
     val chamber: Chamber,
+    /**
+     * `YYYY-MM-DD`: the day they leave, when a member-elect replaces them and that day has not come.
+     * Null otherwise, and in a response from an API older than members-elect.
+     */
+    val leavingOn: String? = null,
 )
 
 /** One member's own position on a vote, for the members named in `?members=`. */
