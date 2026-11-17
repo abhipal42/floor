@@ -467,10 +467,7 @@ private fun ContactContent(record: Load<MemberRecord>, onRetry: () -> Unit) {
             Text(record.message, style = FloorType.text(13f), color = colors.textSecondary)
             TryAgain(onRetry)
         }
-        is Load.Loaded -> Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            ContactRows(record.value.detail.member, record.value.detail.contact)
-            OfficialAccounts(record.value.detail.member, record.value.detail.accounts)
-        }
+        is Load.Loaded -> ContactRows(record.value.detail.member, record.value.detail.contact)
     }
 }
 

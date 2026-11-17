@@ -215,7 +215,7 @@ private fun LazyListScope.posts(state: FollowingState, actions: FollowingActions
                     val who = if (names.size == 1) names[0] else names.dropLast(1).joinToString(", ") + " and " + names.last()
                     DashedNote(
                         "$who ${if (names.size == 1) "posts" else "post"} only on X or Facebook",
-                        "Neither lets apps read posts for free, so ${if (names.size == 1) "those posts are" else "their posts are"} links on the Contact tab.",
+                        "Neither lets apps read posts for free, so ${if (names.size == 1) "those posts are" else "their posts are"} links on the Posts tab.",
                     )
                 }
             }

@@ -39,6 +39,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
@@ -279,14 +280,18 @@ private fun Modifier.hidden(): Modifier = this.size(0.dp)
 private fun TabBar(selected: Tab, onSelect: (Tab) -> Unit) {
     val colors = Palette
     val shape = RoundedCornerShape(22.dp)
-    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.BottomCenter) {
+    // The bar is solid, and the page's ground fades in above it and fills around it, so nothing
+    // scrolling underneath shows through its icons or labels (round 13 polish).
+    Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.Bottom) {
+        Box(Modifier.fillMaxWidth().height(14.dp).background(Brush.verticalGradient(listOf(colors.ground.copy(alpha = 0f), colors.ground))))
         Row(
             Modifier
+                .background(colors.ground)
                 .windowInsetsPadding(WindowInsets.navigationBars)
                 .padding(start = 16.dp, end = 16.dp, bottom = 4.dp)
                 .fillMaxWidth()
                 .clip(shape)
-                .background(colors.panel.copy(alpha = 0.94f), shape)
+                .background(colors.panel, shape)
                 .border(1.dp, colors.panelBorder, shape)
                 .padding(8.dp)
                 .semantics { contentDescription = "Tabs" },

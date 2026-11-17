@@ -3,6 +3,14 @@ package app.floor.android.member
 import android.provider.Settings
 import androidx.compose.animation.core.snap
 import androidx.compose.foundation.background
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material3.Icon
+import app.floor.android.design.mark
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -75,8 +83,8 @@ import java.time.format.DateTimeFormatter
 import java.util.Locale
 
 // Round 13 (the locked mock `floor-said.html`, iOS `SaidView`): Said, the swipe deck of what the
-// campaign site promised, quoted exactly; Posts, newest first from the free networks; and Contact's
-// official accounts. AI only picks the lines, so every deck carries the AI tag and the archive link.
+// campaign site promised, quoted exactly; and Posts, under the member's accounts, newest first from
+// the free networks. AI only picks the lines, so every deck carries the AI tag and the archive link.
 
 /** The sentence under every deck (product rule "AI is labelled and cited"). */
 const val PROMISES_AI_NOTE = "Picked by AI, quoted exactly. It may miss some."
@@ -381,11 +389,10 @@ private fun NoPlatform(said: Promises, member: Member?, locale: Locale) {
 
 @Composable
 internal fun PostsContent(load: Load<MemberPosts>, member: Member?, accounts: List<MemberSocial.Account>, zone: ZoneId, locale: Locale, onRetry: () -> Unit) {
+    if (accounts.isNotEmpty()) AccountMarks(accounts)
     Loading(load, "Loading the posts", onRetry) { value ->
         val name = member?.fullName ?: "This member"
         val posts = value.shown
-        // The links-only networks: from the response, else from the member's accounts.
-        val linksOnly = value.links.accounts.ifEmpty { accounts.filter { !it.network.readable } }
         if (posts.isEmpty()) {
             if (accounts.any { it.network.readable }) {
                 DashedNote("Nothing posted lately", "$name hasn't posted on YouTube, Bluesky or Mastodon in the last 30 days.")
@@ -394,7 +401,6 @@ internal fun PostsContent(load: Load<MemberPosts>, member: Member?, accounts: Li
             }
         }
         posts.forEach { PostCard(it, zone, locale) }
-        if (linksOnly.isNotEmpty()) LinksOnly(linksOnly)
         Text(
             "Posts as written, newest first, from the networks' public feeds. No counts, no ranking.",
             style = FloorType.text(10.5f, FontWeight.Medium), color = Palette.textMuted, modifier = Modifier.padding(horizontal = 2.dp),
@@ -402,36 +408,65 @@ internal fun PostsContent(load: Load<MemberPosts>, member: Member?, accounts: Li
     }
 }
 
-/** X, Facebook and Instagram: links, since none lets an app read posts for free. */
+/** The networks Floor reads first, then the links-only ones (round 13 polish). */
+private val MARK_ORDER = listOf(
+    SocialNetwork.BLUESKY, SocialNetwork.YOUTUBE, SocialNetwork.MASTODON,
+    SocialNetwork.X, SocialNetwork.INSTAGRAM, SocialNetwork.FACEBOOK,
+)
+
+/**
+ * The top of Posts: a circle per account the member has, its network's mark and name; a green dot
+ * on the ones whose posts Floor shows. A tap opens the network's app, or its site. Too many to fit
+ * scrolls sideways.
+ */
 @Composable
-private fun LinksOnly(accounts: List<MemberSocial.Account>) {
+private fun AccountMarks(accounts: List<MemberSocial.Account>) {
     val colors = Palette
     val context = LocalContext.current
-    val names = accounts.map { it.network.title }
-    Column(
-        Modifier.dashedPanel(colors.raised, Color.Transparent, 12.dp).padding(12.dp),
-        verticalArrangement = Arrangement.spacedBy(5.dp),
-    ) {
-        Text(
-            "Also on ${names.dropLast(1).joinToString(", ").let { if (it.isEmpty()) names.last() else "$it and ${names.last()}" }}".uppercase(),
-            style = FloorType.label(12f).copy(letterSpacing = 1.2.sp), color = colors.textMuted,
-        )
-        Text(
-            "${if (names.size == 1) "It doesn't" else "They don't"} let apps read posts for free, so ${if (names.size == 1) "it's a link" else "they're links"}.",
-            style = FloorType.text(11f, FontWeight.Medium), color = colors.textSecondary,
-        )
-        accounts.forEach { account ->
-            Text(
-                "${account.handle} on ${account.network.title} ›", style = FloorType.text(12f, FontWeight.SemiBold), color = colors.yea,
-                modifier = Modifier.clip(RoundedCornerShape(4.dp)).clickable(role = Role.Button) { open(context, account.url) }.padding(vertical = 3.dp),
-            )
+    val sorted = accounts.sortedBy { MARK_ORDER.indexOf(it.network) }
+    val gap = 6.dp
+    BoxWithConstraints(Modifier.fillMaxWidth()) {
+        val slot = (maxWidth - gap * (sorted.size - 1)) / sorted.size
+        Row(Modifier.horizontalScroll(rememberScrollState()).padding(vertical = 4.dp), horizontalArrangement = Arrangement.spacedBy(gap)) {
+            sorted.forEach { account ->
+                val network = account.network
+                val spoken = if (network.readable) "${network.title}, ${account.handle}, posts shown in Floor"
+                    else "${network.title}, ${account.handle}, opens ${network.title}"
+                Column(
+                    Modifier.widthIn(min = slot).clip(RoundedCornerShape(10.dp))
+                        .clickable(role = Role.Button) { open(context, account.url) }
+                        .clearAndSetSemantics { contentDescription = spoken }
+                        .padding(vertical = 2.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(5.dp),
+                ) {
+                    Box(Modifier.size(46.dp)) {
+                        Box(
+                            Modifier.fillMaxSize().clip(CircleShape).background(colors.card).border(1.dp, colors.panelBorder, CircleShape),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            Icon(network.mark, contentDescription = null, tint = colors.text, modifier = Modifier.size(18.dp))
+                        }
+                        if (network.readable) {
+                            Box(
+                                Modifier.align(Alignment.TopEnd).offset(x = 2.dp, y = (-2).dp).size(12.dp)
+                                    .clip(CircleShape).background(colors.ground).padding(2.dp).clip(CircleShape).background(colors.yea),
+                            )
+                        }
+                    }
+                    Text(network.title, style = FloorType.text(9.5f, FontWeight.SemiBold), color = colors.textMuted, maxLines = 1, softWrap = false)
+                }
+            }
         }
     }
 }
 
+/** The tallest a post's image or thumbnail draws, so a big link card never fills the screen. */
+private val POST_MEDIA_MAX = 220.dp
+
 /**
- * One post (the mock's `.post`): the network chip and its time in the reader's zone, the text as
- * posted, a YouTube video's thumbnail, and a link to the original. [byline] names the member on the
+ * One post (the mock's `.post`): the network's mark and name, its time in the reader's zone, the text as
+ * posted, its image or a YouTube video's thumbnail, and a link to the original. [byline] names the member on the
  * Following wall, where [compact] cuts long text and leaves out the link line (the card opens it).
  */
 @Composable
@@ -448,22 +483,26 @@ fun PostCard(post: Post, zone: ZoneId, locale: Locale, byline: String? = null, c
             .padding(horizontal = 10.dp, vertical = 9.dp),
         verticalArrangement = Arrangement.spacedBy(6.dp),
     ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            network?.let { Icon(it.mark, contentDescription = null, tint = colors.text, modifier = Modifier.size(15.dp)) }
             Text(
-                listOfNotNull(network?.title, byline).joinToString(" · ").uppercase(),
-                style = FloorType.label(10f).copy(letterSpacing = 1.sp), color = colors.text, maxLines = 1,
-                modifier = Modifier.clip(RoundedCornerShape(4.dp)).background(colors.chip).padding(horizontal = 5.dp, vertical = 3.dp),
+                listOfNotNull(network?.title, byline).joinToString(" · "),
+                style = FloorType.text(10.5f, FontWeight.Bold), color = colors.textMuted, maxLines = 1, overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f),
             )
-            Spacer(Modifier.weight(1f))
             if (time != null) Text(time, style = FloorType.text(10.5f, FontWeight.Bold), color = colors.textMuted)
         }
-        if (network == SocialNetwork.YOUTUBE && !compact) {
+        val media = post.mediaUrl
+        if (media != null || network == SocialNetwork.YOUTUBE) {
             val placeholder: @Composable () -> Unit = {
-                Text("▶ VIDEO", style = FloorType.label(11f).copy(letterSpacing = 1.1.sp), color = colors.textMuted)
+                if (network == SocialNetwork.YOUTUBE) Text("▶ VIDEO", style = FloorType.label(11f).copy(letterSpacing = 1.1.sp), color = colors.textMuted)
             }
-            val thumb = Modifier.fillMaxWidth().height(80.dp).clip(RoundedCornerShape(8.dp))
-                .background(Brush.linearGradient(listOf(colors.card, colors.raised)))
-            post.mediaUrl?.let { RemoteImage(it, thumb, placeholder) } ?: Box(thumb, contentAlignment = Alignment.Center) { placeholder() }
+            // Fills the card's width at 16:9, never taller than POST_MEDIA_MAX, cropped to fit.
+            BoxWithConstraints(Modifier.fillMaxWidth()) {
+                val thumb = Modifier.fillMaxWidth().height(minOf(maxWidth * 9f / 16f, POST_MEDIA_MAX)).clip(RoundedCornerShape(9.dp))
+                    .background(Brush.linearGradient(listOf(colors.card, colors.raised)))
+                media?.let { RemoteImage(it, thumb, placeholder) } ?: Box(thumb, contentAlignment = Alignment.Center) { placeholder() }
+            }
         }
         post.text?.trim()?.takeIf { it.isNotEmpty() }?.let {
             Text(
@@ -472,65 +511,5 @@ fun PostCard(post: Post, zone: ZoneId, locale: Locale, byline: String? = null, c
             )
         }
         if (!compact) Text(post.openLabel, style = FloorType.text(10.5f, FontWeight.SemiBold), color = colors.yea)
-    }
-}
-
-// MARK: - Contact's official accounts
-
-private val SocialNetwork.glyph: String
-    get() = when (this) {
-        SocialNetwork.X -> "X"
-        SocialNetwork.FACEBOOK -> "f"
-        SocialNetwork.INSTAGRAM -> "IG"
-        SocialNetwork.YOUTUBE -> "▶"
-        SocialNetwork.BLUESKY -> "BSKY"
-        SocialNetwork.MASTODON -> "M"
-    }
-
-private val SocialNetwork.caption: String
-    get() = when (this) {
-        SocialNetwork.X, SocialNetwork.FACEBOOK, SocialNetwork.INSTAGRAM -> "link only"
-        SocialNetwork.BLUESKY -> "verified"
-        SocialNetwork.YOUTUBE, SocialNetwork.MASTODON -> "posts in Floor"
-    }
-
-/** The grid of a member's official accounts; a tap opens the network's app, or its site. */
-@Composable
-internal fun OfficialAccounts(member: Member, accounts: List<MemberSocial.Account>) {
-    val colors = Palette
-    val context = LocalContext.current
-    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-        Text(
-            "OFFICIAL ACCOUNTS", style = FloorType.label(11.5f).copy(letterSpacing = 1.1.sp), color = colors.textMuted,
-            modifier = Modifier.padding(start = 2.dp, top = 4.dp).semantics { heading() },
-        )
-        if (accounts.isEmpty()) {
-            DashedNote("No accounts listed", "congress-legislators lists no official social accounts for ${member.fullName} yet.")
-            return@Column
-        }
-        accounts.chunked(3).forEach { row ->
-            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                row.forEach { account ->
-                    val shape = RoundedCornerShape(10.dp)
-                    Column(
-                        Modifier.weight(1f).clip(shape).background(colors.panel, shape).border(1.dp, colors.panelBorder, shape)
-                            .clickable(role = Role.Button) { open(context, account.url) }
-                            .clearAndSetSemantics { contentDescription = "${account.network.title}, ${account.handle}, ${account.network.caption}" }
-                            .padding(horizontal = 4.dp, vertical = 8.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(3.dp),
-                    ) {
-                        Text(account.network.glyph, style = FloorType.label(13f), color = colors.threshold)
-                        Text(account.handle, style = FloorType.text(10.5f, FontWeight.SemiBold), color = colors.text, textAlign = TextAlign.Center, maxLines = 2, overflow = TextOverflow.Ellipsis)
-                        Text(account.network.caption, style = FloorType.mono(9.5f), color = colors.textMuted, textAlign = TextAlign.Center)
-                    }
-                }
-                repeat(3 - row.size) { Spacer(Modifier.weight(1f)) }
-            }
-        }
-        Text(
-            "From congress-legislators; Bluesky only when Bluesky verifies it.",
-            style = FloorType.text(10.5f, FontWeight.Medium), color = colors.textMuted, modifier = Modifier.padding(horizontal = 2.dp),
-        )
     }
 }

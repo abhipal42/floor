@@ -608,13 +608,13 @@ public enum WallText {
             if unreadable.contains(member.bioguideId) {
                 return Note(
                     member: member, title: "\(name) posts only on X, Facebook or Instagram",
-                    body: "None of them lets apps read posts for free, so \(name)'s accounts are links on the Contact tab."
+                    body: "None of them lets apps read posts for free, so \(name)'s accounts are links on the Posts tab."
                 )
             }
             return Note(
                 member: member, title: "No recent posts from \(name)",
                 body: "Floor reads YouTube, Bluesky and Mastodon, the last 30 days. Accounts on X or Facebook "
-                    + "are links on \(name)'s Contact tab."
+                    + "are links on \(name)'s Posts tab."
             )
         }
     }

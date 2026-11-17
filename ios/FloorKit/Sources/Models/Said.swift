@@ -276,6 +276,15 @@ public struct MemberPost: Codable, Sendable, Hashable, Identifiable {
             case .mastodon: "Mastodon"
             }
         }
+
+        /// The same network as an account: its mark, its name.
+        public var social: SocialNetwork {
+            switch self {
+            case .youtube: .youtube
+            case .bluesky: .bluesky
+            case .mastodon: .mastodon
+            }
+        }
     }
 
     /// `<network>:<native id>`.
