@@ -125,7 +125,7 @@ Command Line Tools rather than Xcode: run it with `DEVELOPER_DIR=/Applications/X
 | `GET /v1/members-elect[?state=]`, `GET /v1/members-elect/{id}` | Members-elect (v0.2.45): who won a seat and hasn't taken office, each with `call: {by: "AP" \| "House Clerk", on, sourceUrl}` — Floor never calls a race — plus `pending` seats (uncalled or runoff, no name). The profile adds FEC totals and, with disclosures on, a House candidate report. `/v1/reps` and `/v1/members` carry `elect`/`pending` too, and members carry `leavingOn`. Nothing is served from January 3, or for a seat once someone sworn in after the election holds it (lesson 74). Data: `ingest -- elections` (`apps/worker/elections/<cycle>-senate.json`, the AP's calls with sources), `members-elect-house` (the Clerk's XML, late December), `fec-elect`, `elect-disclosures`. On iOS since v0.2.47: `RepScreen/ElectScreenView.swift`, `DesignSystem/ElectViews.swift`, `Models/MembersElect.swift` |
 | `GET /v1/members/{id}/promises`, `GET /v1/members/{id}/posts`, `GET /v1/posts?members=` | Round 13 (v0.2.53). Promises: `{status, electionYear, siteUrl, snapshotUrl, snapshotAt, pageUrl, promises[{heading, quote, headline, topic}]}`; every quote is verbatim from the archived campaign page (lesson 75). Posts: YouTube/Bluesky/Mastodon, newest first, plus `links` (full URLs) for X/Facebook/Instagram. The wall takes up to 12 members and lists those with no readable network in `unreadable`. `Member.social` carries the handles; since v0.2.54 the apps show them as network marks at the top of Posts (Contact is phone, form and website only). Data: `ingest -- social`, `posts`, `promises` (needs `ANTHROPIC_API_KEY`) |
 | `GET /v1/members/{bioguideId}/votes?limit=` | A member's recent votes with their position (and candidate, for Speaker elections) |
-| `GET /v1/votes?chamber=&limit=&before=` | The most recent **final** votes, newest first (`limit` 1–100, default 40), each with its `measure` (the same summary a member's record carries) and nobody's position: Finals' "All" (asked per chamber when one is picked), and the whole feed for someone who follows nobody. `before` (ISO time, e.g. the last vote's `occurredAt`) pages back. `topic=` (repeatable, since topic names hold commas; any case; up to 32) keeps only votes on bills in those CRS policy areas — Finals' "Following" for the topics you follow; names that are not topics match nothing (an empty list, not every vote). Every `measure` carries `policyArea` (null for a nomination). Edge-cached (`VOTES_CACHE_CONTROL`: 30 s, 60 s at the edge) and rate limited, 120 a minute per caller (`VOTES_RATE_LIMIT`; `/v1/votes/{id}` is not) |
+| `GET /v1/votes?chamber=&limit=&before=` | The most recent **final** votes, newest first (`limit` 1–100, default 40), each with its `measure` (the same summary a member's record carries) and nobody's position: Finals' "All" (asked per chamber when one is picked), and the whole feed for someone who follows nobody. `before` (ISO time, e.g. the last vote's `occurredAt`) pages back. `topic=` (repeatable, since topic names hold commas; any case; up to 32) keeps only votes on bills in those CRS policy areas — Finals' "Following" for the topics you follow; names that are not topics match nothing (an empty list, not every vote). Every `measure` carries `policyArea` (null for a nomination). Since v0.2.57 every `measure` (here, on a member's votes and on `/v1/votes/{id}`; one builder, `toMeasure` in `pg.ts`) also carries `sponsor`, `summaryLead` (the CRS summary's first sentences minus its title line, ≤ 320 characters, `summaryLead` in `bills.ts`), `position` (a nomination's post) and `forBillId` (the bill a House special rule is for, `ruleForBill`), and each row carries `partyTotals`, cut to the page before counting (1.5 s → 65 ms on prod). Edge-cached (`VOTES_CACHE_CONTROL`: 30 s, 60 s at the edge) and rate limited, 120 a minute per caller (`VOTES_RATE_LIMIT`; `/v1/votes/{id}` is not) |
 | `GET /v1/votes/{id}` | One vote (like every vote the API returns, with `explainer`: `{kind, text, source}`, the hand-written line for its question from `votekinds.ts`, or null for a question with no line, lesson 58): totals, threshold, kind, bill link, **per-party breakdown**, and for a Speaker election **which candidate each party backed**. `?members=A000370,C001098` (up to ten) also returns those members' own positions, so the vote screen loads your delegation in one round trip. IDs look like `house-119-1-100` |
 | `GET /v1/bills/{id}` | Title, short title, the list `label` (as `BillListItem.label`), the road-to-law `stage` (null until staged; read through `to_jsonb(b) ->> 'stage'`, so a database without the catalog migration still serves bills), CRS summary, sponsor, policy area, CBO estimates, last 30 actions, every vote on it. IDs look like `119-hr-2207` |
 | `GET /v1/bills/{id}/analysis` | AI analysis of the bill's CRS summary (M4 Layer 1): purpose, provisions, affected groups, impact. `ai: true` on the response and on every line, a `disclaimer` to show with it, and per line the summary paragraph it cites (1-based, into `source.paragraphs`), a verbatim quote and the bill section. `source.stale` means the summary has changed since and a new analysis is pending. 404 until the worker has analysed the bill (the app reads that as "none" and saves it like a response). Shown at the top of the Bill screen since v0.2.27 |
@@ -722,6 +722,14 @@ Real data broke our first assumptions several times. Each case below is now hand
     screen showing it with `RECORD=all`. Android views avoid fractional layer scales in anything a
     screenshot covers. Also: combining branches means re-running each platform's gate on the
     combined tree, not only on each branch; the round 13 combine skipped Android's.
+77. **A run's advisory lock outlives its client behind Supabase's pooler.** The promises job holds a
+    session advisory lock (`pg_try_advisory_lock`) so two runs never pay for the same member. On
+    2026-11-17 a long run lost its connection ("Connection terminated unexpectedly"); Supavisor kept the
+    server session alive and idle, still holding the lock, so every later run said "did not run" until
+    the orphan was ended with `pg_terminate_backend` (find it with `pg_locks` joined to
+    `pg_stat_activity`, `locktype = 'advisory'`, `state = 'idle'`). Long runs go in short batches, each
+    on a fresh connection; if a run reports the lock held with no other run going, look for an idle
+    holder before assuming another job.
 
 ---
 
@@ -2429,6 +2437,24 @@ the routes of v0.2.31, v0.2.34 and v0.2.35. Every screen follows the app's desig
   "Record" became "Votes"**: one short word in a 402 × 1400 image is under the 0.5% of pixels
   `precision` allows. It was re-recorded by hand. A label-only change can slip through; delete the
   reference and record it rather than trusting a green compare.
+
+### Finals as stories (v0.2.57)
+
+Locked mock: option B of https://claude.ai/artifact/VizRejAAFRVwUWFAcM4w8R, styled in "Arena" (direction 1 of
+https://claude.ai/artifact/HP3nZFoQ4jUppnjKsC1MfV, the app-wide look the owner locked the same day).
+
+- **One card per measure, not per roll call.** `Home/Stories.swift` / `home/Stories.kt` group the feed by
+  `measure.id`; a House special rule joins its bill's card through `forBillId` when that bill is in the feed. A
+  measure with a vote that decides something gets a full story card; one with only procedural votes, and a vote
+  with no measure, is an "Also this week" row. The procedural explainer kinds are one list per platform
+  (`VoteStep`), tested against every kind the API emits, and identical on both.
+- **The card:** a band in its topic's colour (eight groups over the 32 CRS policy areas, `TopicGroup`, the same
+  table on both platforms, each colour ≥ 4.5:1 under white), the CRS summary lead labelled as CRS (not AI), every
+  vote on the measure in order with the deciding one emphasised, the party split of that vote, and your members'
+  positions as portrait chips ("YEA on all three").
+- **Weeks** ("This week", "Last week", "Week of …") come from a pure function given now, the zone and the locale
+  (lesson 69). The split-flap board and the per-vote scoreboard cards are gone from Finals.
+- A nomination card opens its confirmation vote: neither app has a nomination screen yet.
 
 ### M5: Beta hardening + App Store
 Accessibility (Dynamic Type, VoiceOver on score cards), privacy labels, a vote-night load test, App Review prep, public TestFlight.

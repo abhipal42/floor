@@ -5,6 +5,7 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Color
+import app.floor.android.model.TopicGroup
 import kotlin.math.pow
 
 /**
@@ -110,6 +111,39 @@ object Tones {
     // The home-screen widget's ground.
     val widget = Swatch(0xFFFFFF, 0x0B0C0F)
 
+    // From the Finals stories mock (v0.2.57): a story's band, by topic group. The band's text is
+    // white in both appearances, so every value reads at 4.5:1 or better under white (PaletteTest).
+    // The dark defense, money, courts and other values are the Arena direction's own (`.d1`).
+    val topicDefense = Swatch(0x3B6E8F, 0x2D5F86)
+    val topicMoney = Swatch(0x7A5A12, 0x8A6512)
+    val topicCourts = Swatch(0x6A4C9C, 0x5E3FA0)
+    val topicHealth = Swatch(0xB0304A, 0x962840)
+    val topicLand = Swatch(0x2F6B3A, 0x285C32)
+    val topicRights = Swatch(0x1F6E73, 0x1A5C60)
+    val topicGov = Swatch(0x8C3F5D, 0x783550)
+    val topicOther = Swatch(0x5E6A66, 0x4A5560)
+
+    // Arena (the locked app-wide direction, 2026-11-17): a story card's gradient hairline, bright at
+    // the top left and fading by 40% along 160 degrees, and its soft drop shadow.
+    val storyEdge = Swatch(0x111816, 0xFFFFFF, lightOpacity = 0.14f, darkOpacity = 0.18f)
+    val storyEdgeFade = Swatch(0x111816, 0xFFFFFF, lightOpacity = 0.06f, darkOpacity = 0.02f)
+    val storyShadow = Swatch(0x111816, 0x000000, lightOpacity = 0.22f, darkOpacity = 0.9f)
+
+    /** The band text on a topic colour, and the verdict chip on the band: the same in both appearances. */
+    const val BAND_INK = 0xFFFFFFL
+    const val VERDICT_INK = 0x0B0C0FL
+
+    fun topic(group: TopicGroup): Swatch = when (group) {
+        TopicGroup.DEFENSE -> topicDefense
+        TopicGroup.MONEY -> topicMoney
+        TopicGroup.COURTS -> topicCourts
+        TopicGroup.HEALTH -> topicHealth
+        TopicGroup.LAND -> topicLand
+        TopicGroup.RIGHTS -> topicRights
+        TopicGroup.GOV -> topicGov
+        TopicGroup.OTHER -> topicOther
+    }
+
     fun party(party: String): Swatch = when (party) {
         "D" -> Swatch(0x2F5FD0, 0x6EA8FE)
         "R" -> Swatch(0xB43636, 0xF87171)
@@ -177,6 +211,25 @@ class FloorColors(val isDark: Boolean) {
 
     fun party(party: String) = of(Tones.party(party))
     fun partyTint(party: String) = of(Tones.partyTint(party))
+    fun topic(group: TopicGroup) = of(Tones.topic(group))
+
+    /** A story band's text and the verdict chip on it (iOS `bandInk`, `verdictInk`). */
+    val bandInk = hex(Tones.BAND_INK)
+    val verdictInk = hex(Tones.VERDICT_INK)
+
+    /** The band's sheen at its top right and its shade at the bottom (Arena's `--bandFx`). */
+    val bandSheen = hex(0xFFFFFF, 0.25f)
+    val bandShade = hex(0x000000, 0.3f)
+
+    /** The verdict chip's fill: near-white in both appearances. */
+    val verdictChip = hex(0xFFFFFF, 0.95f)
+
+    val storyEdge = of(Tones.storyEdge)
+    val storyEdgeFade = of(Tones.storyEdgeFade)
+    val storyShadow = of(Tones.storyShadow)
+
+    /** The 1dp inner highlight along a story card's top edge (Arena's `inset 0 1px 0`). */
+    val storyHighlight = hex(0xFFFFFF, 0.06f)
 
     // Lit displays: the same in both appearances.
     /** The split-flap board: its frame, and the top and bottom halves of each cell. */

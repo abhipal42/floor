@@ -1,0 +1,391 @@
+{
+  "votes": [
+    {
+      "vote": {
+        "id": "senate-119-2-265",
+        "kind": "question",
+        "candidates": [],
+        "chamber": "senate",
+        "congress": 119,
+        "session": 2,
+        "rollNumber": 265,
+        "question": "On the Nomination",
+        "billId": null,
+        "nominationId": "119-pn-1181-7",
+        "billRef": "PN1181-7",
+        "occurredAt": "2026-11-17T19:15:00.000Z",
+        "state": "final",
+        "threshold": "majority",
+        "totals": {
+          "yea": 52,
+          "nay": 46,
+          "present": 0,
+          "notVoting": 2
+        },
+        "result": "Nomination Confirmed",
+        "explainer": {
+          "kind": "nomination",
+          "text": "The confirmation vote. A simple majority.",
+          "source": "U.S. Constitution, Art. II, Sec. 2; Senate Rule XXXI"
+        }
+      },
+      "position": "nay",
+      "choice": null,
+      "measure": {
+        "id": "119-pn-1181-7",
+        "kind": "nomination",
+        "citation": "PN1181-7",
+        "title": "Anna St. John",
+        "policyArea": null,
+        "sponsor": null,
+        "summaryLead": null,
+        "position": "United States Circuit Judge for the Fifth Circuit",
+        "forBillId": null
+      }
+    },
+    {
+      "vote": {
+        "id": "senate-119-2-264",
+        "kind": "question",
+        "candidates": [],
+        "chamber": "senate",
+        "congress": 119,
+        "session": 2,
+        "rollNumber": 264,
+        "question": "On the Cloture Motion",
+        "billId": null,
+        "nominationId": null,
+        "billRef": null,
+        "occurredAt": "2026-11-16T23:27:00.000Z",
+        "state": "final",
+        "threshold": "three_fifths_sworn",
+        "totals": {
+          "yea": 70,
+          "nay": 27,
+          "present": 0,
+          "notVoting": 3
+        },
+        "result": "Cloture Motion Agreed to",
+        "explainer": {
+          "kind": "cloture",
+          "text": "A vote to end debate so the Senate can move to a final vote. On a bill it needs three-fifths of senators sworn in, 60 when the Senate is full. Passing cloture doesn't pass the bill.",
+          "source": "Senate Rule XXII, paragraph 2"
+        }
+      },
+      "position": "yea",
+      "choice": null,
+      "measure": null
+    },
+    {
+      "vote": {
+        "id": "senate-119-2-263",
+        "kind": "question",
+        "candidates": [],
+        "chamber": "senate",
+        "congress": 119,
+        "session": 2,
+        "rollNumber": 263,
+        "question": "On the Nomination",
+        "billId": null,
+        "nominationId": "119-pn-999-2",
+        "billRef": "PN999-2",
+        "occurredAt": "2026-11-16T22:27:00.000Z",
+        "state": "final",
+        "threshold": "majority",
+        "totals": {
+          "yea": 51,
+          "nay": 46,
+          "present": 0,
+          "notVoting": 3
+        },
+        "result": "Nomination Confirmed",
+        "explainer": {
+          "kind": "nomination",
+          "text": "The confirmation vote. A simple majority.",
+          "source": "U.S. Constitution, Art. II, Sec. 2; Senate Rule XXXI"
+        }
+      },
+      "position": "nay",
+      "choice": null,
+      "measure": {
+        "id": "119-pn-999-2",
+        "kind": "nomination",
+        "citation": "PN999-2",
+        "title": "Daniel Desmond Domenico",
+        "policyArea": null,
+        "sponsor": null,
+        "summaryLead": null,
+        "position": "United States Circuit Judge for the Tenth Circuit",
+        "forBillId": null
+      }
+    },
+    {
+      "vote": {
+        "id": "senate-119-2-262",
+        "kind": "question",
+        "candidates": [],
+        "chamber": "senate",
+        "congress": 119,
+        "session": 2,
+        "rollNumber": 262,
+        "question": "On the Cloture Motion",
+        "billId": null,
+        "nominationId": "119-pn-1181-7",
+        "billRef": "PN1181-7",
+        "occurredAt": "2026-11-12T20:21:00.000Z",
+        "state": "final",
+        "threshold": "majority",
+        "totals": {
+          "yea": 49,
+          "nay": 26,
+          "present": 0,
+          "notVoting": 25
+        },
+        "result": "Cloture Motion Agreed to",
+        "explainer": {
+          "kind": "cloture",
+          "text": "A vote to end debate so the Senate can move to a final vote. On nominations it needs only a simple majority. Passing cloture isn't the final vote.",
+          "source": "Senate Rule XXII; precedents of Nov. 21, 2013 and Apr. 6, 2017"
+        }
+      },
+      "position": "not_voting",
+      "choice": null,
+      "measure": {
+        "id": "119-pn-1181-7",
+        "kind": "nomination",
+        "citation": "PN1181-7",
+        "title": "Anna St. John",
+        "policyArea": null,
+        "sponsor": null,
+        "summaryLead": null,
+        "position": "United States Circuit Judge for the Fifth Circuit",
+        "forBillId": null
+      }
+    },
+    {
+      "vote": {
+        "id": "senate-119-2-261",
+        "kind": "question",
+        "candidates": [],
+        "chamber": "senate",
+        "congress": 119,
+        "session": 2,
+        "rollNumber": 261,
+        "question": "On the Cloture Motion",
+        "billId": null,
+        "nominationId": "119-pn-999-2",
+        "billRef": "PN999-2",
+        "occurredAt": "2026-11-12T19:49:00.000Z",
+        "state": "final",
+        "threshold": "majority",
+        "totals": {
+          "yea": 51,
+          "nay": 27,
+          "present": 0,
+          "notVoting": 22
+        },
+        "result": "Cloture Motion Agreed to",
+        "explainer": {
+          "kind": "cloture",
+          "text": "A vote to end debate so the Senate can move to a final vote. On nominations it needs only a simple majority. Passing cloture isn't the final vote.",
+          "source": "Senate Rule XXII; precedents of Nov. 21, 2013 and Apr. 6, 2017"
+        }
+      },
+      "position": "not_voting",
+      "choice": null,
+      "measure": {
+        "id": "119-pn-999-2",
+        "kind": "nomination",
+        "citation": "PN999-2",
+        "title": "Daniel Desmond Domenico",
+        "policyArea": null,
+        "sponsor": null,
+        "summaryLead": null,
+        "position": "United States Circuit Judge for the Tenth Circuit",
+        "forBillId": null
+      }
+    },
+    {
+      "vote": {
+        "id": "senate-119-2-260",
+        "kind": "question",
+        "candidates": [],
+        "chamber": "senate",
+        "congress": 119,
+        "session": 2,
+        "rollNumber": 260,
+        "question": "On the Nomination",
+        "billId": null,
+        "nominationId": "119-pn-1181-1",
+        "billRef": "PN1181-1",
+        "occurredAt": "2026-11-12T19:03:00.000Z",
+        "state": "final",
+        "threshold": "majority",
+        "totals": {
+          "yea": 49,
+          "nay": 27,
+          "present": 0,
+          "notVoting": 24
+        },
+        "result": "Nomination Confirmed",
+        "explainer": {
+          "kind": "nomination",
+          "text": "The confirmation vote. A simple majority.",
+          "source": "U.S. Constitution, Art. II, Sec. 2; Senate Rule XXXI"
+        }
+      },
+      "position": "nay",
+      "choice": null,
+      "measure": {
+        "id": "119-pn-1181-1",
+        "kind": "nomination",
+        "citation": "PN1181-1",
+        "title": "Gregory Carl Cook",
+        "policyArea": null,
+        "sponsor": null,
+        "summaryLead": null,
+        "position": "United States District Judge for the Northern District of Alabama",
+        "forBillId": null
+      }
+    },
+    {
+      "vote": {
+        "id": "senate-119-2-259",
+        "kind": "question",
+        "candidates": [],
+        "chamber": "senate",
+        "congress": 119,
+        "session": 2,
+        "rollNumber": 259,
+        "question": "On the Cloture Motion",
+        "billId": null,
+        "nominationId": "119-pn-1181-1",
+        "billRef": "PN1181-1",
+        "occurredAt": "2026-11-12T18:01:00.000Z",
+        "state": "final",
+        "threshold": "majority",
+        "totals": {
+          "yea": 50,
+          "nay": 27,
+          "present": 0,
+          "notVoting": 23
+        },
+        "result": "Cloture Motion Agreed to",
+        "explainer": {
+          "kind": "cloture",
+          "text": "A vote to end debate so the Senate can move to a final vote. On nominations it needs only a simple majority. Passing cloture isn't the final vote.",
+          "source": "Senate Rule XXII; precedents of Nov. 21, 2013 and Apr. 6, 2017"
+        }
+      },
+      "position": "nay",
+      "choice": null,
+      "measure": {
+        "id": "119-pn-1181-1",
+        "kind": "nomination",
+        "citation": "PN1181-1",
+        "title": "Gregory Carl Cook",
+        "policyArea": null,
+        "sponsor": null,
+        "summaryLead": null,
+        "position": "United States District Judge for the Northern District of Alabama",
+        "forBillId": null
+      }
+    },
+    {
+      "vote": {
+        "id": "senate-119-2-258",
+        "kind": "question",
+        "candidates": [],
+        "chamber": "senate",
+        "congress": 119,
+        "session": 2,
+        "rollNumber": 258,
+        "question": "On the Motion to Proceed",
+        "billId": "119-hr-2347",
+        "nominationId": null,
+        "billRef": "H.R. 2347",
+        "occurredAt": "2026-11-11T00:37:00.000Z",
+        "state": "final",
+        "threshold": "majority",
+        "totals": {
+          "yea": 62,
+          "nay": 21,
+          "present": 0,
+          "notVoting": 17
+        },
+        "result": "Motion to Proceed Agreed to",
+        "explainer": {
+          "kind": "motion_to_proceed",
+          "text": "Senate: whether to start debating a bill at all.",
+          "source": "Senate Rule VIII, paragraph 2"
+        }
+      },
+      "position": "yea",
+      "choice": null,
+      "measure": {
+        "id": "119-hr-2347",
+        "kind": "bill",
+        "citation": "H.R. 2347",
+        "title": "Survivor Justice Tax Prevention Act",
+        "policyArea": "Taxation",
+        "sponsor": {
+          "bioguideId": "S001199",
+          "lastName": "Smucker",
+          "party": "R",
+          "state": "PA"
+        },
+        "summaryLead": "This bill excludes from gross income certain damages received by an individual due to any sexual act or sexual contact and establishes the applicable burden of proof in court proceedings regarding the characterization of such damages for federal tax purposes.",
+        "position": null,
+        "forBillId": null
+      }
+    },
+    {
+      "vote": {
+        "id": "senate-119-2-257",
+        "kind": "question",
+        "candidates": [],
+        "chamber": "senate",
+        "congress": 119,
+        "session": 2,
+        "rollNumber": 257,
+        "question": "On Cloture on the Motion to Proceed",
+        "billId": "119-hr-2347",
+        "nominationId": null,
+        "billRef": "H.R. 2347",
+        "occurredAt": "2026-11-09T22:31:00.000Z",
+        "state": "final",
+        "threshold": "three_fifths_sworn",
+        "totals": {
+          "yea": 73,
+          "nay": 25,
+          "present": 0,
+          "notVoting": 2
+        },
+        "result": "Cloture on the Motion to Proceed Agreed to",
+        "explainer": {
+          "kind": "cloture_motion_to_proceed",
+          "text": "A vote to end debate on whether to take up a bill. It needs three-fifths of senators sworn in, 60 when the Senate is full. Passing it lets the Senate start on the bill, not pass it.",
+          "source": "Senate Rule XXII, paragraph 2"
+        }
+      },
+      "position": "yea",
+      "choice": null,
+      "measure": {
+        "id": "119-hr-2347",
+        "kind": "bill",
+        "citation": "H.R. 2347",
+        "title": "Survivor Justice Tax Prevention Act",
+        "policyArea": "Taxation",
+        "sponsor": {
+          "bioguideId": "S001199",
+          "lastName": "Smucker",
+          "party": "R",
+          "state": "PA"
+        },
+        "summaryLead": "This bill excludes from gross income certain damages received by an individual due to any sexual act or sexual contact and establishes the applicable burden of proof in court proceedings regarding the characterization of such damages for federal tax purposes.",
+        "position": null,
+        "forBillId": null
+      }
+    }
+  ]
+}

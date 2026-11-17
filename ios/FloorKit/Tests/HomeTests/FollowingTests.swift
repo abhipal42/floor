@@ -102,7 +102,7 @@ struct FinalsGroupingTests {
         #expect(model.visibleItems.map(\.vote.id) == ["senate-119-2-262", "house-119-2-321"])
         model.filter = .senate
         #expect(model.visibleItems.map(\.vote.id) == ["senate-119-2-262"])
-        #expect(model.latestFinal?.vote.id == "senate-119-2-262")
+        #expect(model.visibleItems.first?.vote.id == "senate-119-2-262")
     }
 
     /// D.C. has no senators, so its Senate filter says why — unless you follow a senator.
@@ -140,7 +140,7 @@ struct HomeNetworkTests {
             #expect(model.visibleItems.count == model.allItems.count)
             #expect(model.visibleItems.allSatisfy { $0.positions.isEmpty })
             #expect(model.items.isEmpty)
-            #expect(model.latestFinal != nil)
+            #expect(!model.visibleItems.isEmpty)
             #expect(!model.needsRefresh)
             #expect(HomeStub.paths == ["/v1/votes"])
         }

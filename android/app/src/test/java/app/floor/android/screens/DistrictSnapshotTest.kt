@@ -45,6 +45,7 @@ import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 import org.robolectric.annotation.GraphicsMode
+import java.time.Instant
 import java.time.ZoneId
 import java.util.Locale
 
@@ -135,8 +136,45 @@ class DistrictSnapshotTest {
 
     // MARK: - Finals with your three
 
+    /** The day the stories fixtures were recorded: Nov 16 is "This week", Nov 11-12 "Last week". */
+    private val today = Instant.parse("2026-11-17T15:00:00Z")
+
     @Composable
-    private fun Home(state: HomeState) = HomeScreen(state, Appearance.SYSTEM, {}, {}, {}, {}, {})
+    private fun Home(state: HomeState) = HomeScreen(state, Appearance.SYSTEM, {}, {}, {}, {}, {}, zone = eastern, locale = Locale.US, now = today)
+
+    /**
+     * New York's 12th (Nadler, Schumer, Gillibrand) on the stories feed, as the locked v0.2.57 mock
+     * draws it: H.R. 2102 with its discharge and rule, Domenico, Cook, H.R. 1013, St. John and the
+     * unnamed cloture. Real rows, recorded the day the mock was locked.
+     */
+    private val newYork: HomeState
+        get() {
+            val details = listOf("nadler", "schumer", "gillibrand").map { Fixtures.decode("member-detail-$it", MemberDetail.serializer()) }
+            val members = details.map { it.member }
+            val records = listOf("nadler", "schumer", "gillibrand").map { Fixtures.decode("member-votes-$it-stories", MemberVotes.serializer()).votes }
+            val ny = Delegation(District(119, "NY", 12), members)
+            return HomeState(
+                phase = HomeState.Phase.Loaded,
+                items = Fixtures.decode("votes-stories", RecentVotes.serializer()).votes,
+                scope = HomeState.Scope.ALL,
+                yours = HomeState.merge(members.zip(records), members.map { it.bioguideId }),
+                followsAnything = true,
+                delegation = ny, strip = members,
+                loyalty = details.associate { it.member.bioguideId to it.partyLoyalty },
+            )
+        }
+
+    @Test
+    @Config(qualifiers = "w402dp-h2200dp-xhdpi")
+    fun homeStoriesLight() = snap("homeStories", light) { Home(newYork) }
+
+    @Test
+    @Config(qualifiers = "w402dp-h2200dp-xhdpi")
+    fun homeStoriesDark() = snap("homeStories", dark) { Home(newYork) }
+
+    @Test
+    @Config(qualifiers = "w402dp-h4400dp-xhdpi")
+    fun homeStoriesLarge() = snap("homeStories", large) { Home(newYork) }
 
     private val yourThree: HomeState
         get() {
@@ -257,7 +295,7 @@ class DistrictSnapshotTest {
     @Test fun searchStateWithElectDark() = snap("searchStateWithElect", dark) { Search(michigan) }
 
     @Test
-    @Config(qualifiers = "w402dp-h2000dp-xhdpi")
+    @Config(qualifiers = "w402dp-h2200dp-xhdpi")
     fun searchStateWithElectLarge() = snap("searchStateWithElect", large) { Search(michigan) }
 
     @Test fun searchPendingSeatSampleLight() = snap("searchPendingSeatSample", light) { Search(pendingSample) }

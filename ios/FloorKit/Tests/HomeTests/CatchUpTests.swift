@@ -132,33 +132,6 @@ struct CatchUpTests {
             == "Fell 61 short of the 211 it needed.")
     }
 
-    /// The board's rows for House roll 321, as the mock lays them out.
-    @Test func lettersTheSplitFlapBoard() throws {
-        let vote = Vote(
-            id: "house-119-2-321", kind: .question, chamber: .house, congress: 119, session: 2, rollNumber: 321,
-            question: "On Passage", billId: "119-hr-1013", nominationId: nil, billRef: "H R 1013",
-            occurredAt: "2026-11-11T19:43:00.000Z", state: .final, threshold: .majority,
-            totals: VoteTotals(yea: 295, nay: 128, present: 0, notVoting: 10), candidates: [], result: "Passed"
-        )
-        let measure = MeasureSummary(id: "119-hr-1013", kind: .bill, citation: "H.R. 1013", title: "Retirement Fairness")
-        let rows = FlapBoard.rows(FeedItem(vote: vote, measure: measure, positions: []))
-        #expect(rows == ["HOUSE  ROLL 321 ", "H.R. 1013 PASSED", "YEA 295 NAY 128 "])
-        #expect(rows.allSatisfy { $0.count == 16 })
-    }
-
-    @Test func letteringFallsBackWhenTheCitationDoesNotFit() {
-        let long = item(yea: 62, nay: 21, threshold: .majority, result: "Motion to Proceed Agreed to", chamber: .senate)
-        let rows = FlapBoard.rows(FeedItem(
-            vote: long.vote,
-            measure: MeasureSummary(id: "x", kind: .bill, citation: "H.Con.Res. 1000", title: "x"),
-            positions: []
-        ))
-        #expect(rows[1] == "     AGREED     ")
-        let ballot = FlapBoard.rows(FeedItem(vote: .sampleElection, measure: nil, positions: []))
-        #expect(ballot[1].trimmingCharacters(in: .whitespaces) == "NO SPEAKER YET")
-        #expect(ballot[2].trimmingCharacters(in: .whitespaces) == "JEFFRIES 212")
-    }
-
     @MainActor @Test func listsEachBillOnceNewestFirst() throws {
         let model = HomeModel(delegation: .init(district: .sample, members: [doggett, cornyn, cruz]),
                               api: .init(baseURL: URL(string: "https://x.test")!))

@@ -106,12 +106,16 @@ struct ScreenSnapshotTests {
 
     // MARK: - Home
 
+    /// 2026-11-14, the Saturday after the Austin records' latest votes.
+    private let homeNow = Date(timeIntervalSince1970: 1_794_700_000)
+
     private func home(_ api: FloorAPI, load: Bool = true) async throws -> some View {
         let model = HomeModel(delegation: try delegation, api: api)
         if load { await model.load() }
         return HomeView(model: model, onChangeAddress: {}, onOpenMember: { _ in }, onOpen: { _ in })
-            // The split-flap board scrambles as it appears; drawn settled, as Reduce Motion draws it.
             .environment(\.playsArrivalAnimations, false)
+            // The feed's week headings read from "now": pinned to the day the records were captured.
+            .environment(\.pinnedNow, homeNow)
     }
 
     @Test func homeLoaded() async throws {

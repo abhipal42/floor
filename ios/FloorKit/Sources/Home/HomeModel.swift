@@ -23,6 +23,9 @@ public struct FeedItem: Identifiable, Sendable, Hashable {
     public var vote: Vote
     public var measure: MeasureSummary?
     public var positions: [Position]
+    /// The vote's party split, from `GET /v1/votes`; empty for a vote only a member's record or a
+    /// bill brought, which carry none.
+    public var partyTotals: [PartyTotals] = []
 
     public var id: String { vote.id }
 
@@ -425,7 +428,8 @@ public final class HomeModel {
         }
         // Rows for a topic since unfollowed stay out without a refetch.
         let topicVotes = topicRows.filter { $0.measure?.policyArea.map(topics.contains) ?? false }
-        items = Self.combine(memberItems, with: billVotes + topicVotes)
+        // The latest finals carry party splits; a member's record does not, so their cards borrow them.
+        items = Self.withPartyTotals(Self.combine(memberItems, with: billVotes + topicVotes), from: recentRows + topicVotes)
         if recentChamber != nil { allItems = Self.annotate(recentRows, with: items) }
         let ids = Set(members.map(\.bioguideId))
         unavailable = unavailable.filter { ids.contains($0.bioguideId) }
@@ -648,8 +652,6 @@ public final class HomeModel {
         return (found ?? []).compactMap(\.self)
     }
 
-    /// The most recent final in the feed, for the split-flap board.
-    public var latestFinal: FeedItem? { scopedItems.first { $0.vote.state == .final } }
 
     /// The catch-up deck: five finals from this feed, chosen by ``CatchUp/select(_:count:)``.
     public var deck: [FeedItem] { CatchUp.select(scopedItems) }
@@ -727,6 +729,7 @@ public final class HomeModel {
         var byVote = Dictionary(items.map { ($0.vote.id, $0) }, uniquingKeysWith: { a, _ in a })
         for row in extra {
             if var known = byVote[row.vote.id] {
+                if known.partyTotals.isEmpty { known.partyTotals = row.partyTotals }
                 if known.measure == nil {
                     known.measure = row.measure
                 } else if known.measure?.policyArea == nil, let fuller = row.measure, fuller.id == known.measure?.id {
@@ -734,10 +737,22 @@ public final class HomeModel {
                 }
                 byVote[row.vote.id] = known
             } else {
-                byVote[row.vote.id] = FeedItem(vote: row.vote, measure: row.measure, positions: [])
+                byVote[row.vote.id] = FeedItem(vote: row.vote, measure: row.measure, positions: [], partyTotals: row.partyTotals)
             }
         }
         return newestFirst(Array(byVote.values))
+    }
+
+    /// `items` with the party split of any vote `rows` carries one for, where the item has none.
+    nonisolated static func withPartyTotals(_ items: [FeedItem], from rows: [RecentVote]) -> [FeedItem] {
+        let totals = Dictionary(rows.filter { !$0.partyTotals.isEmpty }.map { ($0.vote.id, $0.partyTotals) },
+                                uniquingKeysWith: { a, _ in a })
+        return items.map { item in
+            guard item.partyTotals.isEmpty, let found = totals[item.vote.id] else { return item }
+            var item = item
+            item.partyTotals = found
+            return item
+        }
     }
 
     /// The latest finals as cards, each carrying your members' positions where your feed has that
@@ -746,10 +761,11 @@ public final class HomeModel {
         let byVote = Dictionary(yours.map { ($0.vote.id, $0) }, uniquingKeysWith: { a, _ in a })
         return recent.map { row in
             guard var known = byVote[row.vote.id] else {
-                return FeedItem(vote: row.vote, measure: row.measure, positions: [])
+                return FeedItem(vote: row.vote, measure: row.measure, positions: [], partyTotals: row.partyTotals)
             }
             known.vote = row.vote
             known.measure = known.measure ?? row.measure
+            known.partyTotals = row.partyTotals.isEmpty ? known.partyTotals : row.partyTotals
             return known
         }
     }

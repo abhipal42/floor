@@ -92,34 +92,3 @@ public enum CatchUp {
         return n < words.count ? words[n] : "\(n)"
     }
 }
-
-/// The split-flap board's three rows, sixteen cells each, as the Home mock lays them out.
-public enum FlapBoard {
-    public static let width = 16
-
-    /// `HOUSE  ROLL 321` / `H.R. 1013 PASSED` / `YEA 295 NAY 128`, each centred and cut to fit.
-    public static func rows(_ item: FeedItem) -> [String] {
-        let vote = item.vote
-        let first = [vote.chamber.name.uppercased(), vote.rollNumber.map { "ROLL \($0)" }]
-            .compactMap(\.self).joined(separator: "  ")
-        if vote.kind == .election {
-            let leader = vote.leadingCandidate
-            return [
-                first,
-                vote.electedSpeaker == nil ? "NO SPEAKER YET" : "SPEAKER ELECTED",
-                leader.map { "\($0.name.uppercased()) \($0.total)" } ?? "",
-            ].map(pad)
-        }
-        let cite = item.measure?.citation.uppercased() ?? vote.questionKind.uppercased()
-        let word = vote.outcomeWord ?? "FINAL"
-        let second = cite.count + 1 + word.count <= width ? "\(cite) \(word)" : word
-        return [first, second, "YEA \(vote.totals.yea) NAY \(vote.totals.nay)"].map(pad)
-    }
-
-    /// Centred in sixteen cells, the extra space on the right, as the mock's `pad` does.
-    static func pad(_ text: String) -> String {
-        let cut = String(text.prefix(width))
-        let left = (width - cut.count) / 2
-        return String(repeating: " ", count: left) + cut + String(repeating: " ", count: width - cut.count - left)
-    }
-}

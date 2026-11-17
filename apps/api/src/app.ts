@@ -658,6 +658,16 @@ export function withLeaving<M extends Member>(members: M[], elect: MemberElect[]
   return members.map((m) => ({ ...m, leavingOn: leaving.get(m.bioguideId) ?? null }));
 }
 
+/** Who sponsored a bill, as much as a feed card's citation line needs. */
+export const MeasureSponsorSchema = z
+  .object({
+    bioguideId: z.string().openapi({ example: "B001257" }),
+    lastName: z.string().openapi({ example: "Bilirakis" }),
+    party: z.string().openapi({ example: "R" }),
+    state: z.string().openapi({ example: "FL" }),
+  })
+  .openapi("MeasureSponsor");
+
 /**
  * Just enough about the bill or nomination a vote was on to label it in a list.
  *
@@ -677,6 +687,27 @@ export const MeasureSummarySchema = z
       example: "Health",
       description:
         "A bill's CRS policy area (its topic), so a feed can say a vote is in a topic you follow; null for a nomination and for a bill CRS has not classified",
+    }),
+    sponsor: MeasureSponsorSchema.nullable().openapi({
+      description: "A bill's sponsor; null for a nomination and for a bill whose sponsor is not in the members table",
+    }),
+    summaryLead: z.string().nullable().openapi({
+      example:
+        "This bill allows a veteran with a combat-related disability to receive retirement pay, without reduction, concurrently with their disability compensation.",
+      description:
+        "The opening of the bill's CRS summary (the text the bill route serves as `summary`) without its title line: the first " +
+        "sentence, or two when the first is short, cut at a sentence end, at most about 320 characters. CRS's words, not AI. Null for a " +
+        "nomination and for a bill CRS has not summarized",
+    }),
+    position: z.string().nullable().openapi({
+      example: "United States Circuit Judge for the Tenth Circuit",
+      description: "A nomination's position title; null for a bill",
+    }),
+    forBillId: z.string().nullable().openapi({
+      example: "119-hr-2102",
+      description:
+        'For a House special rule ("Providing for consideration of the bill (H.R. 2102) ..."), the id of the bill it brings to the floor: ' +
+        "the first one its title names when it names several. Null for anything else",
     }),
   })
   .openapi("MeasureSummary");
@@ -736,6 +767,9 @@ export const RecentVoteSchema = z
     measure: MeasureSummarySchema.nullable().openapi({
       description: "null for a procedural vote that refers to no measure",
     }),
+    partyTotals: z
+      .array(PartyTotalsSchema)
+      .openapi({ description: "Per-party counts, as on `VoteDetail`; empty for an election, which has no yea or nay" }),
   })
   .openapi("RecentVote");
 

@@ -3,13 +3,15 @@ import DesignSystem
 import Models
 import SwiftUI
 
-/// The Finals tab, as the locked Home mock draws it: your delegation with a loyalty ring each, the
-/// latest final on a split-flap board, the catch-up deck, then your finals by chamber.
-///
-/// The mock's board reads "LATEST FINAL · 1 / 5"; this one shows only the latest, so it says so
-/// and dates it rather than numbering a sequence it does not page through.
+/// The Finals tab: your delegation with a loyalty ring each, the catch-up deck, then the finals as
+/// stories (v0.2.57, the locked feed option B, styled "Arena"): one card per bill or nominee with
+/// every vote on it, by week, and an "Also this week" row for what only moved along.
 public struct HomeView: View {
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+    @Environment(\.calendar) private var calendar
+    @Environment(\.timeZone) private var timeZone
+    @Environment(\.locale) private var locale
+    @Environment(\.pinnedNow) private var pinnedNow
     let model: HomeModel
     let onChangeAddress: () -> Void
     let onOpenMember: (Member) -> Void
@@ -51,10 +53,6 @@ public struct HomeView: View {
                     if model.shownScope == .yours, let note = model.billLimitNote {
                         Text(note).scaledFont(12).foregroundStyle(Palette.textMuted)
                     }
-                    if let latest = model.latestFinal {
-                        Button { onOpen(.vote(id: latest.vote.id)) } label: { SplitFlapBoard(item: latest) }
-                            .buttonStyle(.plain)
-                    }
                     if !model.deck.isEmpty {
                         Button { onOpen(.catchUp) } label: { catchUpEntry }
                             .buttonStyle(.plain)
@@ -72,8 +70,9 @@ public struct HomeView: View {
             await model.loadSeats()
         }
         .background(alignment: .top) {
-            LinearGradient(colors: [Palette.groundGlow, Palette.ground], startPoint: .top, endPoint: .bottom)
-                .frame(height: 420)
+            // Arena's soft glow at the top of the ground.
+            EllipticalGradient(colors: [Palette.groundGlow, Palette.ground], center: .top, startRadiusFraction: 0, endRadiusFraction: 0.6)
+                .frame(height: 760)
                 .ignoresSafeArea()
         }
         .background(Palette.ground)
@@ -290,6 +289,14 @@ public struct HomeView: View {
         }
     }
 
+    /// The reader's calendar with their zone and locale, for the week headers and short dates.
+    private var readerCalendar: Calendar {
+        var c = calendar
+        c.timeZone = timeZone
+        c.locale = locale
+        return c
+    }
+
     @ViewBuilder
     private var feed: some View {
         if model.visibleItems.isEmpty {
@@ -297,19 +304,42 @@ public struct HomeView: View {
                 .font(Typography.body)
                 .foregroundStyle(Palette.textMuted)
         } else {
-            ForEach(model.visibleItems) { item in
-                Button { onOpen(.vote(id: item.vote.id)) } label: {
-                    ScoreboardCard(
-                        vote: item.vote,
-                        title: item.measure?.title ?? item.vote.question,
-                        citation: item.measure?.citation,
-                        positions: item.memberPositions,
-                        matches: model.matches(item)
-                    )
+            let cal = readerCalendar
+            // Your three in "All"; everyone you follow in "Following".
+            let allowed: Set<String>? = model.shownScope == .yours ? nil : Set(model.reps.map(\.bioguideId))
+            ForEach(Stories.group(model.visibleItems, now: pinnedNow ?? Date(), calendar: cal)) { week in
+                VStack(alignment: .leading, spacing: 14) {
+                    if !week.stories.isEmpty {
+                        weekHeader(week.title, range: Stories.range(week, calendar: cal))
+                        ForEach(week.stories) { story in
+                            StoryCard(story: story, members: Stories.members(story, allowed: allowed), calendar: cal, onOpen: onOpen)
+                        }
+                    }
+                    if !week.minis.isEmpty {
+                        weekHeader(week.stories.isEmpty ? week.title : week.alsoTitle,
+                                   range: week.stories.isEmpty ? Stories.range(week, calendar: cal) : nil)
+                        VStack(spacing: 8) {
+                            ForEach(week.minis) { story in
+                                Button { onOpen(.vote(id: story.latest.vote.id)) } label: { MiniStoryRow(story: story, calendar: cal) }
+                                    .buttonStyle(.plain)
+                            }
+                        }
+                    }
                 }
-                .buttonStyle(.plain)
             }
         }
+    }
+
+    private func weekHeader(_ title: String, range: String?) -> some View {
+        HStack(alignment: .firstTextBaseline) {
+            Text(title).font(Typography.weekTitle).foregroundStyle(Palette.text)
+                .accessibilityAddTraits(.isHeader)
+            Spacer()
+            if let range {
+                Text(range).scaledFont(Typography.Story.weekRange, weight: .semibold).foregroundStyle(Palette.textMuted)
+            }
+        }
+        .padding(.top, 6)
     }
 
     private func failure(_ message: String) -> some View {
@@ -320,67 +350,5 @@ public struct HomeView: View {
                 .foregroundStyle(Palette.accent)
         }
         .panel()
-    }
-}
-
-/// The latest final on a split-flap board: three rows of sixteen cells that settle into place.
-///
-/// The settle is a short scramble, cell by cell, left to right. With Reduce Motion on, the board
-/// is drawn settled.
-struct SplitFlapBoard: View {
-    let item: FeedItem
-    @Environment(\.accessibilityReduceMotion) private var systemReduceMotion
-    @Environment(\.playsArrivalAnimations) private var playsArrivalAnimations
-    private var reduceMotion: Bool { systemReduceMotion || !playsArrivalAnimations }
-    @State private var settled = 0
-
-    private static let glyphs = Array("ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789")
-
-    var body: some View {
-        let rows = FlapBoard.rows(item)
-        let colors = [Palette.textMuted, Palette.text, Palette.yea]
-        VStack(alignment: .leading, spacing: 4) {
-            ForEach(Array(rows.enumerated()), id: \.offset) { r, row in
-                HStack(spacing: 2) {
-                    ForEach(Array(row.enumerated()), id: \.offset) { c, char in
-                        let index = r * FlapBoard.width + c
-                        let shown: Character = reduceMotion || index < settled || char == " " ? char : Self.glyphs[(index * 7 + settled) % Self.glyphs.count]
-                        Text(String(shown))
-                            .font(Typography.display(17, weight: .extraBold, scales: false))
-                            .foregroundStyle(colors[r])
-                            .frame(maxWidth: .infinity)
-                            .frame(height: 28)
-                            .background(
-                                LinearGradient(stops: [.init(color: Palette.flapTop, location: 0.49),
-                                                       .init(color: Palette.flapBottom, location: 0.51)],
-                                               startPoint: .top, endPoint: .bottom),
-                                in: .rect(cornerRadius: 3)
-                            )
-                    }
-                }
-            }
-            Text("LATEST FINAL\(item.vote.occurredAtDate.map { " · " + $0.formatted(.dateTime.month(.abbreviated).day()).uppercased() } ?? "")")
-                .font(.system(size: 10))
-                .foregroundStyle(Palette.textMuted)
-                .padding(.top, 4)
-        }
-        .padding(12)
-        .background(Palette.flapBoard, in: .rect(cornerRadius: 16))
-        .overlay(RoundedRectangle(cornerRadius: 16).stroke(Palette.panelBorder, lineWidth: 1))
-        // A lit board, so it stays dark in light mode, as the real ones do.
-        .litObject()
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel("Latest final: " + rows.map { $0.trimmingCharacters(in: .whitespaces) }.joined(separator: ", "))
-        .accessibilityHint("Opens the vote")
-        .task(id: item.id) {
-            guard !reduceMotion else { settled = .max; return }
-            let total = rows.count * FlapBoard.width
-            for step in 0...total {
-                settled = step
-                try? await Task.sleep(for: .milliseconds(14))
-                if Task.isCancelled { break }
-            }
-            settled = .max
-        }
     }
 }

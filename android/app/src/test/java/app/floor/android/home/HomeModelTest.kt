@@ -50,7 +50,7 @@ class HomeModelTest {
         assertEquals(HomeState.Phase.Loaded, state.phase)
         assertEquals(10, state.items.size)
         assertNull(state.saved)
-        assertEquals(state.items.first().vote, state.latestFinal?.vote)
+        assertEquals(state.items.first().vote, state.stories.first().latest.vote)
         val request = server.takeRequest()
         assertEquals("/v1/votes", request.url.encodedPath)
         assertEquals("40", request.url.queryParameter("limit"))
@@ -128,7 +128,7 @@ class HomeModelTest {
         model.load()
         assertEquals(HomeState.Phase.Loaded, model.state.phase)
         assertTrue(model.state.visibleItems.isEmpty())
-        assertNull(model.state.latestFinal)
+        assertTrue(model.state.stories.isEmpty())
         assertEquals("No recent votes in this chamber.", model.state.emptyFeedMessage)
     }
 }

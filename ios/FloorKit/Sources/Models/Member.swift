@@ -188,17 +188,53 @@ public struct MeasureSummary: Codable, Sendable, Hashable, Identifiable {
     /// nil for a nomination, for a bill CRS has not classified, and in a response saved by an
     /// earlier build (the field is new in v0.2.29).
     public var policyArea: String?
+    /// A bill's sponsor, for a feed card's citation line. nil for a nomination, and in a response
+    /// from before v0.2.57 (as are the three fields below).
+    public var sponsor: MeasureSponsor?
+    /// The opening of a bill's CRS summary without its title line, about 320 characters at most, cut
+    /// at a sentence end. CRS's words, not AI's. nil for a nomination and a bill CRS has not summarized.
+    public var summaryLead: String?
+    /// A nomination's position title, e.g. `United States Circuit Judge for the Tenth Circuit`.
+    public var position: String?
+    /// For a House special rule, the bill it brings to the floor (`119-hr-2102`), so a feed can file
+    /// the rule's votes under that bill.
+    public var forBillId: String?
 
-    public init(id: String, kind: Kind, citation: String, title: String, policyArea: String? = nil) {
+    public init(
+        id: String, kind: Kind, citation: String, title: String, policyArea: String? = nil,
+        sponsor: MeasureSponsor? = nil, summaryLead: String? = nil, position: String? = nil, forBillId: String? = nil
+    ) {
         self.id = id
         self.kind = kind
         self.citation = citation
         self.title = title
         self.policyArea = policyArea
+        self.sponsor = sponsor
+        self.summaryLead = summaryLead
+        self.position = position
+        self.forBillId = forBillId
     }
 
     /// `H.R. 1013 · Retirement Fairness Act`, as a card headline.
     public var headline: String { "\(citation) · \(title)" }
+}
+
+/// A bill's sponsor as ``MeasureSummary`` carries it.
+public struct MeasureSponsor: Codable, Sendable, Hashable {
+    public var bioguideId: String
+    public var lastName: String
+    public var party: String
+    public var state: String
+
+    public init(bioguideId: String, lastName: String, party: String, state: String) {
+        self.bioguideId = bioguideId
+        self.lastName = lastName
+        self.party = party
+        self.state = state
+    }
+
+    /// `Bilirakis (R-FL)`.
+    public var label: String { "\(lastName) (\(party)-\(state))" }
 }
 
 /// One row of a member's voting record.

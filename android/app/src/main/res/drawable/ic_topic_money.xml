@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- A story band's topic icon (v0.2.57 Finals mock): bars on a base. Tinted by the view that draws it. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <path
+        android:fillColor="#FF000000"
+        android:pathData="M4,20h16v2H4z M6,10h2v8H6z M11,6h2v12h-2z M16,13h2v5h-2z" />
+</vector>

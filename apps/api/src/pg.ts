@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import { AI_DISCLAIMER, DEVICE_SIGNUPS_PER_DAY, NO_CONTACT, STOCK_ACT_DEADLINE_DAYS, UNCHECKED_PROMISES } from "./app.js";
-import { billCitation, billLabel } from "./bills.js";
+import { billCitation, billLabel, ruleForBill, summaryLead } from "./bills.js";
 import type {
   Bill,
   BillListItem,
@@ -238,13 +238,23 @@ const TOPIC_FILTER_SQL: Record<TopicFilter, string> = {
             and (b.latest_action_on is null or b.latest_action_on < ($NOW::timestamptz at time zone 'America/New_York')::date - 90)`,
 };
 
-/** The columns both the feed and the vote route select to describe a vote's measure. */
+/**
+ * The columns both the feed and the vote route select to describe a vote's measure. The summary is
+ * cut to its opening in SQL: `summaryLead` reads at most the title, the draft-text note and about
+ * 320 characters, so 1,500 is plenty and a feed of 50 rows does not carry 50 whole summaries.
+ */
 const MEASURE_COLUMNS = `b.bill_type, b.number as bill_number, b.short_title as bill_short_title,
-  b.title as bill_title, b.policy_area as bill_policy_area, n.citation as nomination_citation, n.nominee_name, n.position_title, n.organization`;
+  b.title as bill_title, b.policy_area as bill_policy_area, left(b.summary, 1500) as bill_summary,
+  ms.bioguide_id as sponsor_bioguide_id, ms.last_name as sponsor_last_name, ms.party as sponsor_party, ms.state as sponsor_state,
+  n.citation as nomination_citation, n.nominee_name, n.position_title, n.organization`;
+
+/** The joins that go with them, after `bills b` and `nominations n` are joined. */
+const MEASURE_SPONSOR_JOIN = "left join members ms on ms.bioguide_id = b.sponsor_id";
 
 /** The joins that go with them. */
 const MEASURE_JOINS = `left join bills b on b.id = v.bill_id
-  left join nominations n on n.id = v.nomination_id`;
+  left join nominations n on n.id = v.nomination_id
+  ${MEASURE_SPONSOR_JOIN}`;
 
 interface MeasureRow {
   bill_id: string | null;
@@ -254,6 +264,11 @@ interface MeasureRow {
   bill_short_title: string | null;
   bill_title: string | null;
   bill_policy_area: string | null;
+  bill_summary: string | null;
+  sponsor_bioguide_id: string | null;
+  sponsor_last_name: string | null;
+  sponsor_party: string | null;
+  sponsor_state: string | null;
   nomination_citation: string | null;
   nominee_name: string | null;
   position_title: string | null;
@@ -268,16 +283,28 @@ const nominationTitle = (r: {
 }): string =>
   r.nominee_name ?? ([r.position_title, r.organization].filter(Boolean).join(", ") || "Nomination");
 
-/** Builds the measure summary from a row that selected `MEASURE_COLUMNS`, or null for a procedural vote. */
+/**
+ * Builds the measure summary from a row that selected `MEASURE_COLUMNS`, or null for a procedural
+ * vote. The one builder for every route that names a vote's measure (the feed, a member's record,
+ * the vote screen, the live votes), so they can never describe one measure differently.
+ */
 const toMeasure = (r: MeasureRow): MeasureSummary | null => {
   if (r.bill_id && r.bill_type && r.bill_number != null) {
     const citation = billCitation(r.bill_type, r.bill_number);
+    const congress = Number(r.bill_id.split("-")[0]);
     return {
       id: r.bill_id,
       kind: "bill",
       citation,
       title: r.bill_short_title ?? r.bill_title ?? citation,
       policyArea: r.bill_policy_area,
+      sponsor:
+        r.sponsor_bioguide_id && r.sponsor_last_name && r.sponsor_party && r.sponsor_state
+          ? { bioguideId: r.sponsor_bioguide_id, lastName: r.sponsor_last_name, party: r.sponsor_party, state: r.sponsor_state }
+          : null,
+      summaryLead: summaryLead(r.bill_summary),
+      position: null,
+      forBillId: r.bill_type === "hres" && r.bill_title && Number.isInteger(congress) ? ruleForBill(r.bill_title, congress) : null,
     };
   }
   if (r.nomination_id && r.nomination_citation) {
@@ -287,10 +314,30 @@ const toMeasure = (r: MeasureRow): MeasureSummary | null => {
       citation: r.nomination_citation,
       title: nominationTitle(r),
       policyArea: null,
+      sponsor: null,
+      summaryLead: null,
+      position: r.position_title,
+      forBillId: null,
     };
   }
   return null;
 };
+
+interface PartyTotalsRow {
+  party: string;
+  yea: number;
+  nay: number;
+  present: number;
+  not_voting: number;
+}
+
+const toPartyTotals = (r: PartyTotalsRow): PartyTotals => ({
+  party: r.party,
+  yea: r.yea,
+  nay: r.nay,
+  present: r.present,
+  notVoting: r.not_voting,
+});
 
 /**
  * Smallest party bloc that can have a meaningful majority on a vote, for `partyLoyalty`. Below this
@@ -730,6 +777,7 @@ export function pgRepositories(db: Db): {
              ) ref on true
              left join bills b on b.id = coalesce(v.bill_id, ref.id)
              left join nominations n on n.id = v.nomination_id
+             ${MEASURE_SPONSOR_JOIN}
             where (v.state = 'open' and v.announced_at > $2::timestamptz - interval '1 day')
                or (v.state = 'final' and v.broadcast_at > $1
                    and coalesce(v.occurred_at, v.broadcast_at) > $2::timestamptz - interval '1 day')
@@ -923,24 +971,44 @@ export function pgRepositories(db: Db): {
       async recentVotes(chamber, limit, before, topics) {
         // Final only: an open vote's tally is the floor's, not the roll call's (as on bill pages).
         // `topics` narrows to votes on bills in those policy areas (the Following feed's topics).
-        const { rows } = await db.query<VoteRow & MeasureRow>(
-          `select ${VOTE_COLUMNS}, ${MEASURE_COLUMNS}
-             from votes v
-             ${MEASURE_JOINS}
-            where v.state = 'final' and ($1::chamber is null or v.chamber = $1::chamber)
-              and ($3::timestamptz is null or v.occurred_at < $3::timestamptz)
-              and ($4::text[] is null or b.policy_area = any($4::text[]))
-            order by v.occurred_at desc nulls last, v.roll_number desc
-            limit $2`,
+        // The party split rides in the same query, a lateral aggregate per row, so the feed's party
+        // bars cost no request per card. Same counting and order as `voteBreakdown`. The page is cut
+        // first: aggregated before the limit, it counted every final vote ever stored (1.5 s on
+        // production, 3,540 votes, 2026-11-17) to keep 50.
+        const { rows } = await db.query<VoteRow & MeasureRow & { party_totals: PartyTotalsRow[] }>(
+          `select page.*, pt.party_totals
+             from (select ${VOTE_COLUMNS}, ${MEASURE_COLUMNS}
+                     from votes v
+                     ${MEASURE_JOINS}
+                    where v.state = 'final' and ($1::chamber is null or v.chamber = $1::chamber)
+                      and ($3::timestamptz is null or v.occurred_at < $3::timestamptz)
+                      and ($4::text[] is null or b.policy_area = any($4::text[]))
+                    order by v.occurred_at desc nulls last, v.roll_number desc
+                    limit $2) page
+             left join lateral (
+               select coalesce(jsonb_agg(jsonb_build_object('party', t.party, 'yea', t.yea, 'nay', t.nay,
+                                                            'present', t.present, 'not_voting', t.not_voting)
+                                         order by t.total desc, t.party), '[]'::jsonb) as party_totals
+                 from (select m.party,
+                              count(*) filter (where p.position = 'yea')::int as yea,
+                              count(*) filter (where p.position = 'nay')::int as nay,
+                              count(*) filter (where p.position = 'present')::int as present,
+                              count(*) filter (where p.position = 'not_voting')::int as not_voting,
+                              count(*) as total
+                         from vote_positions p join members m on m.bioguide_id = p.member_id
+                        where p.vote_id = page.id and p.position <> 'candidate'
+                        group by m.party) t
+             ) pt on true
+            order by page.occurred_at desc nulls last, page.roll_number desc`,
           [chamber ?? null, limit, before?.toISOString() ?? null, topics ?? null],
         );
-        return rows.map((r) => ({ vote: toVote(r), measure: toMeasure(r) }));
+        return rows.map((r) => ({ vote: toVote(r), measure: toMeasure(r), partyTotals: r.party_totals.map(toPartyTotals) }));
       },
       async voteBreakdown(id, memberIds) {
         const [{ rows: parties }, { rows: candidates }, { rows: positions }, { rows: measures }] = await Promise.all([
           // Elections record every position as 'candidate', so they produce no party rows here; their party
           // split comes back in candidateTotals instead.
-          db.query<{ party: string; yea: number; nay: number; present: number; not_voting: number }>(
+          db.query<PartyTotalsRow>(
             `select m.party,
                     count(*) filter (where p.position = 'yea')::int as yea,
                     count(*) filter (where p.position = 'nay')::int as nay,
@@ -978,13 +1046,7 @@ export function pgRepositories(db: Db): {
             [id],
           ),
         ]);
-        const partyTotals: PartyTotals[] = parties.map((r) => ({
-          party: r.party,
-          yea: r.yea,
-          nay: r.nay,
-          present: r.present,
-          notVoting: r.not_voting,
-        }));
+        const partyTotals: PartyTotals[] = parties.map(toPartyTotals);
         const named: MemberPosition[] = positions.map((r) => ({
           member: toMember(r),
           position: r.position,
