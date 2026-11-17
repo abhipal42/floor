@@ -1,6 +1,13 @@
 package app.floor.android.shell
 
+import androidx.activity.OnBackPressedDispatcher
+import androidx.activity.OnBackPressedDispatcherOwner
 import androidx.activity.compose.BackHandler
+import androidx.activity.compose.LocalOnBackPressedDispatcherOwner
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.remember
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -37,6 +44,8 @@ import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import android.net.Uri
+import androidx.navigation.NavBackStackEntry
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -56,59 +65,139 @@ enum class Tab(val title: String, val icon: Int) {
 }
 
 /**
+ * Every screen a tab's stack can push, as the app builds them (with their models) and the tests
+ * stub them. Each gets the label of the screen beneath it for its back link, and callbacks that
+ * push the next screen onto the same tab's stack.
+ */
+class FloorScreens(
+    /** The Finals tab's root; it gets a callback that opens a vote. */
+    val finals: @Composable (onOpenVote: (String) -> Unit) -> Unit = {},
+    /** The Bills tab's root: topics and search. */
+    val bills: @Composable (onOpenBill: (String) -> Unit, onOpenTopic: (String) -> Unit) -> Unit = { _, _ -> },
+    val vote: @Composable (id: String, back: String, onOpenKinds: () -> Unit, onOpenBill: (String) -> Unit, onBack: () -> Unit) -> Unit =
+        { _, _, _, _, _ -> },
+    val voteKinds: @Composable (onBack: () -> Unit) -> Unit = {},
+    val bill: @Composable (id: String, back: String, onOpenVote: (String) -> Unit, onOpenTopic: (String) -> Unit, onBack: () -> Unit) -> Unit =
+        { _, _, _, _, _ -> },
+    val topic: @Composable (name: String, back: String, onOpenBill: (String) -> Unit, onBack: () -> Unit) -> Unit =
+        { _, _, _, _ -> },
+)
+
+/**
  * The app (iOS `FloorShell`): four tabs — Finals, Week, Bills, Following — under the locked mocks'
- * floating tab bar. Finals keeps its own navigation stack, so switching tabs never loses your place.
- * Week, Bills and Following are placeholders until their phases land, and so is the bill a vote
- * links to.
- *
- * @param finals the Finals tab's root; it gets a callback that opens a vote.
- * @param vote one vote, by id, with callbacks that open the kinds of vote, open a bill, and go back.
- * @param voteKinds the "Kinds of vote" list, with its back callback.
+ * floating tab bar. Finals and Bills each keep their own navigation stack, so switching tabs never
+ * loses your place; a vote, a bill and a topic can be pushed on either. Week and Following are
+ * placeholders until their phases land.
  */
 @Composable
 fun FloorShell(
-    finals: @Composable (onOpenVote: (String) -> Unit) -> Unit,
-    vote: @Composable (id: String, onOpenKinds: () -> Unit, onOpenBill: (String) -> Unit, onBack: () -> Unit) -> Unit,
-    voteKinds: @Composable (onBack: () -> Unit) -> Unit,
+    screens: FloorScreens,
     initialTab: Tab = Tab.FINALS,
     finalsNav: NavHostController = rememberNavController(),
+    billsNav: NavHostController = rememberNavController(),
 ) {
     var tab by rememberSaveable { mutableStateOf(initialTab) }
     val colors = Palette
-    // System back on another tab returns to Finals before it leaves the app.
+    // System back on another tab returns to Finals before it leaves the app (once that tab's own
+    // stack is at its root: NavHost handles back first while it has somewhere to go).
     BackHandler(enabled = tab != Tab.FINALS) { tab = Tab.FINALS }
     Box(Modifier.fillMaxSize().background(colors.ground)) {
-        // Every tab stays composed, so Finals' scroll and stack survive a trip to another tab.
+        // Every tab stays composed, so each stack and its scroll survive a trip to another tab.
         Box(if (tab == Tab.FINALS) Modifier.fillMaxSize() else Modifier.hidden()) {
-            NavHost(finalsNav, startDestination = "finals") {
-                composable("finals") { finals { id -> finalsNav.navigate("vote/$id") } }
-                composable("vote/{id}") { entry ->
-                    vote(
-                        entry.arguments?.getString("id").orEmpty(),
-                        { finalsNav.navigate("vote-kinds") },
-                        { billId -> finalsNav.navigate("bill/$billId") },
-                        { finalsNav.popBackStack() },
-                    )
-                }
-                composable("vote-kinds") { voteKinds { finalsNav.popBackStack() } }
-                composable("bill/{id}") {
-                    ComingSoon(
-                        title = "BILL",
-                        body = "The bill screen is coming to Android next. It is on iPhone today.",
-                        back = "Vote",
-                        onBack = { finalsNav.popBackStack() },
-                    )
-                }
+            TabStack(finalsNav, "finals", screens, active = tab == Tab.FINALS) { screens.finals { id -> finalsNav.navigate("vote/$id") } }
+        }
+        Box(if (tab == Tab.BILLS) Modifier.fillMaxSize() else Modifier.hidden()) {
+            TabStack(billsNav, "bills", screens, active = tab == Tab.BILLS) {
+                screens.bills({ id -> billsNav.navigate("bill/$id") }, { name -> billsNav.navigate("topic/${Uri.encode(name)}") })
             }
         }
-        if (tab != Tab.FINALS) {
+        if (tab == Tab.WEEK || tab == Tab.FOLLOWING) {
             ComingSoon(title = tab.title.uppercase(), body = "The ${tab.title} tab is coming to Android. It is on iPhone today.")
         }
         TabBar(tab) { picked ->
             // A second tap on the current tab goes back to its top, as system tab bars do.
             if (picked == tab && picked == Tab.FINALS) finalsNav.popBackStack("finals", inclusive = false)
+            if (picked == tab && picked == Tab.BILLS) billsNav.popBackStack("bills", inclusive = false)
             tab = picked
         }
+    }
+}
+
+/** One tab's stack: its root, then any vote, kinds-of-vote list, bill or topic pushed on it. */
+@Composable
+private fun TabStack(
+    nav: NavHostController,
+    root: String,
+    screens: FloorScreens,
+    active: Boolean,
+    rootScreen: @Composable () -> Unit,
+) {
+    // The back link names the screen beneath, as the iOS navigation bar does.
+    fun back(): String = backLabel(nav.previousBackStackEntry)
+    // A hidden tab's stack must not take system back: it listens on a dispatcher nothing feeds.
+    val lifecycle = LocalLifecycleOwner.current.lifecycle
+    val inert = remember(lifecycle) {
+        object : OnBackPressedDispatcherOwner {
+            override val onBackPressedDispatcher = OnBackPressedDispatcher()
+            override val lifecycle: Lifecycle = lifecycle
+        }
+    }
+    val real = LocalOnBackPressedDispatcherOwner.current
+    CompositionLocalProvider(LocalOnBackPressedDispatcherOwner provides if (active && real != null) real else inert) {
+        Stack(nav, root, screens, ::back, rootScreen)
+    }
+}
+
+@Composable
+private fun Stack(
+    nav: NavHostController,
+    root: String,
+    screens: FloorScreens,
+    back: () -> String,
+    rootScreen: @Composable () -> Unit,
+) {
+    NavHost(nav, startDestination = root) {
+        composable(root) { rootScreen() }
+        composable("vote/{id}") { entry ->
+            screens.vote(
+                entry.arguments?.getString("id").orEmpty(),
+                back(),
+                { nav.navigate("vote-kinds") },
+                { billId -> nav.navigate("bill/$billId") },
+                { nav.popBackStack() },
+            )
+        }
+        composable("vote-kinds") { screens.voteKinds { nav.popBackStack() } }
+        composable("bill/{id}") { entry ->
+            screens.bill(
+                entry.arguments?.getString("id").orEmpty(),
+                back(),
+                { voteId -> nav.navigate("vote/$voteId") },
+                { name -> nav.navigate("topic/${Uri.encode(name)}") },
+                { nav.popBackStack() },
+            )
+        }
+        composable("topic/{name}") { entry ->
+            screens.topic(
+                entry.arguments?.getString("name").orEmpty(),
+                back(),
+                { billId -> nav.navigate("bill/$billId") },
+                { nav.popBackStack() },
+            )
+        }
+    }
+}
+
+/** `Finals`, `Bills`, `Vote`, `Bill`, or a topic's name when it is short enough for a back link. */
+private fun backLabel(entry: NavBackStackEntry?): String {
+    val route = entry?.destination?.route ?: return "Back"
+    return when {
+        route == "finals" -> "Finals"
+        route == "bills" -> "Bills"
+        route.startsWith("vote/") -> "Vote"
+        route.startsWith("bill/") -> "Bill"
+        route.startsWith("topic/") -> entry.arguments?.getString("name")?.takeIf { it.length <= 14 } ?: "Topic"
+        else -> "Back"
     }
 }
 

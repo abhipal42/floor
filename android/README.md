@@ -17,13 +17,33 @@ nomination, and the full roll as squares by party; a Speaker election gets its o
 ballot. Loading, error and saved-copy states as on Finals. The vote's time is printed in the
 device's zone and locale, both passed in (`whenLabel`), never read behind the screen's back.
 
-Week, Bills and Following are visible "Coming soon" placeholders, and so is the bill a vote links to.
+Phase 3: the Bills tab and the bill screen. The tab searches bills by number or words
+(`GET /v1/search`, 300 ms after the last keystroke, never saved) and lists the 32 topics
+(`GET /v1/topics`); a topic's page filters All · Moving · Law · Stalled and pages through
+`GET /v1/topics/{name}/bills`. The bill screen (`GET /v1/bills/{id}`) draws the header, "On the
+floor this week" from `GET /v1/schedule`, the AI section from `/analysis` (labelled AI, every line
+cited to its CRS paragraph, a line whose quote isn't in that paragraph cut, the API's disclaimer
+under it; a 404 is "none yet": hidden when the bill has a CRS summary, "No summary yet" when it
+has none), six levels to law with its roll calls (each opens the vote screen), its topic, the CRS
+summary, Speak up, Share and the CBO estimate. Share is the system share sheet with
+`/share`'s line and link, or, unreachable, iOS's `ShareFallback` on floor-web-seven.vercel.app. The
+vote screen's bill card now gives the bill's "level N of 6". Finals and Bills each keep their own
+stack, and a vote, bill or topic can be pushed on either; a hidden tab's stack ignores system back.
+
+Week and Following are visible "Coming soon" placeholders.
 
 What Android leaves out until a later phase, because it needs a district or follows: on Finals the
 delegation strip, the All / Following switch, the catch-up deck and the district chip; on a vote,
-"Your members" (iOS draws none without a district either). The bill card names the bill without
-its "level N of 6" until the Bills phase brings the bill model and its road to law. iOS shows
-"Kinds of vote" as a sheet; Android pushes it as a screen so system back closes it.
+"Your members" (iOS draws none without a district either); on a bill, "Your members on this bill"
+and Follow; on a topic, Follow; in search, members (a member has no screen yet, and iOS's member
+rows are Follow toggles). Speak up is built whole (your members only, no stance preselected, "Copy
+& open form" copies the fixed message and opens the office's form, the call script opens the
+dialer, Floor sends nothing), but the app has no district yet, so it shows iOS's "Set your district
+first" card, without the button and without iOS's pointer to a member's Contact tab, neither of
+which exists on Android yet. iOS keeps topics and search behind Following's "+ Add"; with no
+Following tab yet, Android's Bills tab carries them instead of iOS's list of bills from the feed.
+iOS shows "Kinds of vote" and Speak up as sheets; Android pushes the first as a screen so system
+back closes it, and shows Speak up as a bottom sheet.
 
 ## Stack
 
@@ -64,6 +84,11 @@ cd android
   200% font scale, Android's largest and the stand-in for iOS's ax5. A size meant not to grow goes
   through `Dp.toSp()`, not a division by the font scale: Android 14 scales large text non-linearly,
   so dividing drew the scoreboard's numbers at half size at 200%.
+- `BillsSnapshotTest` draws the Bills tab, search, a topic's page, H.R. 5267 (on the floor) and
+  H.R. 1013, the AI section on its own (the only analysis fixture is H.R. 6363's, with no bill
+  response to put it under, as on iOS) and Speak up with and without a district (Austin, TX-37,
+  from `reps-location-austin`). At 200% a heading's note goes under it rather than beside it, and
+  the six-levels diagram stays fixed-size as on iOS: grown, its names broke mid-word.
 
 ## CI
 

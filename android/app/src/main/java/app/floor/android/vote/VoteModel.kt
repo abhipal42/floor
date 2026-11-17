@@ -7,6 +7,8 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import app.floor.android.api.FloorApi
 import app.floor.android.api.FloorApiError
+import app.floor.android.model.Bill
+import app.floor.android.model.MeasureSummary
 import app.floor.android.model.SavedCopy
 import app.floor.android.model.VoteDetail
 import app.floor.android.model.VoteKindInfo
@@ -23,6 +25,11 @@ data class VoteScreenState(
     val explainerOpen: Boolean = true,
     /** Which party's squares the full roll shows; null for the first tab. */
     val rollParty: String? = null,
+    /**
+     * The bill this vote was on, loaded after the vote so the screen never waits on it: the bill
+     * card's level of six. Null for a nomination, or a bill that could not be had fresh or saved.
+     */
+    val bill: Bill? = null,
 ) {
     sealed interface Phase {
         data object Loading : Phase
@@ -39,9 +46,8 @@ data class VoteScreenState(
  * "Your three" phase, so the app passes none and the screen draws no "Your members" section, which
  * is what iOS draws for someone with no district and nobody followed.
  *
- * Not ported yet: the bill's level of six on the bill card, which needs the bill model and its
- * road to law (the Bills phase). Until then the card names the bill, as iOS does while the bill
- * has not loaded.
+ * The bill the vote was on follows, best-effort (fresh, else saved), for the card's level of six;
+ * until it lands the card names the bill, as iOS does.
  */
 class VoteModel(
     private val api: FloorApi,
@@ -82,11 +88,21 @@ class VoteModel(
             state = state.copy(
                 phase = VoteScreenState.Phase.Loaded(saved.value),
                 saved = SavedCopy(saved.fetchedAt, SavedCopy.Status.REFRESHING),
+                bill = billId(saved.value)?.let { api.savedBill(it)?.value } ?: state.bill,
             )
         }
         try {
             val fresh = api.vote(voteId, memberIds)
             state = state.copy(phase = VoteScreenState.Phase.Loaded(fresh), saved = null)
+            val billId = billId(fresh) ?: return
+            val bill = try {
+                api.bill(billId)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (_: FloorApiError) {
+                api.savedBill(billId)?.value
+            }
+            if (bill != null) state = state.copy(bill = bill)
         } catch (e: CancellationException) {
             throw e
         } catch (e: FloorApiError) {
@@ -104,6 +120,9 @@ class VoteModel(
         }
     }
 }
+
+private fun billId(detail: VoteDetail): String? =
+    detail.measure?.takeIf { it.kind == MeasureSummary.Kind.BILL }?.id
 
 /** What the "Kinds of vote" list shows. */
 sealed interface VoteKindsState {
