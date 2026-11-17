@@ -8,6 +8,25 @@ is a milestone and ships a retro under `docs/retros/`.
 Older series live in [`docs/changelog/`](docs/changelog) (0.1.x: [`0.1.md`](docs/changelog/0.1.md)).
 Before 0.1.0 the history is the commit log on `main`.
 
+## 0.2.54 — 2026-11-17
+
+### Changed
+- **Official accounts moved to the top of Posts, drawn properly, on iOS and Android.** Locked mock:
+  https://claude.ai/artifact/PZ2XWPfB2E9QXvF89YFEfo, option 3.
+  - The Contact tab's grid is gone: it had letters for logos, emoji, "link only" tags and data-source
+    wording. Contact is back to phone, contact form and website.
+  - Posts opens with a row of circles, each with the network's real mark in one ink colour. A green
+    dot marks the networks Floor reads posts from. Tapping one opens the member's account on that
+    network.
+  - A post card's header is the network's mark and name.
+- **Posts fixes from the owner's screenshots:**
+  - Images are capped at 220 pt/dp and cropped to the card's width, so a link card no longer fills
+    the screen.
+  - The floating tab bar has a solid background and a short fade above it, so posts no longer show
+    through it.
+  - The wall's note now points to the Posts tab, not Contact.
+  - The redundant "Also on X, Facebook and Instagram" card is gone.
+
 ## 0.2.53 — 2026-11-17
 
 ### Added
