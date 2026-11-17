@@ -1,0 +1,29 @@
+{
+  "_note": "Hand-built from elissaslotkin.org/priorities as the Internet Archive kept it on 2024-10-12, quoted verbatim, until the API's recorded response replaces it.",
+  "status": "promises",
+  "electionYear": 2024,
+  "siteUrl": "https://elissaslotkin.org",
+  "snapshotUrl": "https://web.archive.org/web/20241012144326/https://elissaslotkin.org/priorities/",
+  "snapshotAt": "2024-10-12T14:43:26Z",
+  "pageUrl": "https://elissaslotkin.org/priorities/",
+  "promises": [
+    {
+      "heading": "Making Things in America",
+      "quote": "In the Senate, Elissa will work every day to bring critical supply chains and manufacturing back home.",
+      "headline": "bring critical supply chains and manufacturing back home",
+      "topic": "Commerce"
+    },
+    {
+      "heading": "Defending and Expanding Michigan’s Middle Class",
+      "quote": "Elissa believes all Americans should have access to healthcare they can afford, regardless of pre-existing conditions.",
+      "headline": "access to healthcare they can afford",
+      "topic": "Health"
+    },
+    {
+      "heading": "Keeping our Communities and Kids Safe",
+      "quote": "she will never stop fighting to keep deadly weapons out of the hands of criminals and the mentally ill.",
+      "headline": "keep deadly weapons out of the hands of criminals",
+      "topic": "Crime and Law Enforcement"
+    }
+  ]
+}

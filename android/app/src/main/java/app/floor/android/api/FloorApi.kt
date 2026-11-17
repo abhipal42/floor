@@ -8,9 +8,12 @@ import app.floor.android.model.Disclosures
 import app.floor.android.model.ElectProfile
 import app.floor.android.model.MemberDetail
 import app.floor.android.model.MemberFunding
+import app.floor.android.model.MemberPosts
 import app.floor.android.model.MemberSearch
 import app.floor.android.model.MemberVotes
 import app.floor.android.model.MembersElect
+import app.floor.android.model.PostsWall
+import app.floor.android.model.Promises
 import app.floor.android.model.Reps
 import app.floor.android.model.Topic
 import app.floor.android.model.RecentVotes
@@ -243,6 +246,35 @@ class FloorApi(
     fun savedDisclosures(id: String): Saved<Disclosures>? = saved(disclosuresUrl(id), Disclosures.serializer())
 
     private fun disclosuresUrl(id: String): HttpUrl = memberUrl(id).newBuilder().addPathSegment("disclosures").build()
+
+    /**
+     * What a member's campaign site said in the race that won this term, quoted from the Internet
+     * Archive's copy before election day. An API without the route (its 404) reads as not checked.
+     */
+    suspend fun promises(id: String): Promises = get(promisesUrl(id), Promises.serializer(), notFound = Promises.UNCHECKED_BODY)
+
+    fun savedPromises(id: String): Saved<Promises>? = saved(promisesUrl(id), Promises.serializer())
+
+    private fun promisesUrl(id: String): HttpUrl = memberUrl(id).newBuilder().addPathSegment("promises").build()
+
+    /** A member's posts from the free networks, newest first; an API without the route reads as none. */
+    suspend fun memberPosts(id: String): MemberPosts = get(memberPostsUrl(id), MemberPosts.serializer(), notFound = MemberPosts.NONE_BODY)
+
+    fun savedMemberPosts(id: String): Saved<MemberPosts>? = saved(memberPostsUrl(id), MemberPosts.serializer())
+
+    private fun memberPostsUrl(id: String): HttpUrl = memberUrl(id).newBuilder().addPathSegment("posts").build()
+
+    /** The Following tab's wall: posts by these members (the first twelve, the API's cap), newest first. */
+    suspend fun posts(members: List<String>): PostsWall {
+        if (members.isEmpty()) return PostsWall()
+        return get(postsUrl(members), PostsWall.serializer(), notFound = PostsWall.NONE_BODY)
+    }
+
+    fun savedPosts(members: List<String>): Saved<PostsWall>? = if (members.isEmpty()) null else saved(postsUrl(members), PostsWall.serializer())
+
+    private fun postsUrl(members: List<String>): HttpUrl =
+        base.newBuilder().addPathSegments("v1/posts")
+            .addQueryParameter("members", members.distinct().take(PostsWall.MAX_MEMBERS).joinToString(",")).build()
 
     /** Members-elect and undecided seats in one state; an API without the route reads as none. */
     suspend fun membersElect(state: String): MembersElect =

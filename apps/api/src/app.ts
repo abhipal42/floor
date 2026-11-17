@@ -106,6 +106,27 @@ export const VoteSchema = z
 
 export type Vote = z.infer<typeof VoteSchema>;
 
+/**
+ * A member's official accounts, as handles: the app builds the links. All but `bluesky` are
+ * congress-legislators'; `bluesky` is an account Bluesky verified, or a .senate.gov/.house.gov handle.
+ */
+export const MemberSocialSchema = z
+  .object({
+    twitter: z.string().optional().openapi({ example: "SenSchumer", description: "An X handle, without the @" }),
+    facebook: z.string().optional().openapi({ example: "senschumer" }),
+    instagram: z.string().optional().openapi({ example: "senschumer" }),
+    youtube: z.string().optional().openapi({ example: "SenatorSchumer", description: "A legacy YouTube user name: youtube.com/<name>" }),
+    youtubeId: z.string().optional().openapi({
+      example: "UC-ABttxh8uQv_10qmwGaidw",
+      description: "The channel ID: youtube.com/channel/<id>. Some members have only this, some only `youtube`",
+    }),
+    mastodon: z.string().optional().openapi({ example: "@RepDonBeyer@mas.to" }),
+    bluesky: z.string().optional().openapi({ example: "schumer.senate.gov", description: "Verified by Bluesky, or an official .senate.gov/.house.gov handle" }),
+  })
+  .openapi("MemberSocial", { description: "Official accounts. Only on GET /v1/members/{id}, as {} when Floor holds none" });
+
+export type MemberSocial = z.infer<typeof MemberSocialSchema>;
+
 export const MemberSchema = z
   .object({
     bioguideId: z.string().openapi({ example: "A000370" }),
@@ -121,6 +142,7 @@ export const MemberSchema = z
         "The day they leave the seat, when a member-elect replaces them and has not taken office yet; null otherwise. " +
         "Absent where a response does not look it up",
     }),
+    social: MemberSocialSchema.optional(),
   })
   .openapi("Member");
 
@@ -196,6 +218,137 @@ export const NO_CONTACT: MemberContact = { phone: null, contactForm: null, websi
 const MemberDetailSchema = z
   .object({ member: MemberSchema, partyLoyalty: PartyLoyaltySchema, contact: MemberContactSchema })
   .openapi("MemberDetail");
+
+// ---------------------------------------------------------------------------------------------
+// What members said: campaign promises (verbatim lines an AI picked from the archived campaign
+// site) and recent posts from the free networks (apps/worker promises.ts, social.ts).
+
+export const PromisesStatusSchema = z
+  .enum(["promises", "no_platform", "no_site", "no_snapshot", "unchecked"])
+  .openapi("PromisesStatus", {
+    description:
+      "promises: lines found. no_platform: the archived site listed no issues. no_site: the FEC lists no website for their " +
+      "campaign committee. no_snapshot: the Wayback Machine has no capture from before election day. unchecked: not looked " +
+      "at yet (a look that failed is served as unchecked too, and retried)",
+  });
+
+export const CampaignPromiseSchema = z
+  .object({
+    heading: z.string().nullable().openapi({ example: "Making Things in America", description: "The site's own section heading, as written" }),
+    quote: z.string().openapi({
+      example: "In the Senate, Elissa will work every day to bring critical supply chains and manufacturing back home.",
+      description: "Verbatim from the archived page: checked by machine to be on it, up to spacing and quote marks",
+    }),
+    headline: z.string().openapi({ example: "bring critical supply chains and manufacturing back home", description: "A clause of `quote`, verbatim" }),
+    topic: z.string().nullable().openapi({ example: "Commerce", description: "One of the 32 policy areas (GET /v1/topics), or null" }),
+  })
+  .openapi("CampaignPromise", { description: "Picked by AI, quoted exactly. Label it AI, say it may miss some, and link snapshotUrl" });
+
+export const MemberPromisesSchema = z
+  .object({
+    status: PromisesStatusSchema,
+    electionYear: z.number().int().nullable().openapi({ example: 2024, description: "The race that won this term" }),
+    siteUrl: z.string().nullable().openapi({ example: "https://elissaslotkin.org/" }),
+    snapshotUrl: z.string().nullable().openapi({
+      example: "https://web.archive.org/web/20241027183232/https://elissaslotkin.org/priorities/",
+      description: "The Wayback Machine capture the promises were read from",
+    }),
+    snapshotAt: z.string().nullable().openapi({ example: "2024-10-27T18:32:32.000Z", description: "Always before election day" }),
+    pageUrl: z.string().nullable().openapi({ example: "https://elissaslotkin.org/priorities/", description: "The issues page within the site; null when the home page was read" }),
+    promises: z.array(CampaignPromiseSchema).openapi({ description: "In the page's order; empty unless status is promises" }),
+  })
+  .openapi("MemberPromises");
+
+export type MemberPromises = z.infer<typeof MemberPromisesSchema>;
+
+export const UNCHECKED_PROMISES: MemberPromises = {
+  status: "unchecked",
+  electionYear: null,
+  siteUrl: null,
+  snapshotUrl: null,
+  snapshotAt: null,
+  pageUrl: null,
+  promises: [],
+};
+
+export const PostNetworkSchema = z.enum(["youtube", "bluesky", "mastodon"]).openapi("PostNetwork");
+
+export const MemberPostSchema = z
+  .object({
+    id: z.string().openapi({ example: "youtube:JlA2eRiVeB8" }),
+    network: PostNetworkSchema,
+    postedAt: z.string().openapi({ example: "2026-11-16T20:04:48.000Z" }),
+    text: z.string().nullable().openapi({ description: "As posted; a YouTube video's title" }),
+    url: z.string().openapi({ example: "https://www.youtube.com/watch?v=JlA2eRiVeB8", description: "The original" }),
+    mediaUrl: z.string().nullable().openapi({ description: "A thumbnail: YouTube's, or the first Bluesky image" }),
+  })
+  .openapi("MemberPost", { description: "No like or repost counts: Floor stores none" });
+
+export type MemberPost = z.infer<typeof MemberPostSchema>;
+
+export const PostLinksSchema = z
+  .object({
+    x: z.string().optional().openapi({ example: "https://x.com/SenSchumer" }),
+    facebook: z.string().optional().openapi({ example: "https://www.facebook.com/senschumer" }),
+    instagram: z.string().optional().openapi({ example: "https://www.instagram.com/senschumer" }),
+  })
+  .openapi("PostLinks", { description: "Profiles on networks Floor cannot read for free: links only" });
+
+export const MemberPostsSchema = z
+  .object({ posts: z.array(MemberPostSchema).openapi({ description: "Newest first, at most 30" }), links: PostLinksSchema })
+  .openapi("MemberPosts");
+
+// Flat rather than an extension of MemberPost, which the OpenAPI document would write as allOf.
+export const WallPostSchema = z
+  .object({ memberId: z.string().openapi({ example: "S000148" }), ...MemberPostSchema.shape })
+  .openapi("WallPost", { description: "A MemberPost with whose it is" });
+
+export type WallPost = z.infer<typeof WallPostSchema>;
+
+export const PostsWallSchema = z
+  .object({
+    posts: z.array(WallPostSchema).openapi({ description: "Every asked-for member's posts together, newest first" }),
+    unreadable: z.array(z.string()).openapi({
+      example: ["G000555"],
+      description: "Asked-for members with no YouTube, Bluesky or Mastodon account: they post only where Floor links out (X, Facebook)",
+    }),
+  })
+  .openapi("PostsWall");
+
+/** Most posts one member's list returns, and what the worker keeps. */
+export const MAX_MEMBER_POSTS = 30;
+/** Most members one wall request names. */
+export const MAX_WALL_MEMBERS = 12;
+/** Posts change hourly (the worker's schedule). */
+export const POSTS_CACHE_CONTROL = "public, max-age=300, s-maxage=600, stale-while-revalidate=600";
+
+export interface SaidRepository {
+  /** Each member's accounts; a member we hold no row (or no social) for is absent. */
+  social(bioguideIds: string[]): Promise<Map<string, MemberSocial>>;
+  /** The member's campaign promises, or UNCHECKED_PROMISES before the worker has looked. */
+  promises(bioguideId: string): Promise<MemberPromises>;
+  /** These members' posts together, newest first. */
+  posts(bioguideIds: string[], limit: number): Promise<WallPost[]>;
+}
+
+export const NO_SAID: SaidRepository = {
+  social: async () => new Map(),
+  promises: async () => UNCHECKED_PROMISES,
+  posts: async () => [],
+};
+
+/** Links to the profiles a member has on networks Floor only links to. */
+export function postLinks(s: MemberSocial | undefined): z.infer<typeof PostLinksSchema> {
+  const enc = encodeURIComponent;
+  return {
+    ...(s?.twitter ? { x: `https://x.com/${enc(s.twitter)}` } : {}),
+    ...(s?.facebook ? { facebook: `https://www.facebook.com/${enc(s.facebook)}` } : {}),
+    ...(s?.instagram ? { instagram: `https://www.instagram.com/${enc(s.instagram)}` } : {}),
+  };
+}
+
+/** Whether Floor can read any of the member's accounts (and so may have posts for them). */
+export const readable = (s: MemberSocial | undefined) => Boolean(s?.youtubeId || s?.bluesky || s?.mastodon);
 
 /**
  * One committee's giving to a member over a cycle.
@@ -1306,6 +1459,8 @@ export interface AppDeps {
   disclosuresEnabled?: boolean;
   /** Members-elect and pending seats. Defaults to `NO_ELECT` (none). */
   elect?: ElectRepository;
+  /** Social accounts, campaign promises and posts. Defaults to `NO_SAID` (none, promises unchecked). */
+  said?: SaidRepository;
   /** The share page's links and the universal-link association (share.ts). */
   share?: ShareOptions;
 }
@@ -1491,6 +1646,59 @@ const getMemberVotesRoute = createRoute({
       content: { "application/json": { schema: z.object({ votes: z.array(MemberVoteSchema) }) } },
       description: "Votes, newest first",
     },
+  },
+});
+
+const memberIdParam = z.object({
+  id: z
+    .string()
+    .regex(/^[A-Z]\d{6}$/, "Member IDs are Bioguide IDs like A000370")
+    .openapi({ param: { name: "id", in: "path" }, example: "S001208" }),
+});
+
+const getMemberPromisesRoute = createRoute({
+  method: "get",
+  path: "/v1/members/{id}/promises",
+  summary: "What the campaign that won this term promised, quoted from its archived site",
+  description:
+    "The site is the website the FEC lists for the member's own principal campaign committee; the page is the Wayback " +
+    "Machine's last capture before election day. An AI picks the lines and every one is checked to be on the page " +
+    "verbatim; it may miss some. Never lined up against votes.",
+  request: { params: memberIdParam },
+  responses: {
+    200: { content: { "application/json": { schema: MemberPromisesSchema } }, description: "The promises, or which step found none" },
+    404: { content: { "application/json": { schema: ErrorSchema } }, description: "No member with that ID" },
+  },
+});
+
+const getMemberPostsRoute = createRoute({
+  method: "get",
+  path: "/v1/members/{id}/posts",
+  summary: "A member's recent posts on YouTube, Bluesky and Mastodon, and links to the networks Floor cannot read",
+  description: "Newest first, never ranked, no like or repost counts. Kept about 30 days.",
+  request: { params: memberIdParam },
+  responses: {
+    200: { content: { "application/json": { schema: MemberPostsSchema } }, description: "Posts, newest first" },
+    404: { content: { "application/json": { schema: ErrorSchema } }, description: "No member with that ID" },
+  },
+});
+
+const getPostsWallRoute = createRoute({
+  method: "get",
+  path: "/v1/posts",
+  summary: "Several members' posts together, newest first: the Following wall",
+  request: {
+    query: z.object({
+      members: z
+        .string()
+        .regex(/^[A-Z]\d{6}(,[A-Z]\d{6})*$/, "members is a comma-separated list of Bioguide IDs")
+        .refine((s) => s.split(",").length <= MAX_WALL_MEMBERS, `At most ${MAX_WALL_MEMBERS} members`)
+        .openapi({ param: { name: "members", in: "query" }, example: "S000148,G000555" }),
+      limit: z.coerce.number().int().min(1).max(100).default(50),
+    }),
+  },
+  responses: {
+    200: { content: { "application/json": { schema: PostsWallSchema } }, description: "Posts, newest first" },
   },
 });
 
@@ -1981,6 +2189,7 @@ export function createApp(deps: AppDeps) {
   // here; there are a few hundred at most, and none at all once the new members take office.
   const elect = deps.elect ?? NO_ELECT;
   const electSeats = () => elect.seats(easternDay(clock()));
+  const said = deps.said ?? NO_SAID;
 
   app.openapi(searchMembersRoute, async (c) => {
     const { q, chamber, limit } = c.req.valid("query");
@@ -2029,12 +2238,38 @@ export function createApp(deps: AppDeps) {
     const { id } = c.req.valid("param");
     const member = await deps.members.getMember(id);
     if (!member) return c.json({ error: `No member with ID ${id}` }, 404);
-    const [partyLoyalty, contact, seats] = await Promise.all([
+    const [partyLoyalty, contact, seats, social] = await Promise.all([
       deps.members.partyLoyalty(id, member.party),
       deps.members.contact(id),
       electSeats(),
+      said.social([id]),
     ]);
-    return c.json({ member: withLeaving([member], seats.elect)[0]!, partyLoyalty, contact }, 200);
+    return c.json({ member: { ...withLeaving([member], seats.elect)[0]!, social: social.get(id) ?? {} }, partyLoyalty, contact }, 200);
+  });
+
+  app.openapi(getMemberPromisesRoute, async (c) => {
+    const { id } = c.req.valid("param");
+    const [member, promises] = await Promise.all([deps.members.getMember(id), said.promises(id)]);
+    if (!member) return c.json({ error: `No member with ID ${id}` }, 404);
+    return c.json(promises, 200);
+  });
+
+  app.openapi(getMemberPostsRoute, async (c) => {
+    const { id } = c.req.valid("param");
+    const [member, social, posts] = await Promise.all([deps.members.getMember(id), said.social([id]), said.posts([id], MAX_MEMBER_POSTS)]);
+    if (!member) return c.json({ error: `No member with ID ${id}` }, 404);
+    c.header("Cache-Control", POSTS_CACHE_CONTROL);
+    return c.json({ posts: posts.map(({ memberId: _, ...p }) => p), links: postLinks(social.get(id)) }, 200);
+  });
+
+  app.openapi(getPostsWallRoute, async (c) => {
+    const { members, limit } = c.req.valid("query");
+    const ids = [...new Set(members.split(","))];
+    const [social, posts] = await Promise.all([said.social(ids), said.posts(ids, limit)]);
+    // Only members we hold: an unknown ID is neither readable nor a member who posts elsewhere.
+    const unreadable = ids.filter((id) => social.has(id) && !readable(social.get(id)));
+    c.header("Cache-Control", POSTS_CACHE_CONTROL);
+    return c.json({ posts, unreadable }, 200);
   });
 
   app.openapi(getMemberFundingRoute, async (c) => {

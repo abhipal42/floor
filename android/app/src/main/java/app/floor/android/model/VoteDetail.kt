@@ -56,6 +56,8 @@ data class Member(
      * Null otherwise, and in a response from an API older than members-elect.
      */
     val leavingOn: String? = null,
+    /** Their official accounts' handles: on `GET /v1/members/{id}` only, null elsewhere and from an older API. */
+    val social: MemberSocial? = null,
 )
 
 /** One member's own position on a vote, for the members named in `?members=`. */

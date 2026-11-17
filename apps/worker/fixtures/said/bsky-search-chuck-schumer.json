@@ -1,0 +1,67 @@
+{
+ "actors": [
+  {
+   "did": "did:plc:zlgotdjaxzuhw4nefvkxxvxa",
+   "handle": "schumer.senate.gov",
+   "displayName": "Chuck Schumer",
+   "labels": [],
+   "createdAt": "2024-11-22T19:19:22.854Z",
+   "verification": {
+    "verifications": [
+     {
+      "issuer": "did:plc:z72i7hdynmk6r22z27h6tvur",
+      "issuerDisplayName": "Bluesky",
+      "issuerHandle": "bsky.app",
+      "uri": "at://did:plc:z72i7hdynmk6r22z27h6tvur/app.bsky.graph.verification/3lndy75lg3o2l",
+      "isValid": true,
+      "createdAt": "2025-04-21T13:16:14.545Z"
+     }
+    ],
+    "verifiedStatus": "valid",
+    "trustedVerifierStatus": "none"
+   },
+   "indexedAt": "2025-11-30T16:30:20.125Z"
+  },
+  {
+   "did": "did:plc:ox7x45uxbvv555dgewkuyzdl",
+   "handle": "chuckschumer.com",
+   "displayName": "Chuck Schumer",
+   "labels": [],
+   "createdAt": "2024-12-17T16:41:42.542Z",
+   "indexedAt": "2025-01-02T02:26:53.642Z"
+  },
+  {
+   "did": "did:plc:nv2bpo7abthb7wqcczg3mbr5",
+   "handle": "carocogitatus.bsky.social",
+   "displayName": "Caro Cogitatus \ud83c\udf08\ud83d\udc31\ud83d\udd96\u26a7\ufe0fChuck Schumer, RESIGN.",
+   "labels": [],
+   "createdAt": "2023-08-30T14:14:28.259Z",
+   "indexedAt": "2026-04-22T17:03:20.750Z"
+  },
+  {
+   "did": "did:plc:wnifglzm2amjyjubxftnnyl4",
+   "handle": "sandyklanfer.bsky.social",
+   "displayName": "Chuck Schumer's other tulpa",
+   "pronouns": "he/him",
+   "labels": [],
+   "createdAt": "2023-09-19T23:06:30.578Z",
+   "indexedAt": "2026-11-13T11:16:23.679Z"
+  },
+  {
+   "did": "did:plc:xkozlbcxh36q2rc3tukpr7qu",
+   "handle": "resignchuckschumer.bsky.social",
+   "displayName": "Resign Chuck Schumer",
+   "labels": [],
+   "createdAt": "2025-03-14T22:03:51.841Z",
+   "indexedAt": "2025-03-20T21:35:48.544Z"
+  },
+  {
+   "did": "did:plc:aumu7huuw5kg6jpg2lvap3vq",
+   "handle": "schumer-resign.bsky.social",
+   "displayName": "It's time to chuck Chuck! Step down, Schumer.",
+   "labels": [],
+   "createdAt": "2025-03-14T21:44:07.342Z",
+   "indexedAt": "2025-03-15T01:06:37.341Z"
+  }
+ ]
+}

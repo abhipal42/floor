@@ -107,6 +107,10 @@ fun MemberScreen(
     onRetryDisclosures: () -> Unit,
     onOpenVote: (String) -> Unit,
     follow: MemberFollow? = null,
+    onPromise: (Int) -> Unit = {},
+    onOpenTopic: (String) -> Unit = {},
+    onRetryPromises: () -> Unit = {},
+    onRetryPosts: () -> Unit = {},
 ) {
     val colors = Palette
     Column(Modifier.fillMaxSize().background(colors.ground).windowInsetsPadding(WindowInsets.statusBars)) {
@@ -130,15 +134,19 @@ fun MemberScreen(
                 else -> Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
                     if (member != null) MemberHeader(member)
                     switch()
-                    if (state.section == MemberSection.MONEY) {
-                        SectionSwitch(MoneySegment.entries, state.moneySegment, { it.title }, onMoneySegment)
-                        if (state.moneySegment == MoneySegment.FUNDING) {
-                            MoneyContent(state.money, member, onRetryMoney)
-                        } else {
-                            DisclosuresContent(state.disclosures, member, onRetryDisclosures)
+                    val accounts = state.record.loaded?.detail?.accounts.orEmpty()
+                    when (state.section) {
+                        MemberSection.MONEY -> {
+                            SectionSwitch(MoneySegment.entries, state.moneySegment, { it.title }, onMoneySegment)
+                            if (state.moneySegment == MoneySegment.FUNDING) {
+                                MoneyContent(state.money, member, onRetryMoney)
+                            } else {
+                                DisclosuresContent(state.disclosures, member, onRetryDisclosures)
+                            }
                         }
-                    } else {
-                        ContactContent(state.record, onRetry)
+                        MemberSection.SAID -> SaidContent(state.promises, member, state.promise, locale, onPromise, onOpenTopic, onRetryPromises)
+                        MemberSection.POSTS -> PostsContent(state.posts, member, accounts, zone, locale, onRetryPosts)
+                        else -> ContactContent(state.record, onRetry)
                     }
                 }
             }
@@ -459,7 +467,10 @@ private fun ContactContent(record: Load<MemberRecord>, onRetry: () -> Unit) {
             Text(record.message, style = FloorType.text(13f), color = colors.textSecondary)
             TryAgain(onRetry)
         }
-        is Load.Loaded -> ContactRows(record.value.detail.member, record.value.detail.contact)
+        is Load.Loaded -> Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            ContactRows(record.value.detail.member, record.value.detail.contact)
+            OfficialAccounts(record.value.detail.member, record.value.detail.accounts)
+        }
     }
 }
 

@@ -60,9 +60,11 @@ public struct ElectScreenView: View {
         case let .loaded(profile):
             if let saved = model.saved { SavedDataNote(saved) }
             hero(profile.elect)
-            SectionSwitch(selection: $section)
+            // No Said or Posts: promises and posts are found by Bioguide ID, which a member-elect
+            // does not have yet; the member screen has both once they are sworn in.
+            SectionSwitch(selection: $section, cases: [.record, .money, .contact])
             switch section {
-            case .record: votes(profile.elect)
+            case .record, .said, .posts: votes(profile.elect)
             case .money: money(profile)
             case .contact: contact(profile.elect)
             }

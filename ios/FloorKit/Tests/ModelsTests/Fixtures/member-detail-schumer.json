@@ -1,0 +1,33 @@
+{
+    "_fixture": "GET /v1/members/S000148 from floor-api.vercel.app on 2026-11-16, with the round 13 social handles (congress-legislators; Bluesky as Bluesky verified it) added by hand until the API serves them.",
+    "member": {
+        "bioguideId": "S000148",
+        "firstName": "Chuck",
+        "lastName": "Schumer",
+        "party": "D",
+        "state": "NY",
+        "district": null,
+        "chamber": "senate",
+        "leavingOn": null,
+        "social": {
+            "twitter": "SenSchumer",
+            "facebook": "senschumer",
+            "instagram": "senschumer",
+            "youtube": "SenatorSchumer",
+            "youtubeId": "UC-ABttxh8uQv_10qmwGaidw",
+            "bluesky": "schumer.senate.gov"
+        }
+    },
+    "partyLoyalty": {
+        "votes": 1604,
+        "withParty": 1567,
+        "againstParty": 37
+    },
+    "contact": {
+        "phone": "202-224-6542",
+        "contactForm": "https://www.schumer.senate.gov/contact/email-chuck",
+        "website": "https://www.schumer.senate.gov",
+        "office": "322 Hart Senate Office Building",
+        "address": "322 Hart Senate Office Building Washington DC 20510"
+    }
+}

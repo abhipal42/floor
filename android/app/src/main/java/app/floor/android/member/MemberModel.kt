@@ -13,6 +13,8 @@ import app.floor.android.model.ElectProfile
 import app.floor.android.model.Member
 import app.floor.android.model.MemberDetail
 import app.floor.android.model.MemberFunding
+import app.floor.android.model.MemberPosts
+import app.floor.android.model.Promises
 import app.floor.android.model.MemberVote
 import app.floor.android.model.SavedCopy
 import kotlinx.coroutines.CancellationException
@@ -59,8 +61,15 @@ suspend fun <T> revalidate(current: Load<T>, saved: Saved<T>?, fallback: String,
     }
 }
 
-/** The member screen's switch: Votes · Money · Contact (round 11). */
-enum class MemberSection(val title: String) { RECORD("Votes"), MONEY("Money"), CONTACT("Contact") }
+/** The member screen's switch: Votes · Said · Posts · Money · Contact (round 13). */
+enum class MemberSection(val title: String) {
+    RECORD("Votes"), SAID("Said"), POSTS("Posts"), MONEY("Money"), CONTACT("Contact");
+
+    companion object {
+        /** A member-elect's: no campaign promises or posts are gathered for them. */
+        val elect = listOf(RECORD, MONEY, CONTACT)
+    }
+}
 
 /** Money's own switch: Funding · Disclosures. */
 enum class MoneySegment(val title: String) { FUNDING("Funding"), DISCLOSURES("Disclosures") }
@@ -73,6 +82,10 @@ data class MemberState(
     val record: Load<MemberRecord> = Load.Loading,
     val money: Load<MemberFunding> = Load.Loading,
     val disclosures: Load<Disclosures> = Load.Loading,
+    val promises: Load<Promises> = Load.Loading,
+    val posts: Load<MemberPosts> = Load.Loading,
+    /** The promise on top of the Said deck. */
+    val promise: Int = 0,
     val section: MemberSection = MemberSection.RECORD,
     val moneySegment: MoneySegment = MoneySegment.FUNDING,
     /** The grid square picked, oldest-first index; null for the latest. */
@@ -116,12 +129,22 @@ class MemberModel(private val api: FloorApi, private val id: String, private val
         state = state.copy(selectedCall = index)
     }
 
+    fun selectPromise(index: Int) {
+        state = state.copy(promise = index)
+    }
+
     fun reloadMoney() = viewModelScope.launch { loadMoney() }
+
+    fun reloadPromises() = viewModelScope.launch { loadPromises() }
+
+    fun reloadPosts() = viewModelScope.launch { loadPosts() }
 
     fun reloadDisclosures() = viewModelScope.launch { loadDisclosures() }
 
-    /** Money's halves load the first time they are on screen. */
+    /** Said, Posts and Money's halves load the first time they are on screen. */
     private fun showing() {
+        if (state.section == MemberSection.SAID && state.promises.needsRefresh) reloadPromises()
+        if (state.section == MemberSection.POSTS && state.posts.needsRefresh) reloadPosts()
         if (state.section != MemberSection.MONEY) return
         if (state.moneySegment == MoneySegment.FUNDING && state.money.needsRefresh) reloadMoney()
         if (state.moneySegment == MoneySegment.DISCLOSURES && state.disclosures.needsRefresh) reloadDisclosures()
@@ -142,6 +165,16 @@ class MemberModel(private val api: FloorApi, private val id: String, private val
 
     suspend fun loadMoney() {
         revalidate(state.money, api.savedFunding(id), "Couldn't load the FEC figures.", { state = state.copy(money = it) }) { api.funding(id) }
+    }
+
+    suspend fun loadPromises() {
+        revalidate(state.promises, api.savedPromises(id), "Couldn't load what the campaign said.", { state = state.copy(promises = it) }) {
+            api.promises(id)
+        }
+    }
+
+    suspend fun loadPosts() {
+        revalidate(state.posts, api.savedMemberPosts(id), "Couldn't load the posts.", { state = state.copy(posts = it) }) { api.memberPosts(id) }
     }
 
     suspend fun loadDisclosures() {

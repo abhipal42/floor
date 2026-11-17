@@ -1,0 +1,34 @@
+{
+  "_note": "Hand-built from Schumer's real posts of Nov 10 and 16, 2026. The ids and urls are fixture links (his profile and channel pages, not each post's own), until the API's recorded response replaces them.",
+  "posts": [
+    {
+      "id": "youtube:fixture-2026-11-16",
+      "network": "youtube",
+      "postedAt": "2026-11-16T20:04:48Z",
+      "text": "Speaking live from the floor of the U.S. Senate",
+      "url": "https://www.youtube.com/@SenatorSchumer",
+      "mediaUrl": null
+    },
+    {
+      "id": "bluesky:fixture-2026-11-16",
+      "network": "bluesky",
+      "postedAt": "2026-11-16T22:01:00Z",
+      "text": "Grocery prices are higher than ever. Trump's response?   Kick another 6 million off of food stamps and stop nearly 2 million kids from getting free school lunches.",
+      "url": "https://bsky.app/profile/schumer.senate.gov",
+      "mediaUrl": null
+    },
+    {
+      "id": "youtube:fixture-2026-11-10",
+      "network": "youtube",
+      "postedAt": "2026-11-10T17:24:47Z",
+      "text": "Senator Schumer speaks from the Senate floor, 11.10.26",
+      "url": "https://www.youtube.com/@SenatorSchumer",
+      "mediaUrl": null
+    }
+  ],
+  "links": {
+    "x": "https://x.com/SenSchumer",
+    "facebook": "https://www.facebook.com/senschumer",
+    "instagram": "https://www.instagram.com/senschumer"
+  }
+}

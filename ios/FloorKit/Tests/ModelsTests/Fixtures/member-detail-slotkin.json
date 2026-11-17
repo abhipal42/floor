@@ -1,0 +1,24 @@
+{
+    "member": {
+        "bioguideId": "S001208",
+        "firstName": "Elissa",
+        "lastName": "Slotkin",
+        "party": "D",
+        "state": "MI",
+        "district": null,
+        "chamber": "senate",
+        "leavingOn": null
+    },
+    "partyLoyalty": {
+        "votes": 2104,
+        "withParty": 1965,
+        "againstParty": 139
+    },
+    "contact": {
+        "phone": "202-224-4822",
+        "contactForm": null,
+        "website": "https://www.slotkin.senate.gov",
+        "office": "291 Russell Senate Office Building",
+        "address": "291 Russell Senate Office Building Washington DC 20510"
+    }
+}

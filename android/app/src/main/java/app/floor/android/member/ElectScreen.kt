@@ -90,7 +90,7 @@ fun ElectScreen(
                     } else {
                         load.saved?.let { SavedDataNote(it) }
                         Hero(profile.elect)
-                        SectionSwitch(MemberSection.entries, state.section, { it.title }, onSection)
+                        SectionSwitch(MemberSection.elect, state.section, { it.title }, onSection)
                         when (state.section) {
                             MemberSection.RECORD -> Votes(profile.elect, locale)
                             MemberSection.MONEY -> {
@@ -98,6 +98,7 @@ fun ElectScreen(
                                 if (state.moneySegment == MoneySegment.FUNDING) ElectFundingView(profile, locale) else ElectDisclosureView(profile)
                             }
                             MemberSection.CONTACT -> ElectContact(profile.elect, locale)
+                            MemberSection.SAID, MemberSection.POSTS -> {}
                         }
                     }
                 }

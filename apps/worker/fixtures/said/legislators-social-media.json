@@ -1,0 +1,72 @@
+[
+ {
+  "id": {
+   "bioguide": "T000460",
+   "thomas": "01593",
+   "govtrack": 400403
+  },
+  "social": {
+   "twitter": "RepThompson",
+   "facebook": "RepMikeThompson",
+   "youtube": "CongressmanMThompson",
+   "youtube_id": "UC6pGbtqHZYZmScFGSz5bbdg",
+   "twitter_id": "303861808",
+   "mastodon": "@repthompson@mastodon.social"
+  }
+ },
+ {
+  "id": {
+   "bioguide": "S000148",
+   "thomas": "01036",
+   "govtrack": 300087
+  },
+  "social": {
+   "twitter": "SenSchumer",
+   "facebook": "senschumer",
+   "youtube": "SenatorSchumer",
+   "youtube_id": "UC-ABttxh8uQv_10qmwGaidw",
+   "twitter_id": "17494010",
+   "instagram": "senschumer"
+  }
+ },
+ {
+  "id": {
+   "bioguide": "G000555",
+   "thomas": "01866"
+  },
+  "social": {
+   "youtube": "KirstenEGillibrand",
+   "facebook": "SenKirstenGillibrand",
+   "youtube_id": "UCVEloQogVsmnkd5vxJInmYg",
+   "twitter": "GillibrandNY",
+   "twitter_id": "899978622416695297",
+   "instagram": "senkirstengillibrand"
+  }
+ },
+ {
+  "id": {
+   "bioguide": "B001292",
+   "govtrack": 412657,
+   "thomas": "02272"
+  },
+  "social": {
+   "facebook": "RepDonBeyer",
+   "twitter": "RepDonBeyer",
+   "twitter_id": "2962868158",
+   "instagram": "repdonbeyer",
+   "youtube_id": "UCPJGVbOVcAVGiBwq8qr_T9w",
+   "mastodon": "@RepDonBeyer@mas.to"
+  }
+ },
+ {
+  "id": {
+   "bioguide": "S001208"
+  },
+  "social": {
+   "twitter": "RepSlotkin",
+   "twitter_id": "1078401427347857408",
+   "facebook": "SenElissaSlotkin",
+   "instagram": "senslotkin"
+  }
+ }
+]

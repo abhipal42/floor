@@ -434,6 +434,35 @@ public final class HomeModel {
     }
 
     /// Loads the 32 topics and their counts for the Following tab's Topics, saved first then fresh.
+    /// The Following tab's Posts wall: your members' posts (`/v1/posts`), loaded when it shows.
+    public private(set) var wall: PostsWall?
+    /// Set when the wall could not be loaded and none was saved.
+    public private(set) var wallError: String?
+    /// The members `wall` was asked for, in order: at most ``PostsWall/memberLimit``.
+    public private(set) var wallFor: [String] = []
+
+    /// Who the wall asks about: your members, the first ``PostsWall/memberLimit`` of them.
+    public var wallMembers: [Member] { Array(yourMembers.prefix(PostsWall.memberLimit)) }
+
+    public func loadWall() async {
+        let ids = wallMembers.map(\.bioguideId)
+        do {
+            try await revalidate(api, report: { _ in }) { pass in
+                let found = try await pass.api.posts(members: ids)
+                guard wallMembers.map(\.bioguideId) == ids else { throw CancellationError() }
+                wall = found
+                wallFor = ids
+                wallError = nil
+            }
+        } catch is CancellationError {
+        } catch {
+            if wall == nil || wallFor != ids {
+                wall = nil
+                wallError = (error as? FloorAPIError)?.errorDescription ?? "Couldn't load their posts."
+            }
+        }
+    }
+
     public func loadTopics() async {
         do {
             try await revalidate(api, report: { _ in }) { pass in

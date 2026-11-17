@@ -1,0 +1,59 @@
+{
+ "id": "109321777116021054",
+ "username": "RepDonBeyer",
+ "acct": "RepDonBeyer",
+ "display_name": "Congressman Don Beyer",
+ "locked": false,
+ "bot": false,
+ "discoverable": false,
+ "indexable": false,
+ "group": false,
+ "created_at": "2022-11-10T00:00:00.000Z",
+ "note": "<p>Representing Northern Virginia in the U.S. House.</p>",
+ "url": "https://mas.to/@RepDonBeyer",
+ "uri": "https://mas.to/users/RepDonBeyer",
+ "avatar": "https://media.mas.to/accounts/avatars/109/321/777/116/021/054/original/9a0258689f6c55a9.jpg",
+ "avatar_static": "https://media.mas.to/accounts/avatars/109/321/777/116/021/054/original/9a0258689f6c55a9.jpg",
+ "avatar_description": "",
+ "header": "https://media.mas.to/accounts/headers/109/321/777/116/021/054/original/35cfff8f627877ef.jpg",
+ "header_static": "https://media.mas.to/accounts/headers/109/321/777/116/021/054/original/35cfff8f627877ef.jpg",
+ "header_description": "",
+ "followers_count": 3405,
+ "following_count": 255,
+ "statuses_count": 392,
+ "last_status_at": "2024-11-18",
+ "hide_collections": false,
+ "show_media": true,
+ "show_media_replies": true,
+ "show_featured": true,
+ "noindex": false,
+ "feature_approval": {
+  "automatic": [],
+  "manual": [],
+  "current_user": "denied"
+ },
+ "emojis": [],
+ "roles": [],
+ "fields": [
+  {
+   "name": "Website",
+   "value": "<a href=\"https://beyer.house.gov/\" target=\"_blank\" rel=\"nofollow noopener me\" translate=\"no\"><span class=\"invisible\">https://</span><span class=\"\">beyer.house.gov/</span><span class=\"invisible\"></span></a>",
+   "verified_at": null
+  },
+  {
+   "name": "Twitter",
+   "value": "<a href=\"https://twitter.com/RepDonBeyer\" target=\"_blank\" rel=\"nofollow noopener me\" translate=\"no\"><span class=\"invisible\">https://</span><span class=\"\">twitter.com/RepDonBeyer</span><span class=\"invisible\"></span></a>",
+   "verified_at": null
+  },
+  {
+   "name": "Facebook",
+   "value": "<a href=\"https://www.facebook.com/RepDonBeyer\" target=\"_blank\" rel=\"nofollow noopener me\" translate=\"no\"><span class=\"invisible\">https://www.</span><span class=\"\">facebook.com/RepDonBeyer</span><span class=\"invisible\"></span></a>",
+   "verified_at": null
+  },
+  {
+   "name": "Instagram",
+   "value": "<a href=\"https://www.instagram.com/repdonbeyer/\" target=\"_blank\" rel=\"nofollow noopener me\" translate=\"no\"><span class=\"invisible\">https://www.</span><span class=\"\">instagram.com/repdonbeyer/</span><span class=\"invisible\"></span></a>",
+   "verified_at": null
+  }
+ ]
+}

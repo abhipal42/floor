@@ -8,6 +8,35 @@ is a milestone and ships a retro under `docs/retros/`.
 Older series live in [`docs/changelog/`](docs/changelog) (0.1.x: [`0.1.md`](docs/changelog/0.1.md)).
 Before 0.1.0 the history is the commit log on `main`.
 
+## 0.2.53 — 2026-11-17
+
+### Added
+- **What they said, where they post: round 13, on iOS and Android together** (locked mock
+  https://claude.ai/artifact/M81jJLKd2HUNDjZJW3angV; promises in the owner's pick, the swipe deck).
+  - **Campaign promises (Said):** from the campaign site of the race that won this term. Floor
+    finds the site through the FEC committee's website, takes the Internet Archive's last copy
+    before election day, and has Claude pick the lines that say what they'd do.
+    - Every line is checked word for word against the page and dropped if it isn't there.
+    - Shown one card per promise with the site's own heading, the AI label and the archive link.
+    - A site with no platform says so, as do missing sites or archive copies.
+    - Never summarised, and never lined up against votes.
+  - **Official accounts on Contact:**
+    - X, Facebook, Instagram, YouTube and Mastodon come from congress-legislators.
+    - Bluesky is included only when Bluesky has verified the account, or it's on a `.senate.gov` /
+      `.house.gov` handle.
+  - **Posts:**
+    - A member's YouTube, Bluesky and Mastodon posts, newest first, as written, with no counts.
+    - A combined wall for your members on Following.
+    - X, Facebook and Instagram stay links (no free API).
+  - Ingest: `social` (daily), `posts` (hourly), `promises` (daily, budgeted; it needs an
+    `ANTHROPIC_API_KEY` secret and skips until one exists). API: `Member.social`,
+    `/v1/members/{id}/promises`, `/v1/members/{id}/posts`, `/v1/posts?members=`. Migration
+    `20261119000000` (applied).
+  - On a sample of 80 members, 66 had a campaign website on their FEC committee. The rest read
+    "no campaign site found". Lesson 75.
+- At accessibility text sizes the member screen's five segments wrap onto two rows on both
+  platforms, rather than truncating.
+
 ## 0.2.52 — 2026-11-16
 
 ### Added

@@ -9,26 +9,30 @@ import SwiftUI
 /// The header carries Follow (the locked Following mock, section B). Your own reps read "Your rep"
 /// instead: they come from your district and can be hidden on the Following tab, not unfollowed.
 /// The mock's "Alerts on" button beside it is left out until alerts are actually sent. Its switch
-/// is Votes · Money · Contact (round 11).
+/// is Votes · Said · Posts · Money · Contact (round 13).
 public struct RepScreenView: View {
     @State private var model: RepScreenModel
     @State private var section: MemberSection = .record
     private let follows: Follows?
     private let reps: Set<String>
+    private let onOpenTopic: ((String) -> Void)?
     private let onOpenVote: (Vote) -> Void
 
     /// - Parameters:
     ///   - follows: the follow list; nil shows no Follow button (previews of the record alone).
     ///   - reps: Bioguide IDs of your own district's members.
     ///   - section: the segment it opens on: Votes, unless a caller (a snapshot) says otherwise.
+    ///   - onOpenTopic: opens a topic's page from a promise; nil leaves the link out.
     public init(
         model: RepScreenModel, follows: Follows? = nil, reps: [String] = [], section: MemberSection = .record,
+        onOpenTopic: ((String) -> Void)? = nil,
         onOpenVote: @escaping (Vote) -> Void = { _ in }
     ) {
         _model = State(initialValue: model)
         _section = State(initialValue: section)
         self.follows = follows
         self.reps = Set(reps)
+        self.onOpenTopic = onOpenTopic
         self.onOpenVote = onOpenVote
     }
 
@@ -40,7 +44,8 @@ public struct RepScreenView: View {
                     if let follows, let member = model.member {
                         FollowButton(member: member, follows: follows, isRep: reps.contains(member.bioguideId))
                     }
-                    MemberSections(record: model, member: model.member, section: $section, fact: nil, onOpenVote: onOpenVote)
+                    MemberSections(record: model, member: model.member, section: $section, fact: nil,
+                                   onOpenTopic: onOpenTopic, onOpenVote: onOpenVote)
                 }
                 .padding(.horizontal, 16)
                 .padding(.top, 8)

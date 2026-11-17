@@ -1,0 +1,58 @@
+{
+ "actors": [
+  {
+   "did": "did:plc:e7atmcvv2bblzo6biapuzi35",
+   "handle": "kirstengillibrand.bsky.social",
+   "displayName": "Kirsten Gillibrand",
+   "labels": [],
+   "createdAt": "2025-03-05T16:03:10.445Z",
+   "verification": {
+    "verifications": [
+     {
+      "issuer": "did:plc:z72i7hdynmk6r22z27h6tvur",
+      "issuerDisplayName": "Bluesky",
+      "issuerHandle": "bsky.app",
+      "uri": "at://did:plc:z72i7hdynmk6r22z27h6tvur/app.bsky.graph.verification/3mbzkvxeufu23",
+      "isValid": true,
+      "createdAt": "2026-01-09T22:40:53.976Z"
+     }
+    ],
+    "verifiedStatus": "valid",
+    "trustedVerifierStatus": "none"
+   },
+   "indexedAt": "2025-03-06T18:04:06.646Z"
+  },
+  {
+   "did": "did:plc:gr5euxkt2xey7zamqxnb657d",
+   "handle": "handle.invalid",
+   "displayName": "Senator Kirsten Gillibrand (D-New York)",
+   "labels": [],
+   "createdAt": "2025-11-09T23:54:16.262Z",
+   "indexedAt": "2025-11-09T23:54:16.262Z"
+  },
+  {
+   "did": "did:plc:lw42c357lmqol5crvflcjn3b",
+   "handle": "toddbeeton.bsky.social",
+   "displayName": "Todd Beeton",
+   "labels": [],
+   "createdAt": "2023-05-09T05:44:57.030Z",
+   "indexedAt": "2026-07-22T16:07:16.268Z"
+  },
+  {
+   "did": "did:plc:uwpmuzkqapuxybwvmdgzobcg",
+   "handle": "cooponindivisible.bsky.social",
+   "displayName": "Cooperstown Oneonta Indivisible",
+   "labels": [],
+   "createdAt": "2025-04-04T19:18:29.393Z",
+   "indexedAt": "2025-06-15T14:34:36.041Z"
+  },
+  {
+   "did": "did:plc:j5na2bgeopba3w7hxofqwi35",
+   "handle": "carltonbanksjr.bsky.social",
+   "displayName": "Kenneth",
+   "labels": [],
+   "createdAt": "2024-11-08T01:46:39.884Z",
+   "indexedAt": "2024-11-14T18:26:29.627Z"
+  }
+ ]
+}

@@ -223,6 +223,19 @@ final class FixtureServer: URLProtocol {
         "/v1/members?q=michigan&limit=100&chamber=senate": "members-search-michigan-senate",
         "/v1/search?q=pending%20sample&chamber=house": "search-pending-sample",
         "/v1/members?q=pending%20sample&limit=100&chamber=house": "members-search-pending-sample",
+        // Round 13: the members' records as the API served them on 2026-11-16; promises, posts and
+        // Schumer's handles hand-built from real content until the API serves them (each fixture
+        // says so in its `_fixture` key; the posts' urls are fixture links to his profile and channel).
+        "/v1/members/S001208": "member-detail-slotkin",
+        "/v1/members/S001208/votes": "member-votes-slotkin-40",
+        "/v1/members/S001208/promises": "promises-slotkin",
+        "/v1/members/G000555": "member-detail-gillibrand",
+        "/v1/members/G000555/votes": "member-votes-gillibrand-40",
+        "/v1/members/G000555/promises": "promises-gillibrand",
+        "/v1/members/S000148": "member-detail-schumer",
+        "/v1/members/S000148/votes": "member-votes-schumer-40",
+        "/v1/members/S000148/posts": "posts-schumer",
+        "/v1/posts?members=S000148,N000002": "posts-wall-schumer-nadler",
     ]
 
     static var api: FloorAPI { api(FixtureServer.self) }

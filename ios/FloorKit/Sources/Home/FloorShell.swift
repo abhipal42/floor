@@ -166,7 +166,10 @@ public struct FloorShell: View {
                 ToolbarItem(placement: .principal) { Text(verbatim: " ").accessibilityHidden(true) }
             }
         case let .member(id):
-            RepScreenView(model: model.repScreen(id: id), follows: model.follows, reps: model.reps.map(\.bioguideId)) { vote in
+            RepScreenView(
+                model: model.repScreen(id: id), follows: model.follows, reps: model.reps.map(\.bioguideId),
+                onOpenTopic: { path.wrappedValue.append(.topic(name: $0)) }
+            ) { vote in
                 path.wrappedValue.append(.vote(id: vote.id))
             }
             .navigationTitle("Member")

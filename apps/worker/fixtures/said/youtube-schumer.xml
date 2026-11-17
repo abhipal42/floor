@@ -1,0 +1,82 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<feed xmlns:yt="http://www.youtube.com/xml/schemas/2015" xmlns:media="http://search.yahoo.com/mrss/" xmlns="http://www.w3.org/2005/Atom">
+ <link rel="self" href="http://www.youtube.com/feeds/videos.xml?channel_id=UC-ABttxh8uQv_10qmwGaidw"/>
+ <id>yt:channel:-ABttxh8uQv_10qmwGaidw</id>
+ <yt:channelId>-ABttxh8uQv_10qmwGaidw</yt:channelId>
+ <title>Senator Chuck Schumer</title>
+ <link rel="alternate" href="https://www.youtube.com/channel/UC-ABttxh8uQv_10qmwGaidw"/>
+ <author>
+  <name>Senator Chuck Schumer</name>
+  <uri>https://www.youtube.com/channel/UC-ABttxh8uQv_10qmwGaidw</uri>
+ </author>
+ <published>2008-11-26T18:09:29+00:00</published>
+ <entry>
+  <id>yt:video:JlA2eRiVeB8</id>
+  <yt:videoId>JlA2eRiVeB8</yt:videoId>
+  <yt:channelId>UC-ABttxh8uQv_10qmwGaidw</yt:channelId>
+  <title>Speaking live from the floor of the U.S. Senate</title>
+  <link rel="alternate" href="https://www.youtube.com/watch?v=JlA2eRiVeB8"/>
+  <author>
+   <name>Senator Chuck Schumer</name>
+   <uri>https://www.youtube.com/channel/UC-ABttxh8uQv_10qmwGaidw</uri>
+  </author>
+  <published>2026-11-16T20:04:48+00:00</published>
+  <updated>2026-11-16T21:00:20+00:00</updated>
+  <media:group>
+   <media:title>Speaking live from the floor of the U.S. Senate</media:title>
+   <media:content url="https://www.youtube.com/v/JlA2eRiVeB8?version=3" type="application/x-shockwave-flash" width="640" height="390"/>
+   <media:thumbnail url="https://i3.ytimg.com/vi/JlA2eRiVeB8/hqdefault.jpg" width="480" height="360"/>
+   <media:description>Speaking live from the floor of the U.S. Senate</media:description>
+   <media:community>
+    <media:starRating count="19" average="5.00" min="1" max="5"/>
+    <media:statistics views="318"/>
+   </media:community>
+  </media:group>
+ </entry>
+ <entry>
+  <id>yt:video:KXPrkcK9ZDA</id>
+  <yt:videoId>KXPrkcK9ZDA</yt:videoId>
+  <yt:channelId>UC-ABttxh8uQv_10qmwGaidw</yt:channelId>
+  <title>Senator Schumer speaks from the Senate floor, 11.10.26</title>
+  <link rel="alternate" href="https://www.youtube.com/watch?v=KXPrkcK9ZDA"/>
+  <author>
+   <name>Senator Chuck Schumer</name>
+   <uri>https://www.youtube.com/channel/UC-ABttxh8uQv_10qmwGaidw</uri>
+  </author>
+  <published>2026-11-10T17:24:47+00:00</published>
+  <updated>2026-11-14T00:02:57+00:00</updated>
+  <media:group>
+   <media:title>Senator Schumer speaks from the Senate floor, 11.10.26</media:title>
+   <media:content url="https://www.youtube.com/v/KXPrkcK9ZDA?version=3" type="application/x-shockwave-flash" width="640" height="390"/>
+   <media:thumbnail url="https://i4.ytimg.com/vi/KXPrkcK9ZDA/hqdefault.jpg" width="480" height="360"/>
+   <media:description>Senator Schumer speaks from the Senate floor, 11.10.26</media:description>
+   <media:community>
+    <media:starRating count="50" average="5.00" min="1" max="5"/>
+    <media:statistics views="5417"/>
+   </media:community>
+  </media:group>
+ </entry>
+ <entry>
+  <id>yt:video:jNLGDYnapSM</id>
+  <yt:videoId>jNLGDYnapSM</yt:videoId>
+  <yt:channelId>UC-ABttxh8uQv_10qmwGaidw</yt:channelId>
+  <title>WATCH: I am speaking live from the floor of the U.S. Senate</title>
+  <link rel="alternate" href="https://www.youtube.com/watch?v=jNLGDYnapSM"/>
+  <author>
+   <name>Senator Chuck Schumer</name>
+   <uri>https://www.youtube.com/channel/UC-ABttxh8uQv_10qmwGaidw</uri>
+  </author>
+  <published>2026-11-10T08:39:13+00:00</published>
+  <updated>2026-11-11T19:29:16+00:00</updated>
+  <media:group>
+   <media:title>WATCH: I am speaking live from the floor of the U.S. Senate</media:title>
+   <media:content url="https://www.youtube.com/v/jNLGDYnapSM?version=3" type="application/x-shockwave-flash" width="640" height="390"/>
+   <media:thumbnail url="https://i3.ytimg.com/vi/jNLGDYnapSM/hqdefault.jpg" width="480" height="360"/>
+   <media:description>WATCH: I am speaking live from the floor of the U.S. Senate</media:description>
+   <media:community>
+    <media:starRating count="45" average="5.00" min="1" max="5"/>
+    <media:statistics views="1811"/>
+   </media:community>
+  </media:group>
+ </entry>
+ </feed>

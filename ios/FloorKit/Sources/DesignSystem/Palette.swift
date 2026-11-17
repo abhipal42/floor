@@ -126,6 +126,20 @@ public enum Tones {
     /// How strongly the takes-office banner is washed with `elect` (the mock's `rgba(125,211,252,.08)`).
     public static let electTint = 0.08
 
+    // From the round 13 mock (campaign promises). `deckGlow` is the top of the promise deck's front
+    // card, fading to `panel` (the mock's #23304A → #14161B); light is a pale steel blue that keeps
+    // the eyebrow (`threshold`) and `textMuted` at 4.5:1. The browser frame around an archived
+    // campaign page is a lit page, so it stays paper-coloured in both appearances, a shade warmer
+    // in dark as the mock draws it; its stamp is the Wayback red.
+    public static let deckGlow = Swatch(light: 0xEEF2F9, dark: 0x23304A)
+    public static let paper = Swatch(light: 0xFBFAF6, dark: 0xF4F2EC)
+    public static let paperInk = Swatch(light: 0x14161B, dark: 0x14161B)
+    public static let paperText = Swatch(light: 0x3B3F47, dark: 0x3B3F47)
+    public static let browserBar = Swatch(light: 0xD9DEDC, dark: 0x22252C)
+    public static let browserField = Swatch(light: 0xF1F4F3, dark: 0x14161B)
+    public static let browserText = Swatch(light: 0x38433F, dark: 0xC4C9D2)
+    public static let wayback = Swatch(light: 0xB4232A, dark: 0xB4232A)
+
     // The home-screen widgets' ground: the widget mock's #0B0C0F in dark, a white panel in light.
     public static let widget = Swatch(light: 0xFFFFFF, dark: 0x0B0C0F)
 
@@ -223,6 +237,18 @@ public enum Palette {
     public static let textFaint = Color(Tones.textFaint)
     /// The home-screen widgets' background.
     public static let widget = Color(Tones.widget)
+    /// The top of the promise deck's front card; it fades to ``panel``.
+    public static let deckGlow = Color(Tones.deckGlow)
+    /// An archived campaign page inside its browser frame: the page, its headings, its text.
+    public static let paper = Color(Tones.paper)
+    public static let paperInk = Color(Tones.paperInk)
+    public static let paperText = Color(Tones.paperText)
+    /// The browser frame's bar, its address field and the address.
+    public static let browserBar = Color(Tones.browserBar)
+    public static let browserField = Color(Tones.browserField)
+    public static let browserText = Color(Tones.browserText)
+    /// The "Wayback" stamp on an archived page.
+    public static let wayback = Color(Tones.wayback)
 
     // The Money segment's bar: small-dollar is ``yea``, PACs ``threshold``, and these two the rest.
     /// Larger, itemized individual gifts.

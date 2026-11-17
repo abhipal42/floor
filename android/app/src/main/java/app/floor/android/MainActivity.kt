@@ -40,6 +40,7 @@ import app.floor.android.following.FollowingActions
 import app.floor.android.following.FollowingScreen
 import app.floor.android.following.FollowingSegment
 import app.floor.android.following.FollowingState
+import app.floor.android.following.PostsWallModel
 import app.floor.android.home.HomeModel
 import app.floor.android.home.HomeScreen
 import app.floor.android.model.FloorLink
@@ -212,11 +213,15 @@ private fun App(
                 var adding by rememberSaveable { mutableStateOf(false) }
                 LaunchedEffect(home.syncKey) { home.appear() }
                 LaunchedEffect(segment) { if (segment == FollowingSegment.TOPICS) topics.appear() }
+                val wall: PostsWallModel = viewModel(key = "posts-wall") { PostsWallModel(api) }
+                val followingState = FollowingState(
+                    follows = follows.state, delegation = session.delegation, segment = segment, editing = editing,
+                    loyalty = home.state.loyalty, records = home.records, topics = topics.state.topics, wall = wall.state,
+                )
+                val wallIds = followingState.wallMembers.map { it.bioguideId }
+                LaunchedEffect(segment, wallIds) { if (segment == FollowingSegment.POSTS) wall.appear(wallIds) }
                 FollowingScreen(
-                    FollowingState(
-                        follows = follows.state, delegation = session.delegation, segment = segment, editing = editing,
-                        loyalty = home.state.loyalty, records = home.records, topics = topics.state.topics,
-                    ),
+                    followingState,
                     FollowingActions(
                         onSegment = {
                             segment = it
@@ -230,8 +235,10 @@ private fun App(
                         onOpenTopic = { navigate(Routes.topic(it)) },
                         onFindReps = session::findReps,
                         onRetryTopics = topics::reloadTopics,
+                        onRetryWall = wall::reload,
                     ),
                     zone,
+                    locale,
                 )
                 if (adding) {
                     // A fresh search each time the sheet opens.
@@ -337,6 +344,7 @@ private fun App(
                 )
             },
             member = { id, back, onOpenVote, onBack ->
+                val navigate = LocalNavigate.current
                 val model: MemberModel = viewModel { MemberModel(api, id) }
                 LaunchedEffect(id) { model.appear() }
                 val member = model.state.member
@@ -356,6 +364,10 @@ private fun App(
                     follow = MemberFollow(follows.state.isFollowing(id), session.reps.any { it.bioguideId == id }) {
                         member?.let { follows.toggle(it) }
                     },
+                    onPromise = model::selectPromise,
+                    onOpenTopic = { navigate(Routes.topic(it)) },
+                    onRetryPromises = { model.reloadPromises() },
+                    onRetryPosts = { model.reloadPosts() },
                 )
             },
             elect = { id, back, onBack ->

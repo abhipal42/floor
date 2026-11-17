@@ -1,0 +1,20 @@
+{
+  "_note": "Hand-built: the member as members-search-new-york records him, with his congress-legislators social handles and the verified Bluesky account, until the API's recorded response replaces it. No party-loyalty figure (none recorded) and no contact.",
+  "member": {
+    "bioguideId": "S000148",
+    "firstName": "Chuck",
+    "lastName": "Schumer",
+    "party": "D",
+    "state": "NY",
+    "district": null,
+    "chamber": "senate",
+    "social": {
+      "twitter": "SenSchumer",
+      "facebook": "senschumer",
+      "instagram": "senschumer",
+      "youtube": "SenatorSchumer",
+      "youtubeId": "UC-ABttxh8uQv_10qmwGaidw",
+      "bluesky": "schumer.senate.gov"
+    }
+  }
+}
