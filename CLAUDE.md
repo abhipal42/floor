@@ -30,6 +30,11 @@ into `main`; nothing is committed straight to it, because that is the one path t
 - **Title the PR `vX.Y.Z type: summary`** (`feat`, `fix`, `docs`, `refactor`, `perf`, `test`,
   `chore`, `build`, `ci`, `revert`). A single-commit PR's commit subject must match too, because the
   repo squashes with it.
+- **Build it on iOS and Android, in the same PR** (owner's rule, 2026-11-16). Every app feature and
+  app change lands on both platforms together; the `platform-parity` guard fails a PR whose app code
+  (`ios/FloorKit/Sources`, `ios/Floor`, `ios/FloorWidgets`, `android/app/src/main`) changes on one
+  side only. The `single-platform` label is for a change that is genuinely one platform's (an iOS-only
+  crash, an API only one OS has) and the PR must say why. A feature never qualifies.
 - **Code ships with its test and its doc.** Code is TypeScript under `apps/*/src`, `apps/*/api` and
   `packages/*/src`, the Swift sources, `ios/project.yml` and `supabase/migrations`. Docs are
   `docs/*.md`, `README.md` and this file — usually `docs/HANDOFF.md`.
