@@ -78,8 +78,9 @@ public struct NetworkMark: Shape {
     }
 }
 
-/// One account on the Posts tab's row: the network's mark in a circle, its name under it, and a
-/// green dot when Floor shows its posts. The caller makes it a link and labels it.
+/// One account on the Posts tab's row: the network's mark in a circle and a green dot when Floor
+/// shows its posts. No name under it: the marks are well known, and a caption only cluttered the row
+/// (owner, 2026-11-17). The caller makes it a link and labels it, name included.
 public struct NetworkBadge: View {
     let network: SocialNetwork
 
@@ -92,7 +93,7 @@ public struct NetworkBadge: View {
     }
 
     public var body: some View {
-        VStack(spacing: 5) {
+        VStack(spacing: 0) {
             NetworkMark(network)
                 .fill(Palette.text)
                 .frame(width: Self.mark, height: Self.mark)
@@ -108,10 +109,6 @@ public struct NetworkBadge: View {
                             .offset(x: 2, y: -2)
                     }
                 }
-            Text(network.name)
-                .scaledFont(9.5, weight: .semibold)
-                .foregroundStyle(Palette.textMuted)
-                .lineLimit(1)
         }
         .accessibilityHidden(true)
     }

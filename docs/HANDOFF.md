@@ -2050,7 +2050,9 @@ Built to the same locked design (<https://claude.ai/artifact/8Qfr9ymPEKuYGSLjiuX
   300 ms after the last keystroke, never cached. Sections: Topics, Bills, Members — Members always
   shown when anything matched, with "No members match …" under it as the mock does; a bill-number
   query shows that bill alone (with its latest step); nothing anywhere is one "Nothing matches"
-  card. Each row has Follow; tapping a bill or topic closes the sheet and opens it on the tab.
+  card. Each row has Follow; tapping a bill, topic or member closes the sheet and opens it on the
+  tab — a member's record never needs a follow first (v0.2.56; before it, a member row only had
+  Follow). The same sheet opens from Finals' header search button (v0.2.56) as well as + ADD.
   v0.2.28's All / Senate / House switch is back under the field (it narrows the members, sent as
   `chamber`), and members are grouped Senate then House, since a state is up to 40 rows.
 - **Finals' "Following"** (was "Your members · N"): `HomeModel` loads, beside each member's record,

@@ -16,6 +16,7 @@ public struct HomeView: View {
     let onOpen: (HomeModel.Route) -> Void
     /// With no district, the header chip finds your reps instead of changing them.
     let onFindReps: () -> Void
+    @State private var searching = false
 
     public init(
         model: HomeModel,
@@ -82,6 +83,19 @@ public struct HomeView: View {
         .task(id: model.syncKey) { await model.sync() }
         .task(id: model.delegation?.district) { await model.loadSeats() }
         .onChange(of: model.orderKey) { model.regroup() }
+        // The same search as Following › + ADD: any member, bill or topic, opened here without
+        // following it first.
+        .sheet(isPresented: $searching) {
+            AddFollowsView(
+                model: model.followSearch(),
+                follows: model.follows,
+                reps: model.reps.map(\.bioguideId),
+                onOpenBill: { onOpen(.bill(id: $0)) },
+                onOpenTopic: { onOpen(.topic(name: $0)) },
+                onOpenElect: { onOpen(.elect(id: $0)) },
+                onOpenMember: onOpenMember
+            )
+        }
     }
 
     private var header: some View {
@@ -99,6 +113,14 @@ public struct HomeView: View {
             }
             .accessibilityLabel(model.delegation.map { "District \($0.district.name). Change your address" }
                 ?? "Find your representative and senators")
+            Button { searching = true } label: {
+                Image(systemName: "magnifyingglass")
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(Palette.textSecondary)
+                    .frame(width: 30, height: 30)
+                    .background(Palette.text.opacity(0.08), in: .circle)
+            }
+            .accessibilityLabel("Search members, bills and topics")
             AppearanceMenu()
         }
     }
