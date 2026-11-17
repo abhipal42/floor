@@ -97,56 +97,70 @@ fun BillRoadView(steps: Int) {
 
 /** A bill in a list (the mock's `.bl2`): citation and stage chip, the plain label, the latest step, the road. */
 @Composable
-fun BillRow(bill: BillListItem, onOpen: () -> Unit, showsLatest: Boolean = true, showsRoad: Boolean = true) {
+fun BillRow(
+    bill: BillListItem,
+    onOpen: () -> Unit,
+    showsLatest: Boolean = true,
+    showsRoad: Boolean = true,
+    /** A Follow pill at the right, as "+ Add" draws its rows. */
+    trailing: (@Composable () -> Unit)? = null,
+) {
     val colors = Palette
     val large = largeText()
     val shape = RoundedCornerShape(12.dp)
-    Column(
+    Row(
         Modifier
             .fillMaxWidth()
             .clip(shape)
             .background(colors.panel, shape)
-            .border(1.dp, colors.panelBorder, shape)
-            .clickable(role = Role.Button, onClickLabel = "Open the bill", onClick = onOpen)
-            .padding(horizontal = 11.dp, vertical = 9.dp)
-            .clearAndSetSemantics { contentDescription = SpokenBill.billRow(bill) },
-        verticalArrangement = Arrangement.spacedBy(4.dp),
+            .border(1.dp, colors.panelBorder, shape),
+        verticalAlignment = Alignment.CenterVertically,
     ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Text(
-                bill.citation.uppercase(),
-                style = FloorType.label(12f).copy(letterSpacing = 0.8.sp),
-                color = colors.threshold,
-                maxLines = 1,
-            )
-            Spacer(Modifier.weight(1f).width(4.dp))
-            bill.chip?.let { StageChipView(it) }
-        }
-        Text(
-            bill.label,
-            style = FloorType.text(13f, FontWeight.Bold),
-            color = colors.text,
-            maxLines = if (large) 10 else 3,
-            overflow = TextOverflow.Ellipsis,
-        )
-        if (showsLatest) {
-            bill.latestStep?.let {
+        Column(
+            Modifier
+                .weight(1f)
+                .clickable(role = Role.Button, onClickLabel = "Open the bill", onClick = onOpen)
+                .padding(horizontal = 11.dp, vertical = 9.dp)
+                .clearAndSetSemantics { contentDescription = SpokenBill.billRow(bill) },
+            verticalArrangement = Arrangement.spacedBy(4.dp),
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
-                    it,
-                    style = FloorType.text(11f, FontWeight.Medium),
-                    color = colors.textMuted,
-                    maxLines = if (large) 8 else 2,
-                    overflow = TextOverflow.Ellipsis,
+                    bill.citation.uppercase(),
+                    style = FloorType.label(12f).copy(letterSpacing = 0.8.sp),
+                    color = colors.threshold,
+                    maxLines = 1,
                 )
+                Spacer(Modifier.weight(1f).width(4.dp))
+                bill.chip?.let { StageChipView(it) }
             }
+            Text(
+                bill.label,
+                style = FloorType.text(13f, FontWeight.Bold),
+                color = colors.text,
+                maxLines = if (large) 10 else 3,
+                overflow = TextOverflow.Ellipsis,
+            )
+            if (showsLatest) {
+                bill.latestStep?.let {
+                    Text(
+                        it,
+                        style = FloorType.text(11f, FontWeight.Medium),
+                        color = colors.textMuted,
+                        maxLines = if (large) 8 else 2,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
+            }
+            if (showsRoad) bill.roadSteps?.let { BillRoadView(it) }
         }
-        if (showsRoad) bill.roadSteps?.let { BillRoadView(it) }
+        if (trailing != null) Box(Modifier.padding(end = 10.dp)) { trailing() }
     }
 }
 
 /** A topic in a list (the mock's `.tp`): its name, a count line, and `›`. */
 @Composable
-fun TopicRow(name: String, detail: String?, spoken: String, onOpen: () -> Unit) {
+fun TopicRow(name: String, detail: String?, spoken: String, onOpen: () -> Unit, trailing: (@Composable () -> Unit)? = null) {
     val colors = Palette
     val shape = RoundedCornerShape(12.dp)
     Row(
@@ -155,17 +169,27 @@ fun TopicRow(name: String, detail: String?, spoken: String, onOpen: () -> Unit) 
             .clip(shape)
             .background(colors.panel, shape)
             .border(1.dp, colors.panelBorder, shape)
-            .clickable(role = Role.Button, onClickLabel = "Open the topic's bills", onClick = onOpen)
-            .padding(horizontal = 12.dp, vertical = 10.dp)
-            .clearAndSetSemantics { contentDescription = spoken },
+            .then(
+                if (trailing == null) {
+                    Modifier.clickable(role = Role.Button, onClickLabel = "Open the topic's bills", onClick = onOpen)
+                        .padding(horizontal = 12.dp, vertical = 10.dp)
+                        .clearAndSetSemantics { contentDescription = spoken }
+                } else {
+                    Modifier.padding(end = 12.dp)
+                },
+            ),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(10.dp),
     ) {
-        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+        val open = if (trailing == null) Modifier else Modifier
+            .clickable(role = Role.Button, onClickLabel = "Open the topic's bills", onClick = onOpen)
+            .padding(start = 12.dp, top = 10.dp, bottom = 10.dp)
+            .clearAndSetSemantics { contentDescription = spoken }
+        Column(Modifier.weight(1f).then(open), verticalArrangement = Arrangement.spacedBy(2.dp)) {
             Text(name.uppercase(), style = FloorType.display(20f, FloorType.Face.BLACK_ITALIC), color = colors.text, maxLines = 2)
             if (detail != null) Text(detail, style = FloorType.text(11f, FontWeight.Medium), color = colors.textMuted)
         }
-        Text("›", style = FloorType.text(20f), color = colors.textMuted)
+        if (trailing != null) trailing() else Text("›", style = FloorType.text(20f), color = colors.textMuted)
     }
 }
 

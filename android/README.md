@@ -30,20 +30,43 @@ summary, Speak up, Share and the CBO estimate. Share is the system share sheet w
 vote screen's bill card now gives the bill's "level N of 6". Finals and Bills each keep their own
 stack, and a vote, bill or topic can be pushed on either; a hidden tab's stack ignores system back.
 
-Week and Following are visible "Coming soon" placeholders.
+Phase 4: members, your district and following.
 
-What Android leaves out until a later phase, because it needs a district or follows: on Finals the
-delegation strip, the All / Following switch, the catch-up deck and the district chip; on a vote,
-"Your members" (iOS draws none without a district either); on a bill, "Your members on this bill"
-and Follow; on a topic, Follow; in search, members (a member has no screen yet, and iOS's member
-rows are Follow toggles). Speak up is built whole (your members only, no stance preselected, "Copy
-& open form" copies the fixed message and opens the office's form, the call script opens the
-dialer, Floor sends nothing), but the app has no district yet, so it shows iOS's "Set your district
-first" card, without the button and without iOS's pointer to a member's Contact tab, neither of
-which exists on Android yet. iOS keeps topics and search behind Following's "+ Add"; with no
-Following tab yet, Android's Bills tab carries them instead of iOS's list of bills from the feed.
-iOS shows "Kinds of vote" and Speak up as sheets; Android pushes the first as a screen so system
-back closes it, and shows Speak up as a bottom sheet.
+- **Member screen** (`member/`, `GET /v1/members/{id}` and `/votes`): the player card, Votes · Money ·
+  Contact, the three rings, the last-40 grid and its readout, the computed "did you know". Money is
+  Funding (`/funding`: FEC totals, the bar, PAC checks; committees only, never an individual
+  donor) and Disclosures (`/disclosures`: ranges as filed, trades with days-to-file against the
+  deadline, paper filings as links, the AI tag on a transcribed report, the "A home is listed only
+  when it earns income" line; off, the API's reason as a placeholder). Contact dials, writes and
+  links. Follow sits on top; your own rep reads "Your rep".
+- **Members-elect** (`/v1/members-elect`): the LEAVING tag, ELECT rows under the member they replace
+  ("takes office Jan 3" or "when <State> certifies"), dashed pending-seat cards (never a name), and
+  the elect screen (takes-office banner with its source, "No votes yet", FEC totals or a
+  placeholder, "No House/Senate office yet"). The `elect` and `electInk` tokens are in `Palette.kt`.
+- **Your district** (`onboarding/`): "Pull your three." by address or by location, both sent once
+  to `/v1/reps` and never kept (a point rounded to 4 decimals first). Location is asked for only
+  when "Use my location" is tapped (coarse and fine; an approximate grant says so), read once from
+  the platform `LocationManager`. The district is kept in DataStore (`store/DeviceStore.kt`, out of
+  backups) with the follow list. Finals gains the header chip, your three with loyalty rings (the
+  members-elect list while a seat changes hands), the All / Following switch, member chips on
+  cards and the followed bill or topic above a title; a vote gains "Your members"; a bill gains
+  Follow bill, "✓ Following" on its topic and "Your members on this bill"; Speak up writes to your
+  real members, and without a district offers "Set your district".
+- **Following** (`following/`): Members · Bills · Topics, edit (hide or show a rep, unfollow,
+  reorder) and "+ Add" (search over members, bills and topics with All / Senate / House). The
+  Bills tab's search now has members too, each opening the member screen.
+
+Week is still a visible "Coming soon" placeholder.
+
+Where Android differs from iOS, and why: no catch-up deck yet. No alerts: iOS's bell and switches
+need push, which needs FCM, so the Following tab says "Alerts come to Android later" instead. No
+iCloud sync (and no tombstones for it). Following is reordered with Move up / Move down rather than
+a drag handle. Any change to what you follow reloads Finals' feed whole, where iOS fetches only what
+the change adds. iOS keeps topics and search behind Following's "+ Add" only; Android keeps them on
+the Bills tab too. iOS shows "Kinds of vote" and Speak up as sheets; Android pushes the first as a
+screen so system back closes it, and shows Speak up and "+ Add" as bottom sheets. Portraits are
+fetched with OkHttp from the same `unitedstates/images` files iOS reads; tests draw initials
+(`LocalLoadsPortraits`).
 
 ## Stack
 
@@ -84,6 +107,10 @@ cd android
   200% font scale, Android's largest and the stand-in for iOS's ax5. A size meant not to grow goes
   through `Dp.toSp()`, not a division by the font scale: Android 14 scales large text non-linearly,
   so dividing drew the scoreboard's numbers at half size at 200%.
+- `MemberSnapshotTest` draws the member screen (Cruz's record, Doggett's Contact, Funding and
+  disclosures, Nadler's transcribed report, disclosures off), the member-elect screen and the vote's
+  "Your members"; `DistrictSnapshotTest` draws onboarding, Finals with your three (and Michigan's
+  seat changing hands), the Following tab and search with members-elect.
 - `BillsSnapshotTest` draws the Bills tab, search, a topic's page, H.R. 5267 (on the floor) and
   H.R. 1013, the AI section on its own (the only analysis fixture is H.R. 6363's, with no bill
   response to put it under, as on iOS) and Speak up with and without a district (Austin, TX-37,

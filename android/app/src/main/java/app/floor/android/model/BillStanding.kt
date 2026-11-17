@@ -72,6 +72,9 @@ data class StageChip(val text: String, val tone: Tone) {
 /** The five-step road on a bill row: introduced · passed one chamber · passed both · to the President · law. */
 object BillRoad {
     val steps = listOf("introduced", "passed one chamber", "passed both", "to the President", "law")
+
+    /** Under the Following tab's Bills. */
+    val legend = "Road to law: " + steps.joinToString(" · ")
 }
 
 val BillListItem.roadSteps: Int? get() = stage?.roadSteps

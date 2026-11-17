@@ -133,7 +133,7 @@ class BillTest {
     @Test
     fun aDistrictAndItsMembers() {
         val austin = Fixtures.decode("reps-location-austin", Delegation.serializer())
-        assertEquals(District(119, "TX", 37), austin.district)
+        assertEquals(District(119, "TX", 37, countyFips = "48453"), austin.district)
         assertEquals(listOf("Doggett", "Cornyn", "Cruz"), austin.members.map { it.lastName })
         val doggett = austin.members[0]
         assertEquals("Representative", doggett.title)

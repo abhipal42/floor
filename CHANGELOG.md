@@ -8,6 +8,30 @@ is a milestone and ships a retro under `docs/retros/`.
 Older series live in [`docs/changelog/`](docs/changelog) (0.1.x: [`0.1.md`](docs/changelog/0.1.md)).
 Before 0.1.0 the history is the commit log on `main`.
 
+## 0.2.50 — 2026-11-16
+
+### Added
+- **Floor for Android, phase 4 of 5: members, your district, following.**
+  - **The member screen:**
+    - player card, the three rings and the last-40 grid;
+    - Money: Funding shows committees only, never an individual donor. Disclosures show ranges as
+      filed, trades against the 45-day limit, paper filings as links, the AI note on a transcribed
+      report and the home footer;
+    - Contact: dial, the office's form, the website;
+    - Follow or "Your rep" in the header.
+  - **Members-elect:** LEAVING and ELECT rows, dashed cards for undecided seats, and the elect screen.
+  - **Your district:** set by address or by location. Permission is asked only on tap; coordinates
+    are rounded and never kept. It is stored on the device (DataStore), excluded from backups.
+  - **Finals:** the district chip, "Your three" with loyalty rings, and the All / Following switch.
+  - **Elsewhere:** the vote screen gains "Your members", and bills gain Follow and "Your members on
+    this bill". Speak up writes to your real members.
+  - **The Following tab:** Members · Bills · Topics, with edit and "+ Add"; search now includes
+    members.
+  - Where it differs from iOS: no alert switches (no FCM yet: the tab says alerts come later), no
+    iCloud sync, and no catch-up deck yet.
+- 59 new screenshots and 27 re-recorded on purpose (screens that now show the district and follows).
+  245 JVM tests.
+
 ## 0.2.49 — 2026-11-16
 
 ### Added

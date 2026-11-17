@@ -18,6 +18,8 @@ import app.floor.android.bill.AIAnalysis
 import app.floor.android.bill.AIAnalysisSection
 import app.floor.android.bill.AnalysisPhase
 import app.floor.android.bill.BillFacts
+import app.floor.android.bill.BillFollow
+import app.floor.android.bill.MemberOnBill
 import app.floor.android.bill.BillScreen
 import app.floor.android.bill.BillScreenState
 import app.floor.android.bill.FloorListing
@@ -30,6 +32,7 @@ import app.floor.android.bills.TopicScreen
 import app.floor.android.bills.TopicState
 import app.floor.android.design.Appearance
 import app.floor.android.design.FloorTheme
+import app.floor.android.design.LocalLoadsPortraits
 import app.floor.android.design.LocalPlaysArrivalAnimations
 import app.floor.android.design.Palette
 import app.floor.android.model.Bill
@@ -79,6 +82,7 @@ class BillsSnapshotTest {
             val density = LocalDensity.current
             CompositionLocalProvider(
                 LocalPlaysArrivalAnimations provides false,
+                LocalLoadsPortraits provides false,
                 LocalDensity provides Density(density.density, look.fontScale),
             ) {
                 FloorTheme(look.appearance, content)
@@ -144,10 +148,16 @@ class BillsSnapshotTest {
     private fun Topic(state: TopicState) = TopicScreen(state, "Bills", {}, {}, {}, {}, {})
 
     @Composable
-    private fun BillAt(state: BillScreenState) = BillScreen(
+    private fun BillAt(state: BillScreenState, follow: BillFollow? = null) = BillScreen(
         state = state, back = "Bills", zone = eastern, locale = Locale.US, onBack = {}, onRetry = {},
-        onToggleCitation = {}, onRetryAnalysis = {}, onOpenVote = {}, onOpenTopic = {}, onSpeakUp = {},
+        onToggleCitation = {}, onRetryAnalysis = {}, onOpenVote = {}, onOpenTopic = {}, onSpeakUp = {}, follow = follow,
     )
+
+    /** As iOS draws it with a follow list: Follow bill above the title, and Austin's three on it. */
+    private val withFollows: BillScreenState
+        get() = onTheFloor.copy(yourMembers = austin.members.map { MemberOnBill(it, null, null, null) })
+
+    private val follow = BillFollow(following = false, followingTopic = { false }) {}
 
     /** The AI section alone on the ground, as iOS's `AIAnalysisSnapshotTests` draw it. */
     @Composable
@@ -217,15 +227,15 @@ class BillsSnapshotTest {
 
     @Test
     @Config(qualifiers = "w402dp-h2500dp-xhdpi")
-    fun onTheFloorLight() = snap("billOnTheFloor", Look.LIGHT) { BillAt(onTheFloor) }
+    fun onTheFloorLight() = snap("billOnTheFloor", Look.LIGHT) { BillAt(withFollows, follow) }
 
     @Test
     @Config(qualifiers = "w402dp-h2500dp-xhdpi")
-    fun onTheFloorDark() = snap("billOnTheFloor", Look.DARK) { BillAt(onTheFloor) }
+    fun onTheFloorDark() = snap("billOnTheFloor", Look.DARK) { BillAt(withFollows, follow) }
 
     @Test
     @Config(qualifiers = "w402dp-h5000dp-xhdpi")
-    fun onTheFloorLarge() = snap("billOnTheFloor", Look.LARGE) { BillAt(onTheFloor) }
+    fun onTheFloorLarge() = snap("billOnTheFloor", Look.LARGE) { BillAt(withFollows, follow) }
 
     @Test
     @Config(qualifiers = "w402dp-h1400dp-xhdpi")
@@ -300,15 +310,15 @@ class BillsSnapshotTest {
     /** What the app shows today: Android has no district until phase 4. */
     @Test
     @Config(qualifiers = "w402dp-h500dp-xhdpi")
-    fun speakUpNoDistrictLight() = snap("speakUpNoDistrict", Look.LIGHT) { SpeakUpSheet(facts, null, { null }) }
+    fun speakUpNoDistrictLight() = snap("speakUpNoDistrict", Look.LIGHT) { SpeakUpSheet(facts, null, { null }, onSetDistrict = {}) }
 
     @Test
     @Config(qualifiers = "w402dp-h500dp-xhdpi")
-    fun speakUpNoDistrictDark() = snap("speakUpNoDistrict", Look.DARK) { SpeakUpSheet(facts, null, { null }) }
+    fun speakUpNoDistrictDark() = snap("speakUpNoDistrict", Look.DARK) { SpeakUpSheet(facts, null, { null }, onSetDistrict = {}) }
 
     @Test
     @Config(qualifiers = "w402dp-h900dp-xhdpi")
-    fun speakUpNoDistrictLarge() = snap("speakUpNoDistrict", Look.LARGE) { SpeakUpSheet(facts, null, { null }) }
+    fun speakUpNoDistrictLarge() = snap("speakUpNoDistrict", Look.LARGE) { SpeakUpSheet(facts, null, { null }, onSetDistrict = {}) }
 
     /** As it opens with a district: no view chosen, so no message yet. */
     @Test

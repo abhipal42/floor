@@ -45,7 +45,14 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.foundation.layout.width
 import app.floor.android.R
+import app.floor.android.design.ChipSwitch
+import app.floor.android.model.Member
+import app.floor.android.model.RecentVote
+import app.floor.android.model.seatCaption
+import androidx.compose.foundation.border
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import app.floor.android.design.Appearance
 import app.floor.android.design.FloorType
 import app.floor.android.design.Palette
@@ -60,8 +67,9 @@ val TabBarClearance = 76.dp
  * The Finals tab, as the locked Home mock draws it for someone who follows nobody yet (iOS
  * `HomeView`): the header, the latest final on a split-flap board, then the finals by chamber.
  *
- * The delegation strip, the All / Following switch and the catch-up deck need a district or
- * follows, which arrive in a later phase; the screen draws what iOS draws without them.
+ * Above the board: your three with a loyalty ring each (or, while a seat changes hands, the
+ * members-elect list), and the All / Following switch once you follow anything. The catch-up deck
+ * is not built on Android yet.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -74,6 +82,11 @@ fun HomeScreen(
     onRefresh: () -> Unit,
     onOpenVote: (String) -> Unit,
     modifier: Modifier = Modifier,
+    onScope: (HomeState.Scope) -> Unit = {},
+    onOpenMember: (Member) -> Unit = {},
+    onOpenElect: (String) -> Unit = {},
+    /** The header chip: "Find my reps" with no district, else the district, which changes the address. */
+    onFindReps: () -> Unit = {},
 ) {
     val colors = Palette
     PullToRefreshBox(
@@ -97,7 +110,14 @@ fun HomeScreen(
                 .padding(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 24.dp + TabBarClearance),
             verticalArrangement = Arrangement.spacedBy(20.dp),
         ) {
-            Header(appearance, onAppearance)
+            Header(state.delegation?.district?.name, appearance, onAppearance, onFindReps)
+            DelegationStrip(state, onOpenMember, onOpenElect)
+            if (state.followsAnything) {
+                ChipSwitch(
+                    HomeState.Scope.entries, state.shownScope, { if (it == HomeState.Scope.ALL) "ALL" else "FOLLOWING" }, onScope, size = 13f,
+                    spoken = { if (it == HomeState.Scope.ALL) "All finals" else "Finals on members, bills and topics you follow" },
+                )
+            }
             when (val phase = state.phase) {
                 HomeState.Phase.Loading -> Box(Modifier.fillMaxWidth().padding(top = 40.dp), contentAlignment = Alignment.Center) {
                     CircularProgressIndicator(
@@ -109,10 +129,12 @@ fun HomeScreen(
                 is HomeState.Phase.Failed -> Failure(phase.message, onRetry)
                 HomeState.Phase.Loaded -> {
                     state.saved?.let { SavedDataNote(it) }
+                    state.unavailableNote?.let { Text(it, style = FloorType.text(12f), color = colors.textMuted) }
+                    if (state.shownScope == HomeState.Scope.YOURS) state.billLimitNote?.let { Text(it, style = FloorType.text(12f), color = colors.textMuted) }
                     state.latestFinal?.let { latest ->
-                        SplitFlapBoard(latest, Modifier.clickable(role = Role.Button) { onOpenVote(latest.vote.id) })
+                        SplitFlapBoard(RecentVote(latest.vote, latest.measure), Modifier.clickable(role = Role.Button) { onOpenVote(latest.vote.id) })
                     }
-                    FinalsHeader(state.filter, onFilter)
+                    FinalsHeader(state.filter, state.shownScope == HomeState.Scope.YOURS, onFilter)
                     val items = state.visibleItems
                     if (items.isEmpty()) {
                         Text(state.emptyFeedMessage, style = FloorType.body(), color = colors.textMuted)
@@ -122,6 +144,8 @@ fun HomeScreen(
                                 vote = item.vote,
                                 title = item.measure?.title ?: item.vote.question,
                                 citation = item.measure?.citation,
+                                positions = item.positions,
+                                matches = state.matches(item).map { it.shown to it.spoken },
                                 modifier = Modifier
                                     .clip(RoundedCornerShape(16.dp))
                                     .clickable(role = Role.Button) { onOpenVote(item.vote.id) },
@@ -142,7 +166,7 @@ fun HomeScreen(
 }
 
 @Composable
-private fun Header(appearance: Appearance, onAppearance: (Appearance) -> Unit) {
+private fun Header(district: String?, appearance: Appearance, onAppearance: (Appearance) -> Unit, onFindReps: () -> Unit) {
     val colors = Palette
     Row(verticalAlignment = Alignment.CenterVertically) {
         Text(
@@ -152,6 +176,18 @@ private fun Header(appearance: Appearance, onAppearance: (Appearance) -> Unit) {
             modifier = Modifier.semantics { heading() },
         )
         Spacer(Modifier.weight(1f))
+        Text(
+            district ?: "Find my reps",
+            style = FloorType.text(12f, FontWeight.SemiBold),
+            color = colors.textSecondary,
+            modifier = Modifier
+                .clip(RoundedCornerShape(50))
+                .background(colors.text.copy(alpha = 0.08f))
+                .clickable(role = Role.Button, onClick = onFindReps)
+                .semantics { contentDescription = district?.let { "District $it. Change your address" } ?: "Find your representative and senators" }
+                .padding(horizontal = 10.dp, vertical = 6.dp),
+        )
+        Spacer(Modifier.width(8.dp))
         AppearanceMenu(appearance, onAppearance)
     }
 }
@@ -205,10 +241,10 @@ private fun AppearanceMenu(appearance: Appearance, onAppearance: (Appearance) ->
 }
 
 @Composable
-private fun FinalsHeader(filter: HomeState.Filter, onFilter: (HomeState.Filter) -> Unit) {
+private fun FinalsHeader(filter: HomeState.Filter, yours: Boolean, onFilter: (HomeState.Filter) -> Unit) {
     val colors = Palette
     Row(verticalAlignment = Alignment.CenterVertically) {
-        Text("FINALS", style = FloorType.headline(26f), color = colors.text, modifier = Modifier.semantics { heading() })
+        Text(if (yours) "YOUR FINALS" else "FINALS", style = FloorType.headline(26f), color = colors.text, modifier = Modifier.semantics { heading() })
         Spacer(Modifier.weight(1f))
         Row(
             Modifier
@@ -246,5 +282,54 @@ private fun Failure(message: String, onRetry: () -> Unit) {
             color = colors.accent,
             modifier = Modifier.clickable(role = Role.Button, onClick = onRetry),
         )
+    }
+}
+
+/** Your reps with a loyalty ring each; while a seat of yours changes hands, the members-elect list. */
+@Composable
+private fun DelegationStrip(state: HomeState, onOpenMember: (Member) -> Unit, onOpenElect: (String) -> Unit) {
+    val rows = state.seatRows
+    if (app.floor.android.model.SeatRow.changing(rows)) {
+        Column(verticalArrangement = Arrangement.spacedBy(7.dp)) {
+            rows.forEach { row ->
+                when (row) {
+                    is app.floor.android.model.SeatRow.Sitting -> app.floor.android.design.SeatMemberRow(row.member, row.leavingOn, onOpen = { onOpenMember(row.member) })
+                    is app.floor.android.model.SeatRow.Elect -> app.floor.android.design.ElectRow(row.elect) { onOpenElect(row.elect.id) }
+                    is app.floor.android.model.SeatRow.Pending -> app.floor.android.design.PendingSeatCard(row.seat)
+                }
+            }
+        }
+        return
+    }
+    if (state.strip.isEmpty()) return
+    val large = androidx.compose.ui.platform.LocalDensity.current.fontScale >= 1.5f
+    val card: @Composable (Member, Modifier) -> Unit = { member, modifier -> DelegationCard(member, state.loyalty[member.bioguideId]?.withPartyShare, modifier) { onOpenMember(member) } }
+    if (large) {
+        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) { state.strip.forEach { card(it, Modifier.fillMaxWidth()) } }
+    } else {
+        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) { state.strip.forEach { card(it, Modifier.weight(1f)) } }
+    }
+}
+
+@Composable
+private fun DelegationCard(member: Member, share: Double?, modifier: Modifier, onOpen: () -> Unit) {
+    val colors = Palette
+    val shape = RoundedCornerShape(14.dp)
+    Column(
+        modifier
+            .clip(shape)
+            .background(colors.panel, shape)
+            .border(1.dp, colors.panelBorder, shape)
+            .clickable(role = Role.Button, onClickLabel = "Open their record", onClick = onOpen)
+            .clearAndSetSemantics { contentDescription = app.floor.android.model.SpokenMember.delegationCard(member, share) }
+            .padding(vertical = 10.dp, horizontal = 6.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
+        app.floor.android.design.Ring(share, colors.yea, 3.dp, Modifier.size(50.dp)) {
+            app.floor.android.design.MemberPortrait(member, Modifier.size(40.dp))
+        }
+        Text(member.lastName.uppercase(), style = FloorType.label(16f), color = colors.text, maxLines = 1)
+        Text(member.seatCaption, style = FloorType.text(10f), color = colors.textMuted, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
     }
 }

@@ -26,7 +26,13 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.foundation.layout.size
+import androidx.compose.ui.platform.LocalDensity
+import app.floor.android.model.MemberPosition
+import app.floor.android.model.Position
 import app.floor.android.model.Spoken
+import app.floor.android.model.chip
+import app.floor.android.model.shortLabel
 import app.floor.android.model.Vote
 import app.floor.android.model.VoteKind
 import app.floor.android.model.VoteState
@@ -51,13 +57,26 @@ fun Vote.dayText(zone: ZoneId = ZoneId.systemDefault()): String? =
  * scores shrink to fit their column, so a three-digit House total never wraps. A Speaker election
  * has no yea or nay, so it gets its own body. TalkBack reads the whole card as one sentence.
  *
- * Members' chips in the footer arrive with the delegation (a later phase); the feed has none yet.
+ * The footer carries your members' chips (portrait and position) where they voted, and a card in
+ * the Following feed says above its title which bill or topic you follow it is on.
  */
 @Composable
-fun ScoreboardCard(vote: Vote, title: String, citation: String?, modifier: Modifier = Modifier) {
+fun ScoreboardCard(
+    vote: Vote,
+    title: String,
+    citation: String?,
+    modifier: Modifier = Modifier,
+    positions: List<MemberPosition> = emptyList(),
+    /** Why the card is in the Following feed: `H.R. 1013`, `Health`. */
+    matches: List<Pair<String, String>> = emptyList(),
+) {
     val colors = Palette
     val day = vote.dayText()
-    val spoken = Spoken.scoreboard(vote, title, citation, day)
+    val spoken = listOfNotNull(
+        Spoken.scoreboard(vote, title, citation, day),
+        positions.takeIf { it.isNotEmpty() }?.joinToString(", ") { "${it.member.lastName} ${it.position.chip(it.choice).lowercase()}" }?.let { "$it." },
+        matches.takeIf { it.isNotEmpty() }?.joinToString(", ") { it.second }?.let { "Following: $it." },
+    ).joinToString(" ")
     Column(
         modifier
             .panel(colors)
@@ -83,6 +102,13 @@ fun ScoreboardCard(vote: Vote, title: String, citation: String?, modifier: Modif
                 maxLines = 1,
             )
         }
+        if (matches.isNotEmpty()) {
+            Text(
+                matches.joinToString(" · ") { it.first }.uppercase(),
+                style = FloorType.label(12f).copy(letterSpacing = 0.8.sp),
+                color = colors.threshold,
+            )
+        }
         Text(
             title,
             style = FloorType.text(15f, FontWeight.SemiBold).copy(lineHeight = 21.sp),
@@ -97,7 +123,37 @@ fun ScoreboardCard(vote: Vote, title: String, citation: String?, modifier: Modif
             ScoreRow(vote)
             ThresholdBar(line)
         }
-        Text(vote.questionKind, style = FloorType.text(12f), color = colors.textMuted, maxLines = 1)
+        if (positions.isEmpty()) {
+            Text(vote.questionKind, style = FloorType.text(12f), color = colors.textMuted, maxLines = 1)
+        } else {
+            Footer(vote, positions)
+        }
+    }
+}
+
+/** The kind of question, then each of your members' chips; one per line when they don't fit across. */
+@Composable
+private fun Footer(vote: Vote, positions: List<MemberPosition>) {
+    val colors = Palette
+    val chip: @Composable (MemberPosition) -> Unit = { position ->
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            MemberPortrait(position.member, Modifier.size(20.dp))
+            Text(
+                if (position.position == Position.CANDIDATE) (position.choice ?: "BALLOT").uppercase() else position.position.shortLabel,
+                style = FloorType.text(12f, FontWeight.Bold), color = colors.position(position.position), maxLines = 1,
+            )
+        }
+    }
+    if (positions.size <= 2 && LocalDensity.current.fontScale < 1.5f) {
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text(vote.questionKind, style = FloorType.text(12f), color = colors.textMuted, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
+            positions.forEach { chip(it) }
+        }
+    } else {
+        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            Text(vote.questionKind, style = FloorType.text(12f), color = colors.textMuted)
+            positions.forEach { chip(it) }
+        }
     }
 }
 

@@ -50,7 +50,7 @@ class HomeModelTest {
         assertEquals(HomeState.Phase.Loaded, state.phase)
         assertEquals(10, state.items.size)
         assertNull(state.saved)
-        assertEquals(state.items.first(), state.latestFinal)
+        assertEquals(state.items.first().vote, state.latestFinal?.vote)
         val request = server.takeRequest()
         assertEquals("/v1/votes", request.url.encodedPath)
         assertEquals("40", request.url.queryParameter("limit"))

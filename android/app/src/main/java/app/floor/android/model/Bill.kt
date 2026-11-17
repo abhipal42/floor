@@ -288,15 +288,3 @@ data class MemberContact(
     val office: String? = null,
     val address: String? = null,
 )
-
-/** `GET /v1/members/{id}`, as much of it as Speak up reads: the member and their office's contact. */
-@Serializable
-data class MemberDetail(val member: Member, val contact: MemberContact? = null)
-
-/** A congressional district: `TX`, 37. */
-@Serializable
-data class District(val congress: Int, val state: String, val district: Int)
-
-/** `GET /v1/reps`: a district and its members. Speak up writes only to these. */
-@Serializable
-data class Delegation(val district: District, val members: List<Member>)
