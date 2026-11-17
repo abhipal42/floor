@@ -311,3 +311,50 @@ public extension BillShare {
 public extension ActivityToken {
     static let sample = ActivityToken(token: String(repeating: "cd", count: 32))
 }
+
+// Round 13. Real content only: Schumer's accounts and a post of his, and Slotkin's 2024 campaign
+// page as the Internet Archive kept it (see ModelsTests/Fixtures/promises-slotkin.json).
+
+public extension MemberSocial {
+    static let sample = MemberSocial(
+        twitter: "SenSchumer", facebook: "senschumer", instagram: "senschumer", youtube: "SenatorSchumer",
+        youtubeId: "UC-ABttxh8uQv_10qmwGaidw", bluesky: "schumer.senate.gov"
+    )
+}
+
+public extension CampaignPromise {
+    static let sample = CampaignPromise(
+        heading: "Defending and Expanding Michigan’s Middle Class",
+        quote: "Elissa believes all Americans should have access to healthcare they can afford, regardless of pre-existing conditions.",
+        headline: "access to healthcare they can afford", topic: "Health"
+    )
+}
+
+public extension MemberPromises {
+    static let sample = MemberPromises(
+        status: .promises, electionYear: 2024, siteUrl: "https://elissaslotkin.org/",
+        snapshotUrl: "https://web.archive.org/web/20241012144326/https://elissaslotkin.org/priorities/",
+        snapshotAt: "2024-10-12T14:43:26Z", pageUrl: "https://elissaslotkin.org/priorities/", promises: [.sample]
+    )
+}
+
+public extension MemberPost {
+    /// The url is his channel, a fixture link: the video's own address was not captured.
+    static let sample = MemberPost(
+        id: "youtube:fixture-2026-11-16-2004", network: .youtube, postedAt: "2026-11-16T20:04:48.000Z",
+        text: "Speaking live from the floor of the U.S. Senate", url: "https://www.youtube.com/@SenatorSchumer",
+        memberId: "S000148"
+    )
+}
+
+public extension PostLinks {
+    static let sample = PostLinks(x: "SenSchumer", facebook: "senschumer", instagram: "senschumer")
+}
+
+public extension MemberPosts {
+    static let sample = MemberPosts(posts: [.sample], links: .sample)
+}
+
+public extension PostsWall {
+    static let sample = PostsWall(posts: [.sample], unreadable: [])
+}

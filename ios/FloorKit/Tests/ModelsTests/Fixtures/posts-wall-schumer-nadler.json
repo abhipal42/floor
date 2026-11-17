@@ -1,0 +1,33 @@
+{
+    "_fixture": "Hand-built to the round 13 contract until the API serves it: the wall for Schumer (S000148) and Nadler (N000002). Schumer's are his real posts, with placeholder ids and FIXTURE LINKS (his Bluesky profile and YouTube channel) as urls. Nadler has a YouTube channel (UCQKj0qU1e7o2f5ftSh-c9aQ), so he is readable, with no recent posts here.",
+    "posts": [
+        {
+            "id": "bluesky:fixture-2026-11-16-2201",
+            "memberId": "S000148",
+            "network": "bluesky",
+            "postedAt": "2026-11-16T22:01:00.000Z",
+            "text": "Grocery prices are higher than ever. Trump's response?   Kick another 6 million off of food stamps and stop nearly 2 million kids from getting free school lunches.",
+            "url": "https://bsky.app/profile/schumer.senate.gov",
+            "mediaUrl": null
+        },
+        {
+            "id": "youtube:fixture-2026-11-16-2004",
+            "memberId": "S000148",
+            "network": "youtube",
+            "postedAt": "2026-11-16T20:04:48.000Z",
+            "text": "Speaking live from the floor of the U.S. Senate",
+            "url": "https://www.youtube.com/@SenatorSchumer",
+            "mediaUrl": null
+        },
+        {
+            "id": "youtube:fixture-2026-11-10-1724",
+            "memberId": "S000148",
+            "network": "youtube",
+            "postedAt": "2026-11-10T17:24:47.000Z",
+            "text": "Senator Schumer speaks from the Senate floor, 11.10.26",
+            "url": "https://www.youtube.com/@SenatorSchumer",
+            "mediaUrl": null
+        }
+    ],
+    "unreadable": []
+}

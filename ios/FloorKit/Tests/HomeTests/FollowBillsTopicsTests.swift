@@ -105,6 +105,8 @@ struct FollowingSegmentsTests {
         #expect(FollowingView.segmentTitle(.members, count: 6) == "MEMBERS · 6")
         #expect(FollowingView.segmentTitle(.bills, count: 3) == "BILLS · 3")
         #expect(FollowingView.segmentTitle(.topics, count: 0) == "TOPICS · 0")
+        // No count on posts: it would read as a score.
+        #expect(FollowingView.segmentTitle(.posts, count: 4) == "POSTS")
     }
 
     /// Bills: the fresh record when loaded, else the row saved at follow time; a record from a

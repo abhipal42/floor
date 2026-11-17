@@ -122,6 +122,21 @@ struct PaletteTests {
         }
     }
 
+    /// The promise deck's front card: its eyebrow, quote and archive link read on the glow at its
+    /// top, the strongest point, in both appearances. The browser frame's page and bar read too.
+    @Test func promiseDeckAndBrowserFrameRead() {
+        for (name, token) in [("threshold", Tones.threshold), ("text", Tones.text), ("textSecondary", Tones.textSecondary),
+                              ("textMuted", Tones.textMuted)] {
+            #expect(Swatch.contrast(token.light, Tones.deckGlow.light) >= 4.5, "\(name) on deckGlow, light")
+            #expect(Swatch.contrast(token.dark, Tones.deckGlow.dark) >= 4.5, "\(name) on deckGlow, dark")
+        }
+        for (ink, ground) in [(Tones.paperInk, Tones.paper), (Tones.paperText, Tones.paper), (Tones.wayback, Tones.paper),
+                              (Tones.browserText, Tones.browserField), (Tones.browserText, Tones.browserBar)] {
+            #expect(Swatch.contrast(ink.light, ground.light) >= 4.5)
+            #expect(Swatch.contrast(ink.dark, ground.dark) >= 4.5)
+        }
+    }
+
     @Test func mixCompositesChannelByChannel() {
         #expect(Swatch.mix(0xFFFFFF, over: 0x000000, opacity: 0.5) == 0x808080)
         #expect(Swatch.mix(0x5B3FB5, over: 0xECEFEE, opacity: 0) == 0xECEFEE)

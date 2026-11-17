@@ -66,6 +66,9 @@ struct ContactRows: View {
                 .overlay(RoundedRectangle(cornerRadius: 12).strokeBorder(Palette.raised, style: StrokeStyle(lineWidth: 1, dash: [4, 3])))
                 .accessibilityElement(children: .combine)
             }
+            if let social = member.social, !social.isEmpty {
+                OfficialAccounts(member: member, social: social)
+            }
             Text("Offices count calls and letters from constituents. Contact details from congress-legislators, updated daily.")
                 .scaledFont(10.5, weight: .medium)
                 .foregroundStyle(Palette.textMuted)

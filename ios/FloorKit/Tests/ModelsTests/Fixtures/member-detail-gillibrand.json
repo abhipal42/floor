@@ -1,0 +1,24 @@
+{
+    "member": {
+        "bioguideId": "G000555",
+        "firstName": "Kirsten",
+        "lastName": "Gillibrand",
+        "party": "D",
+        "state": "NY",
+        "district": null,
+        "chamber": "senate",
+        "leavingOn": null
+    },
+    "partyLoyalty": {
+        "votes": 1582,
+        "withParty": 1529,
+        "againstParty": 53
+    },
+    "contact": {
+        "phone": "202-224-4451",
+        "contactForm": "https://www.gillibrand.senate.gov/contact/email-me",
+        "website": "https://www.gillibrand.senate.gov",
+        "office": "478 Russell Senate Office Building",
+        "address": "478 Russell Senate Office Building Washington DC 20510"
+    }
+}

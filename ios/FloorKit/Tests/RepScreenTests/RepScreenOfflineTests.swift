@@ -245,7 +245,9 @@ struct RepScreenOfflineTests {
         await record.load()
         #expect(record.selectedCall == 1)
         #expect(record.money.phase == .loading) // not fetched until the segment is shown
-        #expect(MemberSection.allCases.map(\.rawValue) == ["Votes", "Money", "Contact"])
+        #expect(MemberSection.allCases.map(\.rawValue) == ["Votes", "Said", "Posts", "Money", "Contact"])
+        #expect(record.promises.phase == .loading) // nor Said
+        #expect(record.posts.phase == .loading) // nor Posts
         #expect(MoneySegment.allCases.map(\.rawValue) == ["Funding", "Disclosures"])
         #expect(record.disclosures.phase == .loading) // nor are disclosures
     }

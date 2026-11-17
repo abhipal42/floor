@@ -1,0 +1,34 @@
+{
+    "_fixture": "Hand-built to the round 13 contract until the API serves it. Text and times are Schumer's real posts (his verified Bluesky, his YouTube feed). The ids are placeholders, and the urls are FIXTURE LINKS to his Bluesky profile and YouTube channel, not the posts' own addresses.",
+    "posts": [
+        {
+            "id": "bluesky:fixture-2026-11-16-2201",
+            "network": "bluesky",
+            "postedAt": "2026-11-16T22:01:00.000Z",
+            "text": "Grocery prices are higher than ever. Trump's response?   Kick another 6 million off of food stamps and stop nearly 2 million kids from getting free school lunches.",
+            "url": "https://bsky.app/profile/schumer.senate.gov",
+            "mediaUrl": null
+        },
+        {
+            "id": "youtube:fixture-2026-11-16-2004",
+            "network": "youtube",
+            "postedAt": "2026-11-16T20:04:48.000Z",
+            "text": "Speaking live from the floor of the U.S. Senate",
+            "url": "https://www.youtube.com/@SenatorSchumer",
+            "mediaUrl": null
+        },
+        {
+            "id": "youtube:fixture-2026-11-10-1724",
+            "network": "youtube",
+            "postedAt": "2026-11-10T17:24:47.000Z",
+            "text": "Senator Schumer speaks from the Senate floor, 11.10.26",
+            "url": "https://www.youtube.com/@SenatorSchumer",
+            "mediaUrl": null
+        }
+    ],
+    "links": {
+        "x": "https://x.com/SenSchumer",
+        "facebook": "https://www.facebook.com/senschumer",
+        "instagram": "https://www.instagram.com/senschumer"
+    }
+}

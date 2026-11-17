@@ -108,6 +108,15 @@ struct ContractTests {
             "PendingSeat": fields(PendingSeat.sample),
             "ElectSeats": fields(MembersElect(elect: [.sample], pending: [.sample])),
             "ElectProfile": fields(ElectProfile(elect: .sample, funding: electFunding, disclosure: electDisclosure)),
+            "MemberSocial": fields(MemberSocial.sample),
+            "CampaignPromise": fields(CampaignPromise.sample),
+            "MemberPromises": fields(MemberPromises.sample),
+            // One Swift model for both routes: the wall's `WallPost` is a `MemberPost` with `memberId`.
+            "MemberPost": fields(MemberPost.sample).subtracting(["memberId"]),
+            "WallPost": fields(MemberPost.sample),
+            "PostLinks": fields(PostLinks.sample),
+            "MemberPosts": fields(MemberPosts.sample),
+            "PostsWall": fields(PostsWall.sample),
         ]
     }
 
@@ -129,6 +138,8 @@ struct ContractTests {
         "VoteExplainer", "VoteKindInfo", "MemberContact", "ScheduleItem", "SenateMeeting", "Schedule",
         "Disclosures", "DisclosureAsset", "DisclosureTrade", "PaperFiling",
         "SeatHolder", "ElectCall", "MemberElect", "PendingSeat", "ElectSeats", "ElectProfile",
+        "MemberSocial", "CampaignPromise", "MemberPromises", "MemberPost", "WallPost", "PostLinks", "MemberPosts",
+        "PostsWall",
     ])
     func modelFieldsMatchItsSchema(name: String) throws {
         let model = try #require(Self.modelFields()[name], "no model registered for \(name)")
@@ -175,6 +186,8 @@ struct ContractTests {
         ("BillStage", Set(BillStage.allCases.map(\.rawValue))),
         ("TopicFilter", Set(TopicFilter.allCases.map(\.rawValue))),
         ("ScheduleCategory", Set(ScheduleCategory.allCases.map(\.rawValue))),
+        ("PromisesStatus", Set(MemberPromises.Status.allCases.map(\.rawValue))),
+        ("PostNetwork", Set(MemberPost.Network.allCases.map(\.rawValue))),
     ]
 
     @Test(arguments: enumCases)
@@ -221,7 +234,7 @@ struct ContractTests {
     @Test func everySchemaIsModelled() throws {
         let enums: Set<String> = [
             "Chamber", "VoteKind", "VoteState", "VoteThreshold", "Position", "BillStage", "TopicFilter",
-            "ScheduleCategory",
+            "ScheduleCategory", "PromisesStatus", "PostNetwork",
         ]
         let modelled = Set(Self.modelFields().keys).subtracting(["/v1/members/{id}/votes", "/v1/status", "/v1/members", "/v1/votes"])
         #expect(Set(try Self.schemas().keys) == modelled.union(enums),

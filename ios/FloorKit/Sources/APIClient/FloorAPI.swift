@@ -241,6 +241,35 @@ public struct FloorAPI: Sendable {
 
     static let disclosuresUnavailable = Data(#"{"enabled":false,"reason":null}"#.utf8)
 
+    /// What a member's campaign site said in the race that won this term (round 13). An API
+    /// without the route yet (its 404) reads as not checked, saved as such.
+    public func promises(id: String) async throws -> MemberPromises {
+        try await get("/v1/members/\(escaped(id))/promises", notFound: Self.promisesUnchecked)
+    }
+
+    static let promisesUnchecked = Data(#"{"status":"unchecked","promises":[]}"#.utf8)
+
+    /// A member's posts from YouTube, Bluesky and Mastodon, newest first, and their links-only
+    /// accounts. An API without the route yet (its 404) reads as none, saved as such.
+    public func posts(id: String) async throws -> MemberPosts {
+        try await get("/v1/members/\(escaped(id))/posts", notFound: Self.noPosts)
+    }
+
+    static let noPosts = Data(#"{"posts":[]}"#.utf8)
+
+    /// The combined wall: posts from up to ``PostsWall/memberLimit`` members, newest first. Extra
+    /// ids are not sent; no ids is no posts, without a request. Saved for offline like any list.
+    public func posts(members: [String]) async throws -> PostsWall {
+        let ids = Array(members.prefix(PostsWall.memberLimit))
+        guard !ids.isEmpty else { return .none }
+        return try await get(
+            "/v1/posts", query: [URLQueryItem(name: "members", value: ids.joined(separator: ","))],
+            notFound: Self.noWall
+        )
+    }
+
+    static let noWall = Data(#"{"posts":[],"unreadable":[]}"#.utf8)
+
     /// What the share sheet sends for a bill: its share link and a neutral line.
     public func billShare(id: String) async throws -> BillShare {
         try await get("/v1/bills/\(escaped(id))/share")

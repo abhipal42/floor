@@ -13,12 +13,15 @@ public struct Member: Codable, Sendable, Hashable, Identifiable {
     /// `YYYY-MM-DD`: the day they leave, when a member-elect replaces them and that day has not come
     /// (`2027-01-03`). nil otherwise, and in a response from an API older than members-elect.
     public var leavingOn: String?
+    /// Official accounts (round 13), on the member's own record (`/v1/members/{id}`). nil in lists,
+    /// from an API older than round 13, and in a response saved by an earlier build.
+    public var social: MemberSocial?
 
     public var id: String { bioguideId }
 
     public init(
         bioguideId: String, firstName: String, lastName: String, party: String, state: String,
-        district: Int?, chamber: Chamber, leavingOn: String? = nil
+        district: Int?, chamber: Chamber, leavingOn: String? = nil, social: MemberSocial? = nil
     ) {
         self.bioguideId = bioguideId
         self.firstName = firstName
@@ -28,6 +31,25 @@ public struct Member: Codable, Sendable, Hashable, Identifiable {
         self.district = district
         self.chamber = chamber
         self.leavingOn = leavingOn
+        self.social = social
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case bioguideId, firstName, lastName, party, state, district, chamber, leavingOn, social
+    }
+
+    public init(from decoder: any Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        bioguideId = try c.decode(String.self, forKey: .bioguideId)
+        firstName = try c.decode(String.self, forKey: .firstName)
+        lastName = try c.decode(String.self, forKey: .lastName)
+        party = try c.decode(String.self, forKey: .party)
+        state = try c.decode(String.self, forKey: .state)
+        district = try c.decodeIfPresent(Int.self, forKey: .district)
+        chamber = try c.decode(Chamber.self, forKey: .chamber)
+        leavingOn = try c.decodeIfPresent(String.self, forKey: .leavingOn)
+        // Lenient: accounts this build can't read are no accounts, never an unreadable member.
+        social = ((try? c.decodeIfPresent(MemberSocial.self, forKey: .social)) ?? nil).flatMap { $0.isEmpty ? nil : $0 }
     }
 
     public var fullName: String { "\(firstName) \(lastName)" }
@@ -128,6 +150,22 @@ public struct MemberDetail: Codable, Sendable, Hashable, Identifiable {
         self.member = member
         self.partyLoyalty = partyLoyalty
         self.contact = contact
+    }
+
+    private enum CodingKeys: String, CodingKey { case member, partyLoyalty, contact }
+
+    public init(from decoder: any Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        member = try c.decode(Member.self, forKey: .member)
+        partyLoyalty = try c.decode(PartyLoyalty.self, forKey: .partyLoyalty)
+        contact = try c.decodeIfPresent(MemberContact.self, forKey: .contact)
+    }
+
+    public func encode(to encoder: any Encoder) throws {
+        var c = encoder.container(keyedBy: CodingKeys.self)
+        try c.encode(member, forKey: .member)
+        try c.encode(partyLoyalty, forKey: .partyLoyalty)
+        try c.encodeIfPresent(contact, forKey: .contact)
     }
 }
 

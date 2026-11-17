@@ -26,30 +26,44 @@ struct SectionSwitch<Section: Hashable & Identifiable & RawRepresentable & CaseI
     where Section.RawValue == String, Section.AllCases: RandomAccessCollection {
     @Binding var selection: Section
     var label = "Section"
+    /// The segments shown: all of them, unless a screen has fewer (a member-elect has no Said or Posts).
+    var cases: [Section] = Array(Section.allCases)
+    @Environment(\.dynamicTypeSize) private var typeSize
+
+    /// One row; at accessibility sizes, rows of three (Votes · Said · Posts, Money · Contact), as
+    /// Android wraps at 200%, so no label is cut to "Mo…".
+    private var rows: [[Section]] {
+        guard typeSize.isAccessibilitySize, cases.count > 3 else { return [cases] }
+        return stride(from: 0, to: cases.count, by: 3).map { Array(cases[$0 ..< min($0 + 3, cases.count)]) }
+    }
 
     var body: some View {
-        HStack(spacing: 0) {
-            ForEach(Section.allCases) { section in
-                let on = section == selection
-                Button { selection = section } label: {
-                    Text(section.rawValue)
-                        .font(.footnote.weight(.semibold))
-                        .foregroundStyle(on ? Palette.ground : Palette.textSecondary)
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.5)
-                        .frame(maxWidth: .infinity)
-                        .padding(7)
-                        .background(on ? Palette.text : .clear, in: .rect(cornerRadius: 8))
-                        .contentShape(.rect)
-                }
-                .buttonStyle(.plain)
-                .accessibilityAddTraits(on ? [.isSelected] : [])
+        VStack(spacing: 0) {
+            ForEach(rows, id: \.self) { row in
+                HStack(spacing: 0) { ForEach(row) { segment($0) } }
             }
         }
         .padding(3)
         .background(Palette.panel, in: .rect(cornerRadius: 10))
         .accessibilityElement(children: .contain)
         .accessibilityLabel(label)
+    }
+
+    private func segment(_ section: Section) -> some View {
+        let on = section == selection
+        return Button { selection = section } label: {
+            Text(section.rawValue)
+                .font(.footnote.weight(.semibold))
+                .foregroundStyle(on ? Palette.ground : Palette.textSecondary)
+                .lineLimit(1)
+                .minimumScaleFactor(0.5)
+                .frame(maxWidth: .infinity)
+                .padding(7)
+                .background(on ? Palette.text : .clear, in: .rect(cornerRadius: 8))
+                .contentShape(.rect)
+        }
+        .buttonStyle(.plain)
+        .accessibilityAddTraits(on ? [.isSelected] : [])
     }
 }
 
@@ -78,17 +92,23 @@ struct MemberSections: View {
     let member: Member?
     @Binding var section: MemberSection
     let fact: String?
+    var onOpenTopic: ((String) -> Void)?
     let onOpenVote: (Vote) -> Void
 
     var body: some View {
         switch section {
         case .record:
             RepRecordContent(model: record, fact: fact, onOpenVote: onOpenVote, section: $section)
-        case .money, .contact:
+        case .said, .posts, .money, .contact:
             VStack(alignment: .leading, spacing: 16) {
                 if let member { MemberHeader(member: member) }
                 SectionSwitch(selection: $section)
-                if section == .money {
+                if section == .said {
+                    @Bindable var record = record
+                    SaidContent(model: record.promises, member: member, card: $record.promiseCard, onOpenTopic: onOpenTopic)
+                } else if section == .posts {
+                    PostsContent(model: record.posts, member: member)
+                } else if section == .money {
                     @Bindable var record = record
                     SectionSwitch(selection: $record.moneySegment, label: "Money")
                     if record.moneySegment == .funding {

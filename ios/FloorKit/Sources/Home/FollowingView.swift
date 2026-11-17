@@ -1,10 +1,12 @@
 import DesignSystem
 import Models
 import Onboarding
+import RepScreen
 import SwiftUI
 
 /// The Following tab: a Members · Bills · Topics switch (the locked Round 10 design,
-/// <https://claude.ai/artifact/8Qfr9ymPEKuYGSLjiuXdS2>, section A) over three lists.
+/// <https://claude.ai/artifact/8Qfr9ymPEKuYGSLjiuXdS2>, section A) over three lists, and Posts
+/// (round 13, <https://claude.ai/artifact/M81jJLKd2HUNDjZJW3angV>, section C): the combined wall.
 ///
 /// **Members** is the round 9 mock unchanged (<https://claude.ai/artifact/C7qGitvJMSLFmCkYYQgNre>,
 /// section A): your reps, pinned from your district, then everyone you follow, newest first. Edit
@@ -14,10 +16,12 @@ import SwiftUI
 ///
 /// **Bills**: each followed bill's citation, stage chip, label, latest step and five-step road.
 /// **Topics**: followed topics with their counts, then the biggest others as suggestions.
+/// **Posts**: your members' posts from YouTube, Bluesky and Mastodon, newest first, never ranked and
+/// with no counts, then a dashed note for each member with nothing to show and why.
 public struct FollowingView: View {
     /// The switch at the top of the tab.
     public enum Segment: String, CaseIterable, Sendable {
-        case members, bills, topics
+        case members, bills, topics, posts
     }
 
     let model: HomeModel
@@ -33,6 +37,7 @@ public struct FollowingView: View {
     @State private var editing = false
     @State private var adding = false
     @State private var segment: Segment
+    @Environment(\.dynamicTypeSize) private var typeSize
 
     public init(
         model: HomeModel,
@@ -91,6 +96,8 @@ public struct FollowingView: View {
                 billsSection
             case .topics:
                 topicsSection
+            case .posts:
+                postsSection
             }
         }
         .listStyle(.plain)
@@ -100,9 +107,13 @@ public struct FollowingView: View {
         .refreshable {
             await model.load()
             if segment == .topics { await model.loadTopics() }
+            if segment == .posts { await model.loadWall() }
         }
         .task(id: segment) {
             if segment == .topics, model.topicList == nil { await model.loadTopics() }
+            if segment == .posts, model.wall == nil || model.wallFor != model.wallMembers.map(\.bioguideId) {
+                await model.loadWall()
+            }
         }
         .onChange(of: segment) { editing = false }
         .sheet(isPresented: $adding) {
@@ -117,43 +128,54 @@ public struct FollowingView: View {
         }
     }
 
-    /// `MEMBERS · 6`, `BILLS · 3`, `TOPICS · 2`.
+    /// `MEMBERS · 6`, `BILLS · 3`, `TOPICS · 2`; `POSTS` with no count, since a count of posts
+    /// would read as a score (round 13: no counts on posts).
     nonisolated static func segmentTitle(_ segment: Segment, count: Int) -> String {
-        "\(segment.rawValue.uppercased()) · \(count)"
+        segment == .posts ? "POSTS" : "\(segment.rawValue.uppercased()) · \(count)"
     }
 
     private func count(_ segment: Segment) -> Int {
         switch segment {
-        case .members: model.yourMembers.count
+        case .members, .posts: model.yourMembers.count
         // The list's own rows, so the count is what is listed.
         case .bills: model.followedBills.count
         case .topics: model.followedTopics.count
         }
     }
 
+    /// One row; at accessibility sizes two rows of two, so no label is cut short.
+    private var segmentRows: [[Segment]] {
+        let all = Segment.allCases
+        return typeSize.isAccessibilitySize ? [Array(all[0 ..< 2]), Array(all[2...])] : [all]
+    }
+
     private var segmentSwitch: some View {
-        HStack(spacing: 4) {
-            ForEach(Segment.allCases, id: \.self) { option in
-                let on = segment == option
-                let count = count(option)
-                Button { segment = option } label: {
-                    Text(Self.segmentTitle(option, count: count))
-                        .font(Typography.label(12))
-                        .tracking(0.6)
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.7)
-                        .foregroundStyle(on ? Palette.text : Palette.textMuted)
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 7)
-                        .background(on ? Palette.chip : Color.clear, in: .rect(cornerRadius: 7))
-                }
-                .buttonStyle(.plain)
-                .accessibilityLabel("\(option.rawValue.capitalized), \(count) followed")
-                .accessibilityAddTraits(on ? [.isSelected] : [])
+        VStack(spacing: 4) {
+            ForEach(segmentRows, id: \.self) { row in
+                HStack(spacing: 4) { ForEach(row, id: \.self) { segmentButton($0) } }
             }
         }
         .padding(3)
         .background(Palette.panel, in: .rect(cornerRadius: 9))
+    }
+
+    private func segmentButton(_ option: Segment) -> some View {
+        let on = segment == option
+        let count = count(option)
+        return Button { segment = option } label: {
+            Text(Self.segmentTitle(option, count: count))
+                .font(Typography.label(12))
+                .tracking(0.6)
+                .lineLimit(1)
+                .minimumScaleFactor(0.7)
+                .foregroundStyle(on ? Palette.text : Palette.textMuted)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 7)
+                .background(on ? Palette.chip : Color.clear, in: .rect(cornerRadius: 7))
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(option == .posts ? "Posts from your members" : "\(option.rawValue.capitalized), \(count) followed")
+        .accessibilityAddTraits(on ? [.isSelected] : [])
     }
 
     private var header: some View {
@@ -292,6 +314,54 @@ public struct FollowingView: View {
                 }
                 .plainRow()
             }
+        }
+    }
+
+    // MARK: Posts
+
+    @ViewBuilder
+    private var postsSection: some View {
+        let members = model.wallMembers
+        if members.isEmpty {
+            emptyCard(
+                title: "NO MEMBERS YET",
+                body: "Your reps and the members you follow post here, from YouTube, Bluesky and Mastodon, newest first.",
+                button: "FIND MEMBERS TO FOLLOW", filled: true, action: { adding = true }
+            )
+            .plainRow()
+        } else if let wall = model.wall {
+            let names = Dictionary(members.map { ($0.bioguideId, $0) }, uniquingKeysWith: { first, _ in first })
+            groupHeader("YOUR MEMBERS' POSTS", trailing: "Newest first").plainRow()
+            ForEach(wall.posts) { post in
+                let member = post.memberId.flatMap { names[$0] }
+                PostCard(post: post, author: member?.lastName, lineLimit: 3)
+                    .accessibilityAction(named: "Open \(member?.lastName ?? "the member")'s record") {
+                        if let member { onOpenMember(member) }
+                    }
+                    .plainRow()
+            }
+            ForEach(WallText.notes(members: members, wall: wall), id: \.member.bioguideId) { note in
+                DashedPlaceholder(title: note.title, body: note.body).plainRow()
+            }
+            if model.yourMembers.count > PostsWall.memberLimit {
+                Text(WallText.limitNote).scaledFont(12).foregroundStyle(Palette.textMuted).plainRow()
+            }
+            Text(WallText.footnote)
+                .scaledFont(10.5, weight: .medium)
+                .foregroundStyle(Palette.textMuted)
+                .fixedSize(horizontal: false, vertical: true)
+                .plainRow()
+        } else if let error = model.wallError {
+            VStack(alignment: .leading, spacing: 8) {
+                Text(error).scaledFont(12).foregroundStyle(Palette.textSecondary)
+                Button("Try again") { Task { await model.loadWall() } }
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundStyle(Palette.accent)
+                    .buttonStyle(.plain)
+            }
+            .plainRow()
+        } else {
+            ProgressView().tint(Palette.accent).frame(maxWidth: .infinity).padding(.top, 12).plainRow()
         }
     }
 
@@ -518,6 +588,39 @@ public enum FollowingText {
 
     /// `96.9%`, one decimal as the member screen prints it.
     public static func percent(_ share: Double) -> String { String(format: "%.1f%%", share * 100) }
+}
+
+/// The words on the Posts wall, apart from the view so they can be tested.
+public enum WallText {
+    public struct Note: Sendable, Hashable {
+        public var member: Member
+        public var title: String
+        public var body: String
+    }
+
+    /// A dashed note for each member asked about with nothing on the wall, in your order: on no
+    /// network Floor can read (`unreadable`), or nothing posted lately.
+    public static func notes(members: [Member], wall: PostsWall) -> [Note] {
+        let posted = Set(wall.posts.compactMap(\.memberId))
+        let unreadable = Set(wall.unreadable)
+        return members.filter { !posted.contains($0.bioguideId) }.map { member in
+            let name = member.lastName
+            if unreadable.contains(member.bioguideId) {
+                return Note(
+                    member: member, title: "\(name) posts only on X, Facebook or Instagram",
+                    body: "None of them lets apps read posts for free, so \(name)'s accounts are links on the Contact tab."
+                )
+            }
+            return Note(
+                member: member, title: "No recent posts from \(name)",
+                body: "Floor reads YouTube, Bluesky and Mastodon, the last 30 days. Accounts on X or Facebook "
+                    + "are links on \(name)'s Contact tab."
+            )
+        }
+    }
+
+    public static let limitNote = "The wall shows your first \(PostsWall.memberLimit) members. Reorder them on Members."
+    public static let footnote = "Posts as written, newest first. No counts and no ranking: every member gets the same treatment."
 }
 
 /// The filled YEA / NAY / DNV chip, a candidate's name on a Speaker ballot.
