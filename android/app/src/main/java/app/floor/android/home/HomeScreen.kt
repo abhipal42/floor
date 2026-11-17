@@ -87,6 +87,8 @@ fun HomeScreen(
     onOpenElect: (String) -> Unit = {},
     /** The header chip: "Find my reps" with no district, else the district, which changes the address. */
     onFindReps: () -> Unit = {},
+    /** The round search button: the same search as Following › + Add, any member, bill or topic. */
+    onSearch: () -> Unit = {},
 ) {
     val colors = Palette
     PullToRefreshBox(
@@ -110,7 +112,7 @@ fun HomeScreen(
                 .padding(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 24.dp + TabBarClearance),
             verticalArrangement = Arrangement.spacedBy(20.dp),
         ) {
-            Header(state.delegation?.district?.name, appearance, onAppearance, onFindReps)
+            Header(state.delegation?.district?.name, appearance, onAppearance, onFindReps, onSearch)
             DelegationStrip(state, onOpenMember, onOpenElect)
             if (state.followsAnything) {
                 ChipSwitch(
@@ -166,7 +168,13 @@ fun HomeScreen(
 }
 
 @Composable
-private fun Header(district: String?, appearance: Appearance, onAppearance: (Appearance) -> Unit, onFindReps: () -> Unit) {
+private fun Header(
+    district: String?,
+    appearance: Appearance,
+    onAppearance: (Appearance) -> Unit,
+    onFindReps: () -> Unit,
+    onSearch: () -> Unit,
+) {
     val colors = Palette
     Row(verticalAlignment = Alignment.CenterVertically) {
         Text(
@@ -187,6 +195,18 @@ private fun Header(district: String?, appearance: Appearance, onAppearance: (App
                 .semantics { contentDescription = district?.let { "District $it. Change your address" } ?: "Find your representative and senators" }
                 .padding(horizontal = 10.dp, vertical = 6.dp),
         )
+        Spacer(Modifier.width(8.dp))
+        Box(
+            Modifier
+                .size(30.dp)
+                .clip(CircleShape)
+                .background(colors.text.copy(alpha = 0.08f))
+                .clickable(role = Role.Button, onClick = onSearch)
+                .semantics { contentDescription = "Search members, bills and topics" },
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(painterResource(R.drawable.ic_search), contentDescription = null, tint = colors.textSecondary, modifier = Modifier.size(16.dp))
+        }
         Spacer(Modifier.width(8.dp))
         AppearanceMenu(appearance, onAppearance)
     }

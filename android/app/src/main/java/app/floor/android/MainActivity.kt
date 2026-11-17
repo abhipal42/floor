@@ -160,6 +160,7 @@ private fun App(
         FloorScreens(
             finals = { onOpenVote ->
                 val navigate = LocalNavigate.current
+                var searching by rememberSaveable { mutableStateOf(false) }
                 LaunchedEffect(home.syncKey) { home.appear() }
                 HomeScreen(
                     state = home.state,
@@ -173,7 +174,9 @@ private fun App(
                     onOpenMember = { navigate(Routes.member(it.bioguideId)) },
                     onOpenElect = { navigate(Routes.elect(it)) },
                     onFindReps = session::findReps,
+                    onSearch = { searching = true },
                 )
+                if (searching) SearchSheet(api, followActions, onClose = { searching = false }, navigate = navigate)
             },
             week = { onOpenBill ->
                 val model: WeekModel = viewModel { WeekModel(api) }
@@ -240,30 +243,7 @@ private fun App(
                     zone,
                     locale,
                 )
-                if (adding) {
-                    // A fresh search each time the sheet opens.
-                    val search: BillsModel = viewModel(key = "add-search") { BillsModel(api) }
-                    fun close(then: () -> Unit) {
-                        adding = false
-                        search.type("")
-                        then()
-                    }
-                    ModalBottomSheet(
-                        onDismissRequest = { close {} },
-                        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
-                        containerColor = Palette.ground,
-                    ) {
-                        AddFollows(
-                            search.state.search, followActions,
-                            onQuery = search::type, onSubmit = { search.type(search.state.search.query) }, onChamber = search::selectChamber,
-                            onDone = { close {} },
-                            onOpenBill = { close { navigate(Routes.bill(it)) } },
-                            onOpenTopic = { close { navigate(Routes.topic(it)) } },
-                            onOpenMember = { close { navigate(Routes.member(it.bioguideId)) } },
-                            onOpenElect = { close { navigate(Routes.elect(it)) } },
-                        )
-                    }
-                }
+                if (adding) SearchSheet(api, followActions, onClose = { adding = false }, navigate = navigate)
             },
             vote = { id, back, onOpenKinds, onOpenBill, onBack ->
                 val navigate = LocalNavigate.current
@@ -379,4 +359,34 @@ private fun App(
         link = link,
         onLinkHandled = onLinkHandled,
     )
+}
+
+/**
+ * The search sheet (iOS `AddFollowsView`), from Finals' search button and Following › + Add: any
+ * member, bill or topic, opened without following it first. A fresh search each time it opens.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun SearchSheet(api: FloorApi, followActions: FollowActions, onClose: () -> Unit, navigate: (String) -> Unit) {
+    val search: BillsModel = viewModel(key = "add-search") { BillsModel(api) }
+    fun close(then: () -> Unit) {
+        onClose()
+        search.type("")
+        then()
+    }
+    ModalBottomSheet(
+        onDismissRequest = { close {} },
+        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+        containerColor = Palette.ground,
+    ) {
+        AddFollows(
+            search.state.search, followActions,
+            onQuery = search::type, onSubmit = { search.type(search.state.search.query) }, onChamber = search::selectChamber,
+            onDone = { close {} },
+            onOpenBill = { close { navigate(Routes.bill(it)) } },
+            onOpenTopic = { close { navigate(Routes.topic(it)) } },
+            onOpenMember = { close { navigate(Routes.member(it.bioguideId)) } },
+            onOpenElect = { close { navigate(Routes.elect(it)) } },
+        )
+    }
 }

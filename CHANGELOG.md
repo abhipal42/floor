@@ -8,6 +8,22 @@ is a milestone and ships a retro under `docs/retros/`.
 Older series live in [`docs/changelog/`](docs/changelog) (0.1.x: [`0.1.md`](docs/changelog/0.1.md)).
 Before 0.1.0 the history is the commit log on `main`.
 
+## 0.2.56 — 2026-11-17
+
+### Fixed
+- **Search opens anyone.** Tapping a member in search now opens their record. Before, a member's
+  row only had Follow, so you could not see a senator you didn't follow. iOS only; Android already
+  did.
+
+### Added
+- **Search from Finals.** A search button beside the district chip opens the same search as
+  Following › + ADD, on iOS and Android.
+
+### Changed
+- **Logos without captions.** The Posts tab's account row and each post's header show the network's
+  mark alone: no "Bluesky" or "YouTube" beside a logo everyone knows (owner, 2026-11-17). Screen
+  readers still hear the name.
+
 ## 0.2.55 — 2026-11-17
 
 ### Fixed

@@ -591,7 +591,7 @@ struct AccountMarks: View {
     }
 }
 
-/// One post as written: the network's mark and name, the time, the thumbnail, the text, a link to the original.
+/// One post as written: the network's mark, the time, the thumbnail, the text, a link to the original.
 /// No counts. On the wall it names whose it is and clips long text.
 public struct PostCard: View {
     let post: MemberPost
@@ -614,16 +614,19 @@ public struct PostCard: View {
     static let mediaCap: CGFloat = 220
     @ScaledMetric(relativeTo: .caption2) private var markSize: CGFloat = 15
 
-    /// The network's mark and name, and on the wall whose post it is.
+    /// The network's mark, and on the wall whose post it is. The mark carries no written name: it is
+    /// well known, and the card's spoken label names the network.
     private var source: some View {
         HStack(alignment: .center, spacing: 6) {
             NetworkMark(post.network.social)
                 .fill(Palette.text)
                 .frame(width: markSize, height: markSize)
                 .accessibilityHidden(true)
-            Text(([post.network.name] + [author].compactMap(\.self)).joined(separator: " · "))
-                .scaledFont(10.5, weight: .bold)
-                .foregroundStyle(Palette.textMuted)
+            if let author {
+                Text(author)
+                    .scaledFont(10.5, weight: .bold)
+                    .foregroundStyle(Palette.textMuted)
+            }
         }
     }
 

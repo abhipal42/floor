@@ -123,7 +123,8 @@ public struct FollowingView: View {
                 reps: model.reps.map(\.bioguideId),
                 onOpenBill: onOpenBill,
                 onOpenTopic: onOpenTopic,
-                onOpenElect: onOpenElect
+                onOpenElect: onOpenElect,
+                onOpenMember: onOpenMember
             )
         }
     }

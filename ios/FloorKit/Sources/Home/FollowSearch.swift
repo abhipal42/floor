@@ -148,7 +148,8 @@ public final class FollowSearchModel {
 }
 
 /// The search sheet: a field, then the results grouped Topics, Bills, Members, each with a Follow
-/// toggle. Tapping a topic or a bill closes the sheet and opens it.
+/// toggle. Tapping a topic, a bill or a member closes the sheet and opens it; following is never
+/// needed to see someone's record.
 public struct AddFollowsView: View {
     @State private var model: FollowSearchModel
     let follows: Follows
@@ -156,16 +157,19 @@ public struct AddFollowsView: View {
     let onOpenBill: (String) -> Void
     let onOpenTopic: (String) -> Void
     let onOpenElect: (String) -> Void
+    let onOpenMember: (Member) -> Void
     @Environment(\.dismiss) private var dismiss
     @FocusState private var focused: Bool
 
     /// - Parameters:
     ///   - reps: your reps' Bioguide IDs; their rows read "Your rep" rather than Follow.
     ///   - onOpenElect: a member-elect's row, by elect id.
+    ///   - onOpenMember: a sitting member's row (the name, not the Follow button).
     public init(
         model: FollowSearchModel, follows: Follows, reps: [String],
         onOpenBill: @escaping (String) -> Void, onOpenTopic: @escaping (String) -> Void,
-        onOpenElect: @escaping (String) -> Void = { _ in }
+        onOpenElect: @escaping (String) -> Void = { _ in },
+        onOpenMember: @escaping (Member) -> Void = { _ in }
     ) {
         _model = State(initialValue: model)
         self.follows = follows
@@ -173,6 +177,7 @@ public struct AddFollowsView: View {
         self.onOpenBill = onOpenBill
         self.onOpenTopic = onOpenTopic
         self.onOpenElect = onOpenElect
+        self.onOpenMember = onOpenMember
     }
 
     public var body: some View {
@@ -320,9 +325,12 @@ public struct AddFollowsView: View {
             if leavingOn == nil {
                 memberRow(member)
             } else {
-                SeatMemberRow(member, leavingOn: leavingOn, caption: FollowingText.caption(member)) {
-                    FollowButton(member: member, follows: follows, isRep: reps.contains(member.bioguideId), compact: true)
+                Button { open { onOpenMember(member) } } label: {
+                    SeatMemberRow(member, leavingOn: leavingOn, caption: FollowingText.caption(member)) {
+                        FollowButton(member: member, follows: follows, isRep: reps.contains(member.bioguideId), compact: true)
+                    }
                 }
+                .buttonStyle(.plain)
             }
         case let .elect(elect):
             Button { open { onOpenElect(elect.id) } } label: { ElectRow(elect) }
@@ -349,18 +357,26 @@ public struct AddFollowsView: View {
 
     private func memberRow(_ member: Member) -> some View {
         HStack(spacing: 9) {
-            MemberPortrait(member).frame(width: 30, height: 30)
-            VStack(alignment: .leading, spacing: 2) {
-                Text(member.lastName.uppercased())
-                    .font(Typography.display(17, weight: .blackItalic))
-                    .foregroundStyle(Palette.text)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.7)
-                Text(FollowingText.caption(member)).scaledFont(10.5, weight: .medium).foregroundStyle(Palette.textMuted)
+            Button { open { onOpenMember(member) } } label: {
+                HStack(spacing: 9) {
+                    MemberPortrait(member).frame(width: 30, height: 30)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(member.lastName.uppercased())
+                            .font(Typography.display(17, weight: .blackItalic))
+                            .foregroundStyle(Palette.text)
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.7)
+                        Text(FollowingText.caption(member)).scaledFont(10.5, weight: .medium).foregroundStyle(Palette.textMuted)
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                }
+                .contentShape(.rect)
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
+            .buttonStyle(.plain)
             .accessibilityElement(children: .ignore)
             .accessibilityLabel(Spoken.member(member))
+            .accessibilityHint("Opens their record")
+            .accessibilityAddTraits(.isButton)
             FollowButton(member: member, follows: follows, isRep: reps.contains(member.bioguideId), compact: true)
         }
         .padding(.horizontal, 10)

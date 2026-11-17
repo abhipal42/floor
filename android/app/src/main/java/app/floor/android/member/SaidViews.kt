@@ -453,7 +453,6 @@ private fun AccountMarks(accounts: List<MemberSocial.Account>) {
                             )
                         }
                     }
-                    Text(network.title, style = FloorType.text(9.5f, FontWeight.SemiBold), color = colors.textMuted, maxLines = 1, softWrap = false)
                 }
             }
         }
@@ -464,7 +463,7 @@ private fun AccountMarks(accounts: List<MemberSocial.Account>) {
 private val POST_MEDIA_MAX = 220.dp
 
 /**
- * One post (the mock's `.post`): the network's mark and name, its time in the reader's zone, the text as
+ * One post (the mock's `.post`): the network's mark, its time in the reader's zone, the text as
  * posted, its image or a YouTube video's thumbnail, and a link to the original. [byline] names the member on the
  * Following wall, where [compact] cuts long text and leaves out the link line (the card opens it).
  */
@@ -483,9 +482,10 @@ fun PostCard(post: Post, zone: ZoneId, locale: Locale, byline: String? = null, c
         verticalArrangement = Arrangement.spacedBy(6.dp),
     ) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-            network?.let { Icon(it.mark, contentDescription = null, tint = colors.text, modifier = Modifier.size(15.dp)) }
+            // The mark alone (owner, 2026-11-17: well-known logos need no written name); it still says it.
+            network?.let { Icon(it.mark, contentDescription = it.title, tint = colors.text, modifier = Modifier.size(15.dp)) }
             Text(
-                listOfNotNull(network?.title, byline).joinToString(" · "),
+                byline.orEmpty(),
                 style = FloorType.text(10.5f, FontWeight.Bold), color = colors.textMuted, maxLines = 1, overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.weight(1f),
             )
