@@ -162,6 +162,11 @@ func fixture<T: Decodable>(_ name: String, as type: T.Type = T.self) throws -> T
     try JSONDecoder().decode(type, from: Data(contentsOf: fixtureDirectory.appendingPathComponent("\(name).json")))
 }
 
+/// One captured response's bytes, for a stub server of a test's own.
+func fixtureData(_ name: String) throws -> Data {
+    try Data(contentsOf: fixtureDirectory.appendingPathComponent("\(name).json"))
+}
+
 /// The Austin delegation (TX-37): Doggett, Cornyn, Cruz.
 func austin() throws -> Reps { try fixture("reps-location-austin") }
 

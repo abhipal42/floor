@@ -36,6 +36,7 @@ struct Round12SnapshotTests {
         await model.loadSeats()
         let view = HomeView(model: model, onChangeAddress: {}, onOpenMember: { _ in }, onOpen: { _ in })
             .environment(\.playsArrivalAnimations, false)
+            .environment(\.pinnedNow, Date(timeIntervalSince1970: 1_794_700_000))
         assertScreen(view, height: 560)
     }
 

@@ -71,7 +71,7 @@ struct StoryCard: View {
         return ZStack(alignment: .topTrailing) {
             VStack(alignment: .leading, spacing: 0) {
                 if stacked, let verdict { verdictChip(verdict).padding(.bottom, 8) }
-                HStack(spacing: 6) {
+                HStack(alignment: .top, spacing: 6) {
                     TopicIcon(story.group).fill(Palette.bandText).frame(width: 14, height: 14)
                     Text(Stories.topicLine(story).uppercased())
                         .scaledFont(Typography.Story.topic, weight: .heavy)
@@ -197,7 +197,11 @@ struct StoryCard: View {
     }
 
     private var yours: some View {
-        FlowLayout(spacing: 6) {
+        // Chips wrap across at the usual sizes; at the largest each takes the width, so its words wrap.
+        let layout = dynamicTypeSize.isAccessibilitySize
+            ? AnyLayout(VStackLayout(alignment: .leading, spacing: 6))
+            : AnyLayout(FlowLayout(spacing: 6))
+        return layout {
             ForEach(members) { m in
                 HStack(spacing: 7) {
                     MemberPortrait(m.member).frame(width: 24, height: 24)
