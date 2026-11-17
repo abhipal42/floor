@@ -8,6 +8,27 @@ is a milestone and ships a retro under `docs/retros/`.
 Older series live in [`docs/changelog/`](docs/changelog) (0.1.x: [`0.1.md`](docs/changelog/0.1.md)).
 Before 0.1.0 the history is the commit log on `main`.
 
+## 0.2.48 — 2026-11-16
+
+### Added
+- **Floor for Android, phase 2 of 5: the vote screen.**
+  - Tapping a Finals card opens the vote. The screen has:
+    - the "What this vote is" card, which folds; its "?" opens the full "Kinds of vote" list;
+    - the scoreboard, threshold bar and box score;
+    - who crossed party lines;
+    - the bill or nomination;
+    - the full roll by party;
+    - a Speaker election's own board.
+  - Loading, error and offline states work as on Finals.
+  - Times use the device's zone and locale, passed in explicitly (lesson 69).
+  - Where it differs from iOS: "Your members" waits for phase 4's district, the bill card's
+    road-to-law level waits for phase 3, and the kinds list is a full screen so system back closes it.
+- 17 new screenshots, each in light, dark and Android's 200% font size.
+
+### Fixed
+- Android: sizes meant not to grow with the font setting were halved at 200%, because Android 14
+  scales large text non-linearly. They now convert through `Dp.toSp()`.
+
 ## 0.2.47 — 2026-11-16
 
 ### Added

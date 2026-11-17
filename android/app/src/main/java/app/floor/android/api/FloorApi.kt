@@ -2,6 +2,8 @@ package app.floor.android.api
 
 import app.floor.android.model.Chamber
 import app.floor.android.model.RecentVotes
+import app.floor.android.model.VoteDetail
+import app.floor.android.model.VoteKindList
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.serialization.DeserializationStrategy
@@ -71,6 +73,30 @@ class FloorApi(
             addQueryParameter("limit", limit.toString())
             if (chamber != null) addQueryParameter("chamber", chamber.name.lowercase())
         }.build()
+
+    /**
+     * One vote with its party breakdown, and the named members' own positions (`?members=`, at
+     * most ten: the API's cap). The vote screen.
+     */
+    suspend fun vote(id: String, members: List<String> = emptyList()): VoteDetail =
+        get(voteUrl(id, members), VoteDetail.serializer())
+
+    /** [vote] as last saved, or null with nothing saved. */
+    fun savedVote(id: String, members: List<String> = emptyList()): Saved<VoteDetail>? =
+        saved(voteUrl(id, members), VoteDetail.serializer())
+
+    private fun voteUrl(id: String, members: List<String>): HttpUrl =
+        base.newBuilder().addPathSegments("v1/votes").addPathSegment(id).apply {
+            if (members.isNotEmpty()) addQueryParameter("members", members.take(10).joinToString(","))
+        }.build()
+
+    /** Every kind of vote Floor explains, in the table's order: the "Kinds of vote" list. */
+    suspend fun voteKinds(): VoteKindList = get(voteKindsUrl(), VoteKindList.serializer())
+
+    /** [voteKinds] as last saved, or null with nothing saved. */
+    fun savedVoteKinds(): Saved<VoteKindList>? = saved(voteKindsUrl(), VoteKindList.serializer())
+
+    private fun voteKindsUrl(): HttpUrl = base.newBuilder().addPathSegments("v1/vote-kinds").build()
 
     private fun <T> saved(url: HttpUrl, strategy: DeserializationStrategy<T>): Saved<T>? {
         val entry = cache?.load(url.toString()) ?: return null

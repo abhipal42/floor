@@ -9,6 +9,7 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.TextUnit
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import app.floor.android.R
 
@@ -81,6 +82,18 @@ object FloorType {
         fontSize = size(size, scales),
     )
 
+    /**
+     * The rule a line rests on (iOS `.system(design: .monospaced)`): the platform's monospaced face,
+     * as iOS uses its own rather than a bundled one.
+     */
+    @Composable
+    @ReadOnlyComposable
+    fun mono(size: Float, weight: FontWeight = FontWeight.Medium): TextStyle = TextStyle(
+        fontFamily = FontFamily.Monospace,
+        fontWeight = weight,
+        fontSize = size(size, true),
+    )
+
     /** Body copy: 13. */
     @Composable
     @ReadOnlyComposable
@@ -91,8 +104,13 @@ object FloorType {
     @ReadOnlyComposable
     fun caption(): TextStyle = text(12f)
 
+    /**
+     * A fixed size goes through the density's own dp-to-sp conversion rather than dividing by the
+     * font scale: Android 14 scales large text non-linearly (48sp at 200% is not 96dp), so dividing
+     * drew the "fixed" scoreboard numbers at about half size at the largest font setting.
+     */
     @Composable
     @ReadOnlyComposable
     private fun size(size: Float, scales: Boolean): TextUnit =
-        if (scales) size.sp else (size / LocalDensity.current.fontScale).sp
+        if (scales) size.sp else with(LocalDensity.current) { size.dp.toSp() }
 }
