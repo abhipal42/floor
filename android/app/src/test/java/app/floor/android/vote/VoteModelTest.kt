@@ -42,14 +42,30 @@ class VoteModelTest {
     @Test
     fun loadsOneVoteAndNamesNoMembersWithoutADistrict() = runTest {
         server.enqueue(ok(cloture))
+        // The bill it was on follows; one that can't be had leaves the card naming the bill.
+        server.enqueue(MockResponse.Builder().code(503).build())
         val model = VoteModel(api(), "senate-119-2-253")
         model.load()
         assertEquals("senate-119-2-253", loadedId(model.state))
         assertNull(model.state.saved)
+        assertNull(model.state.bill)
         assertTrue(model.state.explainerOpen)
         val request = server.takeRequest()
         assertEquals("/v1/votes/senate-119-2-253", request.url.encodedPath)
         assertNull(request.url.queryParameter("members"))
+        assertEquals("/v1/bills/119-hr-7008", server.takeRequest().url.encodedPath)
+    }
+
+    /** H.R. 1013's passage brings H.R. 1013 itself, for the card's "level 3 of 6". */
+    @Test
+    fun loadsTheBillTheVoteWasOn() = runTest {
+        server.enqueue(ok(Fixtures.text("vote-passage-hr1013")))
+        server.enqueue(ok(Fixtures.text("bill-hr1013")))
+        val model = VoteModel(api(), "house-119-1-100")
+        model.load()
+        assertEquals("119-hr-1013", model.state.bill?.id)
+        server.takeRequest()
+        assertEquals("/v1/bills/119-hr-1013", server.takeRequest().url.encodedPath)
     }
 
     @Test

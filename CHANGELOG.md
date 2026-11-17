@@ -8,6 +8,29 @@ is a milestone and ships a retro under `docs/retros/`.
 Older series live in [`docs/changelog/`](docs/changelog) (0.1.x: [`0.1.md`](docs/changelog/0.1.md)).
 Before 0.1.0 the history is the commit log on `main`.
 
+## 0.2.49 — 2026-11-16
+
+### Added
+- **Floor for Android, phase 3 of 5: bills.**
+  - **The Bills tab:** search by number or words, the 32 topics, and a topic's bills with the
+    All / Moving / Law / Stalled filter and paging.
+  - **The bill screen:**
+    - "On the floor this week";
+    - the AI section, labelled and cited line by line to the CRS paragraph, with its disclaimer
+      (a line whose quote isn't in its paragraph is dropped);
+    - "Six levels to law", with recorded votes opening the vote screen;
+    - the topic link, the CRS summary and the CBO estimate.
+  - **Speak up:** your members only, with no stance preselected. The fixed message is copied and the
+    office form opened, or a call script is shown; Floor sends nothing.
+  - **Share** goes through the system sheet.
+  - The vote screen's bill card now shows "LEVEL N OF 6".
+  - Where it differs from iOS: topics and search sit on the Bills tab, because Android has no
+    Following tab until phase 4. Members are left out of search results until phase 4 too.
+- 42 new screenshots, 163 unit tests.
+
+### Fixed
+- Android: a hidden tab's back stack could swallow the system back button.
+
 ## 0.2.48 — 2026-11-16
 
 ### Added

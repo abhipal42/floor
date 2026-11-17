@@ -19,7 +19,10 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Matrix
 import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.PathEffect
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.withTransform
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
@@ -39,6 +42,28 @@ fun Modifier.panel(colors: FloorColors, cornerRadius: Dp = 16.dp, padding: Dp = 
         .background(colors.panel, shape)
         .border(1.dp, colors.panelBorder, shape)
         .padding(padding)
+}
+
+/**
+ * A dashed-outline card (iOS `StrokeStyle(dash:)`): what a notice or a placeholder sits in, so it
+ * reads as not-content. [fill] may be transparent.
+ */
+fun Modifier.dashedPanel(stroke: Color, fill: Color, cornerRadius: Dp = 12.dp, dash: Float = 4f, gap: Float = 3f): Modifier {
+    val shape = RoundedCornerShape(cornerRadius)
+    return fillMaxWidth()
+        .clip(shape)
+        .background(fill, shape)
+        .drawBehind {
+            val width = 1.dp.toPx()
+            val inset = width / 2
+            drawRoundRect(
+                stroke,
+                topLeft = Offset(inset, inset),
+                size = Size(size.width - width, size.height - width),
+                cornerRadius = CornerRadius(cornerRadius.toPx() - inset),
+                style = Stroke(width, pathEffect = PathEffect.dashPathEffect(floatArrayOf(dash.dp.toPx(), gap.dp.toPx()))),
+            )
+        }
 }
 
 /** Green when the question carried, orange when it did not, grey when it settled nothing. */

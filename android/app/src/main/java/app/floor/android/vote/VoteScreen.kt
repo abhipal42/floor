@@ -63,6 +63,8 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import app.floor.android.R
+import app.floor.android.bill.LawLevels
+import app.floor.android.model.Bill
 import app.floor.android.design.FloorType
 import app.floor.android.design.LitObject
 import app.floor.android.design.Palette
@@ -115,8 +117,8 @@ private fun largeText(): Boolean = LocalDensity.current.fontScale >= 1.5f
  * squares by party. A Speaker election gets its own board and the ballot instead.
  *
  * "Your members" needs a district or follows, which arrive in a later phase; without them iOS draws
- * no such section either. The bill card names the bill without its level of six until the bill
- * model lands (see [VoteModel]).
+ * no such section either. The bill card gives the bill's level of six once the bill has loaded
+ * (see [VoteModel]), and names the bill until then.
  *
  * @param zone the zone the vote's time is printed in; pass it explicitly (lesson 69).
  */
@@ -132,6 +134,7 @@ fun VoteScreen(
     onSelectRollParty: (String) -> Unit,
     onOpenMeasure: (MeasureSummary) -> Unit,
     modifier: Modifier = Modifier,
+    back: String = "Finals",
 ) {
     val colors = Palette
     Column(
@@ -141,7 +144,7 @@ fun VoteScreen(
             .windowInsetsPadding(WindowInsets.statusBars),
     ) {
         val detail = (state.phase as? VoteScreenState.Phase.Loaded)?.detail
-        TopBar(back = "Finals", onBack = onBack, trailing = detail?.vote?.let(::rollLabel))
+        TopBar(back = back, onBack = onBack, trailing = detail?.vote?.let(::rollLabel))
         when (val phase = state.phase) {
             VoteScreenState.Phase.Loading -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 CircularProgressIndicator(
@@ -232,7 +235,7 @@ private fun Loaded(
             vote.line?.let { ThresholdSection(it, vote.totals) }
             BoxScore(detail)
         }
-        detail.measure?.let { MeasureLink(it, onOpenMeasure) }
+        detail.measure?.let { MeasureLink(it, state.bill?.takeIf { bill -> bill.id == it.id }, onOpenMeasure) }
         if (vote.kind == VoteKind.QUESTION && detail.rollParties.isNotEmpty()) {
             FullRoll(detail, state.rollParty, onSelectRollParty)
         }
@@ -622,19 +625,37 @@ private fun CandidateTable(detail: VoteDetail) {
 // MARK: - The bill
 
 @Composable
-private fun MeasureLink(measure: MeasureSummary, onOpen: (MeasureSummary) -> Unit) {
+private fun MeasureLink(measure: MeasureSummary, bill: Bill?, onOpen: (MeasureSummary) -> Unit) {
     val colors = Palette
     if (measure.kind == MeasureSummary.Kind.BILL) {
+        val levels = bill?.let(::LawLevels)
         Row(
             Modifier
                 .clip(RoundedCornerShape(16.dp))
                 .clickable(role = Role.Button, onClickLabel = "Open the bill") { onOpen(measure) }
-                .panel(colors),
+                .panel(colors)
+                .semantics(mergeDescendants = true) {},
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                Text("THE BILL · ${measure.citation}", style = FloorType.text(11f), color = colors.textMuted)
-                Text(measure.title, style = FloorType.text(15f, FontWeight.SemiBold), color = colors.text)
+                Text(
+                    levels?.let { "THE BILL · LEVEL ${it.reached} OF 6" } ?: "THE BILL · ${measure.citation}",
+                    style = FloorType.text(11f),
+                    color = colors.textMuted,
+                )
+                Text(levels?.sentence ?: measure.title, style = FloorType.text(15f, FontWeight.SemiBold), color = colors.text)
+                if (levels != null) {
+                    Row(Modifier.padding(top = 4.dp), horizontalArrangement = Arrangement.spacedBy(3.dp)) {
+                        levels.levels.forEach { level ->
+                            val fill = when (level.state) {
+                                LawLevels.State.DONE -> colors.yea
+                                LawLevels.State.STUCK, LawLevels.State.FAILED -> colors.nay
+                                else -> colors.panelBorder
+                            }
+                            Box(Modifier.weight(1f).height(5.dp).clip(RoundedCornerShape(2.dp)).background(fill))
+                        }
+                    }
+                }
             }
             Spacer(Modifier.width(12.dp))
             Text("›", style = FloorType.text(20f), color = colors.textMuted)

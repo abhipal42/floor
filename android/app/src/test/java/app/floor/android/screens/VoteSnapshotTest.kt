@@ -11,6 +11,7 @@ import app.floor.android.Fixtures
 import app.floor.android.design.Appearance
 import app.floor.android.design.FloorTheme
 import app.floor.android.design.LocalPlaysArrivalAnimations
+import app.floor.android.model.Bill
 import app.floor.android.model.VoteDetail
 import app.floor.android.model.VoteKindList
 import app.floor.android.vote.VoteKindsScreen
@@ -74,8 +75,8 @@ class VoteSnapshotTest {
     /** H.R. 7008's cloture vote: the one iOS's voteExplainer snapshot draws. */
     private val explained get() = loaded("vote-cloture-explained")
 
-    /** H.R. 1013's House passage. */
-    private val passage get() = loaded("vote-passage-hr1013")
+    /** H.R. 1013's House passage, with the bill loaded: the card's "level 3 of 6". */
+    private val passage get() = loaded("vote-passage-hr1013").copy(bill = Fixtures.decode("bill-hr1013", Bill.serializer()))
 
     private val failed = VoteScreenState(phase = VoteScreenState.Phase.Failed("Couldn't reach Floor. Check your connection and try again."))
 

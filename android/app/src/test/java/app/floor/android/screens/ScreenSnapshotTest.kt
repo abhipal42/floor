@@ -12,6 +12,7 @@ import app.floor.android.design.LocalPlaysArrivalAnimations
 import app.floor.android.home.HomeScreen
 import app.floor.android.home.HomeState
 import app.floor.android.model.RecentVotes
+import app.floor.android.shell.FloorScreens
 import app.floor.android.shell.FloorShell
 import app.floor.android.shell.Tab
 import com.github.takahirom.roborazzi.captureRoboImage
@@ -90,21 +91,21 @@ class ScreenSnapshotTest {
 
     @Test
     fun shellFinalsLight() = snap("shellFinals", Appearance.LIGHT) {
-        FloorShell(finals = { Home(loaded, Appearance.LIGHT) }, vote = { _, _, _, _ -> }, voteKinds = {})
+        FloorShell(FloorScreens(finals = { Home(loaded, Appearance.LIGHT) }))
     }
 
     @Test
     fun shellFinalsDark() = snap("shellFinals", Appearance.DARK) {
-        FloorShell(finals = { Home(loaded, Appearance.DARK) }, vote = { _, _, _, _ -> }, voteKinds = {})
+        FloorShell(FloorScreens(finals = { Home(loaded, Appearance.DARK) }))
     }
 
     @Test
     fun shellComingSoonLight() = snap("shellWeekComingSoon", Appearance.LIGHT) {
-        FloorShell(finals = { Home(loaded, Appearance.LIGHT) }, vote = { _, _, _, _ -> }, voteKinds = {}, initialTab = Tab.WEEK)
+        FloorShell(FloorScreens(finals = { Home(loaded, Appearance.LIGHT) }), initialTab = Tab.WEEK)
     }
 
     @Test
     fun shellComingSoonDark() = snap("shellWeekComingSoon", Appearance.DARK) {
-        FloorShell(finals = { Home(loaded, Appearance.DARK) }, vote = { _, _, _, _ -> }, voteKinds = {}, initialTab = Tab.WEEK)
+        FloorShell(FloorScreens(finals = { Home(loaded, Appearance.DARK) }), initialTab = Tab.WEEK)
     }
 }
