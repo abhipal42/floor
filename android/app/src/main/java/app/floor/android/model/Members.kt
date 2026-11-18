@@ -97,7 +97,17 @@ data class MemberVotes(val votes: List<MemberVote>)
 
 /** A congressional district: `TX`, 37. */
 @Serializable
-data class District(val congress: Int, val state: String, val district: Int, val countyFips: String? = null) {
+data class District(
+    val congress: Int,
+    val state: String,
+    val district: Int,
+    val countyFips: String? = null,
+    /** v0.2.60: the Census state legislative districts (SLDU, SLDL), as Open States names them. */
+    val stateUpper: String? = null,
+    val stateLower: String? = null,
+    /** v0.2.60: the Census incorporated place the lookup fell in, for the Local tab's default city. */
+    val place: Place? = null,
+) {
     /** `TX-37`, `TX-AL` at large, or just `DC` where a delegate covers the whole place. */
     val name: String
         get() = when {

@@ -1,0 +1,73 @@
+{
+ "_note": "Headlines are real (Google News RSS, recorded 2026-11-17, titles with the ' - Source' suffix removed). The tones and the story grouping were labelled BY HAND for this fixture, standing in for the AI read. Six headlines, no story of two or more, one from a Senate office (.gov); no poll named her.",
+ "memberId": "G000555",
+ "checkedAt": "2026-11-17T23:00:00Z",
+ "window": {
+  "from": "2026-11-11",
+  "to": "2026-11-17"
+ },
+ "tone": {
+  "favorable": 0,
+  "neutral": 5,
+  "critical": 0,
+  "office": 1
+ },
+ "stories": [],
+ "headlines": [
+  {
+   "id": "h_a4b36de444",
+   "title": "GILLIBRAND, MERKLEY INTRODUCE LEGISLATION TO ADDRESS REPUBLICAN CUTS AND HELP STUDENTS ACCESS ESSENTIAL GRADUATE DEGREES",
+   "source": "Merkley (.gov)",
+   "url": "https://news.google.com/rss/articles/CBMi6gFBVV95cUxPMmVIdzRXZURUSVkyc1dBeVJxeEs0TnhBMXMtMmw2X0xXc0ZmZU1aMGhhQlphclhKSG5XVkpndTZuOVBtTlg4UFRyaC01MWV4eE1ZRWl2cTlJNldyVThtUjJScEdOUS0xRHlxMlV3TzNPSWRJdm1KOHFldzhQeEdPVk1IVUVxYUV0U2tBVS0tMHFGVG05bWR4b19FR1lwUHRGUGhNSmduemg1QnFMWXlwUUdoYUdlQ2liclNQY2lZYVk0aC1FV3dGSWx5RGhMTkxDaThpUkxlNTZIMzJULWgyaTNDU1dnU3ZrWkE?oc=5",
+   "publishedAt": "2026-11-17T18:34:15Z",
+   "tone": "office",
+   "storyId": null
+  },
+  {
+   "id": "h_834170872c",
+   "title": "Kirsten Gillibrand is dreaming of a Democratic supermajority",
+   "source": "Politico",
+   "url": "https://news.google.com/rss/articles/CBMigwFBVV95cUxNRVl0QUpUY3Bhc3NzaHd3dk00N1BfUEdQTzItY1JwOERSLV9wUXY2Q3ZlOEtuZGhGSkt4ZXMybFBnT09FbERyYURMVGg3YkhiN1VpcG1Kb0o3dHpDNjhJdnc1djRBYmx2NDFkdVJLU09DdG5ZOHJqTWVIaGlnaU1oRFc0QQ?oc=5",
+   "publishedAt": "2026-11-14T15:00:00Z",
+   "tone": "neutral",
+   "storyId": null
+  },
+  {
+   "id": "h_e70aff9b4b",
+   "title": "Gillibrand talks female vet health, supports Schumer during Long Island visit",
+   "source": "WSHU",
+   "url": "https://news.google.com/rss/articles/CBMimAFBVV95cUxQUzBWMzVnSmxZdzFOWTl5aHpZSk9YZmpwRUNmQjh4QjBSZy1Jd1NzaG54anFYVk5FU2J6VVpnTWtMOXBkWlhPWFJYREY2bS12YTQ4N2N2c3Y2aFJIT1c0QktrSm5mTFdpV0pNdTlvZ2JIVmtER0hzWGhMUTJRYXBFV3RGcUh0bGFkMmtBUENxRl8yZFFjaC1xdQ?oc=5",
+   "publishedAt": "2026-11-13T17:28:00Z",
+   "tone": "neutral",
+   "storyId": null
+  },
+  {
+   "id": "h_72f01b4fbb",
+   "title": "Gillibrand lays out priorities as member of incoming Democratic majority",
+   "source": "WRVO",
+   "url": "https://news.google.com/rss/articles/CBMipwFBVV95cUxNTkI3eUFlOXp2TS02TzZabDNxZlh1SmxOaWhlM1FZb0FacDNhekZGd09VT29VMDJhZzVFRzlmanhrbDJaZjBwM2paRlpzLU1wR3IwOUdBMDd3WjZFdXU1SWVyQWtTUUd4Q0lvZlVfWTc0MVR5alc1WGR4SXFtRGFYYkRESm5xMTR5LUNPZU1fcGxPbzdJS1B3OVNmNncxeGVVNmZZcUhEMA?oc=5",
+   "publishedAt": "2026-11-13T10:28:00Z",
+   "tone": "neutral",
+   "storyId": null
+  },
+  {
+   "id": "h_f5fbe4d2c5",
+   "title": "Sen. Kirsten Gillibrand discusses Toxic Exposure and Women Veterans' Health Outcomes Act",
+   "source": "WIVB News 4",
+   "url": "https://news.google.com/rss/articles/CBMiwAFBVV95cUxOa1ZuTUh3SmlwLUZ5c3hKUHVzblR1R0lLc2JiSHlaN3ROM2ZHaHB1cGxXZW5tTmxrQWtGVnJrdWFXXzdtWmR5V0lUbGJDcy1YYTNxMHktWTZNM2EwMkpoSDJFTGFqYjN0aEVyWktNV0M2b3JGV083c25MRzZzNGZtWlNPcVZsamlacDhld0ljVXdMSnM5b2hNRXdDbVl6cm9QaDJaOE9FRzFrRGsxaU5faXBaNC0weW0tMTc1YVhReGg?oc=5",
+   "publishedAt": "2026-11-13T09:44:09Z",
+   "tone": "neutral",
+   "storyId": null
+  },
+  {
+   "id": "h_d0503bfc85",
+   "title": "Gillibrand pushes women veterans' health bill in Rochester",
+   "source": "Democrat and Chronicle",
+   "url": "https://news.google.com/rss/articles/CBMi0gFBVV95cUxOWFI0RVE3X3hLWWtwbnNrN2U0ZXZOaG90enhZX3dLcV9tR0V6WkRpSkh4NHVSdkp3VGZHT1dPNUYyREJGZDBiUVJ0MWxMR1JEVWhuWTlHdzM0d2pYdzk3TlRfeERseFRZTGJrczgzZlhLREZoQjZZY3FqU0RlUmlDQnZIUFl4Q0UzRGtsLXR6UlJaM1VKeFdSckg4cjU0QWx6YWhKQWszNGNoaUVjS29RY1QtUUJHZHBpaV9IX2ozVTFGR181a1hNWDZZb0VIblJrUkE?oc=5",
+   "publishedAt": "2026-11-11T21:52:00Z",
+   "tone": "neutral",
+   "storyId": null
+  }
+ ],
+ "polls": []
+}

@@ -112,9 +112,15 @@ fun MemberScreen(
     onRetryPromises: () -> Unit = {},
     onRetryPosts: () -> Unit = {},
     now: Instant = Instant.now(),
+    onRetryNews: () -> Unit = {},
 ) {
     val page = state.page
     val record = state.record
+    if (page == MemberSection.NEWS) {
+        BackHandler { onOpen(null) }
+        NewsPage(state.news, state.member, zone, locale, { onOpen(null) }, onRetryNews)
+        return
+    }
     if (page != null) {
         BackHandler { onOpen(null) }
         Page(state, page, zone, locale, now, { onOpen(null) }, onMoneySegment, onSelectCall, onRetry, onRetryMoney, onRetryDisclosures, onOpenVote, onPromise, onOpenTopic, onRetryPromises, onRetryPosts)
@@ -138,7 +144,7 @@ fun MemberScreen(
         }
         return
     }
-    OneScroll(state, record, back, zone, locale, now, onBack, onOpen, onRetryMoney, onOpenVote, follow, onPromise, onRetryPromises, onRetryPosts)
+    OneScroll(state, record, back, zone, locale, now, onBack, onOpen, onRetryMoney, onOpenVote, follow, onPromise, onRetryPromises, onRetryPosts, onRetryNews)
 }
 
 /** Which sections have something to show: a chip and a block each. Contact always does. */
@@ -151,6 +157,8 @@ internal fun visibleSections(state: MemberState): List<MemberSection> {
             MemberSection.RECORD -> calls.isNotEmpty()
             MemberSection.SAID -> state.promises.loaded?.state != Promises.Status.UNCHECKED
             MemberSection.POSTS -> accounts.isNotEmpty() || state.posts.loaded?.shown?.isNotEmpty() != false
+            // No headlines and no polls: no chip and no section. Still loading, it keeps its place.
+            MemberSection.NEWS -> state.news.loaded?.isEmpty != true
             MemberSection.MONEY, MemberSection.CONTACT -> true
         }
     }
@@ -173,6 +181,7 @@ private fun OneScroll(
     onPromise: (Int) -> Unit,
     onRetryPromises: () -> Unit,
     onRetryPosts: () -> Unit,
+    onRetryNews: () -> Unit,
 ) {
     val colors = Palette
     val detail = record.value.detail
@@ -228,6 +237,7 @@ private fun OneScroll(
                             onOpen(MemberSection.SAID)
                         }
                         MemberSection.POSTS -> PostsBlock(state.posts, member, detail.accounts, now, zone, locale, onRetryPosts) { onOpen(MemberSection.POSTS) }
+                        MemberSection.NEWS -> NewsBlock(state.news, member, onRetryNews) { onOpen(MemberSection.NEWS) }
                         MemberSection.MONEY -> MoneyBlock(state.money, member, onRetryMoney) { onOpen(MemberSection.MONEY) }
                         MemberSection.CONTACT -> Column(Modifier.padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                             BlockHeader("Contact")
@@ -521,7 +531,7 @@ private fun MoneyTile(label: String, value: String, spoken: String, modifier: Mo
 
 /** A section that couldn't load: the API's sentence and Try again, on one line's worth of room. */
 @Composable
-private fun FailedLine(message: String, onRetry: () -> Unit) {
+internal fun FailedLine(message: String, onRetry: () -> Unit) {
     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
         Text(message, style = FloorType.text(12.5f), color = Palette.textSecondary, modifier = Modifier.weight(1f))
         TryAgain(onRetry)
@@ -555,6 +565,7 @@ private fun Page(
         MemberSection.RECORD -> "Votes"
         MemberSection.SAID -> "Said"
         MemberSection.POSTS -> "Posts"
+        MemberSection.NEWS -> "News"
         MemberSection.MONEY -> "Money"
         MemberSection.CONTACT -> "Contact"
     }
@@ -575,6 +586,8 @@ private fun Page(
                 MemberSection.RECORD -> RecordPage(state, zone, onSelectCall, onRetry, onOpenVote)
                 MemberSection.SAID -> SaidContent(state.promises, member, state.promise, locale, onPromise, onOpenTopic, onRetryPromises)
                 MemberSection.POSTS -> PostsContent(state.posts, member, state.record.loaded?.detail?.accounts.orEmpty(), now, zone, locale, onRetryPosts)
+                // Drawn by NewsPage, before this screen is reached.
+                MemberSection.NEWS -> {}
                 MemberSection.MONEY -> {
                     SectionSwitch(MoneySegment.entries, state.moneySegment, { it.title }, onMoneySegment)
                     if (state.moneySegment == MoneySegment.FUNDING) MoneyContent(state.money, member, onRetryMoney)

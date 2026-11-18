@@ -14,6 +14,7 @@ import app.floor.android.model.Member
 import app.floor.android.model.MemberDetail
 import app.floor.android.model.MemberFunding
 import app.floor.android.model.MemberPosts
+import app.floor.android.model.MemberNews
 import app.floor.android.model.Promises
 import app.floor.android.model.MemberVote
 import app.floor.android.model.SavedCopy
@@ -67,7 +68,7 @@ suspend fun <T> revalidate(current: Load<T>, saved: Saved<T>?, fallback: String,
  * own screen ([MemberState.page]).
  */
 enum class MemberSection(val title: String) {
-    RECORD("Votes"), SAID("Said"), POSTS("Posts"), MONEY("Money"), CONTACT("Contact");
+    RECORD("Votes"), SAID("Said"), POSTS("Posts"), NEWS("News"), MONEY("Money"), CONTACT("Contact");
 
     companion object {
         /** A member-elect's: no record, campaign promises or posts are gathered for them yet. */
@@ -88,6 +89,8 @@ data class MemberState(
     val disclosures: Load<Disclosures> = Load.Loading,
     val promises: Load<Promises> = Load.Loading,
     val posts: Load<MemberPosts> = Load.Loading,
+    /** v0.2.60: the week's headlines, the AI's stories and tone, and the polls naming them. */
+    val news: Load<MemberNews> = Load.Loading,
     /** The promise on top of the Said deck. */
     val promise: Int = 0,
     /**
@@ -120,6 +123,7 @@ class MemberModel(private val api: FloorApi, private val id: String, private val
         if (state.record.needsRefresh) reload()
         if (state.promises.needsRefresh) reloadPromises()
         if (state.posts.needsRefresh) reloadPosts()
+        if (state.news.needsRefresh) reloadNews()
         if (state.money.needsRefresh) reloadMoney()
         showing()
     }
@@ -162,6 +166,12 @@ class MemberModel(private val api: FloorApi, private val id: String, private val
     fun reloadPosts() = viewModelScope.launch { loadPosts() }
 
     fun reloadDisclosures() = viewModelScope.launch { loadDisclosures() }
+
+    fun reloadNews() = viewModelScope.launch { loadNews() }
+
+    suspend fun loadNews() {
+        revalidate(state.news, api.savedMemberNews(id), "Couldn't load the news.", { state = state.copy(news = it) }) { api.memberNews(id) }
+    }
 
     suspend fun loadRecord() {
         val saved = api.savedMember(id)?.let { detail ->

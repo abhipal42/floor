@@ -62,8 +62,13 @@ class MemberPageTest {
             record = Load.Loaded(MemberRecord(MemberDetail(schumer.copy(social = null)), emptyList())),
             promises = Load.Loaded(Promises()),
             posts = Load.Loaded(MemberPosts()),
+            news = Load.Loaded(app.floor.android.model.MemberNews()),
         )
         assertEquals(listOf(MemberSection.MONEY, MemberSection.CONTACT), visibleSections(bare))
+        // News goes between Posts and Money, and only with headlines or polls.
+        val withNews = full.copy(news = Load.Loaded(Fixtures.decode("news-schumer", app.floor.android.model.MemberNews.serializer())))
+        assertEquals(MemberSection.MONEY, visibleSections(withNews)[visibleSections(withNews).indexOf(MemberSection.NEWS) + 1])
+        assertEquals(MemberSection.entries - MemberSection.NEWS, visibleSections(full.copy(news = Load.Loaded(app.floor.android.model.MemberNews()))))
         // Still loading, a section keeps its place.
         assertEquals(MemberSection.entries.drop(1), visibleSections(MemberState(record = Load.Loaded(MemberRecord(detail, emptyList())))))
     }

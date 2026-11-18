@@ -76,11 +76,12 @@ object Routes {
     fun topic(name: String) = "topic/${Uri.encode(name)}"
 }
 
-/** The iOS tab bar's four tabs, in its order. */
+/** The iOS tab bar's five tabs, in its order (Local since v0.2.60). */
 enum class Tab(val title: String, val icon: Int) {
     FINALS("Finals", R.drawable.ic_tab_finals),
     WEEK("Week", R.drawable.ic_tab_week),
     BILLS("Bills", R.drawable.ic_tab_bills),
+    LOCAL("Local", R.drawable.ic_tab_local),
     FOLLOWING("Following", R.drawable.ic_tab_following),
 }
 
@@ -96,6 +97,10 @@ class FloorScreens(
     val week: @Composable (onOpenBill: (String) -> Unit) -> Unit = {},
     /** The Bills tab's root: the ledger of bills and the search. */
     val bills: @Composable (onOpenBill: (String) -> Unit, onOpenTopic: (String) -> Unit) -> Unit = { _, _ -> },
+    /** The Local tab's root: your state and saved cities; "Cities ›" opens the Cities screen on its stack. */
+    val local: @Composable (onOpenCities: () -> Unit) -> Unit = {},
+    /** Every registry city, to add to Local or remove. */
+    val cities: @Composable (back: String, onBack: () -> Unit) -> Unit = { _, _ -> },
     /** The Following tab's root: your members, bills and topics. */
     val following: @Composable () -> Unit = {},
     val vote: @Composable (id: String, back: String, onOpenKinds: () -> Unit, onOpenBill: (String) -> Unit, onBack: () -> Unit) -> Unit =
@@ -125,6 +130,7 @@ fun FloorShell(
     finalsNav: NavHostController = rememberNavController(),
     weekNav: NavHostController = rememberNavController(),
     billsNav: NavHostController = rememberNavController(),
+    localNav: NavHostController = rememberNavController(),
     followingNav: NavHostController = rememberNavController(),
     /** A link the app was opened with (a shared bill, the widget's vote), not yet shown. */
     link: FloorLink? = null,
@@ -163,6 +169,9 @@ fun FloorShell(
                 screens.bills({ id -> billsNav.navigate("bill/$id") }, { name -> billsNav.navigate("topic/${Uri.encode(name)}") })
             }
         }
+        Box(if (tab == Tab.LOCAL) Modifier.fillMaxSize() else Modifier.hidden()) {
+            TabStack(localNav, "local", screens, active = tab == Tab.LOCAL) { screens.local { localNav.navigate("cities") } }
+        }
         Box(if (tab == Tab.FOLLOWING) Modifier.fillMaxSize() else Modifier.hidden()) {
             TabStack(followingNav, "following", screens, active = tab == Tab.FOLLOWING) { screens.following() }
         }
@@ -171,6 +180,7 @@ fun FloorShell(
             if (picked == tab && picked == Tab.FINALS) finalsNav.popBackStack("finals", inclusive = false)
             if (picked == tab && picked == Tab.WEEK) weekNav.popBackStack("week", inclusive = false)
             if (picked == tab && picked == Tab.BILLS) billsNav.popBackStack("bills", inclusive = false)
+            if (picked == tab && picked == Tab.LOCAL) localNav.popBackStack("local", inclusive = false)
             if (picked == tab && picked == Tab.FOLLOWING) followingNav.popBackStack("following", inclusive = false)
             tab = picked
         }
@@ -225,6 +235,7 @@ private fun Stack(
             )
         }
         composable("vote-kinds") { screens.voteKinds { nav.popBackStack() } }
+        composable("cities") { screens.cities(back()) { nav.popBackStack() } }
         composable("bill/{id}") { entry ->
             screens.bill(
                 entry.arguments?.getString("id").orEmpty(),
@@ -263,6 +274,7 @@ private fun backLabel(entry: NavBackStackEntry?): String {
         route == "finals" -> "Finals"
         route == "week" -> "Week"
         route == "bills" -> "Bills"
+        route == "local" -> "Local"
         route == "following" -> "Following"
         route.startsWith("vote/") -> "Vote"
         route.startsWith("bill/") -> "Bill"
