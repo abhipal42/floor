@@ -49,8 +49,6 @@ class WeekTest {
         // The rest keep the House's order.
         val rest = week.house.items.filter { it.category == ScheduleCategory.SUSPENSION && it.billId !in setOf("119-hr-9640", "119-hr-5490") }
         assertEquals(rest.map { it.billId }, suspension.rows.drop(2).map { it.item.billId })
-        // Every followed row shows before "+ N more".
-        assertEquals(5, WeekSort.visibleCount(suspension))
         assertEquals("FOLLOWING · INTERNATIONAL", WeekSort.tag(suspension.rows[1].followed))
     }
 

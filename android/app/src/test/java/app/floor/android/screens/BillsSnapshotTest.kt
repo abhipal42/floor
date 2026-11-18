@@ -27,6 +27,10 @@ import app.floor.android.bill.SpeakUpSheet
 import app.floor.android.bill.Stance
 import app.floor.android.bills.BillsScreen
 import app.floor.android.bills.BillsState
+import app.floor.android.bills.LedgerFilter
+import app.floor.android.bills.LedgerState
+import app.floor.android.home.HomeState
+import app.floor.android.model.RecentVotes
 import app.floor.android.bills.SearchState
 import app.floor.android.bills.TopicScreen
 import app.floor.android.bills.TopicState
@@ -142,7 +146,12 @@ class BillsSnapshotTest {
     // MARK: - Screens
 
     @Composable
-    private fun Bills(state: BillsState) = BillsScreen(state, {}, {}, {}, {}, {})
+    private fun Bills(state: BillsState, ledger: LedgerState = this.ledger) =
+        BillsScreen(state, ledger, {}, {}, {}, {}, {}, eastern, Locale.US)
+
+    /** `votes-three`: the live `/v1/votes` of Nov 17, 2026, each bill with the stage the API gave it that evening. */
+    private val ledger: LedgerState
+        get() = LedgerState(HomeState.Phase.Loaded, HomeState.annotate(Fixtures.decode("votes-three", RecentVotes.serializer()).votes, emptyList()))
 
     @Composable
     private fun Topic(state: TopicState) = TopicScreen(state, "Bills", {}, {}, {}, {}, {})
@@ -171,11 +180,23 @@ class BillsSnapshotTest {
 
     // MARK: - Bills tab
 
-    @Test fun topicsLight() = snap("billsTopics", Look.LIGHT) { Bills(BillsState(topics = BillsState.Phase.Loaded(topics))) }
+    /** The v0.2.59 ledger: every bill in the latest finals of Nov 17, in topic sections, rules folded in. */
+    @Test
+    @Config(qualifiers = "w402dp-h2600dp-xhdpi")
+    fun ledgerLight() = snap("billsLedger", Look.LIGHT) { Bills(BillsState(), ledger) }
 
-    @Test fun topicsDark() = snap("billsTopics", Look.DARK) { Bills(BillsState(topics = BillsState.Phase.Loaded(topics))) }
+    @Test
+    @Config(qualifiers = "w402dp-h2600dp-xhdpi")
+    fun ledgerDark() = snap("billsLedger", Look.DARK) { Bills(BillsState(), ledger) }
 
-    @Test fun topicsLarge() = snap("billsTopics", Look.LARGE) { Bills(BillsState(topics = BillsState.Phase.Loaded(topics))) }
+    @Test
+    @Config(qualifiers = "w402dp-h2600dp-xhdpi")
+    fun ledgerLarge() = snap("billsLedger", Look.LARGE) { Bills(BillsState(), ledger) }
+
+    /** Blocked: the bills whose latest vote failed, H.Con.Res. 89's track stopping in the Senate. */
+    @Test
+    @Config(qualifiers = "w402dp-h1800dp-xhdpi")
+    fun ledgerBlockedDark() = snap("billsLedgerBlocked", Look.DARK) { Bills(BillsState(), ledger.copy(filter = LedgerFilter.BLOCKED)) }
 
     @Test fun searchWordsLight() = snap("billsSearchWords", Look.LIGHT) { Bills(search("search-rural-health", "rural health")) }
 
@@ -189,18 +210,18 @@ class BillsSnapshotTest {
 
     @Test
     @Config(qualifiers = "w402dp-h874dp-xhdpi")
-    fun loadingLight() = snap("billsLoading", Look.LIGHT) { Bills(BillsState()) }
+    fun loadingLight() = snap("billsLoading", Look.LIGHT) { Bills(BillsState(), LedgerState()) }
 
     @Test
     @Config(qualifiers = "w402dp-h874dp-xhdpi")
     fun failedLight() = snap("billsFailed", Look.LIGHT) {
-        Bills(BillsState(topics = BillsState.Phase.Failed("Couldn't reach Floor. Check your connection and try again.")))
+        Bills(BillsState(), LedgerState(HomeState.Phase.Failed("Couldn't reach Floor. Check your connection and try again.")))
     }
 
     @Test
     @Config(qualifiers = "w402dp-h874dp-xhdpi")
     fun failedDark() = snap("billsFailed", Look.DARK) {
-        Bills(BillsState(topics = BillsState.Phase.Failed("Couldn't reach Floor. Check your connection and try again.")))
+        Bills(BillsState(), LedgerState(HomeState.Phase.Failed("Couldn't reach Floor. Check your connection and try again.")))
     }
 
     // MARK: - A topic

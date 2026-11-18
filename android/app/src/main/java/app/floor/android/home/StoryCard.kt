@@ -48,6 +48,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
 import app.floor.android.R
+import app.floor.android.design.FloorColors
 import app.floor.android.design.FloorType
 import app.floor.android.design.MemberPortrait
 import app.floor.android.design.edgeBrush
@@ -154,20 +155,25 @@ fun StoryCard(
     }
 }
 
+/** A story band's ground: the topic colour, a sheen at its top right and a shade at the bottom (`--bandFx`). */
+internal fun Modifier.topicBand(colors: FloorColors, topic: TopicGroup): Modifier {
+    val sheen = colors.bandSheen
+    val shade = colors.bandShade
+    return fillMaxWidth()
+        .background(colors.topic(topic))
+        .drawBehind {
+            drawRect(Brush.radialGradient(listOf(sheen, Color.Transparent), center = Offset(size.width, 0f), radius = size.width * 0.8f))
+            drawRect(Brush.verticalGradient(listOf(Color.Transparent, shade)))
+        }
+}
+
 @Composable
 private fun Band(story: Story, measure: MeasureSummary, verdict: String?) {
     val colors = Palette
     val ink = colors.bandInk
-    val sheen = colors.bandSheen
-    val shade = colors.bandShade
     Column(
         Modifier
-            .fillMaxWidth()
-            .background(colors.topic(story.topic))
-            .drawBehind {
-                drawRect(Brush.radialGradient(listOf(sheen, Color.Transparent), center = Offset(size.width, 0f), radius = size.width * 0.8f))
-                drawRect(Brush.verticalGradient(listOf(Color.Transparent, shade)))
-            }
+            .topicBand(colors, story.topic)
             .clearAndSetSemantics { }
             .padding(horizontal = 16.dp, vertical = 14.dp),
     ) {
@@ -289,7 +295,7 @@ private fun SplitBar(main: FeedItem) {
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun MemberChips(members: List<StoryMember>) {
+internal fun MemberChips(members: List<StoryMember>) {
     val colors = Palette
     val pill = RoundedCornerShape(50)
     FlowRow(

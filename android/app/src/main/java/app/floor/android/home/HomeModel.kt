@@ -111,6 +111,15 @@ data class HomeState(
     /** The feed as stories, one per bill or nominee, newest first. */
     val stories: List<Story> get() = Stories.group(visibleItems)
 
+    /** The catch-up deck: five finals from the scope's feed, chosen by [CatchUp.select]. */
+    val deck: List<FeedItem> get() = CatchUp.select(scopedItems)
+
+    /**
+     * The Bills tab's votes (iOS `bills`): your feed once you follow anything, else the latest
+     * finals; there is no "all bills" route, so the tab is built from the feeds already loaded.
+     */
+    val billItems: List<FeedItem> get() = if (followsAnything) withSplits(yours, items) else annotate(items, yours)
+
     /**
      * Whose chips a story shows: your three in "All"; in "Following", everyone the feed has
      * positions for (your three and the members you follow), so null.
@@ -141,12 +150,12 @@ data class HomeState(
     }
 
     companion object {
-        /** The latest finals as cards, each carrying your members' positions where your feed has that vote. */
+        /** The latest finals as cards, each carrying your members' positions where your feed has that vote; the finals' own measure (with its CRS lead and stage) wins. */
         fun annotate(recent: List<RecentVote>, yours: List<FeedItem>): List<FeedItem> {
             val byVote = yours.associateBy { it.vote.id }
             return recent.map { row ->
                 val known = byVote[row.vote.id] ?: return@map FeedItem(row.vote, row.measure, partyTotals = row.partyTotals.orEmpty())
-                known.copy(vote = row.vote, measure = known.measure ?: row.measure, partyTotals = row.partyTotals ?: known.partyTotals)
+                known.copy(vote = row.vote, measure = row.measure ?: known.measure, partyTotals = row.partyTotals ?: known.partyTotals)
             }
         }
 
@@ -241,6 +250,14 @@ class HomeModel(private val api: FloorApi, private val session: Session? = null)
     /** Each followed bill as `GET /v1/bills/{id}` last gave it. */
     var billRecords by mutableStateOf<Map<String, Bill>>(emptyMap())
         private set
+
+    /** Deck cards seen this session (iOS `seenInDeck`): the entry's progress and "N of 5 caught up". */
+    var seenInDeck by mutableStateOf<Set<String>>(emptySet())
+        private set
+
+    fun saw(voteId: String) {
+        if (voteId !in seenInDeck) seenInDeck = seenInDeck + voteId
+    }
 
     private var job: Job? = null
     private var loadedKey: String? = null

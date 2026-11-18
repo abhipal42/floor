@@ -138,7 +138,12 @@ data class MeasureSummary(
     val position: String? = null,
     /** For a House rule ("Providing for consideration of the bill (H.R. 2102) ..."), the bill it names. */
     val forBillId: String? = null,
+    /** A bill's stage as sent, so one this build does not know, or none, reads as a null [stage]. */
+    @SerialName("stage") val stageRaw: String? = null,
 ) {
+    /** Where the bill stands (as `BillListItem.stage`); null for a nomination or a bill not yet staged. */
+    val stage: BillStage? get() = BillStage.of(stageRaw)
+
     @Serializable
     enum class Kind {
         @SerialName("bill") BILL,

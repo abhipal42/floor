@@ -92,9 +92,9 @@ enum class Tab(val title: String, val icon: Int) {
 class FloorScreens(
     /** The Finals tab's root; it gets a callback that opens a vote. */
     val finals: @Composable (onOpenVote: (String) -> Unit) -> Unit = {},
-    /** The Week tab's root: the House's list and the Senate's meetings; a bill opens on its stack. */
+    /** The Week tab's root: the headliners, the Senate next, the fast track; a bill opens on its stack. */
     val week: @Composable (onOpenBill: (String) -> Unit) -> Unit = {},
-    /** The Bills tab's root: topics and search. */
+    /** The Bills tab's root: the ledger of bills and the search. */
     val bills: @Composable (onOpenBill: (String) -> Unit, onOpenTopic: (String) -> Unit) -> Unit = { _, _ -> },
     /** The Following tab's root: your members, bills and topics. */
     val following: @Composable () -> Unit = {},

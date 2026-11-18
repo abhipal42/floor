@@ -41,8 +41,13 @@ import app.floor.android.following.FollowingScreen
 import app.floor.android.following.FollowingSegment
 import app.floor.android.following.FollowingState
 import app.floor.android.following.PostsWallModel
+import androidx.compose.runtime.mutableIntStateOf
+import app.floor.android.bills.LedgerFilter
+import app.floor.android.bills.LedgerState
+import app.floor.android.home.CatchUpScreen
 import app.floor.android.home.HomeModel
 import app.floor.android.home.HomeScreen
+import app.floor.android.model.MeasureSummary
 import app.floor.android.model.FloorLink
 import app.floor.android.week.WeekModel
 import app.floor.android.widget.FloorWidgets
@@ -161,35 +166,65 @@ private fun App(
             finals = { onOpenVote ->
                 val navigate = LocalNavigate.current
                 var searching by rememberSaveable { mutableStateOf(false) }
+                // The catch-up deck, over the Finals root while open; its card stays where you left it.
+                var catchingUp by rememberSaveable { mutableStateOf(false) }
+                var front by rememberSaveable { mutableIntStateOf(0) }
                 LaunchedEffect(home.syncKey) { home.appear() }
-                HomeScreen(
-                    state = home.state,
-                    appearance = appearance,
-                    onAppearance = onAppearance,
-                    onFilter = home::select,
-                    onRetry = home::reload,
-                    onRefresh = home::refresh,
-                    onOpenVote = onOpenVote,
-                    zone = zone,
-                    locale = locale,
-                    onOpenBill = { navigate(Routes.bill(it)) },
-                    onScope = home::selectScope,
-                    onOpenMember = { navigate(Routes.member(it.bioguideId)) },
-                    onOpenElect = { navigate(Routes.elect(it)) },
-                    onFindReps = session::findReps,
-                    onSearch = { searching = true },
-                )
+                if (catchingUp) {
+                    val deck = home.state.deck
+                    LaunchedEffect(front, deck) { deck.getOrNull(front)?.let { home.saw(it.id) } }
+                    BackHandler { catchingUp = false }
+                    CatchUpScreen(
+                        deck = deck,
+                        front = front,
+                        zone = zone,
+                        locale = locale,
+                        onFront = { front = it },
+                        onClose = { catchingUp = false },
+                        onOpen = { item ->
+                            val measure = item.measure
+                            if (measure?.kind == MeasureSummary.Kind.BILL) navigate(Routes.bill(measure.id)) else onOpenVote(item.vote.id)
+                        },
+                    )
+                } else {
+                    HomeScreen(
+                        state = home.state,
+                        appearance = appearance,
+                        onAppearance = onAppearance,
+                        onFilter = home::select,
+                        onRetry = home::reload,
+                        onRefresh = home::refresh,
+                        onOpenVote = onOpenVote,
+                        zone = zone,
+                        locale = locale,
+                        onOpenBill = { navigate(Routes.bill(it)) },
+                        onScope = home::selectScope,
+                        onOpenMember = { navigate(Routes.member(it.bioguideId)) },
+                        onOpenElect = { navigate(Routes.elect(it)) },
+                        onFindReps = session::findReps,
+                        onSearch = { searching = true },
+                        seenInDeck = home.seenInDeck,
+                        onCatchUp = {
+                            front = 0
+                            catchingUp = true
+                        },
+                    )
+                }
                 if (searching) SearchSheet(api, followActions, onClose = { searching = false }, navigate = navigate)
             },
             week = { onOpenBill ->
                 val model: WeekModel = viewModel { WeekModel(api) }
                 LaunchedEffect(Unit) { model.appear() }
+                // The headliners' vote chips come from the shared feed.
+                LaunchedEffect(home.syncKey) { home.appear() }
                 WeekScreen(
                     state = model.state,
                     follows = follows.state,
+                    votes = home.state.items,
+                    zone = zone,
+                    locale = locale,
                     onWeek = model::show,
-                    onChamber = model::select,
-                    onExpand = model::expand,
+                    onOpen = model::open,
                     onRetry = model::reload,
                     onOpenBill = onOpenBill,
                 )
@@ -197,14 +232,20 @@ private fun App(
             bills = { onOpenBill, onOpenTopic ->
                 val navigate = LocalNavigate.current
                 val model: BillsModel = viewModel { BillsModel(api) }
-                LaunchedEffect(Unit) { model.appear() }
+                var filter by rememberSaveable { mutableStateOf(LedgerFilter.ALL) }
+                // The ledger is built from the shared feed; this model is only the search.
+                LaunchedEffect(home.syncKey) { home.appear() }
                 BillsScreen(
                     state = model.state,
+                    ledger = LedgerState(home.state.phase, home.state.billItems, filter, home.state.saved),
                     onQuery = model::type,
                     onSubmit = { model.type(model.state.search.query) },
-                    onRetry = model::reloadTopics,
+                    onRetry = home::reload,
                     onOpenBill = onOpenBill,
                     onOpenTopic = onOpenTopic,
+                    zone = zone,
+                    locale = locale,
+                    onLedgerFilter = { filter = it },
                     onChamber = model::selectChamber,
                     onOpenMember = { navigate(Routes.member(it.bioguideId)) },
                     onOpenElect = { navigate(Routes.elect(it)) },
