@@ -244,7 +244,7 @@ const TOPIC_FILTER_SQL: Record<TopicFilter, string> = {
  * 320 characters, so 1,500 is plenty and a feed of 50 rows does not carry 50 whole summaries.
  */
 const MEASURE_COLUMNS = `b.bill_type, b.number as bill_number, b.short_title as bill_short_title,
-  b.title as bill_title, b.policy_area as bill_policy_area, left(b.summary, 1500) as bill_summary,
+  b.title as bill_title, b.policy_area as bill_policy_area, left(b.summary, 1500) as bill_summary, b.stage as bill_stage,
   ms.bioguide_id as sponsor_bioguide_id, ms.last_name as sponsor_last_name, ms.party as sponsor_party, ms.state as sponsor_state,
   n.citation as nomination_citation, n.nominee_name, n.position_title, n.organization`;
 
@@ -265,6 +265,7 @@ interface MeasureRow {
   bill_title: string | null;
   bill_policy_area: string | null;
   bill_summary: string | null;
+  bill_stage: BillStage | null;
   sponsor_bioguide_id: string | null;
   sponsor_last_name: string | null;
   sponsor_party: string | null;
@@ -303,6 +304,7 @@ const toMeasure = (r: MeasureRow): MeasureSummary | null => {
           ? { bioguideId: r.sponsor_bioguide_id, lastName: r.sponsor_last_name, party: r.sponsor_party, state: r.sponsor_state }
           : null,
       summaryLead: summaryLead(r.bill_summary),
+      stage: r.bill_stage ?? null,
       position: null,
       forBillId: r.bill_type === "hres" && r.bill_title && Number.isInteger(congress) ? ruleForBill(r.bill_title, congress) : null,
     };
@@ -316,6 +318,7 @@ const toMeasure = (r: MeasureRow): MeasureSummary | null => {
       policyArea: null,
       sponsor: null,
       summaryLead: null,
+      stage: null,
       position: r.position_title,
       forBillId: null,
     };

@@ -674,6 +674,9 @@ export const MeasureSponsorSchema = z
  * Carried on each row so a feed of votes can name what they were about without a request per row:
  * the Home screen shows a member's recent votes, and one round trip per card is not viable.
  */
+/** Every stage the worker gives a bill (apps/worker/src/stage.ts); `BillStageSchema` below is built from it. */
+export const BILL_STAGES = ["introduced", "passed_house", "passed_senate", "passed_both", "to_president", "law", "vetoed", "failed", "adopted"] as const;
+
 export const MeasureSummarySchema = z
   .object({
     id: z.string().openapi({ example: "119-hr-1013" }),
@@ -698,6 +701,12 @@ export const MeasureSummarySchema = z
         "The opening of the bill's CRS summary (the text the bill route serves as `summary`) without its title line: the first " +
         "sentence, or two when the first is short, cut at a sentence end, at most about 320 characters. CRS's words, not AI. Null for a " +
         "nomination and for a bill CRS has not summarized",
+    }),
+    stage: z.enum(BILL_STAGES).nullable().openapi({
+      example: "passed_house",
+      description:
+        "A bill's stage on the road to law, as BillListItem.stage, so a list can draw its progress without a request per bill; " +
+        "null for a nomination and for a bill the worker has not staged",
     }),
     position: z.string().nullable().openapi({
       example: "United States Circuit Judge for the Tenth Circuit",
@@ -831,7 +840,7 @@ export const BillActionSchema = z
  * fetches actions per row. Declared before `BillSchema`, its first use.
  */
 export const BillStageSchema = z
-  .enum(["introduced", "passed_house", "passed_senate", "passed_both", "to_president", "law", "vetoed", "failed", "adopted"])
+  .enum(BILL_STAGES)
   .openapi("BillStage");
 
 export type BillStage = z.infer<typeof BillStageSchema>;
