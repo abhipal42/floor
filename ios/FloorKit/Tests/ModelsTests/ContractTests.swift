@@ -273,6 +273,9 @@ struct ContractTests {
         let enums: Set<String> = [
             "Chamber", "VoteKind", "VoteState", "VoteThreshold", "Position", "BillStage", "TopicFilter",
             "ScheduleCategory", "PromisesStatus", "PostNetwork",
+            // v0.2.60: enums, and two one-field wrappers the client unwraps on decode
+            "HeadlineTone", "JurisdictionKind", "LocalCoverage", "LocalItemStatus", "StateChamber",
+            "LocalList", "StateLegislators",
         ]
         let schemas = try Self.schemas()
         let served = Self.v0260Fields.keys.filter { schemas[$0] != nil }
