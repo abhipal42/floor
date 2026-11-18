@@ -276,12 +276,16 @@ private fun backLabel(entry: NavBackStackEntry?): String {
 /** Kept composed (its state survives) but drawn at no size and so out of reach of taps. */
 private fun Modifier.hidden(): Modifier = this.size(0.dp)
 
+/** How opaque the tab bar's panel is over the ground (Arena). */
+private const val TAB_BAR_FILL = 0.92f
+
 @Composable
 private fun TabBar(selected: Tab, onSelect: (Tab) -> Unit) {
     val colors = Palette
-    val shape = RoundedCornerShape(22.dp)
-    // The bar is solid, and the page's ground fades in above it and fills around it, so nothing
-    // scrolling underneath shows through its icons or labels (round 13 polish).
+    val shape = RoundedCornerShape(24.dp)
+    // The bar is a 92% panel over the ground (Arena's tab bar; iOS blurs, which Android can't do
+    // portably), and the page's ground fades in above it and fills around it, so nothing scrolling
+    // underneath shows through its icons or labels (round 13 polish).
     Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.Bottom) {
         Box(Modifier.fillMaxWidth().height(14.dp).background(Brush.verticalGradient(listOf(colors.ground.copy(alpha = 0f), colors.ground))))
         Row(
@@ -291,7 +295,7 @@ private fun TabBar(selected: Tab, onSelect: (Tab) -> Unit) {
                 .padding(start = 16.dp, end = 16.dp, bottom = 4.dp)
                 .fillMaxWidth()
                 .clip(shape)
-                .background(colors.panel, shape)
+                .background(colors.panel.copy(alpha = TAB_BAR_FILL), shape)
                 .border(1.dp, colors.panelBorder, shape)
                 .padding(8.dp)
                 .semantics { contentDescription = "Tabs" },

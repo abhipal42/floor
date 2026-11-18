@@ -42,7 +42,7 @@ struct BillsView: View {
             .padding(.top, 8)
             .padding(.bottom, 24)
         }
-        .background(Palette.ground)
+        .groundGlow()
         // No load here: the Finals tab is always mounted beside this one and loads the shared feed.
     }
 

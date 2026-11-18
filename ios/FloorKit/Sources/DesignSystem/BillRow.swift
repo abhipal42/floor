@@ -156,8 +156,7 @@ public struct BillRowView<Trailing: View>: View {
         .padding(.horizontal, 11)
         .padding(.vertical, 9)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Palette.panel, in: .rect(cornerRadius: 12))
-        .overlay(RoundedRectangle(cornerRadius: 12).stroke(Palette.panelBorder, lineWidth: 1))
+        .glassCard(cornerRadius: 12)
         .contentShape(.rect)
     }
 
@@ -228,8 +227,7 @@ public struct TopicRowView<Trailing: View>: View {
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 10)
-        .background(Palette.panel, in: .rect(cornerRadius: 12))
-        .overlay(RoundedRectangle(cornerRadius: 12).stroke(Palette.panelBorder, lineWidth: 1))
+        .glassCard(cornerRadius: 12)
         .contentShape(.rect)
     }
 

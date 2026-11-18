@@ -1,7 +1,5 @@
 package app.floor.android.bills
 
-import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -16,7 +14,6 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
@@ -24,6 +21,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import app.floor.android.design.BillRow
+import app.floor.android.design.glass
 import app.floor.android.design.ChipSwitch
 import app.floor.android.design.ElectRow
 import app.floor.android.design.FloorType
@@ -161,7 +159,7 @@ fun MemberRow(member: Member, onOpen: () -> Unit, trailing: @Composable () -> Un
     val colors = Palette
     val shape = RoundedCornerShape(12.dp)
     Row(
-        Modifier.fillMaxWidth().clip(shape).background(colors.panel, shape).border(1.dp, colors.panelBorder, shape).padding(end = 10.dp),
+        Modifier.fillMaxWidth().glass(colors, shape).padding(end = 10.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(9.dp),
     ) {

@@ -49,6 +49,7 @@ import androidx.compose.ui.unit.sp
 import androidx.core.net.toUri
 import app.floor.android.R
 import app.floor.android.design.FloorType
+import app.floor.android.design.glass
 import app.floor.android.design.Palette
 import app.floor.android.design.dashedPanel
 import app.floor.android.model.Chamber
@@ -290,9 +291,7 @@ private fun CallView(member: Member, district: District, facts: BillFacts, stanc
     Row(
         Modifier
             .fillMaxWidth()
-            .clip(shape)
-            .background(colors.panel, shape)
-            .border(1.dp, colors.panelBorder, shape)
+            .glass(colors, shape)
             .padding(horizontal = 11.dp, vertical = 9.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(10.dp),

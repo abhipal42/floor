@@ -10,7 +10,6 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBars
@@ -35,9 +34,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.drawBehind
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
@@ -50,17 +46,18 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.layout.width
 import app.floor.android.R
 import app.floor.android.design.ChipSwitch
+import app.floor.android.design.glass
 import app.floor.android.model.MeasureSummary
 import app.floor.android.model.Member
 import app.floor.android.model.seatCaption
 import java.time.Instant
 import java.time.ZoneId
 import java.util.Locale
-import androidx.compose.foundation.border
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import app.floor.android.design.Appearance
 import app.floor.android.design.FloorType
 import app.floor.android.design.Palette
+import app.floor.android.design.arenaGround
 import app.floor.android.design.SavedDataNote
 import app.floor.android.design.panel
 
@@ -106,24 +103,8 @@ fun HomeScreen(
         onRefresh = onRefresh,
         modifier = modifier
             .fillMaxSize()
-            .background(colors.ground),
+            .arenaGround(colors),
     ) {
-        // Arena's ground: a soft radial glow from the top centre, fading out by 60% of its reach.
-        val glow = colors.groundGlow
-        Box(
-            Modifier
-                .fillMaxWidth()
-                .height(420.dp)
-                .drawBehind {
-                    drawRect(
-                        Brush.radialGradient(
-                            0f to glow, 0.6f to glow.copy(alpha = 0f),
-                            center = Offset(size.width / 2, 0f),
-                            radius = size.height,
-                        ),
-                    )
-                },
-        )
         Column(
             Modifier
                 .fillMaxSize()
@@ -371,9 +352,7 @@ private fun DelegationCard(member: Member, share: Double?, modifier: Modifier, o
     val shape = RoundedCornerShape(14.dp)
     Column(
         modifier
-            .clip(shape)
-            .background(colors.panel, shape)
-            .border(1.dp, colors.panelBorder, shape)
+            .glass(colors, shape)
             .clickable(role = Role.Button, onClickLabel = "Open their record", onClick = onOpen)
             .clearAndSetSemantics { contentDescription = app.floor.android.model.SpokenMember.delegationCard(member, share) }
             .padding(vertical = 10.dp, horizontal = 6.dp),

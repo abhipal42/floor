@@ -184,4 +184,68 @@ struct PaletteTests {
             }
         }
     }
+
+    /// The member page's hero is white text on a party gradient: both ends of it, in both
+    /// appearances, for each party (and independents' grey).
+    @Test func everyHeroReadsInWhite() {
+        for party in ["D", "R", "I"] {
+            for swatch in [Tones.heroTop(party), Tones.heroBottom(party)] {
+                for (look, hex) in [("light", swatch.light), ("dark", swatch.dark)] {
+                    #expect(Swatch.contrast(0xFFFFFF, hex) >= 4.5, "\(party) \(look) hero \(hex) is under 4.5:1 to white")
+                }
+            }
+        }
+    }
+
+    /// Ink on a fill: the call button, the party chip on a post, the AI PICKED chip.
+    @Test func inksReadOnTheirFills() {
+        let pairs: [(String, Swatch, Swatch)] = [
+            ("callInk on yea", Tones.callInk, Tones.yea),
+            ("partyInk D", Tones.partyInk("D"), Tones.partyTint("D")),
+            ("partyInk R", Tones.partyInk("R"), Tones.partyTint("R")),
+            ("partyInk I", Tones.partyInk("I"), Tones.partyTint("I")),
+            ("aiInk on ai", Tones.aiInk, Tones.ai),
+        ]
+        for (name, ink, fill) in pairs {
+            #expect(Swatch.contrast(ink.light, fill.light) >= 4.5, "\(name), light")
+            #expect(Swatch.contrast(ink.dark, fill.dark) >= 4.5, "\(name), dark")
+        }
+    }
+
+    /// Arena's gradient cards, at both ends of their fills, with the inks each one prints. A post
+    /// card carries the panel's text and links. A promise card sets its eyebrow in textSecondary,
+    /// not textMuted: textMuted reads only 4.4:1 on the light promiseTop (#E2E8F2).
+    @Test func textReadsOnArenaCards() {
+        let post: [(String, Swatch)] = [
+            ("text", Tones.text), ("textSecondary", Tones.textSecondary), ("textMuted", Tones.textMuted),
+            ("accent", Tones.accent),
+        ]
+        let promise: [(String, Swatch)] = [("text", Tones.text), ("textSecondary", Tones.textSecondary)]
+        let cards: [(fills: [(String, Swatch)], inks: [(String, Swatch)])] = [
+            ([("postTop", Tones.postTop), ("postBottom", Tones.postBottom)], post),
+            ([("promiseTop", Tones.promiseTop), ("promiseBottom", Tones.promiseBottom)], promise),
+        ]
+        for card in cards {
+            for (name, ink) in card.inks {
+                for (fillName, fill) in card.fills {
+                    #expect(Swatch.contrast(ink.light, fill.light) >= 4.5, "\(name) on \(fillName), light")
+                    #expect(Swatch.contrast(ink.dark, fill.dark) >= 4.5, "\(name) on \(fillName), dark")
+                }
+            }
+        }
+        #expect(Swatch.contrast(Tones.textMuted.light, Tones.promiseTop.light) < 4.5)
+    }
+
+    /// The Arena values as the mock's `.d1` block writes them, so a light-mode edit can't move them.
+    @Test func arenaDarkValuesAreTheMocks() {
+        #expect(Tones.postTop.dark == 0x181B22)
+        #expect(Tones.postBottom.dark == 0x13161B)
+        #expect(Tones.promiseTop.dark == 0x1F2530)
+        #expect(Tones.heroTop("D").dark == 0x1E3A8A)
+        #expect(Tones.heroBottom("D").dark == 0x0B1430)
+        #expect(Tones.tabBar.dark == 0x15181E && Tones.tabBar.darkOpacity == 0.82)
+        #expect(Tones.callInk.dark == 0x06231A)
+        #expect(Tones.partyInk("D").dark == 0xBFD6FF)
+        #expect([Tones.bluesky.dark, Tones.youtube.dark, Tones.mastodon.dark] == [0x1185FE, 0xFF0033, 0x6364FF])
+    }
 }

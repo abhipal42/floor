@@ -96,11 +96,6 @@ public enum PostText {
         return "\(date.formatted(day)) · \(date.formatted(time))"
     }
 
-    /// `Open on Bluesky ›`, `Watch on YouTube ›`.
-    public static func open(_ network: MemberPost.Network) -> String {
-        network == .youtube ? "Watch on YouTube" : "Open on \(network.name)"
-    }
-
     public static let footnote = "Posts as written, newest first, from YouTube, Bluesky and Mastodon. "
         + "X, Facebook and Instagram don't let apps read posts for free, so they're links."
 }
@@ -513,24 +508,28 @@ struct PostsList: View {
 
     private var name: String { member?.lastName ?? "This member" }
 
+    /// What Posts says with nothing to show: not on a network Floor reads, or nothing lately.
+    static func empty(member: Member?) -> (title: String, body: String) {
+        let name = member?.lastName ?? "This member"
+        if let social = member?.social, !social.links.contains(where: \.network.readable) {
+            return ("\(name) isn't on YouTube, Bluesky or Mastodon",
+                    "X, Facebook and Instagram don't let apps read posts for free, so \(name)'s accounts there are links above.")
+        }
+        return ("No recent posts", "Floor shows the last 30 days of \(name)'s posts on YouTube, Bluesky and Mastodon, and found none.")
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 7) {
             let accounts = AccountMarks.links(member: member, posts: posts)
             if !accounts.isEmpty { AccountMarks(links: accounts) }
             if posts.posts.isEmpty {
-                if let social = member?.social, !social.links.contains(where: \.network.readable) {
-                    DashedPlaceholder(
-                        title: "\(name) isn't on YouTube, Bluesky or Mastodon",
-                        body: "X, Facebook and Instagram don't let apps read posts for free, so \(name)'s accounts there are links above."
-                    )
-                } else {
-                    DashedPlaceholder(
-                        title: "No recent posts",
-                        body: "Floor shows the last 30 days of \(name)'s posts on YouTube, Bluesky and Mastodon, and found none."
-                    )
-                }
+                let empty = Self.empty(member: member)
+                DashedPlaceholder(title: empty.title, body: empty.body)
             }
-            ForEach(posts.posts) { post in PostCard(post: post) }
+            VStack(spacing: 12) {
+                ForEach(posts.posts) { post in PostCard(post: post, member: member) }
+            }
+            .padding(.top, 4)
             Text(PostText.footnote)
                 .scaledFont(10.5, weight: .medium)
                 .foregroundStyle(Palette.textMuted)
@@ -587,114 +586,6 @@ struct AccountMarks: View {
                 .accessibilityElement(children: .ignore)
                 .accessibilityLabel(Self.label(link))
                 .accessibilityAddTraits(.isLink)
-        }
-    }
-}
-
-/// One post as written: the network's mark, the time, the thumbnail, the text, a link to the original.
-/// No counts. On the wall it names whose it is and clips long text.
-public struct PostCard: View {
-    let post: MemberPost
-    let author: String?
-    let lineLimit: Int?
-
-    @Environment(\.timeZone) private var timeZone
-    @Environment(\.locale) private var locale
-
-    /// - Parameters:
-    ///   - author: the member's surname, on the combined wall; nil on their own screen.
-    ///   - lineLimit: the wall clips text to three lines; a member's own screen shows it all.
-    public init(post: MemberPost, author: String? = nil, lineLimit: Int? = nil) {
-        self.post = post
-        self.author = author
-        self.lineLimit = lineLimit
-    }
-
-    /// The tallest a post's image gets, so a big link card never fills the screen.
-    static let mediaCap: CGFloat = 220
-    @ScaledMetric(relativeTo: .caption2) private var markSize: CGFloat = 15
-
-    /// The network's mark, and on the wall whose post it is. The mark carries no written name: it is
-    /// well known, and the card's spoken label names the network.
-    private var source: some View {
-        HStack(alignment: .center, spacing: 6) {
-            NetworkMark(post.network.social)
-                .fill(Palette.text)
-                .frame(width: markSize, height: markSize)
-                .accessibilityHidden(true)
-            if let author {
-                Text(author)
-                    .scaledFont(10.5, weight: .bold)
-                    .foregroundStyle(Palette.textMuted)
-            }
-        }
-    }
-
-    @ViewBuilder
-    private var time: some View {
-        if let when { Text(when).scaledFont(10.5, weight: .bold).foregroundStyle(Palette.textMuted) }
-    }
-
-    private var when: String? { post.postedDate.map { PostText.when($0, timeZone: timeZone, locale: locale) } }
-
-    public var body: some View {
-        let content = VStack(alignment: .leading, spacing: 6) {
-            // The time sits on the right, or under the name when large text leaves no room.
-            ViewThatFits(in: .horizontal) {
-                HStack(alignment: .center, spacing: 6) {
-                    source.fixedSize()
-                    Spacer(minLength: 6)
-                    time.fixedSize()
-                }
-                VStack(alignment: .leading, spacing: 3) {
-                    source
-                    time
-                }
-            }
-            if let media = post.mediaUrl.flatMap(URL.init(string:)) {
-                AsyncImage(url: media) { image in
-                    // The fitted copy only sizes the box: the card's width, the image's own height up
-                    // to the cap. The filled copy is what shows, cropped to it.
-                    image.resizable().scaledToFit()
-                        .frame(maxWidth: .infinity, maxHeight: Self.mediaCap)
-                        .hidden()
-                        .overlay { image.resizable().scaledToFill() }
-                } placeholder: {
-                    Palette.chip.aspectRatio(16 / 9, contentMode: .fit)
-                        .frame(maxWidth: .infinity, maxHeight: Self.mediaCap)
-                }
-                .clipShape(.rect(cornerRadius: 9))
-                .accessibilityHidden(true)
-            }
-            if let text = post.text, !text.isEmpty {
-                Text(verbatim: text)
-                    .scaledFont(12)
-                    .foregroundStyle(Palette.text)
-                    .lineLimit(lineLimit)
-                    .lineSpacing(2)
-                    .fixedSize(horizontal: false, vertical: true)
-                    .multilineTextAlignment(.leading)
-            }
-            Text(PostText.open(post.network) + " ›")
-                .scaledFont(10.5, weight: .semibold)
-                .foregroundStyle(Palette.yea)
-        }
-        .padding(.horizontal, 10)
-        .padding(.vertical, 9)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Palette.panel, in: .rect(cornerRadius: 12))
-        .overlay(RoundedRectangle(cornerRadius: 12).stroke(Palette.panelBorder, lineWidth: 1))
-
-        let label = [author.map { "\($0) on \(post.network.name)" } ?? post.network.name, when, post.text]
-            .compactMap(\.self).joined(separator: ". ")
-        if let url = URL(string: post.url) {
-            Link(destination: url) { content }
-                .accessibilityElement(children: .ignore)
-                .accessibilityLabel(label)
-                .accessibilityHint(PostText.open(post.network))
-                .accessibilityAddTraits(.isLink)
-        } else {
-            content.accessibilityElement(children: .ignore).accessibilityLabel(label)
         }
     }
 }

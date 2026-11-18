@@ -1,7 +1,6 @@
 package app.floor.android.vote
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -20,13 +19,13 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import app.floor.android.design.FloorType
+import app.floor.android.design.glass
 import app.floor.android.design.Palette
 import app.floor.android.home.TabBarClearance
 import app.floor.android.model.VoteKindInfo
@@ -94,9 +93,7 @@ private fun KindRow(kind: VoteKindInfo) {
     Column(
         Modifier
             .fillMaxWidth()
-            .clip(shape)
-            .background(colors.panel, shape)
-            .border(1.dp, colors.panelBorder, shape)
+            .glass(colors, shape)
             .padding(horizontal = 10.dp, vertical = 7.dp)
             .semantics(mergeDescendants = true) {},
         verticalArrangement = Arrangement.spacedBy(2.dp),

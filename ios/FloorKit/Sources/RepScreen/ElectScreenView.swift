@@ -4,44 +4,44 @@ import Models
 import SwiftUI
 
 /// A member-elect before they take office, built to the locked members-elect mock
-/// (https://claude.ai/artifact/Hod9RDLS1DgxapLeBcA3QY, section B): the member screen's Votes ·
-/// Money · Contact, each saying plainly what exists yet. Where this differs from the mock, and why:
+/// (https://claude.ai/artifact/Hod9RDLS1DgxapLeBcA3QY, section B), and since v0.2.58 as the member
+/// page's one scroll: the same hero with no stats or streak, saying when they take office, then Money
+/// and Contact, each saying plainly what exists yet. Where this differs from the mock, and why:
 ///
 /// - No Follow button: following is by Bioguide ID, which most senators-elect do not have yet, and
 ///   following an elect id would need new follow plumbing. Once sworn in they are followed as members.
 /// - Votes says nothing about the state's certification: no source for its calendar is served.
 /// - Money's Funding has no "Top donors by employer" card and no post-election report date: the
 ///   route serves the campaign's totals only, and Floor shows no figure it does not have.
-/// - The tabs are the member screen's segmented switch, not the mock's underlined tabs, so the two
-///   screens read as one.
+/// - No jump chips and no Votes block: only Money and Contact exist before they are sworn in, and
+///   the takes-office line sits in the hero. The "No votes yet" card is gone with the Votes block.
 public struct ElectScreenView: View {
     @Environment(\.locale) private var locale
     @State private var model: ElectScreenModel
-    @State private var section: MemberSection
+    @State private var details = false
 
-    public init(model: ElectScreenModel, section: MemberSection = .record) {
+    public init(model: ElectScreenModel) {
         _model = State(initialValue: model)
-        _section = State(initialValue: section)
     }
 
     public var body: some View {
-        ZStack {
-            Palette.ground.ignoresSafeArea()
-            ScrollView {
-                VStack(alignment: .leading, spacing: 12) { content }
-                    .padding(.horizontal, 16)
-                    .padding(.top, 8)
-                    .padding(.bottom, 32)
+        content
+            .background(Palette.ground)
+            .navigationDestination(isPresented: $details) { detailsPage }
+            // The hero's colour under the clear navigation bar, so the back button sits on the hero.
+            .background(alignment: .top) {
+                if case let .loaded(profile) = model.phase {
+                    Palette.heroTop(profile.elect.party).frame(height: 0).ignoresSafeArea(edges: .top)
+                }
             }
-        }
-        .task { if model.needsRefresh { await model.load() } }
+            .task { if model.needsRefresh { await model.load() } }
     }
 
     @ViewBuilder
     private var content: some View {
         switch model.phase {
         case .loading:
-            ProgressView().tint(Palette.accent).frame(maxWidth: .infinity).padding(.top, 60)
+            ProgressView().tint(Palette.accent).frame(maxWidth: .infinity, maxHeight: .infinity)
         case let .failed(message):
             VStack(alignment: .leading, spacing: 8) {
                 Text(message).scaledFont(13).foregroundStyle(Palette.textSecondary)
@@ -50,52 +50,86 @@ public struct ElectScreenView: View {
                     .foregroundStyle(Palette.accent)
             }
             .panel()
+            .padding(16)
+            .frame(maxHeight: .infinity, alignment: .top)
         case .noLongerListed:
             DashedPlaceholder(
                 title: "No longer listed",
                 body: "Floor lists members-elect only until they take office, and this one isn't on the list now. "
                     + "Once sworn in, they're found by name in search."
             )
+            .padding(16)
             .padding(.top, 20)
+            .frame(maxHeight: .infinity, alignment: .top)
         case let .loaded(profile):
-            if let saved = model.saved { SavedDataNote(saved) }
-            hero(profile.elect)
-            // No Said or Posts: promises and posts are found by Bioguide ID, which a member-elect
-            // does not have yet; the member screen has both once they are sworn in.
-            SectionSwitch(selection: $section, cases: [.record, .money, .contact])
-            switch section {
-            case .record, .said, .posts: votes(profile.elect)
-            case .money: money(profile)
-            case .contact: contact(profile.elect)
+            // No Votes, Said or Posts: promises and posts are found by Bioguide ID, which a
+            // member-elect does not have yet; the member page has them once they are sworn in.
+            OneScrollPage(blocks: [
+                MemberBlock(section: .money, link: ("Details", { details = true }), content: AnyView(funding(profile))),
+                MemberBlock(section: .contact, link: nil, content: AnyView(contact(profile.elect))),
+            ], chips: false) {
+                hero(profile)
             }
         }
     }
 
-    // MARK: Header
+    /// Money whole: Funding and Disclosures.
+    private var detailsPage: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 12) {
+                if case let .loaded(profile) = model.phase { money(profile) }
+            }
+            .padding(.horizontal, 16)
+            .padding(.top, 8)
+            .padding(.bottom, 32)
+        }
+        .background(Palette.ground)
+        .navigationTitle("Money")
+    }
 
-    private func hero(_ elect: MemberElect) -> some View {
+    // MARK: Hero
+
+    private func hero(_ profile: ElectProfile) -> some View {
+        let elect = profile.elect
         let seat = elect.chamber == .senate ? StateName.full(elect.state) : elect.asMember.seatBadge
         let caption = "\(elect.title) · \(seat) · \(PartyName.singular(elect.party))"
-        return HStack(spacing: 12) {
-            ElectAvatar(elect, size: 54)
-            VStack(alignment: .leading, spacing: 3) {
-                Text(elect.fullName.uppercased())
-                    .font(Typography.headline(30))
-                    .foregroundStyle(Palette.text)
-                    .lineLimit(2)
-                    .minimumScaleFactor(0.6)
-                Text(caption).scaledFont(12, weight: .medium).foregroundStyle(Palette.textMuted)
+        let when = takesOffice(elect)
+        return MemberHero(
+            party: elect.party, eyebrow: "MEMBER-ELECT", name: elect.fullName, line: caption,
+            spoken: "\(elect.fullName). Member-elect. \(caption). \(when.title). \(when.line)"
+        ) {
+            MemberPortrait(elect.asMember, cornerRadius: 20)
+        } footer: {
+            VStack(alignment: .leading, spacing: 4) {
+                if let saved = model.saved { SavedDataNote(saved).padding(.bottom, 8) }
+                Text(when.title.uppercased())
+                    .scaledFont(Typography.Member.eyebrow, weight: .heavy)
+                    .tracking(1.2)
+                Text(when.line)
+                    .scaledFont(Typography.Member.heroLine)
+                    .opacity(0.85)
                     .fixedSize(horizontal: false, vertical: true)
+                if let url = elect.call.sourceUrl.flatMap(URL.init(string:)) {
+                    Link(destination: url) {
+                        Text("Source · \(url.host?.replacingOccurrences(of: "www.", with: "") ?? "the call") ›")
+                            .scaledFont(11.5, weight: .semibold)
+                            .underline()
+                    }
+                    .foregroundStyle(Palette.bandText)
+                }
             }
+            .padding(12)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(Palette.heroTile, in: .rect(cornerRadius: 14))
+            .overlay(RoundedRectangle(cornerRadius: 14).strokeBorder(Palette.heroTileBorder, lineWidth: 1))
+            .padding(.top, 16)
         }
-        .padding(.vertical, 4)
-        .accessibilityElement(children: .combine)
-        .accessibilityAddTraits(.isHeader)
     }
 
-    // MARK: Votes
+    // MARK: Takes office
 
-    private func votes(_ elect: MemberElect) -> some View {
+    /// When they take office, and how they won.
+    private func takesOffice(_ elect: MemberElect) -> (title: String, line: String) {
         let elected = ElectText.electionDay(elect).flatMap { ElectText.day($0, locale: locale) }
         let seatName = ElectText.seatName(state: elect.state, district: elect.district, chamber: elect.chamber)
         let called = ElectText.calledBy(elect.call)
@@ -111,31 +145,7 @@ public struct ElectScreenView: View {
             let seat = elect.replaces.map { "the seat \($0.fullName) is leaving" } ?? seatName
             line = "\(elected.map { "Elected \($0)" } ?? "Elected") to \(seat). \(called)."
         }
-        let congress = ElectText.congress(elect).map { " in the \(StateName.ordinal($0)) Congress" } ?? ""
-        return VStack(alignment: .leading, spacing: 10) {
-            VStack(alignment: .leading, spacing: 4) {
-                Text(title.uppercased())
-                    .font(Typography.label(12))
-                    .tracking(1.2)
-                    .foregroundStyle(Palette.elect)
-                Text(line).scaledFont(11, weight: .medium).foregroundStyle(Palette.textSecondary)
-                    .fixedSize(horizontal: false, vertical: true)
-                if let url = elect.call.sourceUrl.flatMap(URL.init(string:)) {
-                    source(url, text: "Source · \(url.host?.replacingOccurrences(of: "www.", with: "") ?? "the call")")
-                        .padding(.horizontal, -2)
-                }
-            }
-            .padding(.horizontal, 11)
-            .padding(.vertical, 9)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .background(Palette.elect.opacity(Tones.electTint), in: .rect(cornerRadius: 12))
-            .overlay(RoundedRectangle(cornerRadius: 12).stroke(Palette.elect.opacity(0.35), lineWidth: 1))
-            .accessibilityElement(children: .combine)
-            DashedPlaceholder(
-                title: "No votes yet",
-                body: "The record starts with \(elect.lastName)'s first roll call\(congress)."
-            )
-        }
+        return (title, line)
     }
 
     // MARK: Money
@@ -207,8 +217,7 @@ public struct ElectScreenView: View {
         .padding(.horizontal, 10)
         .padding(.vertical, 9)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Palette.panel, in: .rect(cornerRadius: 12))
-        .overlay(RoundedRectangle(cornerRadius: 12).stroke(Palette.panelBorder, lineWidth: 1))
+        .glassCard(cornerRadius: 12)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("\(title): \(spoken)")
     }

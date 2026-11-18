@@ -20,13 +20,14 @@ import Testing
 struct Round13SnapshotTests {
     init() { _ = NoPortraits.installed }
 
+    /// One segment whole, on its own screen, as the member page's block links open it.
     private func member(_ id: String, _ section: MemberSection, card: Int = 0) async -> some View {
         let model = RepScreenModel(bioguideId: id, api: FixtureServer.api)
         await model.load()
         await model.promises.load()
         await model.posts.load()
         model.promiseCard = card
-        return NavigationStack { RepScreenView(model: model, section: section, onOpenTopic: { _ in }) }
+        return NavigationStack { MemberSectionPage(model: model, section: section, onOpenTopic: { _ in }) }
     }
 
     // MARK: - A · Said
@@ -45,34 +46,37 @@ struct Round13SnapshotTests {
         assertScreen(await member("G000555", .said), height: 620, [.light, .dark])
     }
 
-    /// Schumer's site hasn't been read (no promises route answers for him): the dashed placeholder.
+    /// Nadler's site hasn't been read (no promises route answers for him): the dashed placeholder.
     @Test func saidNotReadYet() async throws {
-        assertScreen(await member("S000148", .said), height: 420, [.light])
+        assertScreen(await member("N000002", .said), height: 420, [.light])
     }
 
-    // MARK: - B · Official accounts
+    // MARK: - B · Contact
 
     @Test func contactAccounts() async throws {
         assertScreen(await member("S000148", .contact), height: 760)
     }
 
-    // MARK: - C · Posts
+    // MARK: - C · Posts (rebuilt in v0.2.58)
 
+    /// All of Schumer's posts, the full list "All ›" opens: video, photo and text cards, full text.
     @Test func memberPosts() async throws {
-        assertScreen(await member("S000148", .posts), height: 1000)
+        assertScreen(await member("S000148", .posts), height: 1600)
     }
 
-    /// Schumer's posts, then Nadler's note: he has a YouTube channel and nothing on it lately.
+    /// Schumer and Nadler on Following › Posts: the title, the member filters, day dividers in the
+    /// reader's zone against noon Eastern on Nov 17, Nadler's link card and his threads.
     @Test func followingPostsWall() async throws {
+        let schumer: MemberDetail = try fixture("member-detail-schumer-2026-11-17")
+        let nadler: MemberDetail = try fixture("member-detail-nadler")
         var state = FollowState()
-        state.follow(member: Member(bioguideId: "N000002", firstName: "Jerrold", lastName: "Nadler", party: "D", state: "NY",
-                                    district: 12, chamber: .house), at: Date(timeIntervalSince1970: 1))
-        state.follow(member: Member(bioguideId: "S000148", firstName: "Chuck", lastName: "Schumer", party: "D", state: "NY",
-                                    district: nil, chamber: .senate), at: Date(timeIntervalSince1970: 2))
+        state.follow(member: nadler.member, at: Date(timeIntervalSince1970: 1))
+        state.follow(member: schumer.member, at: Date(timeIntervalSince1970: 2))
         let model = HomeModel(delegation: nil, follows: Follows(store: InMemoryFollowStore(state)), api: FixtureServer.api)
         await model.loadWall()
         let view = FollowingView(model: model, segment: .posts, onOpenMember: { _ in }, onFindReps: {}, onChangeAddress: {})
-        assertScreen(view, height: 900)
+            .environment(\.pinnedNow, Formats.instant("2026-11-17T17:00:00.000Z"))
+        assertScreen(view, height: 2200)
     }
 }
 #endif

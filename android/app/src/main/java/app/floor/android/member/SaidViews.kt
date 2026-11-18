@@ -3,14 +3,7 @@ package app.floor.android.member
 import android.provider.Settings
 import androidx.compose.animation.core.snap
 import androidx.compose.foundation.background
-import androidx.compose.foundation.horizontalScroll
-import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.offset
-import androidx.compose.foundation.layout.widthIn
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.material3.Icon
-import app.floor.android.design.mark
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -64,17 +57,12 @@ import app.floor.android.design.FloorColors
 import app.floor.android.design.FloorType
 import app.floor.android.design.LocalPlaysArrivalAnimations
 import app.floor.android.design.Palette
-import app.floor.android.design.RemoteImage
 import app.floor.android.design.SavedDataNote
 import app.floor.android.design.dashedPanel
 import app.floor.android.design.panel
 import app.floor.android.model.Member
-import app.floor.android.model.MemberPosts
-import app.floor.android.model.MemberSocial
-import app.floor.android.model.Post
 import app.floor.android.model.Promise
 import app.floor.android.model.Promises
-import app.floor.android.model.SocialNetwork
 import app.floor.android.model.fullName
 import kotlinx.coroutines.launch
 import java.time.ZoneId
@@ -384,131 +372,3 @@ private fun NoPlatform(said: Promises, member: Member?, locale: Locale) {
     }
 }
 
-// MARK: - Posts
-
-@Composable
-internal fun PostsContent(load: Load<MemberPosts>, member: Member?, accounts: List<MemberSocial.Account>, zone: ZoneId, locale: Locale, onRetry: () -> Unit) {
-    if (accounts.isNotEmpty()) AccountMarks(accounts)
-    Loading(load, "Loading the posts", onRetry) { value ->
-        val name = member?.fullName ?: "This member"
-        val posts = value.shown
-        if (posts.isEmpty()) {
-            if (accounts.any { it.network.readable }) {
-                DashedNote("Nothing posted lately", "$name hasn't posted on YouTube, Bluesky or Mastodon in the last 30 days.")
-            } else {
-                DashedNote("No posts Floor can show", "Floor shows posts from YouTube, Bluesky and Mastodon, and $name has no account there that Floor can read.")
-            }
-        }
-        posts.forEach { PostCard(it, zone, locale) }
-        Text(
-            "Posts as written, newest first, from the networks' public feeds. No counts, no ranking.",
-            style = FloorType.text(10.5f, FontWeight.Medium), color = Palette.textMuted, modifier = Modifier.padding(horizontal = 2.dp),
-        )
-    }
-}
-
-/** The networks Floor reads first, then the links-only ones (round 13 polish). */
-private val MARK_ORDER = listOf(
-    SocialNetwork.BLUESKY, SocialNetwork.YOUTUBE, SocialNetwork.MASTODON,
-    SocialNetwork.X, SocialNetwork.INSTAGRAM, SocialNetwork.FACEBOOK,
-)
-
-/**
- * The top of Posts: a circle per account the member has, its network's mark and name; a green dot
- * on the ones whose posts Floor shows. A tap opens the network's app, or its site. Too many to fit
- * scrolls sideways.
- */
-@Composable
-private fun AccountMarks(accounts: List<MemberSocial.Account>) {
-    val colors = Palette
-    val context = LocalContext.current
-    val sorted = accounts.sortedBy { MARK_ORDER.indexOf(it.network) }
-    val gap = 6.dp
-    BoxWithConstraints(Modifier.fillMaxWidth()) {
-        val slot = (maxWidth - gap * (sorted.size - 1)) / sorted.size
-        Row(Modifier.horizontalScroll(rememberScrollState()).padding(vertical = 4.dp), horizontalArrangement = Arrangement.spacedBy(gap)) {
-            sorted.forEach { account ->
-                val network = account.network
-                val spoken = if (network.readable) "${network.title}, ${account.handle}, posts shown in Floor"
-                    else "${network.title}, ${account.handle}, opens ${network.title}"
-                Column(
-                    Modifier.widthIn(min = slot).clip(RoundedCornerShape(10.dp))
-                        .clickable(role = Role.Button) { open(context, account.url) }
-                        .clearAndSetSemantics { contentDescription = spoken }
-                        .padding(vertical = 2.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(5.dp),
-                ) {
-                    Box(Modifier.size(46.dp)) {
-                        Box(
-                            Modifier.fillMaxSize().clip(CircleShape).background(colors.card).border(1.dp, colors.panelBorder, CircleShape),
-                            contentAlignment = Alignment.Center,
-                        ) {
-                            Icon(network.mark, contentDescription = null, tint = colors.text, modifier = Modifier.size(18.dp))
-                        }
-                        if (network.readable) {
-                            Box(
-                                Modifier.align(Alignment.TopEnd).offset(x = 2.dp, y = (-2).dp).size(12.dp)
-                                    .clip(CircleShape).background(colors.ground).padding(2.dp).clip(CircleShape).background(colors.yea),
-                            )
-                        }
-                    }
-                }
-            }
-        }
-    }
-}
-
-/** The tallest a post's image or thumbnail draws, so a big link card never fills the screen. */
-private val POST_MEDIA_MAX = 220.dp
-
-/**
- * One post (the mock's `.post`): the network's mark, its time in the reader's zone, the text as
- * posted, its image or a YouTube video's thumbnail, and a link to the original. [byline] names the member on the
- * Following wall, where [compact] cuts long text and leaves out the link line (the card opens it).
- */
-@Composable
-fun PostCard(post: Post, zone: ZoneId, locale: Locale, byline: String? = null, compact: Boolean = false) {
-    val colors = Palette
-    val context = LocalContext.current
-    val shape = RoundedCornerShape(12.dp)
-    val network = post.socialNetwork
-    val time = post.whenLabel(zone, locale)
-    Column(
-        Modifier.fillMaxWidth().clip(shape).background(colors.panel, shape).border(1.dp, colors.panelBorder, shape)
-            .clickable(role = Role.Button, onClickLabel = post.openLabel.removeSuffix(" ›")) { open(context, post.url) }
-            .semantics(mergeDescendants = true) {}
-            .padding(horizontal = 10.dp, vertical = 9.dp),
-        verticalArrangement = Arrangement.spacedBy(6.dp),
-    ) {
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-            // The mark alone (owner, 2026-11-17: well-known logos need no written name); it still says it.
-            network?.let { Icon(it.mark, contentDescription = it.title, tint = colors.text, modifier = Modifier.size(15.dp)) }
-            Text(
-                byline.orEmpty(),
-                style = FloorType.text(10.5f, FontWeight.Bold), color = colors.textMuted, maxLines = 1, overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.weight(1f),
-            )
-            if (time != null) Text(time, style = FloorType.text(10.5f, FontWeight.Bold), color = colors.textMuted)
-        }
-        val media = post.mediaUrl
-        if (media != null || network == SocialNetwork.YOUTUBE) {
-            val placeholder: @Composable () -> Unit = {
-                if (network == SocialNetwork.YOUTUBE) Text("▶ VIDEO", style = FloorType.label(11f).copy(letterSpacing = 1.1.sp), color = colors.textMuted)
-            }
-            // Fills the card's width at 16:9, never taller than POST_MEDIA_MAX, cropped to fit.
-            BoxWithConstraints(Modifier.fillMaxWidth()) {
-                val thumb = Modifier.fillMaxWidth().height(minOf(maxWidth * 9f / 16f, POST_MEDIA_MAX)).clip(RoundedCornerShape(9.dp))
-                    .background(Brush.linearGradient(listOf(colors.card, colors.raised)))
-                media?.let { RemoteImage(it, thumb, placeholder) } ?: Box(thumb, contentAlignment = Alignment.Center) { placeholder() }
-            }
-        }
-        post.text?.trim()?.takeIf { it.isNotEmpty() }?.let {
-            Text(
-                it, style = FloorType.text(12.5f).copy(lineHeight = 17.sp), color = colors.text,
-                maxLines = if (compact) 3 else Int.MAX_VALUE, overflow = TextOverflow.Ellipsis,
-            )
-        }
-        if (!compact) Text(post.openLabel, style = FloorType.text(10.5f, FontWeight.SemiBold), color = colors.yea)
-    }
-}

@@ -8,6 +8,20 @@ is a milestone and ships a retro under `docs/retros/`.
 Older series live in [`docs/changelog/`](docs/changelog) (0.1.x: [`0.1.md`](docs/changelog/0.1.md)).
 Before 0.1.0 the history is the commit log on `main`.
 
+## 0.2.58 — 2026-11-17
+
+### Changed
+- **Arena, app-wide (iOS and Android):** glass cards with depth on every screen, a glow at the top of each tab
+  and a translucent tab bar.
+- **The member page is one scroll:**
+  - a party-coloured hero with the portrait, three stats and the last 40 calls as a strip;
+  - jump chips;
+  - then votes, promises, posts, money and contact, each with "All ›" for the full view.
+- **Posts rebuilt:**
+  - each starts with who said it: portrait with the network's badge, name, party and handle;
+  - videos show a play button and links a preview card;
+  - Following › Posts filters by member and splits by day.
+
 ## 0.2.57 — 2026-11-17
 
 ### Added

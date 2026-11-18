@@ -12,11 +12,13 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
@@ -32,6 +34,7 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.font.FontWeight
@@ -43,11 +46,13 @@ import app.floor.android.bills.Failed
 import app.floor.android.bills.Spinner
 import app.floor.android.bills.memberCaption
 import app.floor.android.design.BillRow
+import app.floor.android.design.glass
 import app.floor.android.design.ChipSwitch
 import app.floor.android.design.FloorType
 import app.floor.android.design.FollowPill
 import app.floor.android.design.MemberPortrait
 import app.floor.android.design.Palette
+import app.floor.android.design.arenaGround
 import app.floor.android.design.PositionChip
 import app.floor.android.design.TopicRow
 import app.floor.android.design.dashedPanel
@@ -55,6 +60,7 @@ import app.floor.android.home.TabBarClearance
 import app.floor.android.member.DashedNote
 import app.floor.android.member.Load
 import app.floor.android.member.PostCard
+import app.floor.android.model.PostParts
 import app.floor.android.model.PostsWall
 import app.floor.android.model.BillRoad
 import app.floor.android.model.Delegation
@@ -68,6 +74,7 @@ import app.floor.android.model.TopicText
 import app.floor.android.model.fullName
 import app.floor.android.store.FollowKind
 import app.floor.android.store.FollowState
+import java.time.Instant
 import java.time.ZoneId
 import java.util.Locale
 
@@ -87,6 +94,8 @@ data class FollowingState(
     val topics: BillsState.Phase = BillsState.Phase.Loading,
     /** Your members' posts: the Posts segment. */
     val wall: Load<PostsWall> = Load.Loading,
+    /** The wall's member filter chip: a Bioguide ID, or null for All. Filters locally. */
+    val wallFilter: String? = null,
 ) {
     val reps: List<Member> get() = delegation?.members.orEmpty()
 
@@ -132,6 +141,7 @@ class FollowingActions(
     val onFindReps: () -> Unit = {},
     val onRetryTopics: () -> Unit = {},
     val onRetryWall: () -> Unit = {},
+    val onWallFilter: (String?) -> Unit = {},
 )
 
 /**
@@ -145,10 +155,10 @@ class FollowingActions(
  * and the tab says so rather than drawing switches that would do nothing.
  */
 @Composable
-fun FollowingScreen(state: FollowingState, actions: FollowingActions, zone: ZoneId, locale: Locale) {
+fun FollowingScreen(state: FollowingState, actions: FollowingActions, zone: ZoneId, locale: Locale, now: Instant = Instant.now()) {
     val colors = Palette
     LazyColumn(
-        Modifier.fillMaxSize().background(colors.ground).windowInsetsPadding(WindowInsets.statusBars),
+        Modifier.fillMaxSize().arenaGround(colors).windowInsetsPadding(WindowInsets.statusBars),
         contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 24.dp + TabBarClearance),
         verticalArrangement = Arrangement.spacedBy(6.dp),
     ) {
@@ -169,19 +179,30 @@ fun FollowingScreen(state: FollowingState, actions: FollowingActions, zone: Zone
             }
             FollowingSegment.BILLS -> bills(state, actions)
             FollowingSegment.TOPICS -> topics(state, actions)
-            FollowingSegment.POSTS -> posts(state, actions, zone, locale)
+            FollowingSegment.POSTS -> posts(state, actions, now, zone, locale)
         }
     }
 }
 
 // MARK: Posts
 
+/** The line under the wall: where the posts come from, and where the rest are. */
+const val WALL_NOTE = "From Bluesky, YouTube and Mastodon, where posts are free to read. X, Instagram and Facebook are links on each member's page."
+
 /**
- * The wall (round 13): your members' posts from YouTube, Bluesky and Mastodon, newest first, never
- * ranked or counted; then one dashed note naming everyone whose accounts are all links-only.
+ * The wall (round 13, rebuilt in Arena): a big "Posts" title, a filter chip per member with their
+ * portrait (filtering locally), your members' posts from YouTube, Bluesky and Mastodon newest first
+ * under day dividers in the reader's zone and locale, never ranked or counted; then one dashed note
+ * naming everyone whose accounts are all links-only, and the line about X, Instagram and Facebook.
  */
-private fun LazyListScope.posts(state: FollowingState, actions: FollowingActions, zone: ZoneId, locale: Locale) {
+private fun LazyListScope.posts(state: FollowingState, actions: FollowingActions, now: Instant, zone: ZoneId, locale: Locale) {
     val members = state.wallMembers
+    item {
+        Text(
+            "POSTS", style = FloorType.headline(36f), color = Palette.text,
+            modifier = Modifier.padding(top = 10.dp).semantics { heading() },
+        )
+    }
     if (members.isEmpty()) {
         item {
             EmptyCard(
@@ -192,21 +213,28 @@ private fun LazyListScope.posts(state: FollowingState, actions: FollowingActions
         }
         return
     }
-    item { GroupHeader("YOUR MEMBERS' POSTS", "Newest first") }
+    item { WallFilters(members, state.wallFilter, actions.onWallFilter) }
     when (val wall = state.wall) {
         Load.Loading -> item { Spinner("Loading your members' posts") }
         is Load.Failed -> item { Failed(wall.message, actions.onRetryWall) }
         is Load.Loaded -> {
             wall.saved?.let { saved -> item { app.floor.android.design.SavedDataNote(saved) } }
             val byId = members.associateBy { it.bioguideId }
-            val posts = wall.value.shown
+            val posts = wall.value.shown.filter { state.wallFilter == null || it.memberId == state.wallFilter }
             if (posts.isEmpty()) {
                 item {
-                    DashedNote("Nothing posted lately", "None of your members has posted on YouTube, Bluesky or Mastodon in the last 30 days.")
+                    val who = state.wallFilter?.let { byId[it]?.lastName }
+                    DashedNote(
+                        "Nothing posted lately",
+                        "${who ?: "None of your members"} ${if (who != null) "hasn't" else "has"} posted on YouTube, Bluesky or Mastodon in the last 30 days.",
+                    )
                 }
             }
-            items(posts, key = { "post-" + it.id }) { post ->
-                PostCard(post, zone, locale, byline = post.memberId?.let { byId[it]?.lastName }, compact = true)
+            PostParts.byDay(posts, now, zone, locale).forEach { (day, list) ->
+                item(key = "day-$day") { DayRule(day) }
+                items(list, key = { "post-" + it.id }) { post ->
+                    PostCard(post, post.memberId?.let { byId[it] }, emptyList(), now, zone, locale, modifier = Modifier.padding(bottom = 6.dp))
+                }
             }
             val unreadable = wall.value.unreadable.mapNotNull { byId[it] }
             if (unreadable.isNotEmpty()) {
@@ -219,7 +247,57 @@ private fun LazyListScope.posts(state: FollowingState, actions: FollowingActions
                     )
                 }
             }
+            item { Text(WALL_NOTE, style = FloorType.text(11.5f), color = Palette.textMuted, modifier = Modifier.padding(horizontal = 2.dp, vertical = 4.dp)) }
         }
+    }
+}
+
+/** "All", then a chip per member with their portrait (the mock's `.filters`). */
+@Composable
+private fun WallFilters(members: List<Member>, selected: String?, onSelect: (String?) -> Unit) {
+    val colors = Palette
+    val pill = RoundedCornerShape(50)
+    LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp), contentPadding = PaddingValues(vertical = 4.dp)) {
+        item {
+            val on = selected == null
+            Text(
+                "All", style = FloorType.text(12.5f, FontWeight.Bold), color = if (on) colors.ground else colors.textSecondary,
+                modifier = Modifier.clip(pill).background(if (on) colors.text else colors.chip)
+                    .clickable(role = Role.Tab) { onSelect(null) }
+                    .semantics {
+                        this.selected = on
+                        contentDescription = "All members' posts"
+                    }
+                    .padding(horizontal = 13.dp, vertical = 7.dp),
+            )
+        }
+        items(members, key = { "filter-" + it.bioguideId }) { member ->
+            val on = selected == member.bioguideId
+            Row(
+                Modifier.clip(pill).background(if (on) colors.text else colors.chip)
+                    .clickable(role = Role.Tab) { onSelect(if (on) null else member.bioguideId) }
+                    .clearAndSetSemantics {
+                        this.selected = on
+                        contentDescription = "${member.lastName}'s posts"
+                    }
+                    .padding(start = 4.dp, end = 12.dp, top = 4.dp, bottom = 4.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(7.dp),
+            ) {
+                MemberPortrait(member, Modifier.size(26.dp))
+                Text(member.lastName, style = FloorType.text(12.5f, FontWeight.Bold), color = if (on) colors.ground else colors.textSecondary)
+            }
+        }
+    }
+}
+
+/** A day divider: `TODAY`, then a hairline to the edge (the mock's `.dayrule`). */
+@Composable
+private fun DayRule(day: String) {
+    val colors = Palette
+    Row(Modifier.fillMaxWidth().padding(vertical = 8.dp).semantics { heading() }, verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+        Text(day.uppercase(), style = FloorType.text(10.5f, FontWeight.ExtraBold).copy(letterSpacing = 1.3.sp), color = colors.textMuted)
+        androidx.compose.foundation.layout.Box(Modifier.weight(1f).height(1.dp).background(colors.cardBorder))
     }
 }
 
@@ -513,5 +591,5 @@ private fun EmptyCard(title: String, body: String, button: String, filled: Boole
 /** The mock's `.mr` row: surface, hairline, 12dp corners. */
 private fun Modifier.rowSurface(colors: app.floor.android.design.FloorColors): Modifier {
     val shape = RoundedCornerShape(12.dp)
-    return fillMaxWidth().clip(shape).background(colors.panel, shape).border(1.dp, colors.panelBorder, shape)
+    return fillMaxWidth().glass(colors, shape)
 }

@@ -26,7 +26,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
@@ -40,6 +39,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import app.floor.android.bill.open
 import app.floor.android.design.FloorType
+import app.floor.android.design.glass
 import app.floor.android.design.Palette
 import app.floor.android.design.SavedDataNote
 import app.floor.android.design.dashedPanel
@@ -59,8 +59,6 @@ import java.time.ZoneOffset
 // The member screen's Money: Funding (built to the locked AppRepMoney mock) and Disclosures (round
 // 11, section G), as iOS `MoneyView.swift` and `ContactAndDisclosures.swift` draw them.
 
-@Composable
-private fun largeText(): Boolean = LocalDensity.current.fontScale >= 1.5f
 
 @Composable
 fun MoneyContent(load: Load<MemberFunding>, member: Member?, onRetry: () -> Unit) {
@@ -194,7 +192,7 @@ private fun PacList(funding: Funding) {
     val colors = Palette
     val checks = funding.pacChecks()
     val shape = RoundedCornerShape(16.dp)
-    Column(Modifier.fillMaxWidth().clip(shape).background(colors.panel, shape).border(1.dp, colors.panelBorder, shape)) {
+    Column(Modifier.fillMaxWidth().glass(colors, shape)) {
         Column(Modifier.padding(horizontal = 14.dp, vertical = 12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
             Text("BIGGEST PAC CHECKS", style = FloorType.label(20f), color = colors.text, modifier = Modifier.semantics { heading() })
             Text(funding.pacsNote, style = FloorType.text(11f), color = colors.textMuted)
@@ -423,7 +421,7 @@ internal fun Range(title: String, value: String?, detail: String, flagged: Boole
     val shape = RoundedCornerShape(10.dp)
     val large = largeText()
     Column(
-        Modifier.fillMaxWidth().clip(shape).background(colors.panel, shape).border(1.dp, colors.panelBorder, shape)
+        Modifier.fillMaxWidth().glass(colors, shape)
             .padding(horizontal = 10.dp, vertical = 8.dp).semantics(mergeDescendants = true) {},
         verticalArrangement = Arrangement.spacedBy(3.dp),
     ) {

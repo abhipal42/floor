@@ -61,29 +61,7 @@ struct Round12SnapshotTests {
 
     // MARK: - B · The profile
 
-    private func profile(_ section: MemberSection, money: MoneySegment = .funding) async -> some View {
-        let model = ElectScreenModel(id: "elect-2026-mi-sen", api: FixtureServer.api)
-        model.moneySegment = money
-        await model.load()
-        return NavigationStack { ElectScreenView(model: model, section: section) }
-    }
-
-    @Test func electVotes() async throws {
-        assertScreen(await profile(.record), height: 560)
-    }
-
-    @Test func electMoneyFunding() async throws {
-        assertScreen(await profile(.money), height: 560)
-    }
-
-    /// The fixture has no candidate report: the placeholder, nothing invented.
-    @Test func electMoneyDisclosures() async throws {
-        assertScreen(await profile(.money, money: .disclosures), height: 480, [.light, .dark])
-    }
-
-    @Test func electContact() async throws {
-        assertScreen(await profile(.contact), height: 480, [.light, .dark])
-    }
+    // The profile itself is the member page's one scroll since v0.2.58: `ArenaSnapshotTests.memberElectPage`.
 
     /// Unknown, or past taking office: the API's 404.
     @Test func electNoLongerListed() async throws {

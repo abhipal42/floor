@@ -143,8 +143,7 @@ public struct AlertsView: View {
         .toggleStyle(FloorSwitch())
         .padding(.horizontal, 10)
         .padding(.vertical, 8)
-        .background(Palette.panel, in: .rect(cornerRadius: 12))
-        .overlay(RoundedRectangle(cornerRadius: 12).stroke(Palette.panelBorder, lineWidth: 1))
+        .glassCard(cornerRadius: 12)
         .accessibilityLabel(label)
         .accessibilityHint(hint)
     }

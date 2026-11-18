@@ -1,0 +1,58 @@
+{
+ "_note": "GET /v1/members/S000148/posts, recorded 2026-11-17 from floor-api.vercel.app, the newest six.",
+ "posts": [
+  {
+   "id": "youtube:lAjGWsE-ya0",
+   "network": "youtube",
+   "postedAt": "2026-11-17T18:02:22.000Z",
+   "text": "WATCH: I am speaking live on the floor of the U.S. Senate",
+   "url": "https://www.youtube.com/watch?v=lAjGWsE-ya0",
+   "mediaUrl": "https://i1.ytimg.com/vi/lAjGWsE-ya0/hqdefault.jpg"
+  },
+  {
+   "id": "bluesky:at://did:plc:zlgotdjaxzuhw4nefvkxxvxa/app.bsky.feed.post/3n2jm3cjdhs2q",
+   "network": "bluesky",
+   "postedAt": "2026-11-17T17:49:02.403Z",
+   "text": "The only talent Trump has is wasting Americans\u2019 hard-earned tax dollars.\n \nHe is the Interior-Decorator-In-Chief.",
+   "url": "https://bsky.app/profile/schumer.senate.gov/post/3n2jm3cjdhs2q",
+   "mediaUrl": null
+  },
+  {
+   "id": "bluesky:at://did:plc:zlgotdjaxzuhw4nefvkxxvxa/app.bsky.feed.post/3n2jkfe6ixk2q",
+   "network": "bluesky",
+   "postedAt": "2026-11-17T17:18:52.206Z",
+   "text": "Instead of focusing on strengthening our bonds in Southeast Asia and countering China, Trump is treating the ASEAN conference in the Philippines as little more than a layover on his way to meet with Xi Jinping, Vladimir Putin, and potentially even Kim Jong Un.",
+   "url": "https://bsky.app/profile/schumer.senate.gov/post/3n2jkfe6ixk2q",
+   "mediaUrl": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:zlgotdjaxzuhw4nefvkxxvxa/bafkreiamc3an7wjwqt7n7un7sp74nf2t2rtdljdh2sfpau5dnkrtlenuh4"
+  },
+  {
+   "id": "bluesky:at://did:plc:zlgotdjaxzuhw4nefvkxxvxa/app.bsky.feed.post/3n2jhrr4r4223",
+   "network": "bluesky",
+   "postedAt": "2026-11-17T16:32:07.208Z",
+   "text": "Beyond the blatant hypocrisy and disregard for the American people, Mullin watched the game in the box of a Louisiana CEO who has received over $2 billion in DHS contracts.\nnypost.com/2026/11/17/u...",
+   "url": "https://bsky.app/profile/schumer.senate.gov/post/3n2jhrr4r4223",
+   "mediaUrl": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:zlgotdjaxzuhw4nefvkxxvxa/bafkreidygxowho4ek274s665jd2g4mmhcsb3a4ohicl7trdn4mb6dosmtq"
+  },
+  {
+   "id": "youtube:JlA2eRiVeB8",
+   "network": "youtube",
+   "postedAt": "2026-11-17T09:05:52.000Z",
+   "text": "Speaking live from the floor of the U.S. Senate",
+   "url": "https://www.youtube.com/watch?v=JlA2eRiVeB8",
+   "mediaUrl": "https://i3.ytimg.com/vi/JlA2eRiVeB8/hqdefault.jpg"
+  },
+  {
+   "id": "bluesky:at://did:plc:zlgotdjaxzuhw4nefvkxxvxa/app.bsky.feed.post/3n2hndq6af22j",
+   "network": "bluesky",
+   "postedAt": "2026-11-16T23:06:19.419Z",
+   "text": "Since it wasn't enough to kick millions off their health insurance, Trump and RFK Jr. have allowed thousands to fall ill and even die by letting vaccine-preventable disease spread.\n\nThey will answer to Congress and the American people about how and why they let this happen.",
+   "url": "https://bsky.app/profile/schumer.senate.gov/post/3n2hndq6af22j",
+   "mediaUrl": null
+  }
+ ],
+ "links": {
+  "x": "https://x.com/SenSchumer",
+  "facebook": "https://www.facebook.com/senschumer",
+  "instagram": "https://www.instagram.com/senschumer"
+ }
+}

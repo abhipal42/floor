@@ -3,27 +3,19 @@ package app.floor.android.member
 import android.content.Intent
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.aspectRatio
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.windowInsetsPadding
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -31,7 +23,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.CornerRadius
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.drawscope.Stroke
@@ -51,108 +42,26 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import app.floor.android.bill.open
 import app.floor.android.design.FloorType
+import app.floor.android.design.glass
 import app.floor.android.design.dashedPanel
-import app.floor.android.design.FollowButton
-import app.floor.android.design.MemberPortrait
 import app.floor.android.design.Palette
 import app.floor.android.design.Ring
-import app.floor.android.design.SavedDataNote
-import app.floor.android.design.SectionSwitch
-import app.floor.android.design.SkewChip
 import app.floor.android.design.panel
 import app.floor.android.design.position
-import app.floor.android.home.TabBarClearance
 import app.floor.android.model.Formats
 import app.floor.android.model.Member
 import app.floor.android.model.MemberContact
-import app.floor.android.model.MemberDetail
 import app.floor.android.model.MemberVote
 import app.floor.android.model.PartyLoyalty
 import app.floor.android.model.Position
-import app.floor.android.model.RecordFacts
 import app.floor.android.model.RecordStats
-import app.floor.android.model.Tier
 import app.floor.android.model.VoteKind
 import app.floor.android.model.dayIn
 import app.floor.android.model.fullName
 import app.floor.android.model.questionKind
-import app.floor.android.model.seatBadge
-import app.floor.android.model.seatLine
 import app.floor.android.model.shortLabel
-import app.floor.android.vote.TopBar
 import java.time.ZoneId
 import java.util.Locale
-
-/** Follow on a member's header: whether you follow them, whether they are your own rep, and the toggle. */
-data class MemberFollow(val following: Boolean, val isRep: Boolean, val onToggle: () -> Unit)
-
-/**
- * One member's record (iOS `RepScreenView`): the player card, Votes · Money · Contact, the three
- * rings, the last-40 grid with its readout, and the computed "did you know". Follow sits above,
- * your own rep reading "Your rep" instead. Money is Funding (FEC, employers and PACs only, never an
- * individual donor) and Disclosures (ranges as filed); Contact dials, writes and links.
- */
-@Composable
-fun MemberScreen(
-    state: MemberState,
-    back: String,
-    zone: ZoneId,
-    locale: Locale,
-    onBack: () -> Unit,
-    onSection: (MemberSection) -> Unit,
-    onMoneySegment: (MoneySegment) -> Unit,
-    onSelectCall: (Int) -> Unit,
-    onRetry: () -> Unit,
-    onRetryMoney: () -> Unit,
-    onRetryDisclosures: () -> Unit,
-    onOpenVote: (String) -> Unit,
-    follow: MemberFollow? = null,
-    onPromise: (Int) -> Unit = {},
-    onOpenTopic: (String) -> Unit = {},
-    onRetryPromises: () -> Unit = {},
-    onRetryPosts: () -> Unit = {},
-) {
-    val colors = Palette
-    Column(Modifier.fillMaxSize().background(colors.ground).windowInsetsPadding(WindowInsets.statusBars)) {
-        TopBar(back = back, onBack = onBack)
-        Column(
-            Modifier
-                .fillMaxSize()
-                .verticalScroll(rememberScrollState())
-                .padding(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 32.dp + TabBarClearance),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
-        ) {
-            val member = state.member
-            if (follow != null && member != null) {
-                FollowButton(member, follow.following, follow.isRep, compact = false, onToggle = follow.onToggle)
-            }
-            val switch: @Composable () -> Unit = {
-                SectionSwitch(MemberSection.entries, state.section, { it.title }, onSection)
-            }
-            when (state.section) {
-                MemberSection.RECORD -> RecordContent(state, zone, switch, onSelectCall, onRetry, onOpenVote)
-                else -> Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                    if (member != null) MemberHeader(member)
-                    switch()
-                    val accounts = state.record.loaded?.detail?.accounts.orEmpty()
-                    when (state.section) {
-                        MemberSection.MONEY -> {
-                            SectionSwitch(MoneySegment.entries, state.moneySegment, { it.title }, onMoneySegment)
-                            if (state.moneySegment == MoneySegment.FUNDING) {
-                                MoneyContent(state.money, member, onRetryMoney)
-                            } else {
-                                DisclosuresContent(state.disclosures, member, onRetryDisclosures)
-                            }
-                        }
-                        MemberSection.SAID -> SaidContent(state.promises, member, state.promise, locale, onPromise, onOpenTopic, onRetryPromises)
-                        MemberSection.POSTS -> PostsContent(state.posts, member, accounts, zone, locale, onRetryPosts)
-                        else -> ContactContent(state.record, onRetry)
-                    }
-                }
-            }
-        }
-    }
-}
 
 @Composable
 internal fun Spinner(description: String, top: Int = 44) {
@@ -175,125 +84,10 @@ internal fun TryAgain(onRetry: () -> Unit) {
     )
 }
 
-/** The compact header Money and Contact put where the player card was. */
-@Composable
-private fun MemberHeader(member: Member) {
-    Row(
-        Modifier.semantics(mergeDescendants = true) { heading() },
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(10.dp),
-    ) {
-        MemberPortrait(member, Modifier.size(36.dp))
-        Text(member.fullName.uppercase(), style = FloorType.label(24f), color = Palette.text, maxLines = 2)
-    }
-}
-
-// MARK: - Votes
-
-@Composable
-private fun RecordContent(
-    state: MemberState,
-    zone: ZoneId,
-    switch: @Composable () -> Unit,
-    onSelectCall: (Int) -> Unit,
-    onRetry: () -> Unit,
-    onOpenVote: (String) -> Unit,
-) {
-    val colors = Palette
-    when (val record = state.record) {
-        Load.Loading -> Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-            switch()
-            Spinner("Loading this member")
-        }
-        is Load.Failed -> Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-            switch()
-            Column(Modifier.fillMaxWidth().padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                Text(record.message, style = FloorType.body(), color = colors.textSecondary)
-                TryAgain(onRetry)
-            }
-        }
-        is Load.Loaded -> {
-            val detail = record.value.detail
-            val votes = record.value.votes
-            val stats = RecordStats(votes)
-            Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                record.saved?.let { SavedDataNote(it) }
-                PlayerCard(detail)
-                switch()
-                Rings(detail.partyLoyalty, stats, detail.member)
-                Grid(stats, state.selectedCall, zone, onSelectCall, onOpenVote)
-                RecordFacts.didYouKnow(detail.member, votes, zone)?.let { text ->
-                    val label: @Composable () -> Unit = {
-                        Text("DID YOU KNOW", style = FloorType.display(15f, FloorType.Face.BLACK_ITALIC), color = colors.threshold, maxLines = 1)
-                    }
-                    if (androidx.compose.ui.platform.LocalDensity.current.fontScale >= 1.5f) {
-                        Column(Modifier.panel(colors).semantics(mergeDescendants = true) {}, verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                            label()
-                            Text(text, style = FloorType.text(13f), color = colors.textSecondary)
-                        }
-                    } else {
-                        Row(Modifier.panel(colors).semantics(mergeDescendants = true) {}, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                            label()
-                            Text(text, style = FloorType.text(13f), color = colors.textSecondary, modifier = Modifier.weight(1f))
-                        }
-                    }
-                }
-            }
-        }
-    }
-}
-
 private fun percent(share: Double?): String = share?.let { String.format(Locale.US, "%.1f%%", it * 100) } ?: "—"
 
 @Composable
-private fun PlayerCard(detail: MemberDetail) {
-    val colors = Palette
-    val member = detail.member
-    val loyalty = detail.partyLoyalty
-    val unity = percent(loyalty.withPartyShare)
-    val tier = Tier.of(loyalty.againstParty)
-    val spoken = "${member.fullName}, ${member.seatLine}. ${tier.name.lowercase().replaceFirstChar { it.uppercase() }}. " +
-        (if (loyalty.withPartyShare == null) "No party-loyalty figure. " else "$unity with party. ") + "${loyalty.againstParty} crossovers."
-    Box(
-        Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(18.dp))
-            .background(Brush.linearGradient(colors.silver))
-            .padding(5.dp)
-            .clearAndSetSemantics { contentDescription = spoken },
-    ) {
-        // At the largest sizes the card grows with its text rather than cutting it off.
-        val large = androidx.compose.ui.platform.LocalDensity.current.fontScale >= 1.5f
-        Row(
-            Modifier.fillMaxWidth()
-                .then(if (large) Modifier.heightIn(min = 170.dp) else Modifier.height(170.dp))
-                .clip(RoundedCornerShape(14.dp)).background(colors.panel),
-        ) {
-            MemberPortrait(member, Modifier.width(130.dp).height(170.dp), cornerRadius = 0.dp)
-            Column(Modifier.weight(1f).padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                SkewChip("${tier.name} · ${member.seatBadge}", foreground = colors.silverInk, background = colors.silver[2], size = 11f)
-                Text(member.fullName.uppercase(), style = FloorType.label(26f), color = colors.text, maxLines = 2, overflow = TextOverflow.Ellipsis)
-                Text(member.seatLine, style = FloorType.text(11f), color = colors.textMuted, maxLines = 1)
-                if (!large) Spacer(Modifier.weight(1f))
-                Box(Modifier.fillMaxWidth().height(1.dp).background(colors.panelBorder))
-                Row {
-                    Column {
-                        Text(unity, style = FloorType.label(22f), color = colors.text)
-                        Text("W/ PARTY", style = FloorType.text(9f, scales = false), color = colors.textMuted, maxLines = 1)
-                    }
-                    Spacer(Modifier.weight(1f))
-                    Column(horizontalAlignment = Alignment.End) {
-                        Text("${loyalty.againstParty}", style = FloorType.label(22f), color = colors.threshold)
-                        Text("CROSSOVERS", style = FloorType.text(9f, scales = false), color = colors.textMuted, maxLines = 1)
-                    }
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun Rings(loyalty: PartyLoyalty, stats: RecordStats, member: Member) {
+internal fun Rings(loyalty: PartyLoyalty, stats: RecordStats, member: Member) {
     val colors = Palette
     val withParty = loyalty.withPartyShare
     val showedSub = when {
@@ -343,7 +137,7 @@ private fun androidx.compose.foundation.layout.RowScope.RingFigure(share: Double
 }
 
 @Composable
-private fun Grid(stats: RecordStats, selectedCall: Int?, zone: ZoneId, onSelect: (Int) -> Unit, onOpenVote: (String) -> Unit) {
+internal fun Grid(stats: RecordStats, selectedCall: Int?, zone: ZoneId, onSelect: (Int) -> Unit, onOpenVote: (String) -> Unit) {
     val colors = Palette
     val calls = stats.calls
     val selected = if (calls.isEmpty()) null else minOf(selectedCall ?: (calls.size - 1), calls.size - 1)
@@ -456,25 +250,14 @@ private fun Readout(call: MemberVote, zone: ZoneId, onOpen: () -> Unit) {
     }
 }
 
-// MARK: - Contact
-
-@Composable
-private fun ContactContent(record: Load<MemberRecord>, onRetry: () -> Unit) {
-    val colors = Palette
-    when (record) {
-        Load.Loading -> Spinner("Loading the office's contact", top = 40)
-        is Load.Failed -> Column(Modifier.panel(colors), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Text(record.message, style = FloorType.text(13f), color = colors.textSecondary)
-            TryAgain(onRetry)
-        }
-        is Load.Loaded -> ContactRows(record.value.detail.member, record.value.detail.contact)
-    }
-}
-
 /** Where Write goes: the office's form; else the House's find-your-representative form; else the website. */
 private const val HOUSE_FIND_YOUR_REP = "https://www.house.gov/representatives/find-your-representative"
 
-/** Phone, write and website for one office (iOS `ContactRows`), and the line under them. */
+/**
+ * One office's contact (iOS `ContactRows`, Arena's `.callbtn`): the big call button in yea green
+ * with the number and the office, then the contact form, the website and the mailing address as
+ * rows, and the line under them.
+ */
 @Composable
 fun ContactRows(member: Member, contact: MemberContact?) {
     val colors = Palette
@@ -484,9 +267,15 @@ fun ContactRows(member: Member, contact: MemberContact?) {
         if (contact != null && (contact.phone != null || contact.website != null || contact.contactForm != null || house)) {
             val digits = contact.phone?.filter { it.isDigit() }.orEmpty()
             if (contact.phone != null && digits.isNotEmpty()) {
-                ContactRow("☎", contact.phone, contact.office?.let { "Washington office · $it" } ?: "Washington office",
-                    "Call ${member.lastName}'s Washington office, ${contact.phone}") {
-                    open(context, "tel:$digits", Intent.ACTION_DIAL)
+                val shape = RoundedCornerShape(16.dp)
+                Column(
+                    Modifier.fillMaxWidth().clip(shape).background(colors.yea, shape)
+                        .clickable(role = Role.Button) { open(context, "tel:$digits", Intent.ACTION_DIAL) }
+                        .clearAndSetSemantics { contentDescription = "Call ${member.lastName}'s Washington office, ${contact.phone}" }
+                        .padding(14.dp),
+                ) {
+                    Text(contact.phone, style = FloorType.display(22f, FloorType.Face.BLACK_ITALIC).copy(fontFeatureSettings = "tnum"), color = colors.callInk)
+                    Text(contact.office?.let { "Washington office · $it" } ?: "Washington office", style = FloorType.text(12f), color = colors.callInk)
                 }
             }
             val write = contact.contactForm ?: if (house) HOUSE_FIND_YOUR_REP else contact.website
@@ -501,6 +290,11 @@ fun ContactRows(member: Member, contact: MemberContact?) {
             contact.website?.let { site ->
                 val host = runCatching { java.net.URI(site).host }.getOrNull()?.removePrefix("www.") ?: site
                 ContactRow("↗", host, "Official website", "${member.lastName}'s official website") { open(context, site) }
+            }
+            contact.address?.takeIf { it.isNotBlank() }?.let { address ->
+                ContactRow("✉", address, "Mailing address", "${member.lastName}'s mailing address, $address") {
+                    open(context, "geo:0,0?q=" + android.net.Uri.encode(address))
+                }
             }
         } else {
             Column(
@@ -521,15 +315,13 @@ fun ContactRows(member: Member, contact: MemberContact?) {
 }
 
 @Composable
-private fun ContactRow(glyph: String, title: String, caption: String, spoken: String, onClick: () -> Unit) {
+internal fun ContactRow(glyph: String, title: String, caption: String, spoken: String, onClick: () -> Unit) {
     val colors = Palette
     val shape = RoundedCornerShape(12.dp)
     Row(
         Modifier
             .fillMaxWidth()
-            .clip(shape)
-            .background(colors.panel, shape)
-            .border(1.dp, colors.panelBorder, shape)
+            .glass(colors, shape)
             .clickable(role = Role.Button, onClick = onClick)
             .clearAndSetSemantics { contentDescription = spoken }
             .padding(horizontal = 11.dp, vertical = 9.dp),

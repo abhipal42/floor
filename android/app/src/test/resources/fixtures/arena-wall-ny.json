@@ -1,0 +1,231 @@
+{
+ "_note": "GET /v1/posts?members=N000002,S000148,G000555 (NY-12's three), recorded 2026-11-17 from floor-api.vercel.app, the posts from Nov 13 on.",
+ "posts": [
+  {
+   "id": "bluesky:at://did:plc:e7atmcvv2bblzo6biapuzi35/app.bsky.feed.post/3n2k3cpywmk2z",
+   "memberId": "G000555",
+   "network": "bluesky",
+   "postedAt": "2026-11-17T22:21:37.555Z",
+   "text": "Our service members deserve leaders who take their health and safety seriously.",
+   "url": "https://bsky.app/profile/kirstengillibrand.bsky.social/post/3n2k3cpywmk2z",
+   "mediaUrl": "https://video.bsky.app/watch/did%3Aplc%3Ae7atmcvv2bblzo6biapuzi35/bafkreic67i2ideikxzr67bq4h7smz2jnnze37tfz73eysvumoljtca5vym/thumbnail.jpg"
+  },
+  {
+   "id": "youtube:BsbzgclVtL8",
+   "memberId": "G000555",
+   "network": "youtube",
+   "postedAt": "2026-11-17T18:36:07.000Z",
+   "text": "The Trump Administration Has Failed Our Service Members",
+   "url": "https://www.youtube.com/watch?v=BsbzgclVtL8",
+   "mediaUrl": "https://i3.ytimg.com/vi/BsbzgclVtL8/hqdefault.jpg"
+  },
+  {
+   "id": "bluesky:at://did:plc:e7atmcvv2bblzo6biapuzi35/app.bsky.feed.post/3n2johgzez22b",
+   "memberId": "G000555",
+   "network": "bluesky",
+   "postedAt": "2026-11-17T18:31:37.258Z",
+   "text": "Suicide attempts are NOT mitigations.",
+   "url": "https://bsky.app/profile/kirstengillibrand.bsky.social/post/3n2johgzez22b",
+   "mediaUrl": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:e7atmcvv2bblzo6biapuzi35/bafkreib7ks2ygcyvefipde7hjmbfwkmek2auvfzoembghu6ddltsb2bgru"
+  },
+  {
+   "id": "youtube:lAjGWsE-ya0",
+   "memberId": "S000148",
+   "network": "youtube",
+   "postedAt": "2026-11-17T18:02:22.000Z",
+   "text": "WATCH: I am speaking live on the floor of the U.S. Senate",
+   "url": "https://www.youtube.com/watch?v=lAjGWsE-ya0",
+   "mediaUrl": "https://i1.ytimg.com/vi/lAjGWsE-ya0/hqdefault.jpg"
+  },
+  {
+   "id": "bluesky:at://did:plc:zlgotdjaxzuhw4nefvkxxvxa/app.bsky.feed.post/3n2jm3cjdhs2q",
+   "memberId": "S000148",
+   "network": "bluesky",
+   "postedAt": "2026-11-17T17:49:02.403Z",
+   "text": "The only talent Trump has is wasting Americans\u2019 hard-earned tax dollars.\n \nHe is the Interior-Decorator-In-Chief.",
+   "url": "https://bsky.app/profile/schumer.senate.gov/post/3n2jm3cjdhs2q",
+   "mediaUrl": null
+  },
+  {
+   "id": "bluesky:at://did:plc:lawfan5jdv75zng4kwjyfzey/app.bsky.feed.post/3n2jlhofeas23",
+   "memberId": "N000002",
+   "network": "bluesky",
+   "postedAt": "2026-11-17T17:38:03.767Z",
+   "text": "American children are now at serious risk from a preventable disease due to RFK Jr. and the \"MAHA\" agenda sabotaging our nation's most critical public health and science programs. Let me be clear: vaccines are safe and effective.",
+   "url": "https://bsky.app/profile/nadler.house.gov/post/3n2jlhofeas23",
+   "mediaUrl": null
+  },
+  {
+   "id": "bluesky:at://did:plc:zlgotdjaxzuhw4nefvkxxvxa/app.bsky.feed.post/3n2jkfe6ixk2q",
+   "memberId": "S000148",
+   "network": "bluesky",
+   "postedAt": "2026-11-17T17:18:52.206Z",
+   "text": "Instead of focusing on strengthening our bonds in Southeast Asia and countering China, Trump is treating the ASEAN conference in the Philippines as little more than a layover on his way to meet with Xi Jinping, Vladimir Putin, and potentially even Kim Jong Un.",
+   "url": "https://bsky.app/profile/schumer.senate.gov/post/3n2jkfe6ixk2q",
+   "mediaUrl": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:zlgotdjaxzuhw4nefvkxxvxa/bafkreiamc3an7wjwqt7n7un7sp74nf2t2rtdljdh2sfpau5dnkrtlenuh4"
+  },
+  {
+   "id": "bluesky:at://did:plc:zlgotdjaxzuhw4nefvkxxvxa/app.bsky.feed.post/3n2jhrr4r4223",
+   "memberId": "S000148",
+   "network": "bluesky",
+   "postedAt": "2026-11-17T16:32:07.208Z",
+   "text": "Beyond the blatant hypocrisy and disregard for the American people, Mullin watched the game in the box of a Louisiana CEO who has received over $2 billion in DHS contracts.\nnypost.com/2026/11/17/u...",
+   "url": "https://bsky.app/profile/schumer.senate.gov/post/3n2jhrr4r4223",
+   "mediaUrl": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:zlgotdjaxzuhw4nefvkxxvxa/bafkreidygxowho4ek274s665jd2g4mmhcsb3a4ohicl7trdn4mb6dosmtq"
+  },
+  {
+   "id": "bluesky:at://did:plc:lawfan5jdv75zng4kwjyfzey/app.bsky.feed.post/3n2jgeaqozk2u",
+   "memberId": "N000002",
+   "network": "bluesky",
+   "postedAt": "2026-11-17T16:06:40.087Z",
+   "text": "We must invest in public education to provide every American with the tools they need to grow and succeed. (1/2)",
+   "url": "https://bsky.app/profile/nadler.house.gov/post/3n2jgeaqozk2u",
+   "mediaUrl": null
+  },
+  {
+   "id": "youtube:JlA2eRiVeB8",
+   "memberId": "S000148",
+   "network": "youtube",
+   "postedAt": "2026-11-17T09:05:52.000Z",
+   "text": "Speaking live from the floor of the U.S. Senate",
+   "url": "https://www.youtube.com/watch?v=JlA2eRiVeB8",
+   "mediaUrl": "https://i3.ytimg.com/vi/JlA2eRiVeB8/hqdefault.jpg"
+  },
+  {
+   "id": "bluesky:at://did:plc:zlgotdjaxzuhw4nefvkxxvxa/app.bsky.feed.post/3n2hndq6af22j",
+   "memberId": "S000148",
+   "network": "bluesky",
+   "postedAt": "2026-11-16T23:06:19.419Z",
+   "text": "Since it wasn't enough to kick millions off their health insurance, Trump and RFK Jr. have allowed thousands to fall ill and even die by letting vaccine-preventable disease spread.\n\nThey will answer to Congress and the American people about how and why they let this happen.",
+   "url": "https://bsky.app/profile/schumer.senate.gov/post/3n2hndq6af22j",
+   "mediaUrl": null
+  },
+  {
+   "id": "bluesky:at://did:plc:zlgotdjaxzuhw4nefvkxxvxa/app.bsky.feed.post/3n2hjpq5urk2i",
+   "memberId": "S000148",
+   "network": "bluesky",
+   "postedAt": "2026-11-16T22:01:27.090Z",
+   "text": "Grocery prices are higher than ever. Trump's response?\n \nKick another 6 million off of food stamps and stop nearly 2 million kids from getting free school lunches.",
+   "url": "https://bsky.app/profile/schumer.senate.gov/post/3n2hjpq5urk2i",
+   "mediaUrl": null
+  },
+  {
+   "id": "youtube:UhqztuDAf7E",
+   "memberId": "G000555",
+   "network": "youtube",
+   "postedAt": "2026-11-16T22:00:06.000Z",
+   "text": "I DARE Trump to Veto This...",
+   "url": "https://www.youtube.com/watch?v=UhqztuDAf7E",
+   "mediaUrl": "https://i2.ytimg.com/vi/UhqztuDAf7E/hqdefault.jpg"
+  },
+  {
+   "id": "bluesky:at://did:plc:e7atmcvv2bblzo6biapuzi35/app.bsky.feed.post/3n2hjltegqc23",
+   "memberId": "G000555",
+   "network": "bluesky",
+   "postedAt": "2026-11-16T21:59:16.235Z",
+   "text": "Let's build on our blue tsunami and elect more leaders who are focused on making life better for working Americans!",
+   "url": "https://bsky.app/profile/kirstengillibrand.bsky.social/post/3n2hjltegqc23",
+   "mediaUrl": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:e7atmcvv2bblzo6biapuzi35/bafkreihba4slw2tiqvsi2o2bkya76uainpxaigcmvckdjpsoqzos3v3c6e"
+  },
+  {
+   "id": "bluesky:at://did:plc:lawfan5jdv75zng4kwjyfzey/app.bsky.feed.post/3n2gxbsdo2k2c",
+   "memberId": "N000002",
+   "network": "bluesky",
+   "postedAt": "2026-11-16T16:31:32.266Z",
+   "text": "Congress has already allocated $12.5 billion to repair our nation's aging air traffic control system. Yet Secretary Duffy and the Trump Administration have only spent a fraction of this investment and are blaming a router instead of taking accountability for this monumental failure. (1/2)",
+   "url": "https://bsky.app/profile/nadler.house.gov/post/3n2gxbsdo2k2c",
+   "mediaUrl": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:lawfan5jdv75zng4kwjyfzey/bafkreich4fozwhb3pe3timxyeki43sjabyu536trph3fo6waz24zek6gni"
+  },
+  {
+   "id": "bluesky:at://did:plc:e7atmcvv2bblzo6biapuzi35/app.bsky.feed.post/3n2ekrbe4zk22",
+   "memberId": "G000555",
+   "network": "bluesky",
+   "postedAt": "2026-11-15T17:42:13.207Z",
+   "text": "Go Bills!!",
+   "url": "https://bsky.app/profile/kirstengillibrand.bsky.social/post/3n2ekrbe4zk22",
+   "mediaUrl": "https://video.bsky.app/watch/did%3Aplc%3Ae7atmcvv2bblzo6biapuzi35/bafkreigy5bxxnmr2wnlr56frdnb4avuurtguefj2xfsnkqhucwkyd36tvq/thumbnail.jpg"
+  },
+  {
+   "id": "bluesky:at://did:plc:e7atmcvv2bblzo6biapuzi35/app.bsky.feed.post/3n2egditmh22q",
+   "memberId": "G000555",
+   "network": "bluesky",
+   "postedAt": "2026-11-15T16:22:56.325Z",
+   "text": "I'm committed to making sure our veterans get the care and benefits they've earned.",
+   "url": "https://bsky.app/profile/kirstengillibrand.bsky.social/post/3n2egditmh22q",
+   "mediaUrl": "https://video.bsky.app/watch/did%3Aplc%3Ae7atmcvv2bblzo6biapuzi35/bafkreifqbp5vxgyjmmmtuqma4dwgawruywg4mnkdiyjeis3g3xj2bfbk3y/thumbnail.jpg"
+  },
+  {
+   "id": "bluesky:at://did:plc:e7atmcvv2bblzo6biapuzi35/app.bsky.feed.post/3n2bzb6bu5s2m",
+   "memberId": "G000555",
+   "network": "bluesky",
+   "postedAt": "2026-11-14T17:23:40.026Z",
+   "text": "Our service members, veterans, and military families exemplify true bravery and sacrifice. We owe them a debt of gratitude.",
+   "url": "https://bsky.app/profile/kirstengillibrand.bsky.social/post/3n2bzb6bu5s2m",
+   "mediaUrl": "https://video.bsky.app/watch/did%3Aplc%3Ae7atmcvv2bblzo6biapuzi35/bafkreigv6nwads3hf5axdxnnhu4wuyegolsjiacwyxuo73bw6ea73utf6u/thumbnail.jpg"
+  },
+  {
+   "id": "bluesky:at://did:plc:e7atmcvv2bblzo6biapuzi35/app.bsky.feed.post/3n2bqem6zfc27",
+   "memberId": "G000555",
+   "network": "bluesky",
+   "postedAt": "2026-11-14T14:44:31.598Z",
+   "text": "The VA has never conducted large-scale research into the full impact of military toxic exposure on women\u2019s health \u2014 including infertility, birth defects, and developmental disabilities.\n\nThey deserve answers, and I\u2019m fighting to make sure they get them.",
+   "url": "https://bsky.app/profile/kirstengillibrand.bsky.social/post/3n2bqem6zfc27",
+   "mediaUrl": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:e7atmcvv2bblzo6biapuzi35/bafkreieuzfgwfzikhfxh7ya4uh3twqmuvk3v7wc4tuaimbfsnbrxq2saou"
+  },
+  {
+   "id": "youtube:_s9PU7Wvo1A",
+   "memberId": "G000555",
+   "network": "youtube",
+   "postedAt": "2026-11-14T14:39:18.000Z",
+   "text": "My Priorities in the New Congress:",
+   "url": "https://www.youtube.com/watch?v=_s9PU7Wvo1A",
+   "mediaUrl": "https://i4.ytimg.com/vi/_s9PU7Wvo1A/hqdefault.jpg"
+  },
+  {
+   "id": "bluesky:at://did:plc:lawfan5jdv75zng4kwjyfzey/app.bsky.feed.post/3n27thyij5s2m",
+   "memberId": "N000002",
+   "network": "bluesky",
+   "postedAt": "2026-11-13T20:34:46.908Z",
+   "text": "With Democrats in control of both chambers of Congress next year, we have the chance to address the growing dangers of AI. The Trump administration is attempting to empower greedy AI corporations to steal from authors, artists, and creators in the guise of \u201cnational security.\u201d",
+   "url": "https://bsky.app/profile/nadler.house.gov/post/3n27thyij5s2m",
+   "mediaUrl": null
+  },
+  {
+   "id": "bluesky:at://did:plc:lawfan5jdv75zng4kwjyfzey/app.bsky.feed.post/3n27th3oo522m",
+   "memberId": "N000002",
+   "network": "bluesky",
+   "postedAt": "2026-11-13T20:34:16.700Z",
+   "text": "Trump calls Artificial Intelligence \"Super Intelligence\". In reality, a more accurate name would be \"Stolen Intelligence.\"\n\nwww.billboard.com/pro/congress...",
+   "url": "https://bsky.app/profile/nadler.house.gov/post/3n27th3oo522m",
+   "mediaUrl": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:lawfan5jdv75zng4kwjyfzey/bafkreiec66bzqgagqi36upa66pi6qzymrd56oe6juuqipbnjckalkyhq7q"
+  },
+  {
+   "id": "bluesky:at://did:plc:lawfan5jdv75zng4kwjyfzey/app.bsky.feed.post/3n27n7r4iss26",
+   "memberId": "N000002",
+   "network": "bluesky",
+   "postedAt": "2026-11-13T18:42:48.287Z",
+   "text": "Donald Trump is lying to the public and denigrating the US service members who lost their lives as a direct consequence of his illegal war of choice in Iran. \n\nwww.washingtonpost.com/politics/202...",
+   "url": "https://bsky.app/profile/nadler.house.gov/post/3n27n7r4iss26",
+   "mediaUrl": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:lawfan5jdv75zng4kwjyfzey/bafkreigebehtjcoitun2foa5obqh5fbrry3q4oyuphkgs4dnhobuipznri"
+  },
+  {
+   "id": "youtube:aedhpeobkLM",
+   "memberId": "G000555",
+   "network": "youtube",
+   "postedAt": "2026-11-13T17:48:15.000Z",
+   "text": "My Priorities in the New Congress:",
+   "url": "https://www.youtube.com/watch?v=aedhpeobkLM",
+   "mediaUrl": "https://i2.ytimg.com/vi/aedhpeobkLM/hqdefault.jpg"
+  },
+  {
+   "id": "bluesky:at://did:plc:e7atmcvv2bblzo6biapuzi35/app.bsky.feed.post/3n27i6k3k5222",
+   "memberId": "G000555",
+   "network": "bluesky",
+   "postedAt": "2026-11-13T17:12:38.653Z",
+   "text": "Senate Democrats are ready to lower costs, end the war with Iran, and make life more affordable for working Americans.",
+   "url": "https://bsky.app/profile/kirstengillibrand.bsky.social/post/3n27i6k3k5222",
+   "mediaUrl": "https://video.bsky.app/watch/did%3Aplc%3Ae7atmcvv2bblzo6biapuzi35/bafkreigkqaono373t7tqmnci2m46a5ixyb7ck7ojuphcd4ykyio5vadfxq/thumbnail.jpg"
+  }
+ ],
+ "unreadable": []
+}

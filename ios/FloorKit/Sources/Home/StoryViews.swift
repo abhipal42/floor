@@ -42,23 +42,7 @@ struct StoryCard: View {
             .padding(.top, 13)
             .padding(.bottom, 14)
         }
-        .background(Palette.card)
-        .clipShape(.rect(cornerRadius: Self.radius))
-        .overlay {
-            RoundedRectangle(cornerRadius: Self.radius)
-                .strokeBorder(
-                    LinearGradient(stops: [.init(color: Palette.storyEdge, location: 0.18),
-                                           .init(color: Palette.storyEdgeFaint, location: 0.4)],
-                                   startPoint: .topLeading, endPoint: .bottomTrailing),
-                    lineWidth: 1
-                )
-        }
-        .overlay(alignment: .top) {
-            // Arena's inset top highlight: a 1pt light inside the card's top edge.
-            Rectangle().fill(Palette.storyInnerHighlight).frame(height: 1).padding(.horizontal, Self.radius).padding(.top, 1)
-                .accessibilityHidden(true)
-        }
-        .shadow(color: Palette.storyShadow, radius: 20, y: 14)
+        .heroCard(cornerRadius: Self.radius, fill: Palette.card)
         .accessibilityElement(children: .contain)
     }
 
@@ -318,8 +302,7 @@ struct MiniStoryRow: View {
         }
         .padding(.horizontal, 13)
         .padding(.vertical, 11)
-        .background(Palette.card, in: .rect(cornerRadius: 16))
-        .overlay(RoundedRectangle(cornerRadius: 16).strokeBorder(Palette.cardBorder, lineWidth: 1))
+        .glassCard(cornerRadius: 16, fill: Palette.card, border: Palette.cardBorder)
         .contentShape(.rect)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("\(story.title). \(Stories.miniLine(story, calendar: calendar)). \(vote.totals.yea) to \(vote.totals.nay).")

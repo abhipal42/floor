@@ -1,13 +1,12 @@
 package app.floor.android.member
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.windowInsetsPadding
@@ -16,7 +15,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
@@ -28,13 +26,12 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import app.floor.android.bill.open
+import app.floor.android.design.BlockHeader
 import app.floor.android.design.DashedPlaceholder
-import app.floor.android.design.ElectAvatar
+import app.floor.android.design.glass
 import app.floor.android.design.FloorType
 import app.floor.android.design.Palette
 import app.floor.android.design.SavedDataNote
-import app.floor.android.design.SectionSwitch
-import app.floor.android.design.Tones
 import app.floor.android.design.panel
 import app.floor.android.home.TabBarClearance
 import app.floor.android.model.Chamber
@@ -49,115 +46,83 @@ import app.floor.android.vote.TopBar
 import java.util.Locale
 
 /**
- * A member-elect before they take office (iOS `ElectScreenView`, the locked members-elect mock's
- * section B): the member screen's Votes · Money · Contact, each saying plainly what exists yet. As on
- * iOS there is no Follow (following is by Bioguide ID, which most senators-elect lack) and Money
- * shows only the campaign's FEC totals, the one figure the route serves.
+ * A member-elect before they take office (iOS `ElectScreenView`, drawn as the one-scroll member
+ * page): the same party hero with no stats or streak ("Senator-elect · Michigan · Democrat", when
+ * they take office and who called the race), then Money (the campaign's FEC totals and any
+ * candidate report) and Contact, each saying plainly what exists yet. As on iOS there is no Follow
+ * (following is by Bioguide ID, which most senators-elect lack).
  */
 @Composable
-fun ElectScreen(
-    state: ElectState,
-    back: String,
-    locale: Locale,
-    onBack: () -> Unit,
-    onSection: (MemberSection) -> Unit,
-    onMoneySegment: (MoneySegment) -> Unit,
-    onRetry: () -> Unit,
-) {
+fun ElectScreen(state: ElectState, back: String, locale: Locale, onBack: () -> Unit, onRetry: () -> Unit) {
     val colors = Palette
-    Column(Modifier.fillMaxSize().background(colors.ground).windowInsetsPadding(WindowInsets.statusBars)) {
-        TopBar(back = back, onBack = onBack)
-        Column(
-            Modifier.fillMaxSize().verticalScroll(rememberScrollState())
-                .padding(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 32.dp + TabBarClearance),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
-        ) {
-            when (val load = state.profile) {
-                Load.Loading -> Spinner("Loading this member-elect", top = 60)
-                is Load.Failed -> Column(Modifier.panel(colors), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text(load.message, style = FloorType.text(13f), color = colors.textSecondary)
-                    TryAgain(onRetry)
-                }
-                is Load.Loaded -> {
-                    val profile = load.value
-                    if (profile == null) {
-                        DashedPlaceholder(
-                            "No longer listed",
-                            "Floor lists members-elect only until they take office, and this one isn't on the list now. " +
-                                "Once sworn in, they're found by name in search.",
-                            Modifier.padding(top = 20.dp),
-                        )
-                    } else {
-                        load.saved?.let { SavedDataNote(it) }
-                        Hero(profile.elect)
-                        SectionSwitch(MemberSection.elect, state.section, { it.title }, onSection)
-                        when (state.section) {
-                            MemberSection.RECORD -> Votes(profile.elect, locale)
-                            MemberSection.MONEY -> {
-                                SectionSwitch(MoneySegment.entries, state.moneySegment, { it.title }, onMoneySegment)
-                                if (state.moneySegment == MoneySegment.FUNDING) ElectFundingView(profile, locale) else ElectDisclosureView(profile)
-                            }
-                            MemberSection.CONTACT -> ElectContact(profile.elect, locale)
-                            MemberSection.SAID, MemberSection.POSTS -> {}
-                        }
+    val load = state.profile
+    val profile = (load as? Load.Loaded)?.value
+    if (profile == null) {
+        Column(Modifier.fillMaxSize().background(colors.ground).windowInsetsPadding(WindowInsets.statusBars)) {
+            TopBar(back = back, onBack = onBack)
+            Column(Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
+                when (load) {
+                    Load.Loading -> Spinner("Loading this member-elect", top = 60)
+                    is Load.Failed -> Column(Modifier.panel(colors), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text(load.message, style = FloorType.text(13f), color = colors.textSecondary)
+                        TryAgain(onRetry)
                     }
+                    is Load.Loaded -> DashedPlaceholder(
+                        "No longer listed",
+                        "Floor lists members-elect only until they take office, and this one isn't on the list now. " +
+                            "Once sworn in, they're found by name in search.",
+                        Modifier.padding(top = 20.dp),
+                    )
                 }
             }
         }
+        return
     }
-}
-
-@Composable
-private fun Hero(elect: MemberElect) {
-    val colors = Palette
+    val elect = profile.elect
+    val context = LocalContext.current
     val seat = if (elect.chamber == Chamber.SENATE) StateName.full(elect.state) else elect.asMember.seatBadge
-    Row(
-        Modifier.padding(vertical = 4.dp).semantics(mergeDescendants = true) { heading() },
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
-    ) {
-        ElectAvatar(elect, 54.dp)
-        Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
-            Text(elect.fullName.uppercase(), style = FloorType.headline(30f), color = colors.text, maxLines = 2)
-            Text("${elect.title} · $seat · ${PartyName.singular(elect.party)}", style = FloorType.text(12f, FontWeight.Medium), color = colors.textMuted)
+    val subtitle = "${elect.title} · $seat · ${PartyName.singular(elect.party)}"
+    val (eyebrow, line) = takesOffice(elect, locale)
+    Column(Modifier.fillMaxSize().background(colors.ground).verticalScroll(rememberScrollState()).padding(bottom = 32.dp + TabBarClearance)) {
+        MemberHero(
+            elect.asMember, eyebrow.uppercase(), subtitle, "${elect.fullName}. $subtitle. $eyebrow. $line", back, onBack,
+        ) {
+            Text(line, style = FloorType.text(11.5f, FontWeight.Medium), color = colors.heroInk, modifier = Modifier.padding(top = 14.dp))
+            elect.call.sourceUrl?.let { url ->
+                val host = runCatching { java.net.URI(url).host }.getOrNull()?.removePrefix("www.") ?: "the call"
+                Text(
+                    "Source · $host ›",
+                    style = FloorType.text(11f, FontWeight.Bold), color = colors.heroInk,
+                    modifier = Modifier.padding(top = 6.dp).clip(RoundedCornerShape(4.dp))
+                        .clickable(role = androidx.compose.ui.semantics.Role.Button) { open(context, url) }.padding(vertical = 2.dp),
+                )
+            }
+        }
+        load.saved?.let { Column(Modifier.padding(start = 16.dp, end = 16.dp, top = 12.dp)) { SavedDataNote(it) } }
+        Column(Modifier.padding(start = 16.dp, end = 16.dp, top = 18.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            BlockHeader("Money")
+            ElectFundingView(profile, locale)
+            ElectDisclosureView(profile)
+        }
+        Column(Modifier.padding(start = 16.dp, end = 16.dp, top = 22.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            BlockHeader("Contact")
+            ElectContact(elect, locale)
         }
     }
 }
 
-@Composable
-private fun Votes(elect: MemberElect, locale: Locale) {
-    val colors = Palette
-    val context = LocalContext.current
+/** The hero's eyebrow (`Takes office Jan 3, 2027`) and its line (`Elected Nov 3 to … AP called it.`). */
+private fun takesOffice(elect: MemberElect, locale: Locale): Pair<String, String> {
     val elected = ElectText.electionDay(elect)?.let { ElectText.day(it, locale) }
     val seatName = ElectText.seatName(elect.state, elect.district, elect.chamber)
     val called = ElectText.calledBy(elect.call)
-    val title: String
-    val line: String
-    if (elect.takesOfficeOnCertification) {
-        title = "Takes office when ${StateName.full(elect.state)} certifies the result"
+    return if (elect.takesOfficeOnCertification) {
         val seat = elect.replaces?.let { "the seat ${it.fullName} holds" } ?: seatName
-        line = "Won the special election${elected?.let { " on $it" } ?: ""} for $seat. $called."
+        "Takes office when ${StateName.full(elect.state)} certifies" to "Won the special election${elected?.let { " on $it" } ?: ""} for $seat. $called."
     } else {
-        title = "Takes office ${ElectText.day(elect.takesOffice, locale) ?: elect.takesOffice}"
         val seat = elect.replaces?.let { "the seat ${it.fullName} is leaving" } ?: seatName
-        line = "${elected?.let { "Elected $it" } ?: "Elected"} to $seat. $called."
-    }
-    val congress = ElectText.congress(elect)?.let { " in the ${StateName.ordinal(it)} Congress" } ?: ""
-    val shape = RoundedCornerShape(12.dp)
-    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        Column(
-            Modifier.fillMaxWidth().clip(shape).background(colors.elect.copy(alpha = Tones.ELECT_TINT), shape)
-                .border(1.dp, colors.elect.copy(alpha = 0.35f), shape).padding(horizontal = 11.dp, vertical = 9.dp),
-            verticalArrangement = Arrangement.spacedBy(4.dp),
-        ) {
-            Text(title.uppercase(), style = FloorType.label(12f).copy(letterSpacing = 1.2.sp), color = colors.elect)
-            Text(line, style = FloorType.text(11f, FontWeight.Medium), color = colors.textSecondary)
-            elect.call.sourceUrl?.let { url ->
-                val host = runCatching { java.net.URI(url).host }.getOrNull()?.removePrefix("www.") ?: "the call"
-                Source("Source · $host") { open(context, url) }
-            }
-        }
-        DashedPlaceholder("No votes yet", "The record starts with ${elect.lastName}'s first roll call$congress.")
+        "Takes office ${ElectText.day(elect.takesOffice, locale) ?: elect.takesOffice}" to
+            "${elected?.let { "Elected $it" } ?: "Elected"} to $seat. $called."
     }
 }
 
@@ -203,7 +168,7 @@ private fun Figure(title: String, value: String, spoken: String, modifier: Modif
     val colors = Palette
     val shape = RoundedCornerShape(12.dp)
     Column(
-        modifier.clip(shape).background(colors.panel, shape).border(1.dp, colors.panelBorder, shape)
+        modifier.glass(colors, shape)
             .padding(horizontal = 10.dp, vertical = 9.dp).clearAndSetSemantics { contentDescription = "$title: $spoken" },
         verticalArrangement = Arrangement.spacedBy(3.dp),
     ) {

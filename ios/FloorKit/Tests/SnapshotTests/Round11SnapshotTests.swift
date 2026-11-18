@@ -78,7 +78,7 @@ struct Round11SnapshotTests {
     @Test func memberContact() async throws {
         let model = RepScreenModel(bioguideId: "D000399", api: FixtureServer.api)
         await model.load()
-        assertScreen(NavigationStack { RepScreenView(model: model, section: .contact) }, height: 700)
+        assertScreen(NavigationStack { MemberSectionPage(model: model, section: .contact) }, height: 700)
     }
 
     /// H.R. 5267: the banner, and Speak up and Share under the summary.
@@ -165,7 +165,7 @@ struct Round11SnapshotTests {
         model.moneySegment = .disclosures
         await model.load()
         await model.disclosures.load()
-        assertScreen(NavigationStack { RepScreenView(model: model, section: .money) }, height: 1700)
+        assertScreen(NavigationStack { MemberSectionPage(model: model, section: .money) }, height: 1700)
     }
 
     /// A handwritten report Floor's AI transcribed: the AI tag above the rows, the link below.
@@ -174,7 +174,7 @@ struct Round11SnapshotTests {
         model.moneySegment = .disclosures
         await model.load()
         await model.disclosures.load()
-        assertScreen(NavigationStack { RepScreenView(model: model, section: .money) }, height: 800, [.light, .dark])
+        assertScreen(NavigationStack { MemberSectionPage(model: model, section: .money) }, height: 800, [.light, .dark])
     }
 
     /// Off, as production serves it: the placeholder with the API's own reason.
@@ -183,7 +183,7 @@ struct Round11SnapshotTests {
         model.moneySegment = .disclosures
         await model.load()
         await model.disclosures.load()
-        assertScreen(NavigationStack { RepScreenView(model: model, section: .money) }, height: 700, [.light, .dark])
+        assertScreen(NavigationStack { MemberSectionPage(model: model, section: .money) }, height: 700, [.light, .dark])
     }
 }
 #endif

@@ -770,3 +770,13 @@ public final class HomeModel {
         }
     }
 }
+
+extension HomeModel.Route {
+    /// A screen whose party-colour hero runs under a clear navigation bar.
+    var hasHero: Bool {
+        switch self {
+        case .member, .elect: true
+        default: false
+        }
+    }
+}

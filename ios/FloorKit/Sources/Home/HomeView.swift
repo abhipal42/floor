@@ -69,13 +69,8 @@ public struct HomeView: View {
             await model.load()
             await model.loadSeats()
         }
-        .background(alignment: .top) {
-            // Arena's soft glow at the top of the ground.
-            EllipticalGradient(colors: [Palette.groundGlow, Palette.ground], center: .top, startRadiusFraction: 0, endRadiusFraction: 0.6)
-                .frame(height: 760)
-                .ignoresSafeArea()
-        }
-        .background(Palette.ground)
+        // Arena's soft glow at the top of the ground.
+        .groundGlow()
         // Keyed by the set of your members and the chamber: following someone fetches just them, a
         // new chamber fetches its latest finals, and anything else (a first load, a refresh that was
         // cancelled) loads everything. Reordering only regroups the cards.
@@ -194,8 +189,7 @@ public struct HomeView: View {
         .frame(maxWidth: .infinity)
         .padding(.vertical, 10)
         .padding(.horizontal, 6)
-        .background(Palette.panel, in: .rect(cornerRadius: 14))
-        .overlay(RoundedRectangle(cornerRadius: 14).stroke(Palette.panelBorder, lineWidth: 1))
+        .glassCard(cornerRadius: 14)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(Spoken.delegationCard(member, withPartyShare: share))
         .accessibilityHint("Opens their record")

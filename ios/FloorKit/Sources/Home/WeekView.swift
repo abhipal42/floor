@@ -50,7 +50,7 @@ public struct WeekView: View {
             .padding(.top, 8)
             .padding(.bottom, 24)
         }
-        .background(Palette.ground)
+        .groundGlow()
         .refreshable { await model.load() }
         .task { if model.needsRefresh { await model.load() } }
         // A measure named in the Senate's program is a `floor://bill/<id>` link in the text.
@@ -266,8 +266,7 @@ public struct WeekView: View {
             .padding(.horizontal, 11)
             .padding(.vertical, 9)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .background(Palette.panel, in: .rect(cornerRadius: 12))
-            .overlay(RoundedRectangle(cornerRadius: 12).stroke(Palette.panelBorder, lineWidth: 1))
+            .glassCard(cornerRadius: 12)
             .accessibilityElement(children: .combine)
             if !meeting.proForma {
                 VStack(alignment: .leading, spacing: 5) {
@@ -290,8 +289,7 @@ public struct WeekView: View {
                 .padding(.horizontal, 11)
                 .padding(.vertical, 10)
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .background(Palette.panel, in: .rect(cornerRadius: 12))
-                .overlay(RoundedRectangle(cornerRadius: 12).stroke(Palette.panelBorder, lineWidth: 1))
+                .glassCard(cornerRadius: 12)
             }
         }
     }

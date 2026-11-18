@@ -237,10 +237,14 @@ final class FixtureServer: URLProtocol {
         "/v1/members/G000555": "member-detail-gillibrand",
         "/v1/members/G000555/votes": "member-votes-gillibrand-40",
         "/v1/members/G000555/promises": "promises-gillibrand",
-        "/v1/members/S000148": "member-detail-schumer",
-        "/v1/members/S000148/votes": "member-votes-schumer-40",
-        "/v1/members/S000148/posts": "posts-schumer",
-        "/v1/posts?members=S000148,N000002": "posts-wall-schumer-nadler",
+        // v0.2.58, the one-scroll member page and posts rebuilt: Schumer's record, money, promises
+        // and posts, and his and Nadler's wall, as the API served them on 2026-11-17.
+        "/v1/members/S000148": "member-detail-schumer-2026-11-17",
+        "/v1/members/S000148/votes": "member-votes-schumer-40-2026-11-17",
+        "/v1/members/S000148/funding": "funding-S000148",
+        "/v1/members/S000148/promises": "promises-schumer",
+        "/v1/members/S000148/posts": "posts-schumer-2026-11-17",
+        "/v1/posts?members=S000148,N000002": "posts-wall-schumer-nadler-2026-11-17",
     ]
 
     static var api: FloorAPI { api(FixtureServer.self) }
@@ -280,10 +284,16 @@ final class OfflineServer: URLProtocol {
     override func stopLoading() {}
 }
 
-/// Member portraits come from the network through `AsyncImage`. Refusing them makes every
-/// portrait its initials, which is the same on every machine and needs no network.
+/// Member portraits and posts' images come from the network through `AsyncImage`. Refusing them
+/// makes every portrait its initials and every thumbnail its placeholder, which is the same on every
+/// machine and needs no network.
 final class NoPortraits: URLProtocol {
-    override class func canInit(with request: URLRequest) -> Bool { request.url?.host == "unitedstates.github.io" }
+    static let hosts: Set<String> = [
+        "unitedstates.github.io", "i1.ytimg.com", "i2.ytimg.com", "i3.ytimg.com", "i4.ytimg.com", "i.ytimg.com",
+        "cdn.bsky.app", "video.bsky.app",
+    ]
+
+    override class func canInit(with request: URLRequest) -> Bool { request.url?.host.map(hosts.contains) ?? false }
     override class func canonicalRequest(for request: URLRequest) -> URLRequest { request }
     override func startLoading() { client?.urlProtocol(self, didFailWithError: URLError(.notConnectedToInternet)) }
     override func stopLoading() {}
