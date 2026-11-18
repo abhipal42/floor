@@ -697,6 +697,23 @@
             "description": "The opening of the bill's CRS summary (the text the bill route serves as `summary`) without its title line: the first sentence, or two when the first is short, cut at a sentence end, at most about 320 characters. CRS's words, not AI. Null for a nomination and for a bill CRS has not summarized",
             "example": "This bill allows a veteran with a combat-related disability to receive retirement pay, without reduction, concurrently with their disability compensation."
           },
+          "stage": {
+            "type": "string",
+            "nullable": true,
+            "enum": [
+              "introduced",
+              "passed_house",
+              "passed_senate",
+              "passed_both",
+              "to_president",
+              "law",
+              "vetoed",
+              "failed",
+              "adopted"
+            ],
+            "description": "A bill's stage on the road to law, as BillListItem.stage, so a list can draw its progress without a request per bill; null for a nomination and for a bill the worker has not staged",
+            "example": "passed_house"
+          },
           "position": {
             "type": "string",
             "nullable": true,
@@ -718,6 +735,7 @@
           "policyArea",
           "sponsor",
           "summaryLead",
+          "stage",
           "position",
           "forBillId"
         ],
