@@ -185,6 +185,17 @@ struct PaletteTests {
         }
     }
 
+    /// A topic family's colour as text on the ground (Bills' section headers, Week's fast-track
+    /// numerals, both large display type): 4.5:1 in dark, and at least the large-text 3:1 in light.
+    @Test func everyTopicReadsAsTextOnTheGround() {
+        for group in TopicGroup.allCases {
+            let tone = Tones.topicText(group)
+            #expect(Swatch.contrast(tone.dark, Tones.ground.dark) >= 4.5, "\(group) dark topic text is under 4.5:1")
+            #expect(Swatch.contrast(tone.light, Tones.ground.light) >= 3, "\(group) light topic text is under 3:1")
+            #expect(Swatch.contrast(tone.light, Tones.card.light) >= 4.5, "\(group) light topic text is under 4.5:1 on a card")
+        }
+    }
+
     /// The member page's hero is white text on a party gradient: both ends of it, in both
     /// appearances, for each party (and independents' grey).
     @Test func everyHeroReadsInWhite() {

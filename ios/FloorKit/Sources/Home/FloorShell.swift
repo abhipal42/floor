@@ -67,7 +67,8 @@ public struct FloorShell: View {
                 )
             }
             stack(.week, path: $weekPath, title: "Week") {
-                WeekView(model: week) { weekPath.append(.bill(id: $0)) }
+                WeekView(model: week, votes: model.loadedVotes, onOpenBill: { weekPath.append(.bill(id: $0)) },
+                         onOpen: { weekPath.append($0) })
             }
             stack(.bills, path: $billsPath, title: "Bills") {
                 BillsView(model: model) { billsPath.append(.bill(id: $0)) }
@@ -177,8 +178,16 @@ public struct FloorShell: View {
             ElectScreenView(model: model.electScreen(id: id))
                 .navigationTitle("Member-elect")
         case .catchUp:
+            // The deck draws its own ✕ and title, so the bar is hidden.
             CatchUpDeckView(model: model) { path.wrappedValue.append(.vote(id: $0)) }
                 .navigationTitle("Catch up")
+                .hideNavigationBar()
+        case .weekSenate:
+            WeekSenateView(model: week) { path.wrappedValue.append(.bill(id: $0)) }
+                .navigationTitle("Senate")
+        case let .fastTrack(group):
+            FastTrackView(model: week, group: group) { path.wrappedValue.append(.bill(id: $0)) }
+                .navigationTitle(group?.name ?? "Fast track")
         case .alerts:
             AlertsView(model: model.alertsModel())
                 .navigationTitle("Alerts")

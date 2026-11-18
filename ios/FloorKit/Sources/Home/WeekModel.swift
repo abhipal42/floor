@@ -19,9 +19,6 @@ public final class WeekModel {
     public private(set) var saved: SavedCopy?
     /// Weeks from this one: 0 is this week, 1 next week (the ingest stores both), -1 last week.
     public private(set) var offset = 0
-    public var chamber: Chamber = .house
-    /// Groups whose "+ N more" was tapped, by category.
-    public var expanded: Set<ScheduleCategory> = []
 
     public let follows: Follows
     @ObservationIgnored private let api: FloorAPI
@@ -34,6 +31,9 @@ public final class WeekModel {
         self.now = now
     }
 
+    /// Today in Washington, `YYYY-MM-DD`: which Senate meeting is "today".
+    public var today: String { WeekPlan.day(now()) }
+
     /// The Monday asked for, `YYYY-MM-DD`.
     public var week: String { Schedule.monday(of: now(), offsetWeeks: offset) }
 
@@ -45,7 +45,6 @@ public final class WeekModel {
     public func show(offset: Int) async {
         guard offset != self.offset else { return }
         self.offset = offset
-        expanded = []
         phase = .loading
         await load()
     }

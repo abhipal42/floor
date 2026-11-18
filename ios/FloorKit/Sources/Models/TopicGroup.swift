@@ -45,6 +45,21 @@ public enum TopicGroup: String, CaseIterable, Sendable, Hashable {
         "Sports and Recreation": .other,
     ]
 
+    /// The family's name, as the Bills tab's section headers and the Week tab's fast-track tiles
+    /// print it: `Defense`, `Money`. The same words as Android's `TopicGroup.label`.
+    public var name: String {
+        switch self {
+        case .defense: "Defense"
+        case .money: "Money"
+        case .courts: "Courts"
+        case .health: "Health"
+        case .land: "Land"
+        case .rights: "Rights"
+        case .gov: "Government"
+        case .other: "Other"
+        }
+    }
+
     public static func of(policyArea: String?) -> TopicGroup {
         policyArea.flatMap { table[$0] } ?? .other
     }

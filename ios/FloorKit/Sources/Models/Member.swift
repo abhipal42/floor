@@ -199,10 +199,15 @@ public struct MeasureSummary: Codable, Sendable, Hashable, Identifiable {
     /// For a House special rule, the bill it brings to the floor (`119-hr-2102`), so a feed can file
     /// the rule's votes under that bill.
     public var forBillId: String?
+    /// A bill's stage on the road to law, as ``BillListItem/stage`` gives it, so the Bills tab can
+    /// draw its progress without a request per bill. nil for a nomination, a bill not staged yet, a
+    /// stage newer than this build, and a response from before v0.2.59.
+    public var stage: BillStage?
 
     public init(
         id: String, kind: Kind, citation: String, title: String, policyArea: String? = nil,
-        sponsor: MeasureSponsor? = nil, summaryLead: String? = nil, position: String? = nil, forBillId: String? = nil
+        sponsor: MeasureSponsor? = nil, summaryLead: String? = nil, position: String? = nil, forBillId: String? = nil,
+        stage: BillStage? = nil
     ) {
         self.id = id
         self.kind = kind
@@ -213,6 +218,26 @@ public struct MeasureSummary: Codable, Sendable, Hashable, Identifiable {
         self.summaryLead = summaryLead
         self.position = position
         self.forBillId = forBillId
+        self.stage = stage
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case id, kind, citation, title, policyArea, sponsor, summaryLead, position, forBillId, stage
+    }
+
+    /// An unknown or absent `stage` decodes as nil rather than failing the row, as ``ScheduleItem`` does.
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id = try c.decode(String.self, forKey: .id)
+        kind = try c.decode(Kind.self, forKey: .kind)
+        citation = try c.decode(String.self, forKey: .citation)
+        title = try c.decode(String.self, forKey: .title)
+        policyArea = try c.decodeIfPresent(String.self, forKey: .policyArea)
+        sponsor = try c.decodeIfPresent(MeasureSponsor.self, forKey: .sponsor)
+        summaryLead = try c.decodeIfPresent(String.self, forKey: .summaryLead)
+        position = try c.decodeIfPresent(String.self, forKey: .position)
+        forBillId = try c.decodeIfPresent(String.self, forKey: .forBillId)
+        stage = try c.decodeIfPresent(String.self, forKey: .stage).flatMap(BillStage.init(rawValue:))
     }
 
     /// `H.R. 1013 · Retirement Fairness Act`, as a card headline.
