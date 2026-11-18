@@ -2456,6 +2456,34 @@ https://claude.ai/artifact/HP3nZFoQ4jUppnjKsC1MfV, the app-wide look the owner l
   (lesson 69). The split-flap board and the per-vote scoreboard cards are gone from Finals.
 - A nomination card opens its confirmation vote: neither app has a nomination screen yet.
 
+### Arena: the member page and posts (v0.2.58)
+
+Locked mocks: Arena, direction 1 of https://claude.ai/artifact/HP3nZFoQ4jUppnjKsC1MfV; the member page as
+one scroll, option B of https://claude.ai/artifact/Jaqz5c8EGoCQd8Wb8ELBns.
+
+- **Glass everywhere.** Every card goes through one shared surface: iOS's glass style in DesignSystem, Android's
+  `Modifier.glass`. It is the card fill, a hairline, a 1pt top highlight and a soft shadow. Story and post cards
+  add the gradient hairline. Every tab's root screen has the top glow. Android draws all of it with brushes and
+  shadows, never a layer scale (lesson 76).
+- **The member page is one scroll:**
+  - a hero in the party's colour (lit the same in light and dark), with the portrait, three stat tiles and the
+    40-call streak;
+  - sticky jump chips;
+  - then the sections: Votes (3 rows), Said (a promise rail), Posts (2), Money (tiles and the source bar),
+    Contact (the call button).
+  Each section's "All › / Details ›" opens the full old content on its own screen. The five-segment switch is
+  gone. Members-elect get the hero (with the takes-office line), then Money and Contact, and no chips.
+- **Posts:**
+  - every post leads with the portrait, carrying the network's brand-coloured badge, the name, the party and
+    "@handle · time";
+  - YouTube gets a play button; a photo is capped at 220; a URL plus an image becomes a link card; "(1/N)" reads
+    "Thread · N posts";
+  - all of that is read from the post alone, never fetched.
+  The wall gets member filter chips and day dividers (zone and locale passed in). The API sends no handle per
+  post, so the wall reads it from the post's URL, and a YouTube post shows the time alone.
+- **Contrast:** grey text (`textMuted`) is 4.38:1 on the light promise card, so the card's topic line uses
+  `textSecondary`. PaletteTests checks it.
+
 ### M5: Beta hardening + App Store
 Accessibility (Dynamic Type, VoiceOver on score cards), privacy labels, a vote-night load test, App Review prep, public TestFlight.
 

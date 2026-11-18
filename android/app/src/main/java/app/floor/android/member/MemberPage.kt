@@ -407,7 +407,7 @@ private fun PromiseCard(promise: Promise, year: Int?, onOpen: () -> Unit) {
             .padding(14.dp),
         verticalArrangement = Arrangement.spacedBy(7.dp),
     ) {
-        Text("$topic · $where".uppercase(), style = FloorType.text(9.5f, FontWeight.ExtraBold).copy(letterSpacing = 1.2.sp), color = colors.textMuted, maxLines = 2)
+        Text("$topic · $where".uppercase(), style = FloorType.text(9.5f, FontWeight.ExtraBold).copy(letterSpacing = 1.2.sp), color = colors.textSecondary, maxLines = 2) // textMuted is 4.38:1 on light promiseTop; iOS matches
         Text(promise.headline.uppercase(), style = FloorType.display(19f).copy(lineHeight = 1.05.em), color = colors.text)
         Text(promise.quote, style = FloorType.text(12.5f).copy(lineHeight = 1.42.em), color = colors.textSecondary)
         Text(
