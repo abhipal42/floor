@@ -117,13 +117,14 @@ Command Line Tools rather than Xcode: run it with `DEVELOPER_DIR=/Applications/X
 
 | Route | Returns |
 |---|---|
-| `GET /v1/reps?address=` or `?lat=&lng=` | District (119th Congress map) + House member + senators. Send an address *or* coordinates (e.g. from the browser's location), not both. Coordinates are rounded to 4 decimals (~11 m). Either goes only to the Census geocoder and isn't stored or logged. |
+| `GET /v1/reps?address=` or `?lat=&lng=` | District (119th Congress map) + House member + senators. Send an address *or* coordinates (e.g. from the browser's location), not both. Coordinates are rounded to 4 decimals (~11 m). Either goes only to the Census geocoder and isn't stored or logged. Since v0.2.60 the district also carries `stateUpper`, `stateLower` and `place` from the same response. |
 | `GET /v1/members?q=&chamber=&limit=` | Search **sitting** members (see `SITTING`, lesson 52): `q` is a name (`Schumer`, `velazquez`, `ocasio cortez` — accents, hyphens and apostrophes folded on both sides, from one table `FOLDS` in `search.ts` that the SQL `translate()` is built from, so ø, ł, ı and đ fold too), a state by name or code (`New York`, `NY`, `N.Y.`, `D.C.`, `Virgin Islands`), or a House seat (`NY-8`, `N.Y.-8`, `WY-AL`; a delegate jurisdiction's one seat for any number, `DC-1`). A state is **also searched as a name** and the two merged, the state's own members first ("Washington" is a state and a surname; "Al" is a code and starts names). Parsed in `search.ts` (`parseMemberQuery`), so the SQL is one of three fixed shapes. Senate before House; a name search puts surnames that start with it first; a state's House members by district. `q` 2–60 characters, `limit` 1–100 (default 60: California is 54). **Rate limited**: 120 per caller per minute (`MEMBER_SEARCH_RATE_LIMIT`), keyed apart from `/v1/reps` so the two never share a count; `/v1/members/{id}` and below are not limited |
 | `GET /v1/members/{id}` | A member, how often they sided with their own party's majority, and `contact`: `{phone, contactForm, website, office, address}` from congress-legislators' current term, each null when upstream has none. Most House members have no `contactForm` (lesson 59): the app falls back to the House's "Write Your Representative" form. All null on a database without `20261117000100_member_contact.sql` |
 | `GET /v1/members/{id}/funding` | Their current campaign's money: what the campaign reported receiving (small-dollar, itemized, PAC, party, other, cash on hand) and the committees that reported giving to it, biggest direct giver first. `?committees=` (0-50, default 10). No individual donor is named |
 | `GET /v1/members/{id}/disclosures` | **On in production since 2026-11-16** (`DISCLOSURES_ENABLED=true`; unset, it answers `{enabled: false, reason}`). `{enabled, deadlineDays: 45, annual: {year, filedAt, amendment, sourceUrl, transcribed, assets[]} \| null, trades[], paperFilings[]}` — the latest annual report's assets (name, type, account, owner, value range **as filed**), trades of the last 12 months (buy/sell/exchange, asset, amount range as filed, transaction, notification and filing dates, `daysToFile`, `pastDeadline` against the STOCK Act's 45 days), and every filing in that window held only as a link (`paper` scan or `unparsed`). `transcribed`: the rows were read off a paper filing by Floor's AI (lesson 73). No totals, no estimates. See "Financial disclosures" |
 | `GET /v1/members-elect[?state=]`, `GET /v1/members-elect/{id}` | Members-elect (v0.2.45): who won a seat and hasn't taken office, each with `call: {by: "AP" \| "House Clerk", on, sourceUrl}` — Floor never calls a race — plus `pending` seats (uncalled or runoff, no name). The profile adds FEC totals and, with disclosures on, a House candidate report. `/v1/reps` and `/v1/members` carry `elect`/`pending` too, and members carry `leavingOn`. Nothing is served from January 3, or for a seat once someone sworn in after the election holds it (lesson 74). Data: `ingest -- elections` (`apps/worker/elections/<cycle>-senate.json`, the AP's calls with sources), `members-elect-house` (the Clerk's XML, late December), `fec-elect`, `elect-disclosures`. On iOS since v0.2.47: `RepScreen/ElectScreenView.swift`, `DesignSystem/ElectViews.swift`, `Models/MembersElect.swift` |
 | `GET /v1/members/{id}/promises`, `GET /v1/members/{id}/posts`, `GET /v1/posts?members=` | Round 13 (v0.2.53). Promises: `{status, electionYear, siteUrl, snapshotUrl, snapshotAt, pageUrl, promises[{heading, quote, headline, topic}]}`; every quote is verbatim from the archived campaign page (lesson 75). Posts: YouTube/Bluesky/Mastodon, newest first, plus `links` (full URLs) for X/Facebook/Instagram. The wall takes up to 12 members and lists those with no readable network in `unreadable`. `Member.social` carries the handles; since v0.2.54 the apps show them as network marks at the top of Posts (Contact is phone, form and website only). Data: `ingest -- social`, `posts`, `promises` (needs `ANTHROPIC_API_KEY`) |
+| `GET /v1/members/{id}/news`, `GET /v1/local`, `GET /v1/local/{id}`, `GET /v1/local/{state}/legislators` | v0.2.60: a member's week of Google News headlines with AI tone and stories, and polls naming them; the Local tab's states and cities (enacted, waiting on the governor, headlines) and state legislators from Open States. See "News, polls and the Local tab (v0.2.60)". Data: `ingest -- news`, `polls`, `local` |
 | `GET /v1/members/{bioguideId}/votes?limit=` | A member's recent votes with their position (and candidate, for Speaker elections) |
 | `GET /v1/votes?chamber=&limit=&before=` | The most recent **final** votes, newest first (`limit` 1–100, default 40), each with its `measure` (the same summary a member's record carries) and nobody's position: Finals' "All" (asked per chamber when one is picked), and the whole feed for someone who follows nobody. `before` (ISO time, e.g. the last vote's `occurredAt`) pages back. `topic=` (repeatable, since topic names hold commas; any case; up to 32) keeps only votes on bills in those CRS policy areas — Finals' "Following" for the topics you follow; names that are not topics match nothing (an empty list, not every vote). Every `measure` carries `policyArea` (null for a nomination). Since v0.2.57 every `measure` (here, on a member's votes and on `/v1/votes/{id}`; one builder, `toMeasure` in `pg.ts`) also carries `sponsor`, `summaryLead` (the CRS summary's first sentences minus its title line, ≤ 320 characters, `summaryLead` in `bills.ts`), `position` (a nomination's post) and `forBillId` (the bill a House special rule is for, `ruleForBill`), and each row carries `partyTotals`, cut to the page before counting (1.5 s → 65 ms on prod). Edge-cached (`VOTES_CACHE_CONTROL`: 30 s, 60 s at the edge) and rate limited, 120 a minute per caller (`VOTES_RATE_LIMIT`; `/v1/votes/{id}` is not) |
 | `GET /v1/votes/{id}` | One vote (like every vote the API returns, with `explainer`: `{kind, text, source}`, the hand-written line for its question from `votekinds.ts`, or null for a question with no line, lesson 58): totals, threshold, kind, bill link, **per-party breakdown**, and for a Speaker election **which candidate each party backed**. `?members=A000370,C001098` (up to ten) also returns those members' own positions, so the vote screen loads your delegation in one round trip. IDs look like `house-119-1-100` |
@@ -2518,6 +2519,83 @@ The locked mock is https://claude.ai/artifact/T7fxxQyFCYdPaJnewnNpT2, tab "Your 
   - **"Passed House":** only for a vote that decided something, since the House records a referral motion as
     "Passed" too.
 - **Tokens:** `topicText(group)` for topic colour as text (contrast-tested), and chamber label colours.
+
+### News, polls and the Local tab (v0.2.60)
+
+Locked mock: https://claude.ai/artifact/Lz7DMYwAUMLCzUQwuupFKW (News & sentiment B, State & city A). This
+section is the server side; migration `20261120000000_news_polls_local.sql` (**not yet applied**).
+
+- **Routes.**
+  - `GET /v1/members/{id}/news` → `MemberNews {memberId, checkedAt, window{from,to}, stories[], tone, headlines[], polls[]}`.
+    `tone` is `ToneCounts {favorable, neutral, critical, office}` over the window's headlines, null when none
+    was AI-read. A story is served only with ≥ 2 of its headlines in the window, biggest first; a headline
+    whose story is not served has `storyId: null`. Polls are those fielded (`fieldedTo`) in the last 90 days.
+    404 for an unknown member; an empty week before the migration (liveQuery).
+  - `GET /v1/local` → `{jurisdictions[]}`: the registry (`apps/api/src/jurisdictions.ts`, copied in the
+    worker and checked equal by `local.test.ts`): 50 states (ids = lower-case postal codes) and nine cities
+    (`nyc`, `seattle`, `sf`, `boston`, `denver`, `los-angeles`, `chicago`, `houston`, `philadelphia` — never a
+    state's id; "la" is Louisiana). `coverage` is `records` with an item from the last 90 days, `news_only`
+    for LA, Chicago, Houston and Philadelphia (no feed), else `pending`.
+  - `GET /v1/local/{id}` → `LocalHub {jurisdiction, updatedAt, enacted[], waiting[], news[]}` (404 unknown).
+  - `GET /v1/local/{state}/legislators?upper=&lower=` → `{legislators[]}`, senate first, from Open States
+    `/people`, cached 24 h per instance; `[]` without `OPENSTATES_API_KEY` (set it on `floor-api` too).
+  - `/v1/reps`'s `District` gains `stateUpper`, `stateLower` and `place {geoid, name}`, read from the same
+    Census response. The layers are named with a moving year prefix ("2024 State Legislative Districts -
+    Upper", DC's wards "2026 … - Upper"), so they are matched on the name's ending; the district is
+    `BASENAME` ("27", not SLDU "027"), how Open States names districts; the place is "Incorporated Places"
+    `GEOID` + `BASENAME` ("3651000", "New York"). Census's address matcher finds no "1 Centre St, New York, NY
+    10007" (2026-11-17), so the NYC fixture is City Hall's point: Senate 27, Assembly 66, place 3651000.
+- **Worker steps** (`apps/worker/src/news.ts`, `polls.ts`, `local.ts`, `gnews.ts`; all in `ingest.yml`).
+  - `news`, hourly: the 100 members checked longest ago, each at most every 12 h, 1.2 s apart. Query
+    `"<first> <last>" (senator OR sen OR congress)` / `(rep OR congressman OR congresswoman OR congress)`,
+    `when:7d`; an item is kept only when its title names the surname (possessives included: "Schumer's").
+    `.gov` publisher → tone `office`, set by the worker and never by the model. Kept 14 days. Google News
+    answering 429/503 ends the asking for that run without failing it.
+  - Tone and stories: with `ANTHROPIC_API_KEY`, one call per member with unread headlines (the newest 60 of
+    the window, as `h1…`), model = the promises step's (`FLOOR_AI_MODEL`). The reply is checked strictly:
+    unknown ids dropped, a tone outside the three → null, a headline in two stories kept in the first, a
+    story with < 2 known headlines dropped. Stories are replaced whole per read. Eval-style fixture:
+    `fixtures/news/tone-reply-schumer.json`, hand-labelled.
+  - `polls`, daily: **the poll review process.** One file per poll in `apps/worker/polls/<id>.json`, added in
+    a PR from the pollster's release (or the report of it, said in the file's `note`): member ids, pollster,
+    fielding dates, population, sample size, `positive`/`negative`/`other` shares labelled as the pollster
+    worded them, and the https url. The loader refuses a file without a url, with shares over 100, or an
+    unknown field; the directory is the whole set (a deleted file deletes the poll). A share the release
+    does not give is `null`, never computed (Data for Progress's other 12%). Seeded: Economist/YouGov
+    Nov 13–16 (YouGov's own release for that wave was not found; the url is The Hill's), NBC News Oct 28–30,
+    Data for Progress Nov 13–15, all Schumer.
+  - `local`, daily (06 UTC + manual): Open States `/bills?jurisdiction=…&action_since=<30 days>&sort=
+    latest_action_desc&include=actions&include=abstracts`, 2 pages a state; signed / became-law actions →
+    enacted, passage by both chambers (or a unicameral legislature) and no executive action → waiting.
+    Legistar `matters?$filter=MatterPassedDate…`, then each new matter's histories (the council's own
+    passing row, not a committee's) and its event item's votes for the tally. Google News per jurisdiction.
+- **Missing keys.** `OPENSTATES_API_KEY` (states and legislators) and `NYC_LEGISTAR_TOKEN` (NYC Council) do
+  not exist yet; both are wired (ingest.yml env, `.env.example`, the API's env) and every step skips with a
+  log line without them. Until then every state hub is `pending` and NYC is `pending`. The Open States code
+  and its fixtures are **doc-derived** (`openstates-bills-doc-derived.json`, built from
+  https://v3.openstates.org/openapi.json): replace them with a real capture once the key exists. Its free
+  tier's limits are on the account page, not in the docs; the step stays at ≤ 150 requests a day, 7 s apart,
+  and stops on a 429. Check the account page's numbers when the key arrives.
+- **What real data taught us.**
+  - Legistar clients disagree: Seattle's tally is never in `MatterHistoryTally` (votes are per event
+    item), Denver keeps test records with `MatterPassedDate` in 2030, Boston lists reports as "Passed", and
+    `sfgov` returned no matter with a `MatterPassedDate` in the window (it stays `pending`; check its
+    statuses before relying on it). A city item's `date` is Legistar's `MatterPassedDate` (Seattle sets it
+    when the mayor signs: CB 121276 passed the council Nov 10, dated Nov 13).
+  - Seattle's "Did Not Pass" includes a bill the council passed and the mayor vetoed (CB 121283, veto
+    sustained Nov 12): status decides, not the passing row alone.
+  - Open States filters on actions, so a bill that passed both chambers months ago with no action since
+    (New York delivers bills to the governor through December) is not seen as waiting.
+- **Google News terms.** The feed says it is "made available solely for the purpose of rendering Google News
+  results within a personal feed reader for personal, non-commercial use". Floor keeps headline, publisher,
+  date and Google's own link only, never article text or images, links out for every read, and is free with
+  no ads. That is the closest fit we have, not a licence: if Floor ever charges or carries ads, this needs a
+  licensed news API instead.
+- **Divergences.** State news query is `("<State> Legislature" OR "<State> State Senate" OR "<State> State
+  Assembly" OR "<State> General Assembly")`, not a bare `Assembly` (which matches every state and the UN). A
+  city queries its council's own name ("New York City Council", "San Francisco Board of Supervisors").
+  `waiting` items' `yes`/`no` are null (a state bill has a vote per chamber). Census has no council
+  districts, so a city hub has no council-member row.
 
 ### M5: Beta hardening + App Store
 Accessibility (Dynamic Type, VoiceOver on score cards), privacy labels, a vote-night load test, App Review prep, public TestFlight.

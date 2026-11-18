@@ -2,6 +2,7 @@ import { serve } from "@hono/node-server";
 import pg from "pg";
 import { createApp, NO_CONTACT, type AppDeps } from "./app.js";
 import { locateDistrict } from "./district.js";
+import { openStatesLegislators } from "./local.js";
 import { pgRepositories, type Db } from "./pg.js";
 
 const CONGRESS = Number(process.env.CONGRESS ?? 119);
@@ -67,6 +68,8 @@ const app = createApp({
   allowedOrigins,
   // Off unless set: financial disclosures wait on the §13107(c) question (HANDOFF.md).
   disclosuresEnabled: process.env.DISCLOSURES_ENABLED === "true",
+  // State legislators (Open States); unset, the endpoint answers [].
+  legislators: process.env.OPENSTATES_API_KEY ? openStatesLegislators(process.env.OPENSTATES_API_KEY, { log: console.warn }) : undefined,
   // Share pages served here link to, and look members up on, this server.
   share: { base: `http://localhost:${port}`, apiBase: `http://localhost:${port}` },
 });

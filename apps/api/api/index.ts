@@ -13,6 +13,7 @@ import { attachDatabasePool } from "@vercel/functions";
 import pg from "pg";
 import { createApp, NO_CONTACT } from "../src/app.js";
 import { locateDistrict } from "../src/district.js";
+import { openStatesLegislators } from "../src/local.js";
 import { pgRepositories, poolerWarning, type Db } from "../src/pg.js";
 
 export const config = { runtime: "nodejs" };
@@ -86,6 +87,10 @@ const app = createApp({
   locate: (place) => locateDistrict(place, CONGRESS),
   // Off unless set: financial disclosures wait on the §13107(c) question (HANDOFF.md).
   disclosuresEnabled: process.env.DISCLOSURES_ENABLED === "true",
+  // State legislators for the Local tab (Open States, cached a day per instance). Unset: [] for everyone.
+  legislators: process.env.OPENSTATES_API_KEY
+    ? openStatesLegislators(process.env.OPENSTATES_API_KEY, { log: (msg) => console.warn(msg) })
+    : undefined,
   // The share page (src/share.ts). The universal-link association file names the app on
   // share.ts's DEFAULT_APPLE_TEAM_ID unless APPLE_TEAM_ID overrides it.
   share: {

@@ -8,6 +8,21 @@ import { clientKey, rateLimit, type LimitStore } from "./limit.js";
 import { DELEGATE_JURISDICTIONS, foldName, parseMemberQuery, type MemberQuery } from "./search.js";
 import { CONDITIONS, VOTE_KINDS } from "./votekinds.js";
 import { mountShare, shareKicker, shareText, shareUrl, type FloorWeek, type ShareOptions } from "./share.js";
+import { MemberNewsSchema, NEWS_CACHE_CONTROL, NEWS_WINDOW_DAYS, NO_NEWS, POLL_WINDOW_DAYS, memberNews, type NewsRepository } from "./news.js";
+import {
+  LOCAL_CACHE_CONTROL,
+  LOCAL_COVERAGE_DAYS,
+  LocalHubSchema,
+  LocalListSchema,
+  NO_LEGISLATORS,
+  NO_LOCAL,
+  StateLegislatorsSchema,
+  listJurisdictions,
+  localHub,
+  type LegislatorLookup,
+  type LocalRepository,
+} from "./local.js";
+import { jurisdictionById } from "./jurisdictions.js";
 
 /*
  * The enums below are registered as their own components so the OpenAPI document refers to each by
@@ -66,6 +81,18 @@ export const DistrictSchema = z
     state: z.string().openapi({ example: "TX" }),
     district: z.number().int(),
     countyFips: z.string().nullable().openapi({ example: "48453" }),
+    stateUpper: z.string().nullable().openapi({
+      example: "14",
+      description: "State senate district, as Open States names it (Census BASENAME); null where Census has no layer",
+    }),
+    stateLower: z.string().nullable().openapi({
+      example: "49",
+      description: "State house/assembly district, as Open States names it; null where there is none (Nebraska)",
+    }),
+    place: z
+      .object({ geoid: z.string().openapi({ example: "4805000" }), name: z.string().openapi({ example: "Austin" }) })
+      .nullable()
+      .openapi({ description: "The Census Incorporated Place, or null outside one" }),
   })
   .openapi("District");
 
@@ -1504,9 +1531,18 @@ export interface AppDeps {
   elect?: ElectRepository;
   /** Social accounts, campaign promises and posts. Defaults to `NO_SAID` (none, promises unchecked). */
   said?: SaidRepository;
+  /** Members' headlines, stories and polls. Defaults to `NO_NEWS` (an empty week). */
+  news?: NewsRepository;
+  /** The Local tab's records and headlines. Defaults to `NO_LOCAL` (every hub empty). */
+  local?: LocalRepository;
+  /** State legislators by district (Open States). Defaults to `NO_LEGISLATORS` ([]): no OPENSTATES_API_KEY. */
+  legislators?: LegislatorLookup;
   /** The share page's links and the universal-link association (share.ts). */
   share?: ShareOptions;
 }
+
+/** The Local tab: a hub per tap, the legislators once per state hub; this stops a loop, not a person. */
+export const LOCAL_RATE_LIMIT = { limit: 120, windowMs: 60 * 1000 };
 
 /** How many address lookups one caller gets per hour. See the note in `limit.ts`. */
 export const REPS_RATE_LIMIT = { limit: 30, windowMs: 60 * 60 * 1000 };
@@ -1742,6 +1778,69 @@ const getPostsWallRoute = createRoute({
   },
   responses: {
     200: { content: { "application/json": { schema: PostsWallSchema } }, description: "Posts, newest first" },
+  },
+});
+
+const getMemberNewsRoute = createRoute({
+  method: "get",
+  path: "/v1/members/{id}/news",
+  summary: "A member's headlines this week, AI-read for tone and grouped into stories, and polls that name them",
+  description:
+    "Headlines are Google News results naming the member: title, publisher, date and link only. Tone (how the headline " +
+    "frames the member) and stories are read by AI and may contain errors; label them. Polls are added by hand from the " +
+    "pollster's release and reviewed.",
+  request: { params: memberIdParam },
+  responses: {
+    200: { content: { "application/json": { schema: MemberNewsSchema } }, description: "The week's news" },
+    404: { content: { "application/json": { schema: ErrorSchema } }, description: "No member with that ID" },
+  },
+});
+
+const listLocalRoute = createRoute({
+  method: "get",
+  path: "/v1/local",
+  summary: "Every state and city the Local tab covers, with what Floor has for each",
+  responses: { 200: { content: { "application/json": { schema: LocalListSchema } }, description: "The jurisdictions" } },
+});
+
+const localIdParam = z.object({
+  id: z
+    .string()
+    .regex(/^[a-z][a-z-]{1,30}$/, "A jurisdiction id like ny, nyc or seattle")
+    .openapi({ param: { name: "id", in: "path" }, example: "nyc" }),
+});
+
+const getLocalRoute = createRoute({
+  method: "get",
+  path: "/v1/local/{id}",
+  summary: "A state's or city's hub: what became law (or passed the council), what waits on the governor, and headlines",
+  request: { params: localIdParam },
+  responses: {
+    200: { content: { "application/json": { schema: LocalHubSchema } }, description: "The hub" },
+    404: { content: { "application/json": { schema: ErrorSchema } }, description: "No jurisdiction with that id" },
+  },
+});
+
+const getLegislatorsRoute = createRoute({
+  method: "get",
+  path: "/v1/local/{state}/legislators",
+  summary: "The state senator and house/assembly members for these districts, from Open States",
+  description: "Pass the district's `stateUpper` and `stateLower` from /v1/reps. [] when Open States is not configured.",
+  request: {
+    params: z.object({
+      state: z
+        .string()
+        .regex(/^[a-z]{2}$/i, "A state's postal code, like ny")
+        .openapi({ param: { name: "state", in: "path" }, example: "ny" }),
+    }),
+    query: z.object({
+      upper: z.string().min(1).max(40).optional().openapi({ example: "27" }),
+      lower: z.string().min(1).max(40).optional().openapi({ example: "66" }),
+    }),
+  },
+  responses: {
+    200: { content: { "application/json": { schema: StateLegislatorsSchema } }, description: "Senate first, then house/assembly" },
+    404: { content: { "application/json": { schema: ErrorSchema } }, description: "Not a state Floor covers" },
   },
 });
 
@@ -2205,6 +2304,8 @@ export function createApp(deps: AppDeps) {
     // Exactly "/v1/votes": the list. A vote by id is not limited.
     ["/v1/votes", VOTES_RATE_LIMIT, "votes"],
     ["/v1/schedule", SCHEDULE_RATE_LIMIT, "schedule"],
+    // The hubs and the legislators lookup (which reaches Open States on a cache miss).
+    ["/v1/local/*", LOCAL_RATE_LIMIT, "local"],
     // Registration and Live Activity tokens; "/v1/devices/*" matches "/v1/devices" itself too.
     ["/v1/devices/*", DEVICES_RATE_LIMIT, "devices"],
   ] as const;
@@ -2315,6 +2416,49 @@ export function createApp(deps: AppDeps) {
     return c.json({ posts, unreadable }, 200);
   });
 
+  const news = deps.news ?? NO_NEWS;
+  app.openapi(getMemberNewsRoute, async (c) => {
+    const { id } = c.req.valid("param");
+    const now = clock();
+    const pollsFrom = new Date(now.getTime() - POLL_WINDOW_DAYS * 86_400_000).toISOString().slice(0, 10);
+    const [member, rows] = await Promise.all([
+      deps.members.getMember(id),
+      news.memberNews(id, new Date(now.getTime() - NEWS_WINDOW_DAYS * 86_400_000), pollsFrom),
+    ]);
+    if (!member) return c.json({ error: `No member with ID ${id}` }, 404);
+    c.header("Cache-Control", NEWS_CACHE_CONTROL);
+    return c.json(memberNews(id, rows, now), 200);
+  });
+
+  const local = deps.local ?? NO_LOCAL;
+  const legislators = deps.legislators ?? NO_LEGISLATORS;
+  app.openapi(listLocalRoute, async (c) => {
+    const since = new Date(clock().getTime() - LOCAL_COVERAGE_DAYS * 86_400_000).toISOString().slice(0, 10);
+    c.header("Cache-Control", LOCAL_CACHE_CONTROL);
+    return c.json({ jurisdictions: listJurisdictions(await local.withRecords(since)) }, 200);
+  });
+
+  app.openapi(getLocalRoute, async (c) => {
+    const { id } = c.req.valid("param");
+    const j = jurisdictionById(id);
+    if (!j) return c.json({ error: `No jurisdiction with id ${id}` }, 404);
+    c.header("Cache-Control", LOCAL_CACHE_CONTROL);
+    return c.json(await localHub(local, j, clock()), 200);
+  });
+
+  app.openapi(getLegislatorsRoute, async (c) => {
+    const { state } = c.req.valid("param");
+    const { upper, lower } = c.req.valid("query");
+    const j = jurisdictionById(state.toLowerCase());
+    if (!j || j.kind !== "state") return c.json({ error: `No state with code ${state}` }, 404);
+    const [senate, house] = await Promise.all([
+      upper ? legislators(j.state, "upper", upper) : [],
+      lower ? legislators(j.state, "lower", lower) : [],
+    ]);
+    c.header("Cache-Control", LOCAL_CACHE_CONTROL);
+    return c.json({ legislators: [...senate, ...house] }, 200);
+  });
+
   app.openapi(getMemberFundingRoute, async (c) => {
     const { id } = c.req.valid("param");
     const { committees } = c.req.valid("query");
@@ -2358,7 +2502,16 @@ export function createApp(deps: AppDeps) {
     const [members, seats] = await Promise.all([deps.members.membersFor(match.state, match.district), electSeats()]);
     return c.json(
       {
-        district: { congress: match.congress, state: match.state, district: match.district, countyFips: match.countyFips },
+        district: {
+          congress: match.congress,
+          state: match.state,
+          district: match.district,
+          countyFips: match.countyFips,
+          // From the same Census response; nothing more is sent anywhere (older test doubles may omit them).
+          stateUpper: match.stateUpper ?? null,
+          stateLower: match.stateLower ?? null,
+          place: match.place ?? null,
+        },
         members: withLeaving(members, seats.elect),
         ...electFor(seats, { kind: "reps", state: match.state, district: match.district }),
       },

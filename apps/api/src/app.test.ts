@@ -285,7 +285,10 @@ const app = createApp({
   },
   now: () => new Date("2026-11-12T00:00:00Z"),
   locate: async (place) => {
-    const austin = { congress: 119, state: "TX", stateFips: "48", district: 37, countyFips: "48453" };
+    const austin = {
+      congress: 119, state: "TX", stateFips: "48", district: 37, countyFips: "48453",
+      stateUpper: "14", stateLower: "49", place: { geoid: "4805000", name: "Austin" },
+    };
     if ("address" in place) {
       geocoded.push(place.address);
       return place.address.includes("Austin") ? austin : null;
@@ -417,7 +420,10 @@ describe("API", () => {
     const res = await app.request(`/v1/reps?address=${encodeURIComponent("1100 Congress Ave, Austin, TX 78701")}`);
     expect(res.status).toBe(200);
     const body = await res.json();
-    expect(body.district).toEqual({ congress: 119, state: "TX", district: 37, countyFips: "48453" });
+    expect(body.district).toEqual({
+      congress: 119, state: "TX", district: 37, countyFips: "48453",
+      stateUpper: "14", stateLower: "49", place: { geoid: "4805000", name: "Austin" },
+    });
     expect(body.members.map((m: Member) => m.bioguideId)).toEqual(["D000399", "C001098"]);
   });
 
@@ -431,7 +437,10 @@ describe("API", () => {
     const res = await app.request("/v1/reps?lat=30.2747&lng=-97.7404");
     expect(res.status).toBe(200);
     const body = await res.json();
-    expect(body.district).toEqual({ congress: 119, state: "TX", district: 37, countyFips: "48453" });
+    expect(body.district).toEqual({
+      congress: 119, state: "TX", district: 37, countyFips: "48453",
+      stateUpper: "14", stateLower: "49", place: { geoid: "4805000", name: "Austin" },
+    });
     expect(body.members.map((m: Member) => m.bioguideId)).toEqual(["D000399", "C001098"]);
     expect(geocoded.at(-1)).toBe("30.2747,-97.7404");
   });
@@ -694,7 +703,8 @@ describe("API", () => {
     // the member; BillStage on BillListItem and Bill, both null until the worker has staged the
     // bill; VoteExplainer on Vote, null for a question with no written line; and SeatHolder on
     // MemberElect.replaces and PendingSeat.incumbent, null when the seat's holder is unknown; and MeasureSponsor
-    // on MeasureSummary, its only use, null for a nomination. Anything else showing up here needs checking against how it is actually used
+    // on MeasureSummary, its only use, null for a nomination; and HeadlineTone on Headline, its
+    // only use, null for a headline not AI-read (and always for a jurisdiction's). Anything else showing up here needs checking against how it is actually used
     // before the list is widened — and if Funding ever gains a use that must not accept null, it
     // has to come off this list and out of the component, not be left here.
     const doc = await (await app.request("/openapi.json")).json();
@@ -702,7 +712,9 @@ describe("API", () => {
     const hoisted = Object.entries(schemas)
       .filter(([, schema]) => schema.nullable)
       .map(([name]) => name);
-    expect(hoisted.sort()).toEqual(["BillStage", "Funding", "LatestAction", "MeasureSponsor", "MeasureSummary", "SeatHolder", "VoteExplainer"]);
+    expect(hoisted.sort()).toEqual([
+      "BillStage", "Funding", "HeadlineTone", "LatestAction", "MeasureSponsor", "MeasureSummary", "SeatHolder", "VoteExplainer",
+    ]);
   });
 });
 

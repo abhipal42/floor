@@ -1,0 +1,125 @@
+{
+  "_note": "DOC-DERIVED, not a captured response: Floor has no Open States key yet (2026-11-17). Built from the BillList, Bill, BillAction, BillAbstract and Organization schemas and their example values in https://v3.openstates.org/openapi.json (the docs at https://docs.openstates.org/api-v3/). Identifiers, titles and ids are the docs' examples or obviously made up; dates are set around 2026-11-17 to exercise the 30-day window. Replace with a real capture once OPENSTATES_API_KEY exists.",
+  "results": [
+    {
+      "id": "ocd-bill/f0049138-1ad8-4506-a2a4-f4dd1251bbba",
+      "session": "2025",
+      "jurisdiction": { "id": "ocd-jurisdiction/country:us/state:nc/government", "name": "North Carolina", "classification": "state" },
+      "from_organization": { "id": "ocd-organization/upper-example", "name": "Senate", "classification": "upper" },
+      "identifier": "SB 113",
+      "title": "Adopting a State Scorpion",
+      "classification": ["bill"],
+      "subject": ["SCORPIONS", "SYMBOLS"],
+      "extras": {},
+      "created_at": "2026-02-01T00:00:00+00:00",
+      "updated_at": "2026-11-12T00:00:00+00:00",
+      "openstates_url": "https://openstates.org/nc/bills/2025/SB113/",
+      "first_action_date": "2026-02-01",
+      "latest_action_date": "2026-11-11",
+      "latest_action_description": "Signed by Governor",
+      "abstracts": [{ "abstract": "This bill designates a new state arachnid.", "note": "senate abstract" }],
+      "actions": [
+        { "id": "a1", "organization": { "id": "o-upper", "name": "Senate", "classification": "upper" }, "description": "Passed 3rd Reading", "date": "2026-05-04", "classification": ["passage"], "order": 1 },
+        { "id": "a2", "organization": { "id": "o-lower", "name": "House", "classification": "lower" }, "description": "Passed 3rd Reading", "date": "2026-06-10", "classification": ["passage"], "order": 2 },
+        { "id": "a3", "organization": { "id": "o-exec", "name": "Governor", "classification": "executive" }, "description": "Delivered to Governor", "date": "2026-11-02", "classification": ["executive-receipt"], "order": 3 },
+        { "id": "a4", "organization": { "id": "o-exec", "name": "Governor", "classification": "executive" }, "description": "Signed by Governor", "date": "2026-11-11", "classification": ["executive-signature"], "order": 4 }
+      ]
+    },
+    {
+      "id": "ocd-bill/00000000-0000-4000-8000-000000000002",
+      "session": "2025",
+      "jurisdiction": { "id": "ocd-jurisdiction/country:us/state:nc/government", "name": "North Carolina", "classification": "state" },
+      "from_organization": { "id": "o-lower", "name": "House", "classification": "lower" },
+      "identifier": "HB 1105",
+      "title": "Example bill that became law without a signature",
+      "openstates_url": "https://openstates.org/nc/bills/2025/HB1105/",
+      "created_at": "2026-01-10T00:00:00+00:00",
+      "updated_at": "2026-11-06T00:00:00+00:00",
+      "abstracts": [],
+      "actions": [
+        { "id": "b1", "organization": { "id": "o-lower", "name": "House", "classification": "lower" }, "description": "Passed 3rd Reading", "date": "2026-09-01", "classification": ["passage"], "order": 1 },
+        { "id": "b2", "organization": { "id": "o-upper", "name": "Senate", "classification": "upper" }, "description": "Passed 3rd Reading", "date": "2026-09-20", "classification": ["passage"], "order": 2 },
+        { "id": "b3", "organization": { "id": "o-exec", "name": "Governor", "classification": "executive" }, "description": "Became Law Without Signature", "date": "2026-11-05", "classification": ["became-law"], "order": 3 }
+      ]
+    },
+    {
+      "id": "ocd-bill/00000000-0000-4000-8000-000000000003",
+      "session": "2025",
+      "jurisdiction": { "id": "ocd-jurisdiction/country:us/state:nc/government", "name": "North Carolina", "classification": "state" },
+      "from_organization": { "id": "o-upper", "name": "Senate", "classification": "upper" },
+      "identifier": "SB 200",
+      "title": "Example bill that passed both chambers and waits on the governor",
+      "openstates_url": "https://openstates.org/nc/bills/2025/SB200/",
+      "created_at": "2026-03-01T00:00:00+00:00",
+      "updated_at": "2026-11-10T00:00:00+00:00",
+      "abstracts": [{ "abstract": "  ", "note": "empty abstract" }],
+      "actions": [
+        { "id": "c1", "organization": { "id": "o-upper", "name": "Senate", "classification": "upper" }, "description": "Passed 3rd Reading", "date": "2026-10-20", "classification": ["passage"], "order": 1 },
+        { "id": "c2", "organization": { "id": "o-lower", "name": "House", "classification": "lower" }, "description": "Passed 3rd Reading", "date": "2026-11-09", "classification": ["passage"], "order": 2 },
+        { "id": "c3", "organization": { "id": "o-exec", "name": "Governor", "classification": "executive" }, "description": "Presented to Governor", "date": "2026-11-10", "classification": ["executive-receipt"], "order": 3 }
+      ]
+    },
+    {
+      "id": "ocd-bill/00000000-0000-4000-8000-000000000004",
+      "session": "2025",
+      "jurisdiction": { "id": "ocd-jurisdiction/country:us/state:nc/government", "name": "North Carolina", "classification": "state" },
+      "from_organization": { "id": "o-lower", "name": "House", "classification": "lower" },
+      "identifier": "HB 7",
+      "title": "Example bill that passed one chamber",
+      "openstates_url": "https://openstates.org/nc/bills/2025/HB7/",
+      "created_at": "2026-03-01T00:00:00+00:00",
+      "updated_at": "2026-11-10T00:00:00+00:00",
+      "actions": [
+        { "id": "d1", "organization": { "id": "o-lower", "name": "House", "classification": "lower" }, "description": "Passed 3rd Reading", "date": "2026-11-03", "classification": ["passage"], "order": 1 }
+      ]
+    },
+    {
+      "id": "ocd-bill/00000000-0000-4000-8000-000000000005",
+      "session": "2025",
+      "jurisdiction": { "id": "ocd-jurisdiction/country:us/state:nc/government", "name": "North Carolina", "classification": "state" },
+      "from_organization": { "id": "o-upper", "name": "Senate", "classification": "upper" },
+      "identifier": "SB 9",
+      "title": "Example bill the governor vetoed",
+      "openstates_url": "https://openstates.org/nc/bills/2025/SB9/",
+      "created_at": "2026-03-01T00:00:00+00:00",
+      "updated_at": "2026-11-10T00:00:00+00:00",
+      "actions": [
+        { "id": "e1", "organization": { "id": "o-upper", "name": "Senate", "classification": "upper" }, "description": "Passed 3rd Reading", "date": "2026-10-01", "classification": ["passage"], "order": 1 },
+        { "id": "e2", "organization": { "id": "o-lower", "name": "House", "classification": "lower" }, "description": "Passed 3rd Reading", "date": "2026-10-15", "classification": ["passage"], "order": 2 },
+        { "id": "e3", "organization": { "id": "o-exec", "name": "Governor", "classification": "executive" }, "description": "Vetoed", "date": "2026-11-01", "classification": ["executive-veto"], "order": 3 }
+      ]
+    },
+    {
+      "id": "ocd-bill/00000000-0000-4000-8000-000000000006",
+      "session": "2025",
+      "jurisdiction": { "id": "ocd-jurisdiction/country:us/state:nc/government", "name": "North Carolina", "classification": "state" },
+      "from_organization": { "id": "o-upper", "name": "Senate", "classification": "upper" },
+      "identifier": "SB 50",
+      "title": "Example bill signed before the 30-day window",
+      "openstates_url": "https://openstates.org/nc/bills/2025/SB50/",
+      "created_at": "2026-03-01T00:00:00+00:00",
+      "updated_at": "2026-11-10T00:00:00+00:00",
+      "actions": [
+        { "id": "f1", "organization": { "id": "o-upper", "name": "Senate", "classification": "upper" }, "description": "Passed", "date": "2026-07-01", "classification": ["passage"], "order": 1 },
+        { "id": "f2", "organization": { "id": "o-lower", "name": "House", "classification": "lower" }, "description": "Passed", "date": "2026-07-10", "classification": ["passage"], "order": 2 },
+        { "id": "f3", "organization": { "id": "o-exec", "name": "Governor", "classification": "executive" }, "description": "Signed by Governor", "date": "2026-08-01", "classification": ["executive-signature"], "order": 3 },
+        { "id": "f4", "organization": { "id": "o-lower", "name": "House", "classification": "lower" }, "description": "Chaptered", "date": "2026-11-01", "classification": [], "order": 4 }
+      ]
+    },
+    {
+      "id": "ocd-bill/00000000-0000-4000-8000-000000000007",
+      "session": "2025",
+      "jurisdiction": { "id": "ocd-jurisdiction/country:us/state:ne/government", "name": "Nebraska", "classification": "state" },
+      "from_organization": { "id": "o-leg", "name": "Nebraska Legislature", "classification": "legislature" },
+      "identifier": "LB 1",
+      "title": "Example unicameral bill that passed and waits on the governor",
+      "openstates_url": "https://openstates.org/ne/bills/2025/LB1/",
+      "created_at": "2026-03-01T00:00:00+00:00",
+      "updated_at": "2026-11-10T00:00:00+00:00",
+      "actions": [
+        { "id": "g1", "organization": { "id": "o-leg", "name": "Nebraska Legislature", "classification": "legislature" }, "description": "Passed on Final Reading", "date": "2026-11-12", "classification": ["passage"], "order": 1 }
+      ]
+    }
+  ],
+  "pagination": { "per_page": 20, "page": 1, "max_page": 1, "total_items": 7 }
+}

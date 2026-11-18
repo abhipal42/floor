@@ -39,6 +39,8 @@ import type {
 } from "./app.js";
 import { DELEGATE_JURISDICTIONS, FOLDS, type MemberQuery } from "./search.js";
 import { RULE_TITLE, RULE_TITLE_SQL, explainVote } from "./votekinds.js";
+import type { Headline, NewsRepository, Poll } from "./news.js";
+import type { LocalItem, LocalRepository } from "./local.js";
 
 /**
  * Which kind of Supabase connection a `DATABASE_URL` is, from its port and host.
@@ -567,6 +569,8 @@ export function pgRepositories(db: Db): {
   disclosures: DisclosureRepository;
   elect: ElectRepository;
   said: SaidRepository;
+  news: NewsRepository;
+  local: LocalRepository;
 } {
   const registerOnce = async (keyHash: string, reg: DeviceRegistration, now: Date) => {
     // An APNs token belongs to one install. A phone that reinstalled Floor makes a new key and
@@ -648,6 +652,8 @@ export function pgRepositories(db: Db): {
     disclosures: pgDisclosures(db),
     elect: pgElect(db),
     said: pgSaid(db),
+    news: pgNews(db),
+    local: pgLocal(db),
     devices: {
       async register(keyHash, reg, now, caller) {
         if (!(await admitNew(keyHash, caller, now))) return "limited";
@@ -1738,6 +1744,137 @@ export function pgSaid(db: Db): SaidRepository {
         url: r.url,
         mediaUrl: r.media_url,
       }));
+    },
+  };
+}
+
+const isoDay = (d: Date | string) => (typeof d === "string" ? d.slice(0, 10) : d.toISOString().slice(0, 10));
+
+interface NewsRowDb {
+  id: string;
+  title: string;
+  source: string;
+  url: string;
+  published_at: Date | string;
+  tone: Headline["tone"];
+  story_id: string | null;
+}
+
+const headlineOf = (r: NewsRowDb): Headline => ({
+  id: r.id,
+  title: r.title,
+  source: r.source,
+  url: r.url,
+  publishedAt: new Date(r.published_at).toISOString(),
+  tone: r.tone,
+  storyId: r.story_id,
+});
+
+/**
+ * Members' headlines, stories and polls (20261120000000_news_polls_local.sql). Through liveQuery:
+ * before that migration every member has an empty week and no polls, not a 500.
+ */
+export function pgNews(db: Db): NewsRepository {
+  const query = liveQuery(db);
+  return {
+    async memberNews(bioguideId, from, pollsFrom) {
+      const [headlines, stories, polls, checks] = await Promise.all([
+        query<NewsRowDb>(
+          `select id, title, source, url, published_at, tone, story_id from member_news
+            where member_id = $1 and published_at >= $2::timestamptz order by published_at desc, id`,
+          [bioguideId, from.toISOString()],
+        ),
+        query<{ id: string; title: string }>("select id, title from member_news_stories where member_id = $1", [bioguideId]),
+        query<{
+          id: string;
+          pollster: string;
+          fielded_from: Date | string;
+          fielded_to: Date | string;
+          population: string;
+          sample_size: number | null;
+          positive_label: string;
+          positive_pct: string | number;
+          negative_label: string;
+          negative_pct: string | number;
+          other_label: string | null;
+          other_pct: string | number | null;
+          url: string;
+        }>(
+          `select p.* from polls p join poll_members pm on pm.poll_id = p.id
+            where pm.member_id = $1 and p.fielded_to >= $2::date
+            order by p.fielded_to desc, p.fielded_from desc, p.id`,
+          [bioguideId, pollsFrom],
+        ),
+        query<{ checked_at: Date | string }>("select checked_at from member_news_checks where member_id = $1", [bioguideId]),
+      ]);
+      const checked = checks.rows[0]?.checked_at;
+      return {
+        checkedAt: checked ? new Date(checked).toISOString() : null,
+        headlines: headlines.rows.map(headlineOf),
+        storyTitles: new Map(stories.rows.map((s) => [s.id, s.title])),
+        polls: polls.rows.map(
+          (p): Poll => ({
+            id: p.id,
+            pollster: p.pollster,
+            fieldedFrom: isoDay(p.fielded_from),
+            fieldedTo: isoDay(p.fielded_to),
+            population: p.population,
+            sampleSize: p.sample_size,
+            positive: { label: p.positive_label, pct: Number(p.positive_pct) },
+            negative: { label: p.negative_label, pct: Number(p.negative_pct) },
+            other: p.other_label !== null && p.other_pct !== null ? { label: p.other_label, pct: Number(p.other_pct) } : null,
+            url: p.url,
+          }),
+        ),
+      };
+    },
+  };
+}
+
+/** The Local tab's records and headlines, through liveQuery like pgNews. */
+export function pgLocal(db: Db): LocalRepository {
+  const query = liveQuery(db);
+  return {
+    async withRecords(since) {
+      const { rows } = await query<{ jurisdiction_id: string }>(
+        "select distinct jurisdiction_id from local_items where date >= $1::date",
+        [since],
+      );
+      return new Set(rows.map((r) => r.jurisdiction_id));
+    },
+    async items(jurisdictionId, since) {
+      const { rows } = await query<{
+        id: string;
+        identifier: string;
+        title: string;
+        summary: string | null;
+        body: string;
+        date: Date | string;
+        status: LocalItem["status"];
+        yes: number | null;
+        no: number | null;
+        url: string | null;
+      }>(
+        `select id, identifier, title, summary, body, date, status, yes, no, url from local_items
+          where jurisdiction_id = $1 and date >= $2::date order by date desc, id`,
+        [jurisdictionId, since],
+      );
+      return rows.map((r) => ({ ...r, date: isoDay(r.date) }));
+    },
+    async news(jurisdictionId, from, limit) {
+      const { rows } = await query<NewsRowDb>(
+        `select id, title, source, url, published_at, null::text as tone, null::text as story_id from local_news
+          where jurisdiction_id = $1 and published_at >= $2::timestamptz order by published_at desc, id limit $3`,
+        [jurisdictionId, from.toISOString(), limit],
+      );
+      return rows.map(headlineOf);
+    },
+    async updatedAt(jurisdictionId) {
+      const { rows } = await query<{ at: Date | string | null }>(
+        "select max(checked_at) as at from local_checks where jurisdiction_id = $1",
+        [jurisdictionId],
+      );
+      return rows[0]?.at ? new Date(rows[0].at).toISOString() : null;
     },
   };
 }

@@ -1,0 +1,13 @@
+{
+  "members": ["S000148"],
+  "pollster": "Data for Progress",
+  "fieldedFrom": "2026-11-13",
+  "fieldedTo": "2026-11-15",
+  "population": "Democratic or Democratic-leaning likely voters",
+  "sampleSize": 538,
+  "positive": { "label": "Chuck Schumer should remain the Senate Democratic leader", "pct": 32 },
+  "negative": { "label": "Senate Democrats should choose a new leader", "pct": 56 },
+  "other": null,
+  "url": "https://www.dataforprogress.org/blog/2026/11/16/democratic-leaning-voters-favor-van-hollen-over-schumer-for-majority-leader",
+  "note": "The release gives these two answers; the remaining 12% is not broken out, so other is null rather than computed."
+}

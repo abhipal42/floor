@@ -8,6 +8,14 @@ export interface DistrictMatch {
   stateFips: string;   // e.g. "48"
   district: number;    // 0 for at-large seats and delegates
   countyFips: string | null;
+  /**
+   * State legislative districts, as Census's BASENAME ("27", not SLDU "027"), which is how Open
+   * States names districts. Null where the layer is absent (Nebraska has no lower chamber).
+   */
+  stateUpper?: string | null;
+  stateLower?: string | null;
+  /** The Census Incorporated Place containing the point (BASENAME: "New York", not "New York city"). */
+  place?: { geoid: string; name: string } | null;
 }
 
 /**
@@ -57,6 +65,13 @@ export function censusCoordinatesUrl(lat: number, lng: number, congress: number)
 type Geo = Record<string, string>;
 
 /**
+ * A layer by its name's ending. Census prefixes the state legislative layers with their vintage
+ * year ("2024 State Legislative Districts - Upper"; DC's wards come as "2026 …"), and that moves.
+ */
+const layerEnding = (geographies: Record<string, Geo[]>, ending: string): Geo | undefined =>
+  Object.entries(geographies).find(([name]) => name === ending || name.endsWith(` ${ending}`))?.[1]?.[0];
+
+/**
  * Pulls state, district and county out of a Census geographies response. An address lookup nests
  * the layers under `addressMatches[0]`; a coordinates lookup puts them straight on `result`.
  */
@@ -73,6 +88,7 @@ export function parseCensusDistrict(json: unknown, congress: number): DistrictMa
 
   // GEOID is state FIPS + 2-digit district. "00" is at-large and "98" is a non-voting delegate seat.
   const code = cd.GEOID.slice(2);
+  const place = geographies["Incorporated Places"]?.[0];
   const district = code === "00" || code === "98" ? 0 : Number.parseInt(code, 10);
   return {
     congress,
@@ -80,6 +96,9 @@ export function parseCensusDistrict(json: unknown, congress: number): DistrictMa
     stateFips: cd.GEOID.slice(0, 2),
     district,
     countyFips: geographies["Counties"]?.[0]?.GEOID ?? null,
+    stateUpper: layerEnding(geographies, "State Legislative Districts - Upper")?.BASENAME || null,
+    stateLower: layerEnding(geographies, "State Legislative Districts - Lower")?.BASENAME || null,
+    place: place?.GEOID && place.BASENAME ? { geoid: place.GEOID, name: place.BASENAME } : null,
   };
 }
 
