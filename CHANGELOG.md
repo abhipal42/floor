@@ -8,6 +8,17 @@ is a milestone and ships a retro under `docs/retros/`.
 Older series live in [`docs/changelog/`](docs/changelog) (0.1.x: [`0.1.md`](docs/changelog/0.1.md)).
 Before 0.1.0 the history is the commit log on `main`.
 
+## 0.2.60 — 2026-11-17
+
+### Added
+- **Member news (the News page).** A member's page has a News section between Posts and Money, and "News ›" opens a page of the week's headlines (Google News search, headline, source and date only), grouped into stories, with each headline's tone toward the member read by Claude (AI READ: favorable, neutral or critical; the member's own office releases are shown but not counted). Polls that name the member sit under them, each linked to its release; polls are reviewed JSON files in `apps/worker/polls/`, seeded with three real Schumer polls.
+- **The Local tab.** A fifth tab with the user's state and saved cities as hubs: signed into law, waiting on the governor, city council votes with the tally, local news, and the user's state legislators. A Cities screen adds New York City, Seattle, San Francisco, Boston, Denver, Los Angeles, Chicago, Houston or Philadelphia, each marked Ready, Coming soon or News only.
+- API: `GET /v1/members/{id}/news`, `GET /v1/local`, `GET /v1/local/{id}`, `GET /v1/local/{state}/legislators`; `/v1/reps` districts gain `stateUpper`, `stateLower` and `place` from the Census response it already fetched.
+- Worker: `news` (hourly, 100 members a run), `polls` and `local` (daily) steps; migration `20261120000000_news_polls_local.sql`.
+
+### Needs
+- `OPENSTATES_API_KEY` (state legislatures and legislators), `NYC_LEGISTAR_TOKEN` (NYC Council) and `ANTHROPIC_API_KEY` (tone and stories) in the `fafo` environment and on `floor-api`. Without them those parts stay empty; headlines, polls and the open cities work now.
+
 ## 0.2.59 — 2026-11-17
 
 ### Changed
