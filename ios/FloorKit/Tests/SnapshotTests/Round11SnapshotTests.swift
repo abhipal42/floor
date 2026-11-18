@@ -33,29 +33,32 @@ struct Round11SnapshotTests {
     // MARK: - A · Week
 
     /// You follow H.R. 9640 and the Labor and Employment topic (which takes in both bills under a rule).
-    private func week(chamber: Chamber = .house, now: Date = monday) async -> some View {
+    private func week(now: Date = monday) async -> WeekModel {
         var state = FollowState()
         state.follow(.bill, "119-hr-9640")
         state.follow(topic: "Labor and Employment")
         let model = WeekModel(api: FixtureServer.api, follows: Follows(store: InMemoryFollowStore(state)), now: { now })
-        model.chamber = chamber
         await model.load()
-        return WeekView(model: model, onOpenBill: { _ in })
+        return model
     }
 
+    /// v0.2.59: both chambers on one scroll, on the Nov 14 capture. The headliners' edges are gold
+    /// (Labor and Employment is followed), and so is H.R. 9640's row among the fast-track tiles' rows.
     @Test func weekHouse() async throws {
-        assertScreen(await week(), height: 1400)
+        assertScreen(WeekView(model: await week(), onOpenBill: { _ in }), height: 1400)
     }
 
+    /// "Program ›": the Senate's week, as round 11 drew its Senate side.
     @Test func weekSenate() async throws {
-        assertScreen(await week(chamber: .senate), height: 900, [.light, .dark])
+        assertScreen(WeekSenateView(model: await week(), onOpenBill: { _ in }), height: 900, [.light, .dark])
     }
 
     /// The week of Nov 23: no list posted, no Senate meeting named. Says why, never "recess".
     @Test func weekNothingPosted() async throws {
         let later = Formats.instant("2026-11-23T14:00:00.000Z")!
-        assertScreen(await week(now: later), height: 600, [.light])
-        assertScreen(await week(chamber: .senate, now: later), height: 500, [.dark], testName: "weekNothingPostedSenate")
+        assertScreen(WeekView(model: await week(now: later), onOpenBill: { _ in }), height: 600, [.light])
+        assertScreen(WeekSenateView(model: await week(now: later), onOpenBill: { _ in }), height: 500, [.dark],
+                     testName: "weekNothingPostedSenate")
     }
 
     // MARK: - B · Vote explainers

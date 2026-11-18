@@ -90,14 +90,14 @@ struct WeekTests {
         let week = try schedule()
         let senate = try #require(week.senate)
         let program = try #require(senate.meetings.first?.program)
-        let linked = WeekView.linked(program, items: senate.items)
+        let linked = WeekSenateView.linked(program, items: senate.items)
         let links = linked.runs.compactMap(\.link)
         #expect(links == [FloorLink.bill(id: "119-hr-2347").url])
         // Verbatim: the text itself is unchanged.
         #expect(String(linked.characters) == program)
         let meeting = try #require(senate.meetings.first)
         // The time style puts a narrow no-break space before PM.
-        let convenes = WeekView.convenes(meeting).replacingOccurrences(of: "\u{202F}", with: " ")
+        let convenes = WeekSenateView.convenes(meeting).replacingOccurrences(of: "\u{202F}", with: " ")
         #expect(convenes == "Convenes Monday 3:00 PM ET")
     }
 }

@@ -2484,6 +2484,41 @@ one scroll, option B of https://claude.ai/artifact/Jaqz5c8EGoCQd8Wb8ELBns.
 - **Contrast:** grey text (`textMuted`) is 4.38:1 on the light promise card, so the card's topic line uses
   `textSecondary`. PaletteTests checks it.
 
+### Catch up, Week and Bills rethought (v0.2.59)
+
+The locked mock is https://claude.ai/artifact/T7fxxQyFCYdPaJnewnNpT2, tab "Your picks".
+
+- **Catch up (iOS `CatchUpDeckView`, Android `home/CatchUpDeck.kt`).**
+  - **Layout:** a deck of story cards, with two ghost cards behind. A swipe or → moves on, ↺ goes back. With
+    reduced motion it crossfades instead. It ends on an all-caught-up screen.
+  - **The card:** the topic band, `summaryLead`, the step sentence, the score against the threshold, the twist,
+    the party rows from `partyTotals`, and your members.
+  - **The old edge bug (iOS):** fixed-size HStacks were wider than the screen.
+  - **Merging records:** a member's saved record can predate newer API fields. It borrows them from a fuller copy
+    of the same measure, or the card would lose its CRS summary.
+- **Week (`WeekPlan`).**
+  - **Headliners:**
+    - House `rule` items, plus the Senate items the Digest program names.
+    - A program naming "(legislative vehicle for X)" headlines X, "Riding on" the bill. Only that literal pattern
+      is parsed.
+    - Their chips are the bill's real votes from the feed.
+  - **Senate next:** the next meeting's time, heading and first sentence. "Program ›" is the old Senate view.
+    The program is not parsed into timed votes.
+  - **Fast track:** the `suspension` items, as topic-group tiles.
+  - **Also listed:** everything else.
+  - The House/Senate switch is gone.
+- **Bills (`BillsLedger` / `bills/Ledger.kt`).**
+  - **Sections:** by topic group, newest vote first, filtered All / Passed / Blocked on the latest vote.
+  - **Track steps:**
+    - House bills: Introduced → House → Senate → Law. Senate bills: the chambers in the other order.
+    - Simple resolutions: Introduced → Adopted. Concurrent resolutions: both chambers, then Adopted.
+    - Vetoed and failed are drawn in the nay colour.
+  - **Rule votes:** a rule vote whose `forBillId` is in the list folds into that bill. Otherwise it is a card
+    titled "Rule for …".
+  - **"Passed House":** only for a vote that decided something, since the House records a referral motion as
+    "Passed" too.
+- **Tokens:** `topicText(group)` for topic colour as text (contrast-tested), and chamber label colours.
+
 ### M5: Beta hardening + App Store
 Accessibility (Dynamic Type, VoiceOver on score cards), privacy labels, a vote-night load test, App Review prep, public TestFlight.
 

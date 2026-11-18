@@ -1,10 +1,14 @@
 package app.floor.android.week
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
@@ -12,13 +16,12 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
-import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.sizeIn
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -38,7 +41,6 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
-import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.LinkAnnotation
@@ -48,45 +50,67 @@ import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextDecoration
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import app.floor.android.R
 import app.floor.android.bills.Failed
 import app.floor.android.bills.Spinner
 import app.floor.android.design.FloorColors
-import app.floor.android.design.glass
 import app.floor.android.design.FloorType
 import app.floor.android.design.Palette
-import app.floor.android.design.arenaGround
 import app.floor.android.design.SavedDataNote
+import app.floor.android.design.SkewChip
+import app.floor.android.design.arenaGround
 import app.floor.android.design.dashedPanel
+import app.floor.android.design.glass
+import app.floor.android.design.heroEdge
 import app.floor.android.home.TabBarClearance
-import app.floor.android.model.Chamber
+import app.floor.android.model.RecentVote
 import app.floor.android.model.Schedule
 import app.floor.android.model.ScheduleCategory
 import app.floor.android.model.ScheduleItem
 import app.floor.android.model.SenateMeeting
 import app.floor.android.store.FollowState
+import app.floor.android.vote.TopBar
+import java.time.Instant
+import java.time.ZoneId
+import java.util.Locale
 
 /**
- * The Week tab (iOS `WeekView`, round 11 section A). House: the Majority Leader's list split the way
- * the House splits it, what you follow first with the gold edge. Senate: when it next meets and the
- * Daily Digest's program in its own words, the measures it names linked. An empty side says why,
- * never a blank list, and never that the House is in recess: an unpublished week is not reported as one.
+ * The Week tab (v0.2.59, "Your picks" of the locked mock; iOS `WeekView`): both chambers on one
+ * scroll. A one-line summary from the schedule, then HEADLINERS (the Senate measures the Digest's
+ * program names and the House bills up under a rule), SENATE NEXT (today's meeting or the next),
+ * FAST TRACK (the House's suspensions as topic tiles) and anything else listed. "Program ›", a tile
+ * and "All ›" open their rows on their own screen ([WeekState.Detail]). An empty side says why,
+ * never that the House is in recess: an unpublished week is not reported as one.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun WeekScreen(
     state: WeekState,
     follows: FollowState,
+    /** The latest finals, for each headliner's vote chips. */
+    votes: List<RecentVote>,
+    /** The reader's zone and locale, passed rather than read inside (lesson 69): the chips' days. */
+    zone: ZoneId,
+    locale: Locale,
     onWeek: (Int) -> Unit,
-    onChamber: (Chamber) -> Unit,
-    onExpand: (ScheduleCategory) -> Unit,
+    onOpen: (WeekState.Detail?) -> Unit,
     onRetry: () -> Unit,
     onOpenBill: (String) -> Unit,
     modifier: Modifier = Modifier,
+    /** What "today" is for SENATE NEXT. */
+    now: Instant = Instant.now(),
 ) {
     val colors = Palette
+    val schedule = (state.phase as? WeekState.Phase.Loaded)?.schedule
+    val detail = state.detail
+    if (detail != null && schedule != null) {
+        BackHandler { onOpen(null) }
+        Detail(detail, schedule, follows, onBack = { onOpen(null) }, onOpenBill = onOpenBill, modifier = modifier)
+        return
+    }
     PullToRefreshBox(isRefreshing = false, onRefresh = onRetry, modifier = modifier.fillMaxSize().arenaGround(colors)) {
         Column(
             Modifier
@@ -94,7 +118,7 @@ fun WeekScreen(
                 .verticalScroll(rememberScrollState())
                 .windowInsetsPadding(WindowInsets.statusBars)
                 .padding(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 24.dp + TabBarClearance),
-            verticalArrangement = Arrangement.spacedBy(7.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
             Header(state, onWeek)
             when (val phase = state.phase) {
@@ -102,12 +126,7 @@ fun WeekScreen(
                 is WeekState.Phase.Failed -> Failed(phase.message, onRetry)
                 is WeekState.Phase.Loaded -> {
                     state.saved?.let { SavedDataNote(it) }
-                    Segment(phase.schedule, state.chamber, onChamber)
-                    if (state.chamber == Chamber.HOUSE) {
-                        House(phase.schedule, follows, state.expanded, onExpand, onOpenBill)
-                    } else {
-                        Senate(phase.schedule, follows, onOpenBill)
-                    }
+                    Week(phase.schedule, follows, votes, zone, locale, now, onOpen, onOpenBill)
                 }
             }
         }
@@ -117,13 +136,18 @@ fun WeekScreen(
 @Composable
 private fun Header(state: WeekState, onWeek: (Int) -> Unit) {
     val colors = Palette
-    Row(Modifier.fillMaxWidth().padding(bottom = 4.dp), verticalAlignment = Alignment.CenterVertically) {
-        Text(state.title, style = FloorType.headline(28f), color = colors.text, modifier = Modifier.semantics { heading() })
-        Spacer(Modifier.weight(1f).width(8.dp))
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            Arrow(R.drawable.ic_chevron_left, "Previous week") { onWeek(state.offset - 1) }
-            Text(state.range, style = FloorType.text(12f, FontWeight.SemiBold), color = colors.textMuted, maxLines = 1)
-            Arrow(R.drawable.ic_chevron_right, "Next week") { onWeek(state.offset + 1) }
+    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            Text(state.title, style = FloorType.headline(34f), color = colors.text, modifier = Modifier.semantics { heading() })
+            Spacer(Modifier.weight(1f).width(8.dp))
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                Arrow(R.drawable.ic_chevron_left, "Previous week") { onWeek(state.offset - 1) }
+                Text(state.range, style = FloorType.text(12f, FontWeight.SemiBold), color = colors.textMuted, maxLines = 1)
+                Arrow(R.drawable.ic_chevron_right, "Next week") { onWeek(state.offset + 1) }
+            }
+        }
+        (state.phase as? WeekState.Phase.Loaded)?.let {
+            Text(WeekPlan.summary(it.schedule), style = FloorType.text(13f), color = colors.textMuted)
         }
     }
 }
@@ -143,47 +167,34 @@ private fun Arrow(icon: Int, label: String, onClick: () -> Unit) {
 }
 
 @Composable
-private fun Segment(schedule: Schedule, chamber: Chamber, onChamber: (Chamber) -> Unit) {
-    val colors = Palette
-    val listed = schedule.house.items.count { it.removedAt == null }
-    Row(
-        Modifier.fillMaxWidth().clip(RoundedCornerShape(9.dp)).background(colors.panel).padding(3.dp),
-        horizontalArrangement = Arrangement.spacedBy(4.dp),
-    ) {
-        listOf(Chamber.HOUSE, Chamber.SENATE).forEach { option ->
-            val on = option == chamber
-            val title = if (option == Chamber.HOUSE && listed > 0) "HOUSE · $listed" else option.title.uppercase()
-            Box(
-                Modifier
-                    .weight(1f)
-                    .clip(RoundedCornerShape(7.dp))
-                    .background(if (on) colors.chip else Color.Transparent)
-                    .clickable(role = Role.Tab) { onChamber(option) }
-                    .semantics {
-                        selected = on
-                        contentDescription = if (option == Chamber.HOUSE) "House, $listed listed" else "Senate"
-                    }
-                    .padding(vertical = 7.dp),
-                contentAlignment = Alignment.Center,
-            ) {
-                Text(title, style = FloorType.label(12f).copy(letterSpacing = 0.6.sp), color = if (on) colors.text else colors.textMuted, maxLines = 1)
-            }
-        }
-    }
-}
-
-// MARK: - House
-
-@Composable
-private fun House(
+private fun Week(
     schedule: Schedule,
     follows: FollowState,
-    expanded: Set<ScheduleCategory>,
-    onExpand: (ScheduleCategory) -> Unit,
+    votes: List<RecentVote>,
+    zone: ZoneId,
+    locale: Locale,
+    now: Instant,
+    onOpen: (WeekState.Detail?) -> Unit,
     onOpenBill: (String) -> Unit,
 ) {
-    val groups = WeekSort.groups(schedule.house.items, follows)
-    if (schedule.house.inSession != true || groups.isEmpty()) {
+    val headliners = WeekPlan.headliners(schedule, votes, follows, zone, locale)
+    if (headliners.isNotEmpty()) {
+        Section("HEADLINERS")
+        headliners.forEach { HeadlinerCard(it, onOpenBill) }
+    }
+
+    val senate = schedule.senate
+    if (senate == null || senate.meetings.isEmpty()) {
+        Section("SENATE NEXT")
+        Placeholder("No Senate meeting posted", schedule.senateReason ?: "The Senate hasn't named a meeting in this week.")
+    } else {
+        Section("SENATE NEXT", link = "Program ›", linkSpoken = "Open the Senate's program") { onOpen(WeekState.Detail.Senate) }
+        WeekPlan.senateNext(senate, now)?.let { SenateNext(it, now) { onOpen(WeekState.Detail.Senate) } }
+    }
+
+    val house = schedule.house.items
+    val tiles = WeekPlan.fastTrack(house, follows)
+    if (schedule.house.inSession != true || house.isEmpty()) {
         Placeholder(
             "No floor schedule posted",
             "No floor schedule posted for this week. The House lists each week's bills ahead of time, and they show here once it does.",
@@ -196,31 +207,204 @@ private fun House(
         )
         return
     }
-    groups.forEach { group ->
-        val open = group.category in expanded
-        val shown = if (open) group.rows.size else minOf(group.rows.size, WeekSort.visibleCount(group))
-        val hidden = group.rows.size - shown
-        GroupHeading("${group.title} · ${group.count}".uppercase())
-        group.rows.take(shown).forEach { row -> RowFor(row, onOpenBill) }
-        if (hidden > 0) {
-            Text(
-                "+ $hidden more",
-                style = FloorType.text(11.5f, FontWeight.SemiBold),
-                color = Palette.threshold,
-                modifier = Modifier
-                    .heightIn(min = 28.dp)
-                    .clip(RoundedCornerShape(7.dp))
-                    .clickable(role = Role.Button) { onExpand(group.category) }
-                    .semantics { contentDescription = "Show $hidden more ${group.title.lowercase()}" }
-                    .padding(horizontal = 2.dp, vertical = 6.dp),
-            )
-        }
+    if (tiles.isNotEmpty()) {
+        Section("FAST TRACK · ${tiles.sumOf { it.count }}", link = "All ›", linkSpoken = "Every fast-track bill") { onOpen(WeekState.Detail.FastTrack(null)) }
+        Text(
+            "House bills that need two-thirds and usually pass without debate.",
+            style = FloorType.text(12.5f),
+            color = Palette.textMuted,
+        )
+        Tiles(tiles) { onOpen(WeekState.Detail.FastTrack(it.topic)) }
+    }
+    val also = WeekPlan.alsoListed(house, follows)
+    if (also.isNotEmpty()) {
+        Section("ALSO LISTED")
+        also.forEach { RowFor(it, onOpenBill) }
     }
     Footnote(WeekSort.sourceLine(schedule), "Listed means it may come up: the House adds and drops items through the week.")
 }
 
-// MARK: - Senate
+/** A headliner: the topic's 4dp top edge (gold when you follow it), the cite chip, the chamber, the title, the context, the votes. */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun HeadlinerCard(headliner: Headliner, onOpenBill: (String) -> Unit) {
+    val colors = Palette
+    val shape = RoundedCornerShape(22.dp)
+    val item = headliner.item
+    val id = item.billId
+    val followed = headliner.row.followed != null
+    Column(
+        Modifier
+            .fillMaxWidth()
+            .glass(colors, shape, edge = colors.heroEdge())
+            .then(if (id != null) Modifier.clickable(role = Role.Button, onClickLabel = "Open the bill") { onOpenBill(id) } else Modifier)
+            .clearAndSetSemantics {
+                contentDescription = listOfNotNull(
+                    item.label, headliner.label.lowercase().replaceFirstChar(Char::uppercase), headliner.headline, headliner.context,
+                    if (followed) "You follow this" else null,
+                ).plus(headliner.chips).joinToString(". ")
+            },
+    ) {
+        Box(Modifier.fillMaxWidth().height(4.dp).background(if (followed) colors.threshold else colors.topic(headliner.topic)))
+        Column(Modifier.padding(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 16.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                SkewChip(item.label, size = 13f)
+                Spacer(Modifier.weight(1f).width(8.dp))
+                Text(
+                    headliner.label,
+                    style = FloorType.text(11f, FontWeight.Bold).copy(letterSpacing = 1.sp),
+                    color = colors.chamberText(headliner.chamber),
+                    maxLines = 1,
+                )
+            }
+            Text(
+                headliner.headline.uppercase(),
+                style = FloorType.display(25f, FloorType.Face.BLACK_ITALIC).copy(lineHeight = 25.sp),
+                color = colors.text,
+                modifier = Modifier.padding(top = 10.dp),
+            )
+            headliner.context?.let {
+                Text(it, style = FloorType.text(12.5f).copy(lineHeight = 18.sp), color = colors.textSecondary, modifier = Modifier.padding(top = 7.dp))
+            }
+            if (headliner.chips.isNotEmpty()) {
+                FlowRow(Modifier.padding(top = 11.dp), horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    headliner.chips.forEach { VoteChip(it) }
+                }
+            }
+        }
+    }
+}
 
+@Composable
+private fun VoteChip(text: String) {
+    val colors = Palette
+    val pill = RoundedCornerShape(50)
+    Text(
+        text,
+        style = FloorType.text(12.5f, FontWeight.SemiBold),
+        color = colors.textSecondary,
+        maxLines = 1,
+        modifier = Modifier
+            .clip(pill)
+            .background(colors.chip, pill)
+            .padding(horizontal = 11.dp, vertical = 6.dp),
+    )
+}
+
+/** Today's meeting, or the next one: the day and the convene time big, the heading and the program's first sentence. */
+@Composable
+private fun SenateNext(meeting: SenateMeeting, now: Instant, onProgram: () -> Unit) {
+    val colors = Palette
+    val time = WeekPlan.convenes(meeting)
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .glass(colors, RoundedCornerShape(16.dp))
+            .clickable(role = Role.Button, onClickLabel = "Open the Senate's program", onClick = onProgram)
+            .semantics(mergeDescendants = true) {}
+            .padding(horizontal = 14.dp, vertical = 13.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        Column(Modifier.widthIn(min = 52.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+            Text(WeekPlan.meetingDay(meeting, now), style = FloorType.text(11f, FontWeight.Bold).copy(letterSpacing = 1.sp), color = colors.textMuted)
+            if (time != null) {
+                Text(time.first, style = FloorType.display(26f, FloorType.Face.BLACK_ITALIC), color = colors.text)
+                Text(time.second, style = FloorType.text(11f, FontWeight.Bold).copy(letterSpacing = 1.sp), color = colors.textMuted)
+            }
+        }
+        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+            Text(meeting.heading ?: WeekSort.convenes(meeting), style = FloorType.text(14.5f, FontWeight.Bold), color = colors.text)
+            val program = meeting.program
+            when {
+                meeting.proForma -> Text(
+                    "Pro forma session: the Senate meets for seconds and does no business.",
+                    style = FloorType.text(12.5f), color = colors.textMuted,
+                )
+                program != null -> Text(
+                    WeekPlan.sentences(program).firstOrNull() ?: program,
+                    style = FloorType.text(12.5f), color = colors.textMuted, maxLines = 2, overflow = TextOverflow.Ellipsis,
+                )
+                else -> Text(
+                    "The program comes out with the Congressional Record, usually the morning after the Senate adjourns.",
+                    style = FloorType.text(12.5f), color = colors.textMuted,
+                )
+            }
+        }
+    }
+}
+
+/** Two columns of glass tiles, one per topic group: the count big in the topic's colour, then its name. */
+@Composable
+private fun Tiles(tiles: List<FastTrackTile>, onTile: (FastTrackTile) -> Unit) {
+    val colors = Palette
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        tiles.chunked(2).forEach { pair ->
+            Row(Modifier.fillMaxWidth().height(IntrinsicSize.Min), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                pair.forEach { tile ->
+                    Column(
+                        Modifier
+                            .weight(1f)
+                            .fillMaxHeight()
+                            .glass(colors, RoundedCornerShape(14.dp))
+                            .clickable(role = Role.Button, onClickLabel = "Open these bills") { onTile(tile) }
+                            .clearAndSetSemantics { contentDescription = "${tile.count} fast-track ${if (tile.count == 1) "bill" else "bills"} in ${tile.topic.title}" }
+                            .padding(12.dp),
+                    ) {
+                        Text("${tile.count}", style = FloorType.display(26f, FloorType.Face.BLACK_ITALIC), color = colors.topicText(tile.topic))
+                        Text(tile.topic.title, style = FloorType.text(12f), color = colors.textSecondary)
+                    }
+                }
+                if (pair.size == 1) Spacer(Modifier.weight(1f))
+            }
+        }
+    }
+}
+
+// MARK: - Screens opened from the week
+
+@Composable
+private fun Detail(
+    detail: WeekState.Detail,
+    schedule: Schedule,
+    follows: FollowState,
+    onBack: () -> Unit,
+    onOpenBill: (String) -> Unit,
+    modifier: Modifier,
+) {
+    val colors = Palette
+    Column(modifier.fillMaxSize().background(colors.ground).windowInsetsPadding(WindowInsets.statusBars)) {
+        TopBar(back = "Week", onBack = onBack)
+        Column(
+            Modifier
+                .fillMaxSize()
+                .verticalScroll(rememberScrollState())
+                .padding(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 24.dp + TabBarClearance),
+            verticalArrangement = Arrangement.spacedBy(7.dp),
+        ) {
+            when (detail) {
+                WeekState.Detail.Senate -> {
+                    Text("SENATE", style = FloorType.headline(34f), color = colors.text, modifier = Modifier.semantics { heading() })
+                    Senate(schedule, follows, onOpenBill)
+                }
+                is WeekState.Detail.FastTrack -> {
+                    val tiles = WeekPlan.fastTrack(schedule.house.items, follows)
+                    val rows = detail.topic?.let { t -> tiles.firstOrNull { it.topic == t }?.rows }
+                        ?: WeekSort.groups(schedule.house.items.filter { it.category == ScheduleCategory.SUSPENSION }, follows).flatMap { it.rows }
+                    Text(
+                        "FAST TRACK" + (detail.topic?.let { " · ${it.title.uppercase()}" } ?: ""),
+                        style = FloorType.headline(34f), color = colors.text, modifier = Modifier.semantics { heading() },
+                    )
+                    Text("House bills that need two-thirds and usually pass without debate.", style = FloorType.text(12.5f), color = colors.textMuted)
+                    rows.forEach { RowFor(it, onOpenBill) }
+                    Footnote(WeekSort.sourceLine(schedule))
+                }
+            }
+        }
+    }
+}
+
+/** Today's Senate content, as the Senate side of the week showed it before v0.2.59. */
 @Composable
 private fun Senate(schedule: Schedule, follows: FollowState, onOpenBill: (String) -> Unit) {
     val senate = schedule.senate
@@ -246,7 +430,7 @@ private fun Senate(schedule: Schedule, follows: FollowState, onOpenBill: (String
 @Composable
 private fun Meeting(meeting: SenateMeeting, items: List<ScheduleItem>, onOpenBill: (String) -> Unit) {
     val colors = Palette
-    GroupHeading("NEXT MEETING")
+    GroupHeading("MEETING")
     Column(Modifier.card(colors).semantics(mergeDescendants = true) {}, verticalArrangement = Arrangement.spacedBy(3.dp)) {
         Text(WeekSort.convenes(meeting), style = FloorType.text(13f, FontWeight.Bold), color = colors.text)
         if (meeting.proForma) {
@@ -291,6 +475,27 @@ private fun linked(program: String, items: List<ScheduleItem>, onOpenBill: (Stri
 }
 
 // MARK: - Pieces
+
+/** A section's title (the mock's `.sect h3`), with its link on the right when it has one. */
+@Composable
+private fun Section(title: String, link: String? = null, linkSpoken: String? = null, onLink: (() -> Unit)? = null) {
+    val colors = Palette
+    Row(Modifier.fillMaxWidth().padding(top = 12.dp), verticalAlignment = Alignment.Bottom) {
+        Text(title, style = FloorType.display(19f), color = colors.text, modifier = Modifier.weight(1f).semantics { heading() })
+        if (link != null && onLink != null) {
+            Text(
+                link,
+                style = FloorType.text(12.5f, FontWeight.SemiBold),
+                color = colors.accent,
+                modifier = Modifier
+                    .clip(RoundedCornerShape(6.dp))
+                    .clickable(role = Role.Button, onClick = onLink)
+                    .semantics { linkSpoken?.let { contentDescription = it } }
+                    .padding(horizontal = 4.dp, vertical = 4.dp),
+            )
+        }
+    }
+}
 
 @Composable
 private fun GroupHeading(text: String) {

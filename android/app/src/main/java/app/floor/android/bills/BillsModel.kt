@@ -57,7 +57,7 @@ data class SearchState(
     }
 }
 
-/** What the Bills tab shows: the search, and the 32 topics. */
+/** A search and the 32 topics: the Bills tab's search, "+ Add", and Following › Topics. */
 data class BillsState(
     val topics: Phase = Phase.Loading,
     val saved: SavedCopy? = null,
@@ -71,11 +71,12 @@ data class BillsState(
 }
 
 /**
- * The Bills tab: one search over bills and topics (`GET /v1/search`, a short pause after the last
- * keystroke), and the 32 topics CRS sorts every bill into (`GET /v1/topics`), each opening its page.
+ * One search over bills and topics (`GET /v1/search`, a short pause after the last keystroke), and
+ * the 32 topics CRS sorts every bill into (`GET /v1/topics`), each opening its page.
  *
- * iOS reaches the same search and topics only through Following's "+ Add"; Android keeps them on
- * the Bills tab too, where a member row opens the member screen. "+ Add" is another of these.
+ * iOS reaches the same search only through Following's "+ Add"; Android keeps it on the Bills tab
+ * too (above the ledger), where a member row opens the member screen. "+ Add" is another of these,
+ * and Following › Topics lists the topics.
  */
 class BillsModel(private val api: FloorApi, private val debounceMillis: Long = 300) : ViewModel() {
     var state by mutableStateOf(BillsState())

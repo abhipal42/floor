@@ -381,7 +381,7 @@ describe("Postgres repositories", () => {
       // The opening of its CRS summary, and nothing a nomination would carry.
       summaryLead: "This bill does things.",
       position: null,
-      forBillId: null,
+      stage: null, forBillId: null,
     });
     // A procedural vote refers to no measure at all.
     expect(try0(votes.find((v) => v.vote.id === "house-119-1-2")).measure).toBeNull();
@@ -398,7 +398,7 @@ describe("Postgres repositories", () => {
       sponsor: { bioguideId: "H000037", lastName: "Current", party: "D", state: "TX" },
       summaryLead: "This bill does things.",
       position: null,
-      forBillId: null,
+      stage: null, forBillId: null,
     });
     // The same builder as the feed, so the two can never describe one measure differently.
     const inTheFeed = (await repos.members.recentVotes("H000037", 10))
@@ -420,7 +420,7 @@ describe("Postgres repositories", () => {
       summaryLead: null,
       // The post, for the feed card's citation line.
       position: "Secretary of the Army",
-      forBillId: null,
+      stage: null, forBillId: null,
     });
     // Military nominations promote officers in bulk and carry no name.
     expect(try0(votes.find((v) => v.vote.id === "senate-119-1-91")).measure).toEqual({
@@ -432,7 +432,7 @@ describe("Postgres repositories", () => {
       sponsor: null,
       summaryLead: null,
       position: "General",
-      forBillId: null,
+      stage: null, forBillId: null,
     });
   });
 
@@ -691,7 +691,7 @@ describe("recent votes", () => {
     ]);
     expect(all[1]!.measure).toEqual({
       id: "119-pn-12-12", kind: "nomination", citation: "PN12-12", title: "Daniel Driscoll", policyArea: null,
-      sponsor: null, summaryLead: null, position: "Secretary of the Army", forBillId: null,
+      sponsor: null, summaryLead: null, position: "Secretary of the Army", stage: null, forBillId: null,
     });
     expect(all.find((r) => r.vote.id === "house-119-1-2")!.measure).toBeNull();
     expect((await repos.votes.recentVotes("house", 2)).map((r) => r.vote.id)).toEqual(["house-119-1-4", "house-119-1-3"]);
@@ -719,7 +719,7 @@ describe("recent votes", () => {
         values ('house-119-2-9001', 'house', 119, 2, 9001, 'On Agreeing to the Resolution', 'final', 271, 135, 'Passed', '2026-11-12T15:00:00Z', '119-hres-1247');
     `);
     const [rule] = await repos.votes.recentVotes("house", 1);
-    expect(rule!.measure).toMatchObject({ id: "119-hres-1247", forBillId: "119-hr-2102", sponsor: null, summaryLead: null });
+    expect(rule!.measure).toMatchObject({ id: "119-hres-1247", stage: null, forBillId: "119-hr-2102", sponsor: null, summaryLead: null });
     // Any other bill names no bill.
     expect((await repos.votes.voteBreakdown("house-119-1-1", [])).measure?.forBillId).toBeNull();
     await pg.exec("delete from votes where id = 'house-119-2-9001'; delete from bills where id = '119-hres-1247'");
@@ -1036,7 +1036,7 @@ describe("live votes name their measure", () => {
       sponsor: { bioguideId: "H000037", lastName: "Current", party: "D", state: "TX" },
       summaryLead: "This bill does things.",
       position: null,
-      forBillId: null,
+      stage: null, forBillId: null,
     });
     expect(byId["house-119-3-7901"]!.measure).toBeNull();
     await pg.exec("delete from votes where id in ('house-119-3-7900', 'house-119-3-7901')");

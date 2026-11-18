@@ -284,7 +284,8 @@ class DistrictSnapshotTest {
     private val followActions get() = FollowActions(FollowState(), emptySet(), {}, {}, {})
 
     @Composable
-    private fun Search(state: BillsState) = BillsScreen(state, {}, {}, {}, {}, {}, follow = followActions)
+    private fun Search(state: BillsState) =
+        BillsScreen(state, app.floor.android.bills.LedgerState(), {}, {}, {}, {}, {}, java.time.ZoneId.of("America/New_York"), java.util.Locale.US, follow = followActions)
 
     private val michigan get() = search("search-michigan-senate", "members-search-michigan-senate", "michigan", Chamber.SENATE)
 

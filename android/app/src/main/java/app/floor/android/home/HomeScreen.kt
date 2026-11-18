@@ -69,7 +69,7 @@ val TabBarClearance = 76.dp
  * seat changes hands, the members-elect list), the All / Following switch once you follow
  * anything, then the finals as stories (the locked v0.2.57 mock, option B): one card per bill or
  * nominee by week, newest first, and each week's procedural-only measures as "Also this week" rows.
- * The catch-up deck is not built on Android yet.
+ * Above the finals, the catch-up entry opens the deck ([CatchUpScreen]).
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -96,6 +96,10 @@ fun HomeScreen(
     onFindReps: () -> Unit = {},
     /** The round search button: the same search as Following › + Add, any member, bill or topic. */
     onSearch: () -> Unit = {},
+    /** Deck cards seen this session: the catch-up entry's segments. */
+    seenInDeck: Set<String> = emptySet(),
+    /** The catch-up entry: the deck, on its own screen. */
+    onCatchUp: () -> Unit = {},
 ) {
     val colors = Palette
     PullToRefreshBox(
@@ -134,6 +138,8 @@ fun HomeScreen(
                     state.saved?.let { SavedDataNote(it) }
                     state.unavailableNote?.let { Text(it, style = FloorType.text(12f), color = colors.textMuted) }
                     if (state.shownScope == HomeState.Scope.YOURS) state.billLimitNote?.let { Text(it, style = FloorType.text(12f), color = colors.textMuted) }
+                    val deck = state.deck
+                    if (deck.isNotEmpty()) CatchUpEntry(deck, seenInDeck, onCatchUp)
                     FinalsHeader(state.filter, state.shownScope == HomeState.Scope.YOURS, onFilter)
                     val stories = state.stories
                     if (stories.isEmpty()) {

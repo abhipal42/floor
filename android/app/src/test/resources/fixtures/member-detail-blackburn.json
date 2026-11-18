@@ -1,0 +1,31 @@
+{
+ "member": {
+  "bioguideId": "B001243",
+  "firstName": "Marsha",
+  "lastName": "Blackburn",
+  "party": "R",
+  "state": "TN",
+  "district": null,
+  "chamber": "senate",
+  "leavingOn": null,
+  "social": {
+   "twitter": "MarshaBlackburn",
+   "facebook": "marshablackburn",
+   "instagram": "marshablackburn",
+   "youtube": "RepMarshaBlackburn",
+   "youtubeId": "UCvNnmu5mUm7xr8QXBlbtQ9w"
+  }
+ },
+ "partyLoyalty": {
+  "votes": 1514,
+  "withParty": 1467,
+  "againstParty": 47
+ },
+ "contact": {
+  "phone": "202-224-3344",
+  "contactForm": "https://www.blackburn.senate.gov/email-me",
+  "website": "https://www.blackburn.senate.gov",
+  "office": "357 Dirksen Senate Office Building",
+  "address": "357 Dirksen Senate Office Building Washington DC 20510"
+ }
+}

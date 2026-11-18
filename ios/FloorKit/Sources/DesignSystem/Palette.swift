@@ -171,6 +171,20 @@ public enum Tones {
         }
     }
 
+    /// A topic family's colour as text on the ground: the Bills tab's section headers and the Week
+    /// tab's fast-track numerals (v0.2.59). Light keeps the band colour; dark lifts it to 55% over
+    /// white, which gives the mock's #8FB8DB-like defense and #E0B85A-like money, every family
+    /// above 4.5:1 on the dark ground (`PaletteTests`). Android's `Tones.topicText` is the same rule.
+    public static func topicText(_ group: TopicGroup) -> Swatch {
+        let band = topic(group)
+        return Swatch(light: band.light, dark: Swatch.mix(band.dark, over: 0xFFFFFF, opacity: 0.55))
+    }
+
+    /// The Week tab's chamber labels on a headliner (v0.2.59): `SENATE · IN DEBATE` in the mock's
+    /// blue (the D party values), `HOUSE · FULL DEBATE` in the threshold gold.
+    public static let chamberSenate = Swatch(light: 0x2F5FD0, dark: 0x6EA8FE)
+    public static let chamberHouse = threshold
+
     /// The text on a band: white in both appearances, as Arena draws it.
     public static let bandText = Swatch(light: 0xFFFFFF, dark: 0xFFFFFF)
     /// The band's soft highlight at its top right, and its shade along the bottom.
@@ -364,6 +378,9 @@ public enum Palette {
 
     // The Finals feed's story cards: see `Tones.topic`.
     public static func topic(_ group: TopicGroup) -> Color { Color(Tones.topic(group)) }
+    public static func topicText(_ group: TopicGroup) -> Color { Color(Tones.topicText(group)) }
+    public static let chamberSenate = Color(Tones.chamberSenate)
+    public static let chamberHouse = Color(Tones.chamberHouse)
     public static let bandText = Color(Tones.bandText)
     public static let bandHighlight = Color(Tones.bandHighlight)
     public static let bandShade = Color(Tones.bandShade)

@@ -181,6 +181,10 @@ public final class HomeModel {
         case topic(name: String)
         /// The catch-up deck.
         case catchUp
+        /// The Week tab's Senate days: each meeting, the Digest's full program, the measures named.
+        case weekSenate
+        /// The Week tab's fast-track rows: one topic family's, or with nil every one.
+        case fastTrack(TopicGroup?)
         /// The Alerts screen, from Following's top bar.
         case alerts
         /// A member-elect's profile, by elect id (`elect-2026-mi-sen`).
@@ -653,6 +657,13 @@ public final class HomeModel {
     }
 
 
+    /// Every vote the app has loaded, once each, newest first: the Week tab's headliners look up
+    /// a bill's latest votes here.
+    public var loadedVotes: [FeedItem] {
+        var seen = Set<String>()
+        return Self.newestFirst((allItems + items).filter { seen.insert($0.vote.id).inserted })
+    }
+
     /// The catch-up deck: five finals from this feed, chosen by ``CatchUp/select(_:count:)``.
     public var deck: [FeedItem] { CatchUp.select(scopedItems) }
 
@@ -666,6 +677,9 @@ public final class HomeModel {
             return seen.insert(measure.id).inserted
         }
     }
+
+    /// Every vote the Bills tab's ledger is built from: the feed ``bills`` lists, every vote of it.
+    public var ledgerItems: [FeedItem] { followsAnything ? items : allItems }
 
     /// One member's most recent vote, for the Following tab's chip.
     public func latestVote(of member: Member) -> MemberVote? { records[member.bioguideId]?.first }
@@ -732,8 +746,8 @@ public final class HomeModel {
                 if known.partyTotals.isEmpty { known.partyTotals = row.partyTotals }
                 if known.measure == nil {
                     known.measure = row.measure
-                } else if known.measure?.policyArea == nil, let fuller = row.measure, fuller.id == known.measure?.id {
-                    known.measure?.policyArea = fuller.policyArea
+                } else if let fuller = row.measure, fuller.id == known.measure?.id {
+                    known.measure = known.measure?.filled(from: fuller)
                 }
                 byVote[row.vote.id] = known
             } else {
@@ -764,10 +778,26 @@ public final class HomeModel {
                 return FeedItem(vote: row.vote, measure: row.measure, positions: [], partyTotals: row.partyTotals)
             }
             known.vote = row.vote
-            known.measure = known.measure ?? row.measure
+            known.measure = known.measure.map { mine in row.measure.map { mine.filled(from: $0) } ?? mine } ?? row.measure
             known.partyTotals = row.partyTotals.isEmpty ? known.partyTotals : row.partyTotals
             return known
         }
+    }
+}
+
+extension MeasureSummary {
+    /// This copy with what a fuller copy of the same measure carries where this one has nothing: a
+    /// member's saved record can predate the topic, the CRS lead and the stage.
+    func filled(from fuller: MeasureSummary) -> MeasureSummary {
+        guard fuller.id == id else { return self }
+        var copy = self
+        copy.policyArea = policyArea ?? fuller.policyArea
+        copy.sponsor = sponsor ?? fuller.sponsor
+        copy.summaryLead = summaryLead ?? fuller.summaryLead
+        copy.position = position ?? fuller.position
+        copy.forBillId = forBillId ?? fuller.forBillId
+        copy.stage = stage ?? fuller.stage
+        return copy
     }
 }
 

@@ -11,8 +11,9 @@ import app.floor.android.Fixtures
 import app.floor.android.design.Appearance
 import app.floor.android.design.FloorTheme
 import app.floor.android.design.LocalPlaysArrivalAnimations
-import app.floor.android.model.Chamber
+import app.floor.android.model.RecentVotes
 import app.floor.android.model.Schedule
+import app.floor.android.model.TopicGroup
 import app.floor.android.store.FollowKind
 import app.floor.android.store.FollowState
 import app.floor.android.week.WeekScreen
@@ -24,15 +25,19 @@ import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 import org.robolectric.annotation.GraphicsMode
+import java.time.Instant
+import java.time.ZoneId
+import java.util.Locale
 
 /**
- * The Week tab from the recorded weeks of Nov 16 and Nov 23, as iOS `Round11SnapshotTests` draws it
- * (`weekHouse`, `weekSenate`, `weekNothingPosted`, `weekNothingPostedSenate`): you follow H.R. 9640
- * and the Labor and Employment topic, which takes in both bills under a rule.
+ * The Week tab (v0.2.59 headliners) from the live schedule for the week of Nov 16 (`schedule-three-
+ * 2026-11-16`, with the H.Res. 1665 rule) and the latest finals (`votes-three`), drawn on Tuesday
+ * Nov 17 at 10 a.m. in Washington; and the empty week of Nov 23. You follow H.R. 9640 and the
+ * Labor and Employment topic, which takes in both bills under the rule.
  */
 @RunWith(RobolectricTestRunner::class)
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
-@Config(sdk = [36], qualifiers = "w402dp-h1400dp-xhdpi")
+@Config(sdk = [36], qualifiers = "w402dp-h1900dp-xhdpi")
 class WeekSnapshotTest {
     @get:Rule
     val compose = createAndroidComposeRule<ComponentActivity>()
@@ -44,10 +49,12 @@ class WeekSnapshotTest {
     }
 
     private val follows = FollowState().follow(FollowKind.BILL, "119-hr-9640").follow(FollowKind.TOPIC, "Labor and Employment")
+    private val votes = Fixtures.decode("votes-three", RecentVotes.serializer()).votes
+    private val tuesday = Instant.parse("2026-11-17T15:00:00Z")
 
-    private fun week(fixture: String, chamber: Chamber = Chamber.HOUSE): WeekState {
+    private fun week(fixture: String, detail: WeekState.Detail? = null): WeekState {
         val schedule = Fixtures.decode(fixture, Schedule.serializer())
-        return WeekState(phase = WeekState.Phase.Loaded(schedule), week = schedule.week, chamber = chamber)
+        return WeekState(phase = WeekState.Phase.Loaded(schedule), week = schedule.week, detail = detail)
     }
 
     private fun snap(name: String, look: Look, state: WeekState) {
@@ -64,34 +71,39 @@ class WeekSnapshotTest {
     }
 
     @Composable
-    private fun Screen(state: WeekState) = WeekScreen(state, follows, onWeek = {}, onChamber = {}, onExpand = {}, onRetry = {}, onOpenBill = {})
+    private fun Screen(state: WeekState) = WeekScreen(
+        state, follows, votes, ZoneId.of("America/New_York"), Locale.US,
+        onWeek = {}, onOpen = {}, onRetry = {}, onOpenBill = {}, now = tuesday,
+    )
 
     @Test
-    fun weekHouseLight() = snap("weekHouse", Look.LIGHT, week("schedule-2026-11-16"))
+    fun weekHeadlinersLight() = snap("weekHeadliners", Look.LIGHT, week("schedule-three-2026-11-16"))
 
     @Test
-    fun weekHouseDark() = snap("weekHouse", Look.DARK, week("schedule-2026-11-16"))
+    fun weekHeadlinersDark() = snap("weekHeadliners", Look.DARK, week("schedule-three-2026-11-16"))
 
     @Test
-    @Config(qualifiers = "w402dp-h2400dp-xhdpi")
-    fun weekHouseLarge() = snap("weekHouse", Look.LARGE, week("schedule-2026-11-16"))
+    @Config(qualifiers = "w402dp-h3600dp-xhdpi")
+    fun weekHeadlinersLarge() = snap("weekHeadliners", Look.LARGE, week("schedule-three-2026-11-16"))
 
+    /** "Program ›": the Senate's two meetings of the week, their programs and the measure they name. */
     @Test
-    @Config(qualifiers = "w402dp-h900dp-xhdpi")
-    fun weekSenateLight() = snap("weekSenate", Look.LIGHT, week("schedule-2026-11-16", Chamber.SENATE))
+    @Config(qualifiers = "w402dp-h1000dp-xhdpi")
+    fun weekSenateProgramDark() = snap("weekSenateProgram", Look.DARK, week("schedule-three-2026-11-16", WeekState.Detail.Senate))
 
+    /** The Land tile: its six suspensions on their own screen. */
     @Test
-    @Config(qualifiers = "w402dp-h900dp-xhdpi")
-    fun weekSenateDark() = snap("weekSenate", Look.DARK, week("schedule-2026-11-16", Chamber.SENATE))
+    @Config(qualifiers = "w402dp-h1100dp-xhdpi")
+    fun weekFastTrackLandLight() = snap("weekFastTrackLand", Look.LIGHT, week("schedule-three-2026-11-16", WeekState.Detail.FastTrack(TopicGroup.LAND)))
 
     /** The week of Nov 23: no list posted, no Senate meeting named. Says why, never "recess". */
     @Test
-    @Config(qualifiers = "w402dp-h600dp-xhdpi")
+    @Config(qualifiers = "w402dp-h900dp-xhdpi")
     fun weekNothingPostedLight() = snap("weekNothingPosted", Look.LIGHT, week("schedule-2026-11-23").copy(offset = 1))
 
     @Test
-    @Config(qualifiers = "w402dp-h500dp-xhdpi")
-    fun weekNothingPostedSenateDark() = snap("weekNothingPostedSenate", Look.DARK, week("schedule-2026-11-23", Chamber.SENATE).copy(offset = 1))
+    @Config(qualifiers = "w402dp-h900dp-xhdpi")
+    fun weekNothingPostedDark() = snap("weekNothingPosted", Look.DARK, week("schedule-2026-11-23").copy(offset = 1))
 
     @Test
     @Config(qualifiers = "w402dp-h600dp-xhdpi")

@@ -194,6 +194,26 @@ object Tones {
         TopicGroup.OTHER -> topicOther
     }
 
+    /**
+     * A topic's colour as text on the ground or a card (v0.2.59: a Bills section's header, a
+     * fast-track tile's count). Light uses the band colour itself; dark, the mock's lighter tint of
+     * it, since the bands are too deep to read on Arena's near-black. Contrast-tested.
+     */
+    fun topicText(group: TopicGroup): Swatch = when (group) {
+        TopicGroup.DEFENSE -> Swatch(topicDefense.light, 0x8FB8DB)
+        TopicGroup.MONEY -> Swatch(topicMoney.light, 0xE0B85A)
+        TopicGroup.COURTS -> Swatch(topicCourts.light, 0xB9A3F0)
+        TopicGroup.HEALTH -> Swatch(topicHealth.light, 0xF0879E)
+        TopicGroup.LAND -> Swatch(topicLand.light, 0x7FBF6A)
+        TopicGroup.RIGHTS -> Swatch(topicRights.light, 0x6CC4C9)
+        TopicGroup.GOV -> Swatch(topicGov.light, 0xE39BBA)
+        TopicGroup.OTHER -> Swatch(topicOther.light, 0xA9B4B0)
+    }
+
+    /** A chamber's label on a Week headliner (v0.2.59 mock): the Senate blue, the House gold. */
+    val senate = Swatch(0x2F5FD0, 0x6EA8FE)
+    val house = threshold
+
     fun party(party: String): Swatch = when (party) {
         "D" -> Swatch(0x2F5FD0, 0x6EA8FE)
         "R" -> Swatch(0xB43636, 0xF87171)
@@ -212,7 +232,8 @@ object Tones {
         "yea" to yea, "nay" to nay, "liveText" to liveText, "scheduled" to scheduled,
         "accent" to accent, "threshold" to threshold, "ai" to ai, "elect" to elect,
         "party D" to party("D"), "party R" to party("R"), "party I" to party("I"),
-    )
+        "senate" to senate, "house" to house,
+    ) + TopicGroup.entries.map { "topic ${it.name}" to topicText(it) }
 }
 
 /**
@@ -262,6 +283,9 @@ class FloorColors(val isDark: Boolean) {
     fun party(party: String) = of(Tones.party(party))
     fun partyTint(party: String) = of(Tones.partyTint(party))
     fun topic(group: TopicGroup) = of(Tones.topic(group))
+    fun topicText(group: TopicGroup) = of(Tones.topicText(group))
+    fun chamberText(chamber: app.floor.android.model.Chamber) =
+        of(if (chamber == app.floor.android.model.Chamber.SENATE) Tones.senate else Tones.house)
 
     /** A story band's text and the verdict chip on it (iOS `bandInk`, `verdictInk`). */
     val bandInk = hex(Tones.BAND_INK)

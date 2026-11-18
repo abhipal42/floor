@@ -86,13 +86,13 @@ const repo: VoteRepository = {
       const member = members.find((m) => m.bioguideId === id);
       return member ? [{ member, position: "yea" as const, choice: null }] : [];
     }),
-    measure: { id: "119-hconres-14", kind: "bill" as const, citation: "H.Con.Res. 14", title: "FY2025 Budget", policyArea: "Economics and Public Finance", sponsor: null, summaryLead: null, position: null, forBillId: null },
+    measure: { id: "119-hconres-14", kind: "bill" as const, citation: "H.Con.Res. 14", title: "FY2025 Budget", policyArea: "Economics and Public Finance", sponsor: null, summaryLead: null, position: null, stage: null, forBillId: null },
   }),
   recentVotes: async (chamber, limit, before, topics) => {
     topicCalls.push(topics);
     return [
       { vote: nominationVote, measure: null, partyTotals: [] },
-      { vote: sample, partyTotals, measure: { id: "119-hconres-14", kind: "bill" as const, citation: "H.Con.Res. 14", title: "FY2025 Budget", policyArea: "Economics and Public Finance", sponsor: null, summaryLead: null, position: null, forBillId: null } },
+      { vote: sample, partyTotals, measure: { id: "119-hconres-14", kind: "bill" as const, citation: "H.Con.Res. 14", title: "FY2025 Budget", policyArea: "Economics and Public Finance", sponsor: null, summaryLead: null, position: null, stage: null, forBillId: null } },
     ]
       .filter((r) => !chamber || r.vote.chamber === chamber)
       .filter((r) => !before || new Date(r.vote.occurredAt!) < before)
@@ -139,7 +139,7 @@ const openVote: LiveVote = {
     sponsor: null,
     summaryLead: null,
     position: null,
-    forBillId: "119-hr-1013",
+    stage: null, forBillId: "119-hr-1013",
   },
 };
 const houseStatus: ChamberStatus = {
@@ -180,7 +180,7 @@ const app = createApp({
             vote: sample,
             position: "yea" as const,
             choice: null,
-            measure: { id: "119-hconres-14", kind: "bill" as const, citation: "H.Con.Res. 14", title: "FY2025 Budget", policyArea: "Economics and Public Finance", sponsor: null, summaryLead: null, position: null, forBillId: null },
+            measure: { id: "119-hconres-14", kind: "bill" as const, citation: "H.Con.Res. 14", title: "FY2025 Budget", policyArea: "Economics and Public Finance", sponsor: null, summaryLead: null, position: null, stage: null, forBillId: null },
           }].slice(0, limit)
         : [],
     getMember: async (id) => members.find((m) => m.bioguideId === id) ?? null,
@@ -475,7 +475,7 @@ describe("API", () => {
         vote: sample,
         position: "yea",
         choice: null,
-        measure: { id: "119-hconres-14", kind: "bill", citation: "H.Con.Res. 14", title: "FY2025 Budget", policyArea: "Economics and Public Finance", sponsor: null, summaryLead: null, position: null, forBillId: null },
+        measure: { id: "119-hconres-14", kind: "bill", citation: "H.Con.Res. 14", title: "FY2025 Budget", policyArea: "Economics and Public Finance", sponsor: null, summaryLead: null, position: null, stage: null, forBillId: null },
       }],
     });
   });

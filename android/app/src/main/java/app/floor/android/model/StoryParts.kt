@@ -7,6 +7,19 @@ package app.floor.android.model
 enum class TopicGroup {
     DEFENSE, MONEY, COURTS, HEALTH, LAND, RIGHTS, GOV, OTHER;
 
+    /** The group's name on a Bills section and a fast-track tile: `Defense`, `Government`. */
+    val title: String
+        get() = when (this) {
+            DEFENSE -> "Defense"
+            MONEY -> "Money"
+            COURTS -> "Courts"
+            HEALTH -> "Health"
+            LAND -> "Land"
+            RIGHTS -> "Rights"
+            GOV -> "Government"
+            OTHER -> "Other"
+        }
+
     companion object {
         /** Every CRS policy area (`Topic.names`) and its group. One table; iOS holds the same rows. */
         val table: Map<String, TopicGroup> = mapOf(

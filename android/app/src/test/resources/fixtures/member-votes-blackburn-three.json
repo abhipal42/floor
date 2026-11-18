@@ -1,0 +1,52 @@
+{
+ "votes": [
+  {
+   "vote": {
+    "id": "senate-119-2-254",
+    "kind": "question",
+    "candidates": [],
+    "chamber": "senate",
+    "congress": 119,
+    "session": 2,
+    "rollNumber": 254,
+    "question": "On Cloture on the Motion to Proceed",
+    "billId": "119-hr-9340",
+    "nominationId": null,
+    "billRef": "H.R. 9340",
+    "occurredAt": "2026-09-30T16:51:00.000Z",
+    "state": "final",
+    "threshold": "three_fifths_sworn",
+    "totals": {
+     "yea": 57,
+     "nay": 43,
+     "present": 0,
+     "notVoting": 0
+    },
+    "result": "Cloture on the Motion to Proceed Rejected",
+    "explainer": {
+     "kind": "cloture_motion_to_proceed",
+     "text": "A vote to end debate on whether to take up a bill. It needs three-fifths of senators sworn in, 60 when the Senate is full. Passing it lets the Senate start on the bill, not pass it.",
+     "source": "Senate Rule XXII, paragraph 2"
+    }
+   },
+   "position": "yea",
+   "choice": null,
+   "measure": {
+    "id": "119-hr-9340",
+    "kind": "bill",
+    "citation": "H.R. 9340",
+    "title": "Ratepayer Protection Act",
+    "policyArea": "Energy",
+    "sponsor": {
+     "bioguideId": "E000300",
+     "lastName": "Evans",
+     "party": "R",
+     "state": "CO"
+    },
+    "summaryLead": "The bill requires state utility regulators and nonregulated utilities to consider implementing a standard to hold certain large-load customers responsible for the costs associated with any generation, transmission, or distribution upgrade of electric service necessary to serve such customers.",
+    "position": null,
+    "forBillId": null
+   }
+  }
+ ]
+}

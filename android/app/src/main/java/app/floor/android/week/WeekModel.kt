@@ -7,7 +7,6 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import app.floor.android.api.FloorApi
 import app.floor.android.api.FloorApiError
-import app.floor.android.model.Chamber
 import app.floor.android.model.SavedCopy
 import app.floor.android.model.Schedule
 import app.floor.android.model.ScheduleCategory
@@ -31,14 +30,21 @@ data class WeekState(
     val offset: Int = 0,
     /** The Monday asked for, `YYYY-MM-DD`. */
     val week: String,
-    val chamber: Chamber = Chamber.HOUSE,
-    /** Groups whose "+ N more" was tapped. */
-    val expanded: Set<ScheduleCategory> = emptySet(),
+    /** A screen opened from the week: today's Senate content, or fast-track rows. Null for the week itself. */
+    val detail: Detail? = null,
 ) {
     sealed interface Phase {
         data object Loading : Phase
         data class Loaded(val schedule: Schedule) : Phase
         data class Failed(val message: String) : Phase
+    }
+
+    sealed interface Detail {
+        /** "Program ›": the Senate's meetings, the full programs and the measures they name. */
+        data object Senate : Detail
+
+        /** A fast-track tile's rows, or every fast-track row when [topic] is null ("All ›"). */
+        data class FastTrack(val topic: app.floor.android.model.TopicGroup?) : Detail
     }
 
     /** `THIS WEEK`, `NEXT WEEK`, `WEEK OF`. */
@@ -76,16 +82,13 @@ class WeekModel(
 
     fun show(offset: Int) {
         if (offset == state.offset) return
-        state = state.copy(offset = offset, week = Schedule.monday(now(), offset), expanded = emptySet(), phase = WeekState.Phase.Loading, saved = null)
+        state = state.copy(offset = offset, week = Schedule.monday(now(), offset), detail = null, phase = WeekState.Phase.Loading, saved = null)
         reload()
     }
 
-    fun select(chamber: Chamber) {
-        state = state.copy(chamber = chamber)
-    }
-
-    fun expand(category: ScheduleCategory) {
-        state = state.copy(expanded = state.expanded + category)
+    /** Opens a screen from the week, or closes it with null. */
+    fun open(detail: WeekState.Detail?) {
+        state = state.copy(detail = detail)
     }
 
     suspend fun load() {
@@ -163,9 +166,6 @@ object WeekSort {
             else Group(category, mine.sortedBy { if (it.pulled) 2 else if (it.followed == null) 1 else 0 })
         }
     }
-
-    /** How many rows a group shows before "+ N more": every followed one, and at least five. */
-    fun visibleCount(group: Group): Int = maxOf(5, group.rows.count { it.followed != null })
 
     /** `FOLLOWING · LABOR`: the topic's first word; `FOLLOWING` for a bill. */
     fun tag(followed: Followed?): String? = when (followed) {
