@@ -189,6 +189,8 @@ public final class HomeModel {
         case alerts
         /// A member-elect's profile, by elect id (`elect-2026-mi-sen`).
         case elect(id: String)
+        /// The Local tab's Cities screen: every registry city, to add or remove.
+        case cities
     }
 
     /// Members-elect and undecided seats among your own seats: your state's Senate seats and your
@@ -231,6 +233,11 @@ public final class HomeModel {
     /// The Week tab.
     public func weekModel() -> WeekModel {
         WeekModel(api: api, follows: follows)
+    }
+
+    /// The Local tab's model: your state from the stored district, and your saved cities.
+    public func localModel(cities: any LocalCityStore = UserDefaultsLocalCityStore()) -> LocalModel {
+        LocalModel(district: delegation?.district, api: api, cities: cities)
     }
 
     /// Your district's members, as onboarding found them; empty with no district.

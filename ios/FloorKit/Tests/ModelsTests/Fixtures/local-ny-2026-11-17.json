@@ -1,0 +1,222 @@
+{
+  "_fixture": "Real items: S 1788-A (Hinchey) signed Nov 11 2026 per the Senate's release; its summary is written from that release. The One Fair Price Act passed both houses and awaits Gov. Hochul per the Attorney General's release; its bill number and passage date were not found, so identifier is empty and date is the day the fixture was built (a waiting row shows neither). News: Google News RSS, Nov 12-17, newest 20, not AI-read.",
+  "jurisdiction": {
+    "id": "ny",
+    "kind": "state",
+    "name": "New York State",
+    "state": "NY",
+    "placeGeoid": null,
+    "coverage": "records"
+  },
+  "updatedAt": "2026-11-17T06:00:00.000Z",
+  "enacted": [
+    {
+      "id": "ny-2025-s1788a",
+      "identifier": "S 1788-A",
+      "title": "Extends eligibility for real property tax exemptions to certain veterans",
+      "summary": "Lets veterans of classified and submarine missions prove combat service with other records, such as Hostile Fire or Imminent Danger Pay, to claim the combat veterans' property tax exemption.",
+      "body": "State Senate",
+      "date": "2026-11-11",
+      "status": "signed",
+      "yes": null,
+      "no": null,
+      "url": "https://www.nysenate.gov/newsroom/press-releases/2026/michelle-hinchey/hinchey-bill-expanding-access-property-tax-exemptions"
+    }
+  ],
+  "waiting": [
+    {
+      "id": "ny-one-fair-price-act",
+      "identifier": "",
+      "title": "One Fair Price Act",
+      "summary": "Bars surveillance pricing statewide. Passed both houses; awaits Gov. Hochul.",
+      "body": "Legislature",
+      "date": "2026-11-17",
+      "status": "awaiting_governor",
+      "yes": null,
+      "no": null,
+      "url": "https://ag.ny.gov/press-release/2026/new-yorkers-join-attorney-general-james-celebrating-passage-one-fair-price-act"
+    }
+  ],
+  "news": [
+    {
+      "id": "ny-06",
+      "title": "New York State Assembly District 12 Election Results 2026 - New York Focus",
+      "source": "New York Focus",
+      "url": "https://news.google.com/rss/articles/CBMigwFBVV95cUxOQmhZTzFBOTZCanBhZXJPMFNFSUNWR18zNjRiTmZab0tCYkVuaEMxeDMwbGxYSmJxTDVzTWRWeDRBLUV2eVJLcTlPb3NSWEh4OTVMZWVlb2sxa2I2NjRsVGhIWGx4M3NnWFdwRnI0RnhkWVhmdVJBaTZYa1dhaG45Qm1hbw?oc=5",
+      "publishedAt": "2026-11-17T15:27:00.000Z",
+      "tone": null,
+      "storyId": null
+    },
+    {
+      "id": "ny-05",
+      "title": "Improving quality of life top of mind for New York State Assembly - Spectrum News",
+      "source": "Spectrum News",
+      "url": "https://news.google.com/rss/articles/CBMirAFBVV95cUxPYjFXM21LbUJIRXZvZTJweW9NMkZZUFlySHhPRFRkRkhIaU1OMk9hTDFjTlVzUHhjSDZ1R0VOQlFOMURnbUtQUzlJcEZ6RGRFQkpTUmRablNucWFYTjgtWE9hanBkQXVYMmFyU1Noc29iZVlFV25mM2lqQW5XOGhoekpoLWxUbTM4RjhIMWpRU0FEeGZ0Um1kM0RQbF9WckFFa1ZSSDZmTXFpWUs2?oc=5",
+      "publishedAt": "2026-11-17T00:20:00.000Z",
+      "tone": null,
+      "storyId": null
+    },
+    {
+      "id": "ny-10",
+      "title": "New York State Assembly District 46 Election Results 2026 - New York Focus",
+      "source": "New York Focus",
+      "url": "https://news.google.com/rss/articles/CBMigwFBVV95cUxNanRVNnRtQWFfMk0xM2dDd19GbDN0SUgtY2VhNW9aSVRrTTd0TjBHQ3o1WFNFMmoteUpEbXg5cTVLNC1DSlUzMUttakhIRWtUeENLWlNNOVZsY3NVZ2k2SG5sZDduX0pkbWk2aXJSZm05ZFVmdmVfaFh4MEtwZ2dSV2RJTQ?oc=5",
+      "publishedAt": "2026-11-16T20:40:00.000Z",
+      "tone": null,
+      "storyId": null
+    },
+    {
+      "id": "ny-04",
+      "title": "Governor Hochul Announces 2026 Winners Selected for Eighth Round of $3 Million Grow-NY Food and Agriculture Business Competition - Governor Kathy Hochul (.gov)",
+      "source": "Governor Kathy Hochul (.gov)",
+      "url": "https://news.google.com/rss/articles/CBMivAFBVV95cUxQbmdmdzN4TTZTR2RibExPOXFSNW9WRVlXRVd3NVhNSENlMW1Cc0pEM3Y4RktZam43cXBIbV9pTE81a2Z5TEtvZTB2cXdFUFJLeUdOcEJlN0JjU2Z0TWYyU3Axd1lBRlpPclhUdjY4a2F6MkdrN0l3b3kzOXdINVBCaXpmalpVOVJKYVJadTV1QWpNdHp6LV93b3puN3FxVnFwc3Y2QTE4TjRScmpYSFBOTWdmUE1MUVg1SHdDRg?oc=5",
+      "publishedAt": "2026-11-13T22:42:37.000Z",
+      "tone": null,
+      "storyId": null
+    },
+    {
+      "id": "ny-00",
+      "title": "New York State Assembly Election Results 2026: All 150 Districts - New York Focus",
+      "source": "New York Focus",
+      "url": "https://news.google.com/rss/articles/CBMic0FVX3lxTFBudkxtZENMNTlUa2oyazd0cm5aUjFFZ2dIRzBhVWVLX1BMcGRpcUZzSndYeEIwTkxWRlFydjJaa0N1TkZzZ2hYZnA4MkNDSUFxc0tyY09DS3BmOENLMlAwQXA1eUZpbW40UDdGOGdhQkRQbHM?oc=5",
+      "publishedAt": "2026-11-13T22:26:00.000Z",
+      "tone": null,
+      "storyId": null
+    },
+    {
+      "id": "ny-03",
+      "title": "New York State Senate Election Results 2026: All 63 Districts - New York Focus",
+      "source": "New York Focus",
+      "url": "https://news.google.com/rss/articles/CBMieEFVX3lxTE5BbkpRMm1id1dYTnpZNGx1WjBWQWU3NXRkU1JNZGxpTWpRS3dmbDBLYVhMSzBFQzhKbkV3YVRCSElYTGtCZVBzb2hRT09YWVpETDlGY0J5LXMyYk1BRGNFcWd3cHM1dVZ4ZnBQNWJ0aHE5T3RwcFo0Ng?oc=5",
+      "publishedAt": "2026-11-13T22:26:00.000Z",
+      "tone": null,
+      "storyId": null
+    },
+    {
+      "id": "ny-11",
+      "title": "New York State Assembly District 43 Election Results 2026 - New York Focus",
+      "source": "New York Focus",
+      "url": "https://news.google.com/rss/articles/CBMigwFBVV95cUxPUkJ5TUlvbTlQZExqVHFCZzdpdG9OQXF4RDF6bzFXaFJ2aEZQd29PU09LdnZFQXQ4LXhnUFNKaGJLT28tUmRvWnBOSXFoQWVyTE52enp4TjRTSFR2NkdBd29ld0dTSlBZNWFxaHVKa21nbTRDaUpTcGdEQ29seWxEZE5Ocw?oc=5",
+      "publishedAt": "2026-11-13T22:26:00.000Z",
+      "tone": null,
+      "storyId": null
+    },
+    {
+      "id": "ny-13",
+      "title": "New York State Assembly District 39 Election Results 2026 - New York Focus",
+      "source": "New York Focus",
+      "url": "https://news.google.com/rss/articles/CBMigwFBVV95cUxOekgwYWpEdWZrVGdkQ3JNM1lwNzhUdnNaZ25QR3VYdGxMSFl5SFBYT2NFSjA3WXl6ODBOdExqejA2NUo2TnNFU2tmcXZ5a2F0cDZIa0kwd0Rfano5U0xyZ3RnVkVraUZkSm9yZVhfMlhQbjctdWxSNjY4b1pjTkdyaFY5RQ?oc=5",
+      "publishedAt": "2026-11-13T22:26:00.000Z",
+      "tone": null,
+      "storyId": null
+    },
+    {
+      "id": "ny-14",
+      "title": "New York State Senate District 43 Election Results 2026 - New York Focus",
+      "source": "New York Focus",
+      "url": "https://news.google.com/rss/articles/CBMiiAFBVV95cUxPQ3Y1SlYxX3Q4dG5mWmxRTUVpVjhWdGl0Rm1takRwWDlCUTR4ekdlMWlROGFSLXJHVXd3WlBoazV0aWQ0ZF8ybmNHN2xMd3hvTUxNa1NnYUxfNGwzc3cxeHBSN0M2Q2kyakpXMVhNQXNaNEF6SmE3T2xjZHlwY3ZNSEUtZ0RzSktR?oc=5",
+      "publishedAt": "2026-11-13T22:26:00.000Z",
+      "tone": null,
+      "storyId": null
+    },
+    {
+      "id": "ny-15",
+      "title": "New York State Assembly District 73 Election Results 2026 - New York Focus",
+      "source": "New York Focus",
+      "url": "https://news.google.com/rss/articles/CBMigwFBVV95cUxPVF80ZWFMRUhvT0lyNV9FSW14dUVNWVMwUXcwVFZUZjU4TFZ0UXY2OGhMUk1vMTNGelBHX0hLVkRtMDVLZVo4VElLYktMa19qRXBKVUZKSVJFSC11RlZKaEtKTjJyRUJYa2tuN0FKZl9VYmVhZElnYWZ1WWs4WUlNMzFSRQ?oc=5",
+      "publishedAt": "2026-11-13T22:26:00.000Z",
+      "tone": null,
+      "storyId": null
+    },
+    {
+      "id": "ny-16",
+      "title": "New York State Senate District 8 Election Results 2026 - New York Focus",
+      "source": "New York Focus",
+      "url": "https://news.google.com/rss/articles/CBMihwFBVV95cUxPVXZSaXhLU1F4bUNkejBzVnpUTEJmUEpBUURoUUltTjlpMlJIU0hGeFFIeDNCck01Y2pPUTBVa3NyU2NMNHZCMVQ0UW5DNXJ5U0hHTUc5dGthdGVqZ3RxbmxXNVR3eVZndU5mZTNwVHMtV0FIa1Bnc1dwQm9LUm9samZfUERRVk0?oc=5",
+      "publishedAt": "2026-11-13T22:26:00.000Z",
+      "tone": null,
+      "storyId": null
+    },
+    {
+      "id": "ny-17",
+      "title": "New York State Assembly District 75 Election Results 2026 - New York Focus",
+      "source": "New York Focus",
+      "url": "https://news.google.com/rss/articles/CBMigwFBVV95cUxNVF9Vekwwb2hwMTRhOUhWanRzNy1FSE5aQXVkUUh4aTBlWFg2QllJbFVHNjNxd0dPMVZrdk9PczhUS2NiSGIydzZDOTlGdjZJbE5XamxqdG1wakRKQ20xYXpHZlFqaGlBRHlvTzZDTUZfYUV4MGxLdHhIenhHM05mMVJJWQ?oc=5",
+      "publishedAt": "2026-11-13T22:26:00.000Z",
+      "tone": null,
+      "storyId": null
+    },
+    {
+      "id": "ny-18",
+      "title": "New York State Senate District 1 Election Results 2026 - New York Focus",
+      "source": "New York Focus",
+      "url": "https://news.google.com/rss/articles/CBMihwFBVV95cUxQSGZtRzU0Nkx1eF9XdHNRc21oR3N0ay1RamtLT1k3RFhJRWpIV3o0VUFYaTR1c1BqM25vUjl0MFI2cHJqWm5Kd000N3R0NEVKbXpnZnZ3NFM1blIyTDNYeUR1TzVSMW5kaWk1OFB4bExBd1d0NTl0TWpsaGpfcndMREg1U0lsM00?oc=5",
+      "publishedAt": "2026-11-13T22:26:00.000Z",
+      "tone": null,
+      "storyId": null
+    },
+    {
+      "id": "ny-19",
+      "title": "New York State Senate District 54 Election Results 2026 - New York Focus",
+      "source": "New York Focus",
+      "url": "https://news.google.com/rss/articles/CBMiiAFBVV95cUxPUnUyVDUtWUxoNndXeWdlMVNVQmhpWmxGNEdoSWlVWE84SndsZVRsMFZVLWRNSU9wbDVCbnNVTGJ1QTlOOTd5NV9tbENKVm9Rc0pCQU4zZHdTeGYxdWJsSXdUNGxBNDRrTHlaQlFDak9OZjFRcXlQWm9UWmxVMXI1TkV3emExZkVW?oc=5",
+      "publishedAt": "2026-11-13T22:26:00.000Z",
+      "tone": null,
+      "storyId": null
+    },
+    {
+      "id": "ny-21",
+      "title": "New York State Senate District 5 Election Results 2026 - New York Focus",
+      "source": "New York Focus",
+      "url": "https://news.google.com/rss/articles/CBMihwFBVV95cUxObU8tNEd0ZkdwSnRtY1ZabzYyREktWkhnTE1uTmt0TnhwRkVfdGpVMFJOSW9JMXpQNXcxNHUxeC1Xeks1QU5TcGI0bXU3N0JxY0pRQjNjUEFQYUkyaXhyNjJXUU5XNWt5VTItU3oxMnEyOEs0bUM5SXlGbUx3ZWJSaUZ2emJleGs?oc=5",
+      "publishedAt": "2026-11-13T22:26:00.000Z",
+      "tone": null,
+      "storyId": null
+    },
+    {
+      "id": "ny-22",
+      "title": "New York State Senate District 27 Election Results 2026 - New York Focus",
+      "source": "New York Focus",
+      "url": "https://news.google.com/rss/articles/CBMiiAFBVV95cUxQdG5adnB0WXBTeG9PTkJraFRpT05xOC1oSGRqbmFqNlFsVlo3YzFTVU9vUHJwZ0lRVlh2ejB6MVRIa3lPRWxuQVdiNnJBdFNFcmNOWnpiakZqUGZlZHVTWDF5Z2NOejA5eXBHZl85N1lDMkNFbXlYSEcxTm80WHVhWGdHd3lqNGFY?oc=5",
+      "publishedAt": "2026-11-13T22:26:00.000Z",
+      "tone": null,
+      "storyId": null
+    },
+    {
+      "id": "ny-02",
+      "title": "Governor Hochul Celebrates the Groundbreaking of GlobalFoundries’ New $10 Billion Semiconductor Manufacturing Facility in Saratoga County - Governor Kathy Hochul (.gov)",
+      "source": "Governor Kathy Hochul (.gov)",
+      "url": "https://news.google.com/rss/articles/CBMiuwFBVV95cUxPWWIxRUJHeFhFNzZYSktzWHU1WlFBa0ZaekVTd0hqOVVmczh6QTlYQVV6Z3pjSE5KaEY3NGk0RE1GOXA2Q2wySl9zLXBIU2JGY203VlgwemQzeUZIX1VNSGhlZTZjMkd4Nk1JdENMd1hndnRKazVyZThkSUROVGVyT2ZRb25VX1hnckJScDVjb2hjLVRLZC1YSFJfTEpIcVl6Um01RWtwSnIzZWNMTGJTQTI3ZlVpdVJ4c2ZR?oc=5",
+      "publishedAt": "2026-11-13T22:11:37.000Z",
+      "tone": null,
+      "storyId": null
+    },
+    {
+      "id": "ny-23",
+      "title": "Governor Hochul Announces More Than $62 Million in POWER UP Awards to Grow New York’s Power-Ready, Shovel-Ready Sites | Empire State Development - Empire State Development (.gov)",
+      "source": "Empire State Development (.gov)",
+      "url": "https://news.google.com/rss/articles/CBMitAFBVV95cUxPLUc1Q1VJODBjUlgyNzV6bVpSVGgyaGxsMlJhSDNXRGR5MmtBZjZhWWlrbGVlMUVxRS1HWDBDbTNnV21ENVZ3S2JxZXo3YUp6alJEQUc3X0FBQTZNWDdXN016OENYUXgwTXlOOGV3TjVUcldiYlRZa2dOT1BZV2o0bEFNcDVvdHpfMnZRNFl4YzRRSWt6ZllNOXNRaGxGeldWcW5TbDBUa3lWdHBVU2ZtSDdpNTk?oc=5",
+      "publishedAt": "2026-11-13T20:58:54.000Z",
+      "tone": null,
+      "storyId": null
+    },
+    {
+      "id": "ny-09",
+      "title": "Governor Hochul Announces Cutting Edge AI Company Aaru Will Expand in New York City, Creating Over 650 New Jobs | Empire State Development - Empire State Development (.gov)",
+      "source": "Empire State Development (.gov)",
+      "url": "https://news.google.com/rss/articles/CBMiuAFBVV95cUxOSklGYWNXal9CRFQtaGV0Y21MdlcyUzYtenRZcU00U29NVDBqTnBBdHEtSEZZNEhVMGFJYkt4b2pDekV2c0ctZGxvNWJNeVFtMlFENXVKaXZsaFVHRktSZ21hQUR1NzRiaEltRjQtQ1ZlRGZjQjctNVlFSTJpZ0RueTM5S21GQ3ZGZmtWZEpfbVhDaXFwWDRmOFNRNGJzX2JRSXlhYnRHa01ORG96S0drYXlnN3Z6cHNl?oc=5",
+      "publishedAt": "2026-11-13T16:56:43.000Z",
+      "tone": null,
+      "storyId": null
+    },
+    {
+      "id": "ny-01",
+      "title": "Hochul weighs New York re­dis­tricting push after Democrats’ election gains - Spectrum News",
+      "source": "Spectrum News",
+      "url": "https://news.google.com/rss/articles/CBMipAFBVV95cUxPQnRCLWljc0dMTTdpMGVuUGFrVE5ETjVqTU5sOHJ0YzhLU3NadG9YSUZQQlVXNzJOQUc0bVkxSkhKZ1RDeUxhMkxHMlFna1BSWlBFWkxfRUUtODZQZFZKb0kyREVaVEg2OHlkWTJpZWxYbFZxYlpfdHd4OGtYem1HTVVkaWE3U3BvTmRDRlFvV3gySGh6cHhzenFKSmEzdUw0QVN3Vw?oc=5",
+      "publishedAt": "2026-11-13T00:30:00.000Z",
+      "tone": null,
+      "storyId": null
+    }
+  ]
+}

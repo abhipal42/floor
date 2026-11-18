@@ -6,10 +6,11 @@ import VoteScreen
 import BillScreen
 import Alerts
 
-/// The app once you are onboarded (or skipped it): four tabs — Finals, Week, Bills, Following — under
+/// The app once you are onboarded (or skipped it): five tabs — Finals, Week, Bills, Local, Following — under
 /// the locked mocks' floating tab bar. Following replaced "Your three" (the locked
 /// Following mock, <https://claude.ai/artifact/C7qGitvJMSLFmCkYYQgNre>); Week is round 11's
-/// (<https://claude.ai/artifact/VdSGbow4qnJwYe2sV7Tb2r>, section A).
+/// (<https://claude.ai/artifact/VdSGbow4qnJwYe2sV7Tb2r>, section A). Local is v0.2.60's
+/// (<https://claude.ai/artifact/Lz7DMYwAUMLCzUQwuupFKW>, State & city option A).
 ///
 /// The mocks' fourth tab, Money, is not built: it needs donor and disclosure data the API does not
 /// serve. Each tab keeps its own navigation stack, so switching tabs never loses your place.
@@ -18,6 +19,7 @@ public struct FloorShell: View {
         case finals = "Finals"
         case week = "Week"
         case bills = "Bills"
+        case local = "Local"
         case following = "Following"
 
         var symbol: String {
@@ -25,6 +27,7 @@ public struct FloorShell: View {
             case .finals: "chart.bar.xaxis"
             case .week: "calendar"
             case .bills: "doc.text"
+            case .local: "building.columns"
             case .following: "person.2"
             }
         }
@@ -33,9 +36,11 @@ public struct FloorShell: View {
     @State private var model: HomeModel
     @State private var tab: Tab = .finals
     @State private var week: WeekModel
+    @State private var local: LocalModel
     @State private var finalsPath: [HomeModel.Route] = []
     @State private var weekPath: [HomeModel.Route] = []
     @State private var billsPath: [HomeModel.Route] = []
+    @State private var localPath: [HomeModel.Route] = []
     @State private var followingPath: [HomeModel.Route] = []
     private let onChangeAddress: () -> Void
     /// "Find my reps", with no district: back to onboarding, keeping who you follow.
@@ -49,6 +54,7 @@ public struct FloorShell: View {
     ) {
         _model = State(initialValue: model)
         _week = State(initialValue: model.weekModel())
+        _local = State(initialValue: model.localModel())
         self.onChangeAddress = onChangeAddress
         self.onFindReps = onFindReps
         _link = link
@@ -72,6 +78,10 @@ public struct FloorShell: View {
             }
             stack(.bills, path: $billsPath, title: "Bills") {
                 BillsView(model: model) { billsPath.append(.bill(id: $0)) }
+            }
+            stack(.local, path: $localPath, title: "Local") {
+                LocalView(model: local, onOpenCities: { localPath.append(.cities) }, onFindReps: onFindReps,
+                          onChangeAddress: onChangeAddress)
             }
             stack(.following, path: $followingPath, title: "Following") {
                 FollowingView(
@@ -188,6 +198,13 @@ public struct FloorShell: View {
         case let .fastTrack(group):
             FastTrackView(model: week, group: group) { path.wrappedValue.append(.bill(id: $0)) }
                 .navigationTitle(group?.name ?? "Fast track")
+        case .cities:
+            CitiesView(model: local)
+                .navigationTitle("Cities")
+                .toolbar {
+                    // The screen's own headline names it; keep the bar from printing it twice.
+                    ToolbarItem(placement: .principal) { Text(verbatim: " ").accessibilityHidden(true) }
+                }
         case .alerts:
             AlertsView(model: model.alertsModel())
                 .navigationTitle("Alerts")
@@ -214,6 +231,7 @@ public struct FloorShell: View {
                         case .finals: finalsPath.removeAll()
                         case .week: weekPath.removeAll()
                         case .bills: billsPath.removeAll()
+                        case .local: localPath.removeAll()
                         case .following: followingPath.removeAll()
                         }
                     }

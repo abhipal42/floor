@@ -1,0 +1,14 @@
+{
+  "_fixture": "New York State Senate District 59 (Kristen Gonzalez); photo and link left out.",
+  "legislators": [
+    {
+      "id": "ny-sd59-sample",
+      "name": "Kristen Gonzalez",
+      "party": "Democratic",
+      "chamber": "upper",
+      "district": "59",
+      "photoUrl": null,
+      "url": null
+    }
+  ]
+}

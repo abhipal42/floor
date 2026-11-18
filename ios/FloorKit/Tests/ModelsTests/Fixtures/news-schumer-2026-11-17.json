@@ -1,0 +1,352 @@
+{
+  "_fixture": "Built for the v0.2.60 app before the news route was served. Headlines: Google News RSS for Schumer, Nov 12-17 2026, as captured (all 25 name him). Tone and stories are HAND-LABELLED by the agent that built the fixture, not by the worker's AI. Polls: the three real releases the spec names (YouGov as The Hill reported it; Data for Progress worded as its release; NBC News). checkedAt is the build time.",
+  "memberId": "S000148",
+  "checkedAt": "2026-11-17T21:00:00.000Z",
+  "window": {
+    "from": "2026-11-10",
+    "to": "2026-11-17"
+  },
+  "tone": {
+    "favorable": 2,
+    "neutral": 16,
+    "critical": 7,
+    "office": 0
+  },
+  "stories": [
+    {
+      "id": "S000148-leadership",
+      "title": "Van Hollen challenges Schumer for majority leader",
+      "tone": {
+        "favorable": 2,
+        "neutral": 13,
+        "critical": 5,
+        "office": 0
+      },
+      "headlineIds": [
+        "S000148-01",
+        "S000148-08",
+        "S000148-02",
+        "S000148-06",
+        "S000148-07",
+        "S000148-24",
+        "S000148-00",
+        "S000148-22",
+        "S000148-17",
+        "S000148-20",
+        "S000148-15",
+        "S000148-21",
+        "S000148-14",
+        "S000148-04",
+        "S000148-05",
+        "S000148-12",
+        "S000148-16",
+        "S000148-13",
+        "S000148-09",
+        "S000148-03"
+      ]
+    },
+    {
+      "id": "S000148-polls",
+      "title": "Polls on Schumer as Senate Democratic leader",
+      "tone": {
+        "favorable": 0,
+        "neutral": 0,
+        "critical": 2,
+        "office": 0
+      },
+      "headlineIds": [
+        "S000148-18",
+        "S000148-10"
+      ]
+    }
+  ],
+  "headlines": [
+    {
+      "id": "S000148-01",
+      "title": "Schumer declares he has votes to beat Van Hollen and become majority leader - The Hill",
+      "source": "The Hill",
+      "url": "https://news.google.com/rss/articles/CBMiigFBVV95cUxPS294MTRFOVZkdnhVNTdZbzk3TXF3NGw2cnczelRKVjI0RXZWVDFtcHBLY1pFY1M4eWZDaVNhUW9iWTR3aGtFa2FoYnJRYTNjbnpoRWtndmdIeU9wSlYySlhFeEh1ZXlzZGw2bi1GVUJ1OXh5Zy0xZEQtUlhYc3NkanlMUzZHWTRnMHfSAY8BQVVfeXFMTWpXczFYbzVORG40ZWNQd2huc01ic2VTZHRwQzZSb1Z5T3hnMEZObGJxWkRRM1lIUUNaMXp2VGotc1JIdU9PQkRvYkNuNXUxNVRfa0RXaVlYbmxoSEJMcjlNNElkRTdqUkdzRW9GblF3ZWRtOTlWYVU4NDVBZjFpWXhZS1hnTEwzQmRyWDFDM3c?oc=5",
+      "publishedAt": "2026-11-17T20:23:00.000Z",
+      "tone": "favorable",
+      "storyId": "S000148-leadership"
+    },
+    {
+      "id": "S000148-08",
+      "title": "The Angry Democratic Base Powering the Challenge to Chuck Schumer - WSJ",
+      "source": "WSJ",
+      "url": "https://news.google.com/rss/articles/CBMirwFBVV95cUxPdDBWWDZCZm5wLUdCa2Fpc0pZeDg1RWFTQzZjUkR4b0REZEtnV0lncl9YaVl6YVFPRE1TWFBrUkdXcnpZSUQ3c2x4NEM4SjZZdFdibjdrblE0SmJ1UXVIdVRsNV9ZdjhPTk9BTkZwOFB5QUlONDNoeUt0NXBISGNxUkpMVEpFZ0IxXzc4bzlCRDJLYjBreUFXOEhrblpKd0JSbzV6RzMxa25IVnhLQzFJ?oc=5",
+      "publishedAt": "2026-11-17T20:01:00.000Z",
+      "tone": "critical",
+      "storyId": "S000148-leadership"
+    },
+    {
+      "id": "S000148-02",
+      "title": "Van Hollen's bid to replace Schumer puts pressure on Democrats to take sides - PBS",
+      "source": "PBS",
+      "url": "https://news.google.com/rss/articles/CBMiswFBVV95cUxQZ3QyR2x1cXppQk5YX2hVdDNLY21Cdng0RmQ3RTRiR21qX2p3YkRrVjJyYUZZS2FGYkFwUGxfdXBSZFFpeEVoV1RnWE5Lb0tZcDNRcHhXNUttTDRPeENsdDYxV1U3UnM4UEhDNk1PUjE0a0c5ZWVVdkZ0VWdjZHFDX3FyeTVZZExWN3dMckd0UU40WXBZX1I3NmNsUDBGSUN4N2hiUmkxX3h3SUpxVFNJWWN5Y9IBuAFBVV95cUxOVXRBX2JaWTdZanhQaFhNUENvV0g0OHdNUzlfNGM2X3QxUWwzT29TMVhyWWNJak9OdU5YcGo4emtJRUROdlFVMERnYVlUQ2NieFFTUXUyYWN4eGZsR2RNUUJxaVAtaFFVaFo0ZHFJQV8yV1NVWUdidmdxck1YWFdGTWgxTm5zeGU3YWtnbVJRRG45d3BteEhCS2djaVl5WjNWSUlObFZfbndFanFWMkstNnM1YWFWd1Ey?oc=5",
+      "publishedAt": "2026-11-17T19:52:58.000Z",
+      "tone": "neutral",
+      "storyId": "S000148-leadership"
+    },
+    {
+      "id": "S000148-18",
+      "title": "Many Americans view Schumer unfavorably as leadership fight heats up: Poll - The Hill",
+      "source": "The Hill",
+      "url": "https://news.google.com/rss/articles/CBMijwFBVV95cUxOQWlLeG9mQ280NnQ0S0FiTEtrS0h0aEh4WXR1Y1JQT3dVYzNRaTVBQkVKb01lTDQ1alJzRGhndFUtbk5MRjlXM2l3bDRLTHNWSnphVXY0OGdXVEYzZXNoeEM2S05tNnJoWGs5d0NmSHdSZnpCb1c0UnF2eVZHTFc1cGNYWDdSRkZQcEpPS1VFRdIBlAFBVV95cUxPTnFwR1lsVmVCeXl2UGlTRDFJallUODJIRVREVXd1bGtLd2J6a1dBb2tmRU5oX1ktUFR3ZFVGQndhQzRHTG9ZVjhWY0phOHV1RlFpcmNLXzBQQ3Z6OUJzaHNwMEhXY25CcUh1Z195X29ycGF2ZjRlWjF3LUR6eEhjTnU0ODF4cmhKekhfdVNfVDBQYmFY?oc=5",
+      "publishedAt": "2026-11-17T19:33:00.000Z",
+      "tone": "critical",
+      "storyId": "S000148-polls"
+    },
+    {
+      "id": "S000148-06",
+      "title": "Van Hollen Says His Senate Challenge to Schumer Is Gaining Support - The New York Times",
+      "source": "The New York Times",
+      "url": "https://news.google.com/rss/articles/CBMinAFBVV95cUxQWHgxNlcxWmZFYjdRMXBqdE54OTJCbkhPUDliN29aMTFNTU85QXgzVnpsdi1peW5QY2xEMUdObG9lbUlwTVFsYndiclgyZ2Q3ZU50RlIwMTVKTUFuRFlfNkhJQWxjS0RsUm1kT1g5Sm1jTDdkWlNYVmhEOWQ2WmZCNDEyRnZKQjR0dGNtUThyUXV0QTA2VVF1b0cyaXU?oc=5",
+      "publishedAt": "2026-11-17T18:26:00.000Z",
+      "tone": "critical",
+      "storyId": "S000148-leadership"
+    },
+    {
+      "id": "S000148-07",
+      "title": "Senate Democrats reject quick exit from Schumer vs. Van Hollen fight - Politico",
+      "source": "Politico",
+      "url": "https://news.google.com/rss/articles/CBMijAFBVV95cUxQTGx0WXhmNmhMV0QyZmN5SW1sYVVoRUdHc1JWQ2xHSVc3SWxZZ0tsR2RPSlE2bm5EY2lkOFhBRFh6TndzZFBnZnpDSXZ6b3dtT01oV1BiV0RCUDdjNDFDM01vYWpUUFhyWDk0NzktRjI1eHE4RE1sQ3R4cEhjbl9ZXzBvc0d5eEpvSWdXSQ?oc=5",
+      "publishedAt": "2026-11-17T02:46:00.000Z",
+      "tone": "neutral",
+      "storyId": "S000148-leadership"
+    },
+    {
+      "id": "S000148-24",
+      "title": "Whip List: Schumer faces challenge from Van Hollen for Senate Democratic leader - The Hill",
+      "source": "The Hill",
+      "url": "https://news.google.com/rss/articles/CBMijAFBVV95cUxNblgzekd6NlRjOGMwdTgwc1lBZWpNRXlydy1BdklydEpibzNhVjEzT1FDamhINE9TV2xiTnozUkhOZV9wY3NrajJRaEppREc4dDc5cnQ1bHBXX2JiNFU3OFU1dzcybzRHS2I5bjI1OVJmeTk2ZHNiczQtU2RrbmxNam1YMzlQbktEc2hKRA?oc=5",
+      "publishedAt": "2026-11-16T23:33:00.000Z",
+      "tone": "neutral",
+      "storyId": "S000148-leadership"
+    },
+    {
+      "id": "S000148-10",
+      "title": "Democratic-Leaning Voters Favor Van Hollen Over Schumer for Majority Leader - Data For Progress",
+      "source": "Data For Progress",
+      "url": "https://news.google.com/rss/articles/CBMiwAFBVV95cUxOajJMX0xYd0lkazJmejg0ZFN0NmFvXzc3N0dmSm5xRmZPVHV1X29sQ0p1cEFPVmdyaFQwRm1kekhSVVhLc3hWNmE2c2F5MUs1SjYzejhZUi1TN0FtWlRZMHZhQ24zbHJpWDVoZEMtQW1nOV9ucGpzS1pmdDUtMnlWT05Lclgwc3JwS1VhR19KWmNmNVYtNzBQUEV4cUtha29hUUJuLXc5eUNuRjhqTDE0RjhoVHNJVGRCRFV4SWFmY2w?oc=5",
+      "publishedAt": "2026-11-16T21:02:56.000Z",
+      "tone": "critical",
+      "storyId": "S000148-polls"
+    },
+    {
+      "id": "S000148-00",
+      "title": "Chris Van Hollen says he can beat Chuck Schumer. Here's his case - NPR",
+      "source": "NPR",
+      "url": "https://news.google.com/rss/articles/CBMikwFBVV95cUxPSTZaZEpKRDBjbEVlTVg3M1YzZ1k2TzZ1ZmpmdEVJSnlkLVhuNEdBTVE5aVBTMFpaajhNd1g0VkV0QVM1aUtqYS0zdXE5WHZFczdMRTZRcmdBWlpBVTloT0lPekNZMjBWT3h6YlpndUwtS2oyRFA3bFdWWmwxVjNxZkYwZlkyanJZVzBxRzBTeFJlX00?oc=5",
+      "publishedAt": "2026-11-16T11:39:14.000Z",
+      "tone": "neutral",
+      "storyId": "S000148-leadership"
+    },
+    {
+      "id": "S000148-22",
+      "title": "Van Hollen says he’s gaining ground on Chuck Schumer for Senate leader - MS NOW",
+      "source": "MS NOW",
+      "url": "https://news.google.com/rss/articles/CBMiiAFBVV95cUxPZTVuQy0zQks2eGpLbTgya1VwdVowSHBmNmhLS2ZDd1hLVDJ3MUVyMEdyNmE1WmtEV29tSENWU2hCVDRvVkl2RUVYYmpReFc0a1pOUkFTVUd2UXlYU3lWLWI3MDVfUW1FQ2N6Tno3UXpXN2l3dF9kMkliNVg1TUl2OGc5NW5pUmRM?oc=5",
+      "publishedAt": "2026-11-15T21:33:52.000Z",
+      "tone": "critical",
+      "storyId": "S000148-leadership"
+    },
+    {
+      "id": "S000148-17",
+      "title": "Chris Van Hollen says he has path to win Senate leader over Chuck Schumer - The Guardian",
+      "source": "The Guardian",
+      "url": "https://news.google.com/rss/articles/CBMikAFBVV95cUxOUEZmdDNSYld3WVF4NmljR0ltMFJMS2pDR0t5UUlhcExaY0hsM2JYQXNhU2RwaWxwc3o0ck5hSVdRRlVxZW1pRnhEQjFDd1I4ZlJGRndZd0pyZmxXY1lfbW5RUlpxMy1JWlB2bURvRjl1RXI1VHkzcW5seUtHcS1wdG5rR2tYc1FoUzRXNU5WWE8?oc=5",
+      "publishedAt": "2026-11-15T19:12:00.000Z",
+      "tone": "critical",
+      "storyId": "S000148-leadership"
+    },
+    {
+      "id": "S000148-20",
+      "title": "Van Hollen disputes Schumer’s claim that he has the votes to stay leader - Politico",
+      "source": "Politico",
+      "url": "https://news.google.com/rss/articles/CBMinAFBVV95cUxQV0lDcDcyT1V1WFBFc2hWM1B1aXZpb3pfaVc1aGhZSkJYQXkwWG1DLWtzVUJmZDRPMGZGYld3VGwwRVJwdHdXQS1zMkNKMEt6TWExQjVLRmVpSHBXV1Bid0ptOHViUDZKUU9rRWpyN0hZMUFMUkhtZS1FUVVjMTFxX1FVdFkxdHZhQmdNNFRiNVg2WnQ4YzVERExHSWI?oc=5",
+      "publishedAt": "2026-11-15T17:00:00.000Z",
+      "tone": "neutral",
+      "storyId": "S000148-leadership"
+    },
+    {
+      "id": "S000148-15",
+      "title": "Van Hollen: Schumer inflating support - The Hill",
+      "source": "The Hill",
+      "url": "https://news.google.com/rss/articles/CBMif0FVX3lxTE8zZ2oyMnZnMnpCZHFPeVJzU2pSQ3psQ3VRR1duZnpYWi1QOVVlN051aWJKa013T3hSWFhpWjZTNnVpXzBtRG04VVJWLWhta002eXNwWGNBckZUc1p4a09UTTBOZlVEZ1lWM2tYRTYtclpCaGhsYXV1Zmc2UkFfYzjSAYQBQVVfeXFMUHJkWFZnYWFxd2MteDBLZklSMDhuak10T0pOcWYzMGVadGxSaDNQZFJWRGZ6RHR0dW1qblg2RU15dHItZDByODZWdFZuLWliQ0U5THNkVld6MGtQTG1qX0VxYVpPOXRIbnROandkX1ZZazZlc3NqNEZob0liUFh3TDFhOGFQ?oc=5",
+      "publishedAt": "2026-11-15T16:45:00.000Z",
+      "tone": "critical",
+      "storyId": "S000148-leadership"
+    },
+    {
+      "id": "S000148-21",
+      "title": "Schumer allies voice confidence, argue Van Hollen challenge about ending ‘filibuster’ - The Hill",
+      "source": "The Hill",
+      "url": "https://news.google.com/rss/articles/CBMikgFBVV95cUxNMTliMHgzOWhmMXVwSUp0WDFTX2dMWFdMQjNsX280QUFuVl9yckJnU1lDZVVxLV9nZFVJdFFyQ1RrVXYxaEo3cGpRaWk0aVdqQ3YxdGJiZUEtYkFrQi02UGhSN3V0Z1FhM1hqQUM2SnZYd1dmOURhTzYwNFBDNFB3TnVOa0R5djlYaS11b1ZMd3BCd9IBlwFBVV95cUxPQzZWeWh2YjBMSHMydURKSXNHaU5zRWpVOEVWdkxnNFZfcFhFVm5GVmxGdk5mN1c0QzdweElmVVRJZzFUMTZ1X3plMVk2N2xnNVB1UzhIeEUtM0ZCRWJmbGtiT0V2R1hKYWtqbFVzZ3FqLVZ5Z3E1TU56VjU0M0h1eDhsWlB0UzRIZHc2RlRBdWFmMHJlcV9N?oc=5",
+      "publishedAt": "2026-11-14T11:00:00.000Z",
+      "tone": "favorable",
+      "storyId": "S000148-leadership"
+    },
+    {
+      "id": "S000148-14",
+      "title": "Van Hollen Says He Will Challenge Schumer for Senate Majority Leader - The New York Times",
+      "source": "The New York Times",
+      "url": "https://news.google.com/rss/articles/CBMinAFBVV95cUxOeE1ydjlwSE1Mc2hyektqU214alFSdTQ0cEhhV1ZMaFhHNFFaUkJzZ0FCSDlxZXBNcUZOSU5OaXJBVFJDSzBTc1B4c2xtaWd6WWo4ODd3Y1BENUNPRUdkdVVZY1Y3eGRoRnR3U1dwQXpFQWVOT084YmJ6ME9SUllKLVFnTUlWZk0taTk1QUdQclNFZWVuTlVVck15MUM?oc=5",
+      "publishedAt": "2026-11-14T08:00:00.000Z",
+      "tone": "neutral",
+      "storyId": "S000148-leadership"
+    },
+    {
+      "id": "S000148-04",
+      "title": "What the choice between Chuck Schumer and Chris Van Hollen for Senate leader is all about | Bernie Sanders - The Guardian",
+      "source": "The Guardian",
+      "url": "https://news.google.com/rss/articles/CBMinwFBVV95cUxQa0lvUTFLMHVJZjMySDNaV1pjSFFFNUVjQU5WV0MyN3RCeFJxUTFoUUJsc0lNREZXMXBURlYtakhDcV92a3Zrb1lIblU1dUlmeFVNaXBRSnI4Z3lDMFFiT09YbmxLS1ZaWXFlb3BlYXcxazd0X29seXZId2NwUTdTcWRkVzlKNU43ZnhQci1jWVo5RVVPT3ZYRkVkNnQ2Nk0?oc=5",
+      "publishedAt": "2026-11-13T21:28:00.000Z",
+      "tone": "neutral",
+      "storyId": "S000148-leadership"
+    },
+    {
+      "id": "S000148-11",
+      "title": "Fact check: Jon Stewart claims Chuck Schumer opposed 'half' of Democratic Senate winners - WRAL",
+      "source": "WRAL",
+      "url": "https://news.google.com/rss/articles/CBMirwFBVV95cUxPUERvLUI1TnJqeG9YdDh6VlRuQlN0ZVYwN2dNbGJlWXNNSnZvX2ZDenlhQ3ZOWmxYM3BDSGI1bDc0X3ZVcDBBYmltYnBwOGFVcU45dTlWZjR2UnZXZ2NmaXQzOE1ERkF6Wmo3UWlvNVBpaXkxZldqNU5SRXdYbWpNN0FmZWdjZUV2V09uX0RLZlUyZ3AzTVk5WlQxTGZpb1h6Y1FmZEZZZ0FaRkZqXzIw?oc=5",
+      "publishedAt": "2026-11-13T20:59:01.000Z",
+      "tone": "neutral",
+      "storyId": null
+    },
+    {
+      "id": "S000148-05",
+      "title": "Chris Van Hollen to challenge Chuck Schumer for Senate leadership - BBC",
+      "source": "BBC",
+      "url": "https://news.google.com/rss/articles/CBMiW0FVX3lxTE5pNlhXaTVYbUttRU8weWgtS0JoMFJ4UGRDck9ndDBzUXh4Qi16UVZfZks1YmF6c3lYb0NXdVlCTW5UZ3VHR0Z4N3drdFVIZ3c5WEpNZnRvUFlnSEU?oc=5",
+      "publishedAt": "2026-11-13T19:03:10.000Z",
+      "tone": "neutral",
+      "storyId": "S000148-leadership"
+    },
+    {
+      "id": "S000148-23",
+      "title": "Chuck Schumer - Britannica",
+      "source": "Britannica",
+      "url": "https://news.google.com/rss/articles/CBMiX0FVX3lxTE5BRTB4VjAxS0xpakI2VlEwN2pnclB4WHZxYzVZdDlubU9BS1FiUVVzMnAtYnhKMWJmQllNZjNPN0RsZWRXbmZaRDQxdk1Mc3hmMmdrTnFGU3R5ckZkVTZZ?oc=5",
+      "publishedAt": "2026-11-13T08:00:00.000Z",
+      "tone": "neutral",
+      "storyId": null
+    },
+    {
+      "id": "S000148-12",
+      "title": "Chris Van Hollen says he will challenge Chuck Schumer for Senate majority leader - NPR",
+      "source": "NPR",
+      "url": "https://news.google.com/rss/articles/CBMinwFBVV95cUxOdVNLOGZvSnVMbmRFQkZOcDU0NmVSWWt4U1NubHpEdC1rdVo3N2cyWnNVVUYxMUs1dTVjM0xtZFIwMFAtRHhCWWZtTUJXd1BWSFZTMTZRZDhTODRReTBEbkFYLXRtN1ktdTFpdzB4bHhXNlV3cnBCQ2JNdlAycjNSY0JBR0VMQVZWVlBxd1VZY0g3amRYRmg2VFYtQmRiZUU?oc=5",
+      "publishedAt": "2026-11-13T03:52:25.000Z",
+      "tone": "neutral",
+      "storyId": "S000148-leadership"
+    },
+    {
+      "id": "S000148-16",
+      "title": "Maryland Democrat Chris Van Hollen to Challenge Chuck Schumer for Senate Majority Leader - WSJ",
+      "source": "WSJ",
+      "url": "https://news.google.com/rss/articles/CBMitgFBVV95cUxNVExZU3lxUUxHR3NfUU5xR2F1RTlSS0JfT0NJTUZQTkZUeW42NlBfMldZU2wwdmZxSmltb1duSklHVVlmakVXbTM3Y096TGNiZFV3Qm01YklCdkJVRW9PcFlUQy1XZTlqNHpiMGstWWw3Q0pZOC1yb1gtTmtaWnZCNG5ubTdka09nSDRpNkllWFZEVjdJREhnT2FhNUFaSmFSNm9xV1Jla1AydzJ2OFJNemtVenVoQQ?oc=5",
+      "publishedAt": "2026-11-13T03:27:00.000Z",
+      "tone": "neutral",
+      "storyId": "S000148-leadership"
+    },
+    {
+      "id": "S000148-13",
+      "title": "Chris Van Hollen to challenge Chuck Schumer for Senate majority leader - The Guardian",
+      "source": "The Guardian",
+      "url": "https://news.google.com/rss/articles/CBMiowFBVV95cUxOV0J4MndKUEQ2d09hWmMxazdDY1N5T0E2VEpLYXVtZHV0VjN0OU0zdV85N2JPaTd5Y0lVZDZpNHQzdTdaVWtEVHN2U2k1VmRSSTZELUltZFZEc2hlT3RlV2pLSDh0cFlBM1hGSXhtb1lzNnVTdmRaeDEwck5hci1rekN3MHRtNmFZcVpsQTZRWVZBQkcxdjU4MEZvUmlQOHlWTlVj?oc=5",
+      "publishedAt": "2026-11-13T02:15:00.000Z",
+      "tone": "neutral",
+      "storyId": "S000148-leadership"
+    },
+    {
+      "id": "S000148-09",
+      "title": "Chris Van Hollen launches challenge against Chuck Schumer to lead Senate Democrats - CNN",
+      "source": "CNN",
+      "url": "https://news.google.com/rss/articles/CBMimwFBVV95cUxOYUwtQ1V3YmpBSmlWV3hmUVdBYmRocm1ucjZuRXU3bGZuRldIVUdJVHo3T01sZkdSQWtjVFp0U1BiVWRLd0VXcGR6bU5OVmVzQzlsb0hCTThtZEJWTnV6VHdNcG1KNm51dndFOFVaQldHSFE4V2RuVHNJem1rMTZTVEM2M1c4SlVUcnNtTy1IVEVPVkJoVzVYV3FmNA?oc=5",
+      "publishedAt": "2026-11-13T02:04:00.000Z",
+      "tone": "neutral",
+      "storyId": "S000148-leadership"
+    },
+    {
+      "id": "S000148-03",
+      "title": "Sen. Chris Van Hollen says he will challenge Sen. Chuck Schumer for majority leader - NBC News",
+      "source": "NBC News",
+      "url": "https://news.google.com/rss/articles/CBMiwAFBVV95cUxQR2xrSFB3cFBDbkQ4M1NtN0JqTVRvRVBSR3d6azhqSlZBWFM0b3ZuVWQxZlgzd09pTTFXa1VEX1g2eTl3LWNxTDgzNlRsS0VUTEFqZ1hPSHI4eXlacEFkRnB0U2hXUk5sRGprR0RraGJaV1ZSeFNjeFFnaDlNdVRpNTdrd09IRjJibW1xVjFmdnlMa0I5dHdBdlVFUDhVb1N5U3g2M0RJbEhJMGhZelgzZ3pucG54Q0h4TVZzQXpxUzI?oc=5",
+      "publishedAt": "2026-11-13T02:03:00.000Z",
+      "tone": "neutral",
+      "storyId": "S000148-leadership"
+    },
+    {
+      "id": "S000148-19",
+      "title": "Dozens of protesters arrested after staging sit-in at Chuck Schumer’s DC office - The Guardian",
+      "source": "The Guardian",
+      "url": "https://news.google.com/rss/articles/CBMilgFBVV95cUxOV2p1SnA4ekhkUmNIaGo0cVBaRDJHNkVKaDBWZTg4VUREdE9WdXRfenlha01HYkVnTE10MTJGNG9mSk5UZHptdDRUUEZlNlgxOXhQQ3pmWkdBSXdFdkNYMXdiVGpGaGZ6NFktSm5UcloyZm8wMEdxS3NVTFMyeG1DanZzbHJiNlRSdVp2cVNQb3ZGX0VUWEE?oc=5",
+      "publishedAt": "2026-11-12T22:15:56.000Z",
+      "tone": "neutral",
+      "storyId": null
+    }
+  ],
+  "polls": [
+    {
+      "id": "yougov-2026-11-16-schumer",
+      "pollster": "Economist/YouGov",
+      "fieldedFrom": "2026-11-13",
+      "fieldedTo": "2026-11-16",
+      "population": "U.S. adults",
+      "sampleSize": 1628,
+      "positive": {
+        "label": "favorable",
+        "pct": 22
+      },
+      "negative": {
+        "label": "unfavorable",
+        "pct": 50
+      },
+      "other": {
+        "label": "don't know",
+        "pct": 28
+      },
+      "url": "https://thehill.com/the-120/6225885-chuck-schumer-democrats-unpopularity-poll-results"
+    },
+    {
+      "id": "dfp-2026-11-15-schumer",
+      "pollster": "Data for Progress",
+      "fieldedFrom": "2026-11-13",
+      "fieldedTo": "2026-11-15",
+      "population": "Democratic-leaning likely voters",
+      "sampleSize": 538,
+      "positive": {
+        "label": "should remain leader",
+        "pct": 32
+      },
+      "negative": {
+        "label": "should choose a new leader",
+        "pct": 56
+      },
+      "other": null,
+      "url": "https://www.dataforprogress.org/blog/2026/11/16/democratic-leaning-voters-favor-van-hollen-over-schumer-for-majority-leader"
+    },
+    {
+      "id": "nbc-2026-10-30-schumer",
+      "pollster": "NBC News",
+      "fieldedFrom": "2026-10-28",
+      "fieldedTo": "2026-10-30",
+      "population": "registered voters",
+      "sampleSize": 1000,
+      "positive": {
+        "label": "positive",
+        "pct": 13
+      },
+      "negative": {
+        "label": "negative",
+        "pct": 53
+      },
+      "other": {
+        "label": "neutral or unsure",
+        "pct": 34
+      },
+      "url": "https://www.nbcnews.com/politics/2026-election/poll-voters-demand-change-check-trump-fueling-steep-democratic-midterm-rcna606183"
+    }
+  ]
+}

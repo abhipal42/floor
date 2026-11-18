@@ -1,0 +1,28 @@
+{
+  "_fixture": "Real item: CB 121276 (land use and zoning) passed Nov 13 2026; no tally captured. No news captured.",
+  "jurisdiction": {
+    "id": "seattle",
+    "kind": "city",
+    "name": "Seattle",
+    "state": "WA",
+    "placeGeoid": "5363000",
+    "coverage": "records"
+  },
+  "updatedAt": "2026-11-17T06:00:00.000Z",
+  "enacted": [
+    {
+      "id": "seattle-cb-121276",
+      "identifier": "CB 121276",
+      "title": "Land use and zoning",
+      "summary": null,
+      "body": "City Council",
+      "date": "2026-11-13",
+      "status": "passed",
+      "yes": null,
+      "no": null,
+      "url": null
+    }
+  ],
+  "waiting": [],
+  "news": []
+}

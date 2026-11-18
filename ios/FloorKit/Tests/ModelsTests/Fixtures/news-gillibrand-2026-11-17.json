@@ -1,0 +1,140 @@
+{
+  "_fixture": "Built for the v0.2.60 app. Google News RSS for Gillibrand, Nov 11-17 2026, kept only where the title names her, as the worker filters. Not AI-read (tone null); the .gov item is office, as the worker marks it without AI. No poll named her in the last 90 days.",
+  "memberId": "G000555",
+  "checkedAt": "2026-11-17T21:00:00.000Z",
+  "window": {
+    "from": "2026-11-10",
+    "to": "2026-11-17"
+  },
+  "tone": null,
+  "stories": [],
+  "headlines": [
+    {
+      "id": "G000555-01",
+      "title": "GILLIBRAND, MERKLEY INTRODUCE LEGISLATION TO ADDRESS REPUBLICAN CUTS AND HELP STUDENTS ACCESS ESSENTIAL GRADUATE DEGREES - Merkley (.gov)",
+      "source": "Merkley (.gov)",
+      "url": "https://news.google.com/rss/articles/CBMi6gFBVV95cUxPMmVIdzRXZURUSVkyc1dBeVJxeEs0TnhBMXMtMmw2X0xXc0ZmZU1aMGhhQlphclhKSG5XVkpndTZuOVBtTlg4UFRyaC01MWV4eE1ZRWl2cTlJNldyVThtUjJScEdOUS0xRHlxMlV3TzNPSWRJdm1KOHFldzhQeEdPVk1IVUVxYUV0U2tBVS0tMHFGVG05bWR4b19FR1lwUHRGUGhNSmduemg1QnFMWXlwUUdoYUdlQ2liclNQY2lZYVk0aC1FV3dGSWx5RGhMTkxDaThpUkxlNTZIMzJULWgyaTNDU1dnU3ZrWkE?oc=5",
+      "publishedAt": "2026-11-17T18:34:15.000Z",
+      "tone": "office",
+      "storyId": null
+    },
+    {
+      "id": "G000555-16",
+      "title": "Gillibrand on why she supports Schumer to lead Senate: Knows how to help get ‘agenda of change’ done - MS NOW",
+      "source": "MS NOW",
+      "url": "https://news.google.com/rss/articles/CBMi5AFBVV95cUxOcWJ0OGR2OUhrZGpDeVNRRzRDNzN2TmtCclZwZHN3UlJhZnItbTNPYWhBSU9YeksyS1QzUmV4djVFUUg0b3Y5OXNjQUlqYzRhdmZyNG02WDdYME9sdTNSRlRQQVdMODZ3ZDkzQlpJczkxUDc5ZHBYYk9uTUo0X09Sbnlqak9vb0Z2V2RHNFhJOE90QXJnLWxtTERwOTk3UFoxOXloT0JYREtOMUFEdnZzaEtHMThpTHZjMHZKNHJGa3NMcVgyY3ZTZEp1TVFTUGJrYkY2Z1plcGRYbGFURHFlZkcwNkQ?oc=5",
+      "publishedAt": "2026-11-17T16:17:56.000Z",
+      "tone": null,
+      "storyId": null
+    },
+    {
+      "id": "G000555-21",
+      "title": "Duckworth, Warren And Gillibrand Move To Block Funding For Trump’s Iran War - RiverBender.com",
+      "source": "RiverBender.com",
+      "url": "https://news.google.com/rss/articles/CBMiwgFBVV95cUxOZWpiNVRRZTFialdwdzdHZzhzNW1NNU1JTGFVNUNTMGsxemZWdGhwTXc0QlpnQ20yREpzVlNnYXBoUVYyaGtlWjJkZVdKNzZ5TE95Sy02WUVfRGFoRTNEZFJuLUVCdDBpVDdqUmVFZzJlVlJRNkhOdEJVbmZybWZRUVBnOWRhbUdiZnE1ckN0UEFHTkk0Vy16ckc2WWtFM3YtdDY1aEVjUThfY29rRXlkSVBoWkNEd2VkUFJkRGRxNndlQQ?oc=5",
+      "publishedAt": "2026-11-16T17:42:00.000Z",
+      "tone": null,
+      "storyId": null
+    },
+    {
+      "id": "G000555-00",
+      "title": "Kirsten Gillibrand is dreaming of a Democratic supermajority - Politico",
+      "source": "Politico",
+      "url": "https://news.google.com/rss/articles/CBMigwFBVV95cUxNRVl0QUpUY3Bhc3NzaHd3dk00N1BfUEdQTzItY1JwOERSLV9wUXY2Q3ZlOEtuZGhGSkt4ZXMybFBnT09FbERyYURMVGg3YkhiN1VpcG1Kb0o3dHpDNjhJdnc1djRBYmx2NDFkdVJLU09DdG5ZOHJqTWVIaGlnaU1oRFc0QQ?oc=5",
+      "publishedAt": "2026-11-14T15:00:00.000Z",
+      "tone": null,
+      "storyId": null
+    },
+    {
+      "id": "G000555-13",
+      "title": "Gillibrand, Senate Democrats push to lower Medicare buy-in age to 50 - WBNG",
+      "source": "WBNG",
+      "url": "https://news.google.com/rss/articles/CBMimgFBVV95cUxOS0dYUzBzX3I1OVFmMElidWlERk45TzgxX05TT2VVNEpsbWtBOU13bF9lNms5bG5DYkZWc2tDM3p1Y2VaV2hhbTF2d1N6QVB2Tjl4NzFDaFhFNWRlSlgwLXFWR1JZZ2VyUGdoU3hwWnhQei1UU2V6UmxaQURMZTM3MVczNlEtMUxIbU1WMHhNWXpTYUItdkFZeDF30gGuAUFVX3lxTE0td1hjLW0zWDVHaUxVV2R4dE5CaEVmbW5TSlhpV3otRG5VSVJEUVRLd0g3VmlOcWw1WWRaTWgwNW5FZ2RMZ1Vyajd3ZzFjYjl3NVk5c3BtN29vS0FlaUxOeXQta252QXZkalhvdlRLYm9Md0h3cjJDQjNBbFQybE42WjVLZlpnb0Y2b3JjYUo2dnpRZXVkTWZvZDhQbkRHZElkLTE1LWNWcmswd1VVUQ?oc=5",
+      "publishedAt": "2026-11-13T23:21:00.000Z",
+      "tone": null,
+      "storyId": null
+    },
+    {
+      "id": "G000555-09",
+      "title": "GILLIBRAND STATEMENT ON NATIONWIDE GROUND STOP - Oswego County Today",
+      "source": "Oswego County Today",
+      "url": "https://news.google.com/rss/articles/CBMimAFBVV95cUxNWEpqZTltc0dKY1JndjUyeG1JTWkxTEM2WXFsNVA1YkR6alNDNEo0TEpfNktwSFUtLV8zTmZRSzZWYnlPSkozQXpjTUE2ZlJnMXNRMXo3eHV0ZTkwaUZyU3FzUEluU2Z4dTdwSEYyYjdYUGtxYTIwTnA3a3Y5WXFVQml2MVJpdHFoZzhnQnlBMF93YV9JVEN2Mg?oc=5",
+      "publishedAt": "2026-11-13T22:44:42.000Z",
+      "tone": null,
+      "storyId": null
+    },
+    {
+      "id": "G000555-03",
+      "title": "Gillibrand talks female vet health, supports Schumer during Long Island visit - WSHU",
+      "source": "WSHU",
+      "url": "https://news.google.com/rss/articles/CBMimAFBVV95cUxQUzBWMzVnSmxZdzFOWTl5aHpZSk9YZmpwRUNmQjh4QjBSZy1Jd1NzaG54anFYVk5FU2J6VVpnTWtMOXBkWlhPWFJYREY2bS12YTQ4N2N2c3Y2aFJIT1c0QktrSm5mTFdpV0pNdTlvZ2JIVmtER0hzWGhMUTJRYXBFV3RGcUh0bGFkMmtBUENxRl8yZFFjaC1xdQ?oc=5",
+      "publishedAt": "2026-11-13T17:28:00.000Z",
+      "tone": null,
+      "storyId": null
+    },
+    {
+      "id": "G000555-05",
+      "title": "Gillibrand lays out priorities as member of incoming Democratic majority - WRVO",
+      "source": "WRVO",
+      "url": "https://news.google.com/rss/articles/CBMipwFBVV95cUxNTkI3eUFlOXp2TS02TzZabDNxZlh1SmxOaWhlM1FZb0FacDNhekZGd09VT29VMDJhZzVFRzlmanhrbDJaZjBwM2paRlpzLU1wR3IwOUdBMDd3WjZFdXU1SWVyQWtTUUd4Q0lvZlVfWTc0MVR5alc1WGR4SXFtRGFYYkRESm5xMTR5LUNPZU1fcGxPbzdJS1B3OVNmNncxeGVVNmZZcUhEMA?oc=5",
+      "publishedAt": "2026-11-13T10:28:00.000Z",
+      "tone": null,
+      "storyId": null
+    },
+    {
+      "id": "G000555-02",
+      "title": "Sen. Kirsten Gillibrand discusses Toxic Exposure and Women Veterans' Health Outcomes Act - WIVB News 4",
+      "source": "WIVB News 4",
+      "url": "https://news.google.com/rss/articles/CBMiwAFBVV95cUxOa1ZuTUh3SmlwLUZ5c3hKUHVzblR1R0lLc2JiSHlaN3ROM2ZHaHB1cGxXZW5tTmxrQWtGVnJrdWFXXzdtWmR5V0lUbGJDcy1YYTNxMHktWTZNM2EwMkpoSDJFTGFqYjN0aEVyWktNV0M2b3JGV083c25MRzZzNGZtWlNPcVZsamlacDhld0ljVXdMSnM5b2hNRXdDbVl6cm9QaDJaOE9FRzFrRGsxaU5faXBaNC0weW0tMTc1YVhReGg?oc=5",
+      "publishedAt": "2026-11-13T09:44:09.000Z",
+      "tone": null,
+      "storyId": null
+    },
+    {
+      "id": "G000555-07",
+      "title": "Sen. Gillibrand Announces Legislative Priorities For A Democratic Senate Majority - WRFA-LP 107.9 FM",
+      "source": "WRFA-LP 107.9 FM",
+      "url": "https://news.google.com/rss/articles/CBMipwFBVV95cUxPTkpNT1h0elBId1p0bGUxVmVYZ0FKZHhiWUhwZldyVUIwQUFleTY3ZjhwZzBLRnRVME9ZQ3NYeS1hcVpfbExsbEZibVl3YnBOQUJmWUF4a04zNnAwQldvcHVBaVo1Rm9aNVZaVm40UXhKemQ0RDJXd1B5T3hYcVpKNzlBM01DakhFcGZVZ1N4UEY3aWZQb2R6WWxpUWJVbERaY0hJSjdNdw?oc=5",
+      "publishedAt": "2026-11-12T12:22:24.000Z",
+      "tone": null,
+      "storyId": null
+    },
+    {
+      "id": "G000555-08",
+      "title": "On Veterans Day, Sen. Gillibrand announces bill to address female veterans’ health - Buffalo Toronto Public Media",
+      "source": "Buffalo Toronto Public Media",
+      "url": "https://news.google.com/rss/articles/CBMiuAFBVV95cUxOeHFOUVRBZFh1aTV3ZEtJZ1pleHV0ZDZFSWV3VkVFV19rLTBwUV9iZndmcmpjaktOdk1SaXRiMGoxWkxsUVZESFhId2Mwc2xDSmp0ZUFGeWpfMmFmbTZjblY5VFJINEFoZ3V4OUt0NkJobUwzN211aExZVmYxVFNIZElDTDZraldnYTh6SFJ0SHhOQmMxOExlTlJfcVJ1Vi1ZSjVsZ0ZLQjhnZ3VQWnNlbE5BY1Mxa2Rq?oc=5",
+      "publishedAt": "2026-11-11T23:20:00.000Z",
+      "tone": null,
+      "storyId": null
+    },
+    {
+      "id": "G000555-20",
+      "title": "Sen. Gillibrand pledges to keep fighting for veterans' health benefits - Yahoo",
+      "source": "Yahoo",
+      "url": "https://news.google.com/rss/articles/CBMijgFBVV95cUxPUEFGRVVGZG1aeU1rMnQzZXdidXRkX0VHNGExN2VCeFdwNWFPMXhIeHB5Y1hWUGt2UjNMamgzdjVhWEQxUFFpd3BFOHdMTks3MV9xYk50QkdiTjF3bzBKeTlEaHNTR0pCRVVpczlydnhwaTRoRkVOU2dBV2htWjVHQjJDSzFTd3RIQmdTRkVR?oc=5",
+      "publishedAt": "2026-11-11T22:01:53.000Z",
+      "tone": null,
+      "storyId": null
+    },
+    {
+      "id": "G000555-23",
+      "title": "Gillibrand pushes women veterans' health bill in Rochester - Democrat and Chronicle",
+      "source": "Democrat and Chronicle",
+      "url": "https://news.google.com/rss/articles/CBMi0gFBVV95cUxOWFI0RVE3X3hLWWtwbnNrN2U0ZXZOaG90enhZX3dLcV9tR0V6WkRpSkh4NHVSdkp3VGZHT1dPNUYyREJGZDBiUVJ0MWxMR1JEVWhuWTlHdzM0d2pYdzk3TlRfeERseFRZTGJrczgzZlhLREZoQjZZY3FqU0RlUmlDQnZIUFl4Q0UzRGtsLXR6UlJaM1VKeFdSckg4cjU0QWx6YWhKQWszNGNoaUVjS29RY1QtUUJHZHBpaV9IX2ozVTFGR181a1hNWDZZb0VIblJrUkE?oc=5",
+      "publishedAt": "2026-11-11T21:52:00.000Z",
+      "tone": null,
+      "storyId": null
+    },
+    {
+      "id": "G000555-11",
+      "title": "Sen. Gillibrand pledges to keep fighting for veterans' health benefits - WKBW",
+      "source": "WKBW",
+      "url": "https://news.google.com/rss/articles/CBMiswFBVV95cUxQOEh3SmtVT19COTg5bHJKaGF1LTA4bWYzank1dEoxUVpzc0o3ZDhKbU5OMUVHdDRTNXlxMWNkeTZ6THVPbEViaDhZclZJdl9RbklFNnNNTXE1QTlwTnJ4emoyUlhxS0FwSmZHOFBzYnpvaV91aWtRbWNIdmJobUo1UXN3UUo2cDVrcW9PdmhjVGtfb2JSYXd2bVVPbmkxZERkQWdsdHA4aUtmTVpxSTM5X3Q0VQ?oc=5",
+      "publishedAt": "2026-11-11T19:03:00.000Z",
+      "tone": null,
+      "storyId": null
+    }
+  ],
+  "polls": []
+}

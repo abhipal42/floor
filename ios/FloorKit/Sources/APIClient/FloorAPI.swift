@@ -270,6 +270,42 @@ public struct FloorAPI: Sendable {
 
     static let noWall = Data(#"{"posts":[],"unreadable":[]}"#.utf8)
 
+    /// A member's headlines this week, grouped into stories where the AI has read them, and the
+    /// polls that name them (v0.2.60). An API without the route yet (its 404) reads as none, saved
+    /// as such, so the member page leaves the section out offline too.
+    public func memberNews(id: String) async throws -> MemberNews {
+        try await get("/v1/members/\(escaped(id))/news", notFound: Self.noNews)
+    }
+
+    static let noNews = Data(#"{"memberId":"","checkedAt":null,"tone":null,"stories":[],"headlines":[],"polls":[]}"#.utf8)
+
+    /// Every state and city the Local tab can show (v0.2.60). An API without the route yet reads as
+    /// an empty registry.
+    public func localJurisdictions() async throws -> LocalJurisdictions {
+        try await get("/v1/local", notFound: Self.noJurisdictions)
+    }
+
+    static let noJurisdictions = Data(#"{"jurisdictions":[]}"#.utf8)
+
+    /// One state's or city's hub: what passed, what is waiting, and the news. A 404 is an unknown id,
+    /// and an error.
+    public func localHub(id: String) async throws -> LocalHub {
+        try await get("/v1/local/\(escaped(id))")
+    }
+
+    /// The state senator and lower-chamber member for the user's state legislative districts. The
+    /// district codes are what the stored delegation already holds; no address is sent. An API
+    /// without the route (or without its Open States key) reads as none.
+    public func stateLegislators(state: String, upper: String?, lower: String?) async throws -> StateLegislators {
+        var query: [URLQueryItem] = []
+        if let upper { query.append(URLQueryItem(name: "upper", value: upper)) }
+        if let lower { query.append(URLQueryItem(name: "lower", value: lower)) }
+        guard !query.isEmpty else { return .none }
+        return try await get("/v1/local/\(escaped(state.lowercased()))/legislators", query: query, notFound: Self.noLegislators)
+    }
+
+    static let noLegislators = Data(#"{"legislators":[]}"#.utf8)
+
     /// What the share sheet sends for a bill: its share link and a neutral line.
     public func billShare(id: String) async throws -> BillShare {
         try await get("/v1/bills/\(escaped(id))/share")
