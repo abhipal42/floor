@@ -8,6 +8,28 @@ is a milestone and ships a retro under `docs/retros/`.
 Older series live in [`docs/changelog/`](docs/changelog) (0.1.x: [`0.1.md`](docs/changelog/0.1.md)).
 Before 0.1.0 the history is the commit log on `main`.
 
+## 0.2.59 — 2026-11-17
+
+### Changed
+- **Catch up is a deck.**
+  - **The card:** each final as a story card. It has the topic band, the bill's CRS summary, the score against
+    the threshold, the twist, how each party voted, and your members.
+  - **Moving through it:** swipe it away, or use ↺ and →, with the next cards peeking out behind. It ends on an
+    all-caught-up screen.
+  - **Fix (iOS):** the card no longer runs off both edges of the screen.
+- **This week is headliners.** Both chambers are on one scroll:
+  - the bills getting a real debate come first, with any legislative vehicle named;
+  - then the Senate's next session;
+  - then the House's fast-track bills, as topic tiles.
+  - The Senate's full program is one tap away.
+- **Bills is a topic ledger.**
+  - **Layout:** sections by topic, with All / Passed / Blocked.
+  - **Cards:** each bill's card shows what it does, a track to law and the vote by party.
+  - **Rule votes:** a House rule vote folds into its bill as one line.
+
+### API
+- `MeasureSummary.stage`: a bill's stage on the road to law, carried on every vote row.
+
 ## 0.2.58 — 2026-11-17
 
 ### Changed
