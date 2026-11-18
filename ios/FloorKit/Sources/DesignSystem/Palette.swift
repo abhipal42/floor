@@ -188,6 +188,76 @@ public enum Tones {
     /// A story card's soft drop shadow (Arena's `0 22px 40px -22px`).
     public static let storyShadow = Swatch(light: 0x111816, dark: 0x000000, lightOpacity: 0.22, darkOpacity: 0.9)
 
+    // Arena app-wide (v0.2.58, https://claude.ai/artifact/HP3nZFoQ4jUppnjKsC1MfV, direction 1). Dark
+    // values are the mock's `.d1` block; light keeps the same structure on the Marble palette:
+    // white glass cards, the hairlines darkened, the same bands. The same values as Android's
+    // `Tones` of the same names.
+    /// A glass card's 1pt light inside its top edge (Arena's `inset 0 1px 0 rgba(255,255,255,.05)`).
+    public static let cardHighlight = Swatch(light: 0xFFFFFF, dark: 0xFFFFFF, lightOpacity: 0, darkOpacity: 0.05)
+    /// A glass card's soft long drop shadow (Arena's `0 10px 20px -16px rgba(0,0,0,.8)`).
+    public static let cardShadow = Swatch(light: 0x111816, dark: 0x000000, lightOpacity: 0.14, darkOpacity: 0.8)
+    /// A post card's fill, top to bottom (Arena's `#181B22 → #13161B`).
+    public static let postTop = Swatch(light: 0xFFFFFF, dark: 0x181B22)
+    public static let postBottom = Swatch(light: 0xF4F7F6, dark: 0x13161B)
+    /// The floating tab bar's panel, over a blur (Arena's `rgba(21,24,30,.82)`).
+    public static let tabBar = Swatch(light: 0xFFFFFF, dark: 0x15181E, lightOpacity: 0.82, darkOpacity: 0.82)
+    /// A promise card on the member page's rail, top to bottom (Arena's `#1F2530 → #14171D`).
+    public static let promiseTop = Swatch(light: 0xE2E8F2, dark: 0x1F2530)
+    public static let promiseBottom = Swatch(light: 0xFFFFFF, dark: 0x14171D)
+    /// Text on a ``yea`` fill: the member page's call button (Arena's `#06231A` on the green).
+    public static let callInk = Swatch(light: 0xFFFFFF, dark: 0x06231A)
+
+    /// The member page's hero: a deep party gradient, top to bottom, with white text in both
+    /// appearances (``bandText``), so both ends hold 4.5:1 against white; `PaletteTests` checks it.
+    /// Dark is Arena's (`#1E3A8A → #0B1430` for a Democrat); light is a brighter blue of the same depth.
+    public static func heroTop(_ party: String) -> Swatch {
+        switch party {
+        case "D": Swatch(light: 0x2F5FD0, dark: 0x1E3A8A)
+        case "R": Swatch(light: 0xB43636, dark: 0x7F1D1D)
+        default: Swatch(light: 0x5E6A66, dark: 0x3F4652)
+        }
+    }
+
+    public static func heroBottom(_ party: String) -> Swatch {
+        switch party {
+        case "D": Swatch(light: 0x1A2F6E, dark: 0x0B1430)
+        case "R": Swatch(light: 0x5C1616, dark: 0x2A0B0B)
+        default: Swatch(light: 0x2B3230, dark: 0x14171C)
+        }
+    }
+
+    /// The hero's radial light at its top right, in the party's colour.
+    public static func heroLight(_ party: String) -> Swatch {
+        switch party {
+        case "D": Swatch(light: 0x8DB8FF, dark: 0x6EA8FE, lightOpacity: 0.5, darkOpacity: 0.5)
+        case "R": Swatch(light: 0xFCA5A5, dark: 0xF87171, lightOpacity: 0.45, darkOpacity: 0.45)
+        default: Swatch(light: 0xD1D5DB, dark: 0xC9CED6, lightOpacity: 0.35, darkOpacity: 0.3)
+        }
+    }
+
+    /// The faint green light in the hero's bottom left.
+    public static let heroGreen = Swatch(light: 0x34D399, dark: 0x34D399, lightOpacity: 0.18, darkOpacity: 0.18)
+    /// A glass stat tile on the hero, and the hairline round it and the back button.
+    public static let heroTile = Swatch(light: 0xFFFFFF, dark: 0xFFFFFF, lightOpacity: 0.12, darkOpacity: 0.12)
+    public static let heroTileBorder = Swatch(light: 0xFFFFFF, dark: 0xFFFFFF, lightOpacity: 0.16, darkOpacity: 0.16)
+    /// The ring round the portrait, and the portrait's drop shadow.
+    public static let heroRing = Swatch(light: 0xFFFFFF, dark: 0xFFFFFF, lightOpacity: 0.2, darkOpacity: 0.2)
+    public static let heroShadow = Swatch(light: 0x000000, dark: 0x000000, lightOpacity: 0.6, darkOpacity: 0.6)
+    /// The streak strip's bars: Arena's own green and orange on the hero in both appearances, and
+    /// translucent white for a call with no yea or nay.
+    public static let streakYea = Swatch(light: 0x34D399, dark: 0x34D399)
+    public static let streakNay = Swatch(light: 0xFB923C, dark: 0xFB923C)
+    public static let streakOther = Swatch(light: 0xFFFFFF, dark: 0xFFFFFF, lightOpacity: 0.25, darkOpacity: 0.25)
+    /// The play button over a video's thumbnail.
+    public static let playScrim = Swatch(light: 0x000000, dark: 0x000000, lightOpacity: 0.55, darkOpacity: 0.55)
+    public static let playRing = Swatch(light: 0xFFFFFF, dark: 0xFFFFFF, lightOpacity: 0.7, darkOpacity: 0.7)
+
+    /// The three networks Floor reads, in their own brand colours (the only brand colours allowed):
+    /// the badge on a post's portrait.
+    public static let bluesky = Swatch(light: 0x1185FE, dark: 0x1185FE)
+    public static let youtube = Swatch(light: 0xFF0033, dark: 0xFF0033)
+    public static let mastodon = Swatch(light: 0x6364FF, dark: 0x6364FF)
+
     // Party
     public static func party(_ party: String) -> Swatch {
         switch party {
@@ -202,6 +272,15 @@ public enum Tones {
         case "D": Swatch(light: 0xDCE6FB, dark: 0x1E3A8A)
         case "R": Swatch(light: 0xFBE1DE, dark: 0x7F1D1D)
         default: Swatch(light: 0xE1E6E4, dark: 0x3F3F46)
+        }
+    }
+
+    /// Text on a ``partyTint`` fill: the "D-NY" chip on a post (Arena's `#BFD6FF` on `#1E3A8A`).
+    public static func partyInk(_ party: String) -> Swatch {
+        switch party {
+        case "D": Swatch(light: 0x1E4AB0, dark: 0xBFD6FF)
+        case "R": Swatch(light: 0x9B2C2C, dark: 0xFECACA)
+        default: Swatch(light: 0x38433F, dark: 0xE4E4E7)
         }
     }
 
@@ -294,6 +373,31 @@ public enum Palette {
     public static let storyEdgeFaint = Color(Tones.storyEdgeFaint)
     public static let storyInnerHighlight = Color(Tones.storyInnerHighlight)
     public static let storyShadow = Color(Tones.storyShadow)
+    // Arena app-wide: see `Tones.cardHighlight` and after.
+    public static let cardHighlight = Color(Tones.cardHighlight)
+    public static let cardShadow = Color(Tones.cardShadow)
+    public static let postTop = Color(Tones.postTop)
+    public static let postBottom = Color(Tones.postBottom)
+    public static let tabBar = Color(Tones.tabBar)
+    public static let promiseTop = Color(Tones.promiseTop)
+    public static let promiseBottom = Color(Tones.promiseBottom)
+    public static let callInk = Color(Tones.callInk)
+    public static func heroTop(_ party: String) -> Color { Color(Tones.heroTop(party)) }
+    public static func heroBottom(_ party: String) -> Color { Color(Tones.heroBottom(party)) }
+    public static func heroLight(_ party: String) -> Color { Color(Tones.heroLight(party)) }
+    public static let heroGreen = Color(Tones.heroGreen)
+    public static let heroTile = Color(Tones.heroTile)
+    public static let heroTileBorder = Color(Tones.heroTileBorder)
+    public static let heroRing = Color(Tones.heroRing)
+    public static let heroShadow = Color(Tones.heroShadow)
+    public static let streakYea = Color(Tones.streakYea)
+    public static let streakNay = Color(Tones.streakNay)
+    public static let streakOther = Color(Tones.streakOther)
+    public static let playScrim = Color(Tones.playScrim)
+    public static let playRing = Color(Tones.playRing)
+    public static let bluesky = Color(Tones.bluesky)
+    public static let youtube = Color(Tones.youtube)
+    public static let mastodon = Color(Tones.mastodon)
     /// The top of the promise deck's front card; it fades to ``panel``.
     public static let deckGlow = Color(Tones.deckGlow)
     /// An archived campaign page inside its browser frame: the page, its headings, its text.
@@ -343,6 +447,9 @@ public enum Palette {
 
     /// The fill behind a member's initials.
     public static func partyTint(_ party: String) -> Color { Color(Tones.partyTint(party)) }
+
+    /// Text on ``partyTint(_:)``.
+    public static func partyInk(_ party: String) -> Color { Color(Tones.partyInk(party)) }
 }
 
 public extension View {
@@ -401,6 +508,52 @@ public enum Typography {
     public static let mainScore = display(25, weight: .blackItalic)
     public static let miniScore = display(19, weight: .blackItalic)
     public static let weekTitle = display(23, weight: .blackItalic)
+
+    // Arena app-wide (v0.2.58): BlackItalic for headline numerals and screen titles, ExtraBold
+    // uppercase for card titles. All scale with Dynamic Type.
+    /// A screen's big title: "Posts" on Following.
+    public static let pageTitle = display(36, weight: .blackItalic)
+    /// The member page's name on the hero.
+    public static let heroName = display(40, weight: .blackItalic)
+    /// A section's title on the member page: "Votes", "Said", "Money".
+    public static let blockTitle = display(23, weight: .blackItalic)
+    /// A promise card's headline.
+    public static let promiseTitle = display(19, weight: .extraBold)
+    /// A money tile's figure.
+    public static let tileNumber = display(30, weight: .blackItalic)
+    /// The call button's phone number.
+    public static let callNumber = display(22, weight: .blackItalic)
+
+    /// The member page's and post card's system-font sizes, scaled with ``View/scaledFont(_:weight:)``.
+    public enum Member {
+        public static let eyebrow: CGFloat = 10
+        public static let heroLine: CGFloat = 12.5
+        public static let statLabel: CGFloat = 10.5
+        public static let streakLabel: CGFloat = 10
+        public static let chip: CGFloat = 12.5
+        public static let link: CGFloat = 12.5
+        public static let rowTitle: CGFloat = 13.5
+        public static let rowLine: CGFloat = 11.5
+        public static let rowSide: CGFloat = 10.5
+        public static let promiseTopic: CGFloat = 9.5
+        public static let promiseQuote: CGFloat = 12.5
+        public static let tileLabel: CGFloat = 9.5
+        public static let legend: CGFloat = 11.5
+        public static let callLine: CGFloat = 12
+        public static let note: CGFloat = 10.5
+    }
+
+    public enum Post {
+        public static let name: CGFloat = 14.5
+        public static let party: CGFloat = 10
+        public static let handle: CGFloat = 12
+        public static let body: CGFloat = 15
+        public static let linkSite: CGFloat = 11
+        public static let linkTitle: CGFloat = 13
+        public static let thread: CGFloat = 11.5
+        public static let dayRule: CGFloat = 10.5
+        public static let filter: CGFloat = 12.5
+    }
 
     /// The story card's system-font sizes, scaled with ``View/scaledFont(_:weight:)``.
     public enum Story {

@@ -119,14 +119,14 @@ public struct FloorShell: View {
                 // on rather than letting cards scroll under the clock.
                 .overlay(alignment: .top) {
                     Color.clear.frame(height: 0)
-                        .background((which == .finals ? Palette.groundGlow : Palette.ground).opacity(0.94).ignoresSafeArea(edges: .top))
+                        .background(Palette.groundGlow.opacity(0.94).ignoresSafeArea(edges: .top))
                 }
                 .navigationTitle(title)
                 .hideNavigationBar()
                 .navigationDestination(for: HomeModel.Route.self) { route in
                     destination(route, path: path)
                         .clearsTabBar()
-                        .groundNavigationBar()
+                        .groundNavigationBar(overHero: route.hasHero)
                 }
         }
         .opacity(shown ? 1 : 0)
@@ -191,6 +191,8 @@ public struct FloorShell: View {
 
     /// How far above the tab bar the page's ground fades in.
     private static let fade: CGFloat = 14
+    /// The tab bar's corners (Arena's `--rTab`).
+    private static let radius: CGFloat = 24
 
     private var tabBar: some View {
         HStack(spacing: 0) {
@@ -222,9 +224,13 @@ public struct FloorShell: View {
             }
         }
         .padding(8)
-        // Solid, so a card scrolling under the bar never shows through its icons and labels.
-        .background(Palette.panel, in: .rect(cornerRadius: 22))
-        .overlay(RoundedRectangle(cornerRadius: 22).stroke(Palette.panelBorder, lineWidth: 1))
+        // Arena's translucent panel: the tint at 82% over a blur, so a card scrolling under the bar
+        // shows only as a soft shape behind its icons and labels.
+        .background {
+            RoundedRectangle(cornerRadius: Self.radius).fill(.ultraThinMaterial)
+                .overlay(RoundedRectangle(cornerRadius: Self.radius).fill(Palette.tabBar))
+        }
+        .overlay(RoundedRectangle(cornerRadius: Self.radius).stroke(Palette.panelBorder, lineWidth: 1))
         .padding(.horizontal, 16)
         .padding(.bottom, 4)
         // The page's own ground behind and round the bar, fading in just above it (round 13 polish).
@@ -260,12 +266,19 @@ extension View {
         #endif
     }
 
-    /// The pushed screens' bar sits on the ground colour, light or dark with the system.
+    /// The pushed screens' bar sits on the ground colour, light or dark with the system. Over a
+    /// member's hero it keeps the system's own edge behaviour (clear at the top, a material once the
+    /// page scrolls under it) in the dark scheme, so the back button sits on the hero in white.
     @ViewBuilder
-    func groundNavigationBar() -> some View {
+    func groundNavigationBar(overHero: Bool = false) -> some View {
         #if os(iOS)
-        self.navigationBarTitleDisplayMode(.inline)
-            .toolbarBackground(Palette.ground, for: .navigationBar)
+        if overHero {
+            self.navigationBarTitleDisplayMode(.inline)
+                .toolbarColorScheme(.dark, for: .navigationBar)
+        } else {
+            self.navigationBarTitleDisplayMode(.inline)
+                .toolbarBackground(Palette.ground, for: .navigationBar)
+        }
         #else
         self
         #endif

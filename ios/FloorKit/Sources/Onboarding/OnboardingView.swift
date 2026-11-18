@@ -125,8 +125,7 @@ public struct OnboardingView: View {
                 }
                 .frame(maxWidth: .infinity)
                 .padding(15)
-                .background(Palette.panel, in: .rect(cornerRadius: 14))
-                .overlay(RoundedRectangle(cornerRadius: 14).stroke(Palette.yea, lineWidth: 1))
+                .glassCard(cornerRadius: 14, border: Palette.yea)
             }
             .buttonStyle(.plain)
             .disabled(model.askingPermission)

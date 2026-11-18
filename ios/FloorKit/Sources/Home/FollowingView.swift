@@ -37,7 +37,13 @@ public struct FollowingView: View {
     @State private var editing = false
     @State private var adding = false
     @State private var segment: Segment
+    /// The wall's member filter: a Bioguide ID, or nil for everyone.
+    @State private var postsFilter: String?
     @Environment(\.dynamicTypeSize) private var typeSize
+    @Environment(\.pinnedNow) private var pinnedNow
+    @Environment(\.calendar) private var calendar
+    @Environment(\.timeZone) private var timeZone
+    @Environment(\.locale) private var locale
 
     public init(
         model: HomeModel,
@@ -103,7 +109,7 @@ public struct FollowingView: View {
         .listStyle(.plain)
         .scrollContentBackground(.hidden)
         .environment(\.defaultMinListRowHeight, 0)
-        .background(Palette.ground)
+        .groundGlow()
         .refreshable {
             await model.load()
             if segment == .topics { await model.loadTopics() }
@@ -332,16 +338,29 @@ public struct FollowingView: View {
             .plainRow()
         } else if let wall = model.wall {
             let names = Dictionary(members.map { ($0.bioguideId, $0) }, uniquingKeysWith: { first, _ in first })
-            groupHeader("YOUR MEMBERS' POSTS", trailing: "Newest first").plainRow()
-            ForEach(wall.posts) { post in
-                let member = post.memberId.flatMap { names[$0] }
-                PostCard(post: post, author: member?.lastName, lineLimit: 3)
-                    .accessibilityAction(named: "Open \(member?.lastName ?? "the member")'s record") {
-                        if let member { onOpenMember(member) }
-                    }
-                    .plainRow()
+            let filter = postsFilter.flatMap { names[$0] == nil ? nil : $0 }
+            let shown = filter.map { id in wall.posts.filter { $0.memberId == id } } ?? wall.posts
+            Text("POSTS")
+                .font(Typography.pageTitle)
+                .foregroundStyle(Palette.text)
+                .accessibilityAddTraits(.isHeader)
+                .padding(.top, 6)
+                .plainRow()
+            postFilters(members, selected: filter).plainRow()
+            ForEach(PostText.days(shown, now: pinnedNow ?? Date(), calendar: readerCalendar), id: \.title) { day in
+                dayRule(day.title).plainRow()
+                ForEach(day.posts) { post in
+                    let member = post.memberId.flatMap { names[$0] }
+                    PostCard(post: post, member: member, lineLimit: 5, when: .time)
+                        .accessibilityAction(named: "Open \(member?.lastName ?? "the member")'s page") {
+                            if let member { onOpenMember(member) }
+                        }
+                        .padding(.vertical, 3)
+                        .plainRow()
+                }
             }
-            ForEach(WallText.notes(members: members, wall: wall), id: \.member.bioguideId) { note in
+            ForEach(WallText.notes(members: members, wall: wall).filter { filter == nil || $0.member.bioguideId == filter },
+                    id: \.member.bioguideId) { note in
                 DashedPlaceholder(title: note.title, body: note.body).plainRow()
             }
             if model.yourMembers.count > PostsWall.memberLimit {
@@ -364,6 +383,67 @@ public struct FollowingView: View {
         } else {
             ProgressView().tint(Palette.accent).frame(maxWidth: .infinity).padding(.top, 12).plainRow()
         }
+    }
+
+    private var readerCalendar: Calendar {
+        var c = calendar
+        c.timeZone = timeZone
+        c.locale = locale
+        return c
+    }
+
+    /// "All", then one chip per member with their portrait (`.filters`): filters the wall here, on
+    /// the phone, with no new request.
+    private func postFilters(_ members: [Member], selected: String?) -> some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 8) {
+                filterChip("All", member: nil, on: selected == nil) { postsFilter = nil }
+                ForEach(members) { member in
+                    filterChip(member.lastName, member: member, on: selected == member.bioguideId) {
+                        postsFilter = selected == member.bioguideId ? nil : member.bioguideId
+                    }
+                }
+            }
+            .padding(.horizontal, 16)
+        }
+        .padding(.horizontal, -16)
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel("Show posts from")
+    }
+
+    private func filterChip(_ title: String, member: Member?, on: Bool, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            HStack(spacing: 7) {
+                if let member { MemberPortrait(member).frame(width: 26, height: 26) }
+                Text(title)
+                    .scaledFont(Typography.Post.filter, weight: .bold)
+                    .foregroundStyle(on ? Palette.ground : Palette.textSecondary)
+            }
+            .padding(.leading, member == nil ? 13 : 4)
+            .padding(.trailing, member == nil ? 13 : 12)
+            .padding(.vertical, member == nil ? 7 : 4)
+            .frame(minHeight: 34)
+            // Under half the chip's height (lesson 68).
+            .background(on ? Palette.text : Palette.chip, in: .rect(cornerRadius: 16))
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(member.map { "\($0.fullName)'s posts" } ?? "All posts")
+        .accessibilityAddTraits(on ? [.isSelected] : [])
+    }
+
+    /// `TODAY ———`, a day divider on the wall.
+    private func dayRule(_ title: String) -> some View {
+        HStack(spacing: 10) {
+            Text(title.uppercased())
+                .scaledFont(Typography.Post.dayRule, weight: .heavy)
+                .tracking(1.3)
+                .foregroundStyle(Palette.textMuted)
+                .fixedSize()
+            Rectangle().fill(Palette.cardBorder).frame(height: 1)
+        }
+        .padding(.top, 8)
+        .padding(.bottom, 2)
+        .accessibilityAddTraits(.isHeader)
     }
 
     // MARK: Your reps
@@ -654,8 +734,7 @@ private extension View {
     func rowSurface() -> some View {
         self.padding(.horizontal, 10)
             .padding(.vertical, 8)
-            .background(Palette.panel, in: .rect(cornerRadius: 12))
-            .overlay(RoundedRectangle(cornerRadius: 12).stroke(Palette.panelBorder, lineWidth: 1))
+            .glassCard(cornerRadius: 12)
             .contentShape(.rect)
     }
 }

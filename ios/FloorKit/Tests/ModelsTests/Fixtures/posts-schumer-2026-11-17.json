@@ -1,0 +1,250 @@
+{
+    "_fixture": "GET /v1/members/S000148/posts from floor-api.vercel.app on 2026-11-17, as served.",
+    "posts": [
+        {
+            "id": "youtube:lAjGWsE-ya0",
+            "network": "youtube",
+            "postedAt": "2026-11-17T18:02:22.000Z",
+            "text": "WATCH: I am speaking live on the floor of the U.S. Senate",
+            "url": "https://www.youtube.com/watch?v=lAjGWsE-ya0",
+            "mediaUrl": "https://i1.ytimg.com/vi/lAjGWsE-ya0/hqdefault.jpg"
+        },
+        {
+            "id": "bluesky:at://did:plc:zlgotdjaxzuhw4nefvkxxvxa/app.bsky.feed.post/3n2jm3cjdhs2q",
+            "network": "bluesky",
+            "postedAt": "2026-11-17T17:49:02.403Z",
+            "text": "The only talent Trump has is wasting Americans’ hard-earned tax dollars.\n \nHe is the Interior-Decorator-In-Chief.",
+            "url": "https://bsky.app/profile/schumer.senate.gov/post/3n2jm3cjdhs2q",
+            "mediaUrl": null
+        },
+        {
+            "id": "bluesky:at://did:plc:zlgotdjaxzuhw4nefvkxxvxa/app.bsky.feed.post/3n2jkfe6ixk2q",
+            "network": "bluesky",
+            "postedAt": "2026-11-17T17:18:52.206Z",
+            "text": "Instead of focusing on strengthening our bonds in Southeast Asia and countering China, Trump is treating the ASEAN conference in the Philippines as little more than a layover on his way to meet with Xi Jinping, Vladimir Putin, and potentially even Kim Jong Un.",
+            "url": "https://bsky.app/profile/schumer.senate.gov/post/3n2jkfe6ixk2q",
+            "mediaUrl": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:zlgotdjaxzuhw4nefvkxxvxa/bafkreiamc3an7wjwqt7n7un7sp74nf2t2rtdljdh2sfpau5dnkrtlenuh4"
+        },
+        {
+            "id": "bluesky:at://did:plc:zlgotdjaxzuhw4nefvkxxvxa/app.bsky.feed.post/3n2jhrr4r4223",
+            "network": "bluesky",
+            "postedAt": "2026-11-17T16:32:07.208Z",
+            "text": "Beyond the blatant hypocrisy and disregard for the American people, Mullin watched the game in the box of a Louisiana CEO who has received over $2 billion in DHS contracts.\nnypost.com/2026/11/17/u...",
+            "url": "https://bsky.app/profile/schumer.senate.gov/post/3n2jhrr4r4223",
+            "mediaUrl": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:zlgotdjaxzuhw4nefvkxxvxa/bafkreidygxowho4ek274s665jd2g4mmhcsb3a4ohicl7trdn4mb6dosmtq"
+        },
+        {
+            "id": "youtube:JlA2eRiVeB8",
+            "network": "youtube",
+            "postedAt": "2026-11-17T09:05:52.000Z",
+            "text": "Speaking live from the floor of the U.S. Senate",
+            "url": "https://www.youtube.com/watch?v=JlA2eRiVeB8",
+            "mediaUrl": "https://i3.ytimg.com/vi/JlA2eRiVeB8/hqdefault.jpg"
+        },
+        {
+            "id": "bluesky:at://did:plc:zlgotdjaxzuhw4nefvkxxvxa/app.bsky.feed.post/3n2hndq6af22j",
+            "network": "bluesky",
+            "postedAt": "2026-11-16T23:06:19.419Z",
+            "text": "Since it wasn't enough to kick millions off their health insurance, Trump and RFK Jr. have allowed thousands to fall ill and even die by letting vaccine-preventable disease spread.\n\nThey will answer to Congress and the American people about how and why they let this happen.",
+            "url": "https://bsky.app/profile/schumer.senate.gov/post/3n2hndq6af22j",
+            "mediaUrl": null
+        },
+        {
+            "id": "bluesky:at://did:plc:zlgotdjaxzuhw4nefvkxxvxa/app.bsky.feed.post/3n2hjpq5urk2i",
+            "network": "bluesky",
+            "postedAt": "2026-11-16T22:01:27.090Z",
+            "text": "Grocery prices are higher than ever. Trump's response?\n \nKick another 6 million off of food stamps and stop nearly 2 million kids from getting free school lunches.",
+            "url": "https://bsky.app/profile/schumer.senate.gov/post/3n2hjpq5urk2i",
+            "mediaUrl": null
+        },
+        {
+            "id": "bluesky:at://did:plc:zlgotdjaxzuhw4nefvkxxvxa/app.bsky.feed.post/3n25dkegsmc2c",
+            "network": "bluesky",
+            "postedAt": "2026-11-12T20:44:27.193Z",
+            "text": "I’m actually referring to your 30,000 stock trades (more than all of Congress combined), your Qatari-gifted luxury jet, your crypto scams, your Truth Social pay to play scheme, your billionaire-funded ballroom, your insurrectionist slush fund, and your pardons for big donors—just to name a few.",
+            "url": "https://bsky.app/profile/schumer.senate.gov/post/3n25dkegsmc2c",
+            "mediaUrl": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:zlgotdjaxzuhw4nefvkxxvxa/bafkreigqd5rm3nc7xkfhuib2vnndbfoabltkxhvnsccejxmjrka5us2zta"
+        },
+        {
+            "id": "bluesky:at://did:plc:zlgotdjaxzuhw4nefvkxxvxa/app.bsky.feed.post/3n24wku7dtk2i",
+            "network": "bluesky",
+            "postedAt": "2026-11-12T16:52:05.084Z",
+            "text": "Despite Jensen Huang’s resignation, Congress must demand answers from Mr. Huang and others at Nvidia about how they may have put US national security at risk.\n\nThe Trump admin must also answer for what it did once it learned about Mr. Huang’s relationship with a suspected Chinese intelligence asset.",
+            "url": "https://bsky.app/profile/schumer.senate.gov/post/3n24wku7dtk2i",
+            "mediaUrl": null
+        },
+        {
+            "id": "bluesky:at://did:plc:zlgotdjaxzuhw4nefvkxxvxa/app.bsky.feed.post/3mzyaa62py22q",
+            "network": "bluesky",
+            "postedAt": "2026-11-10T20:01:45.049Z",
+            "text": "Trump was briefed over A YEAR AGO on Nvidia’s CEO having an affair with a Chinese spy. He did nothing about it.\n\nInstead, Trump took him to Beijing, took his advice to give China access to our AI chips, & accepted a $25M donation from Nvidia.\n\nWe need answers immediately.",
+            "url": "https://bsky.app/profile/schumer.senate.gov/post/3mzyaa62py22q",
+            "mediaUrl": "https://video.bsky.app/watch/did%3Aplc%3Azlgotdjaxzuhw4nefvkxxvxa/bafkreih2q43q5a5iprwbo4u25dftq5wklng3ayr2stitcb5hqjf6cqajqe/thumbnail.jpg"
+        },
+        {
+            "id": "bluesky:at://did:plc:zlgotdjaxzuhw4nefvkxxvxa/app.bsky.feed.post/3mzy7ez6sfc2s",
+            "network": "bluesky",
+            "postedAt": "2026-11-10T19:46:33.966Z",
+            "text": "See you soon.",
+            "url": "https://bsky.app/profile/schumer.senate.gov/post/3mzy7ez6sfc2s",
+            "mediaUrl": null
+        },
+        {
+            "id": "bluesky:at://did:plc:zlgotdjaxzuhw4nefvkxxvxa/app.bsky.feed.post/3mzy5dh6ru22u",
+            "network": "bluesky",
+            "postedAt": "2026-11-10T19:09:54.055Z",
+            "text": "Cute tantrum.\n\nWe will put Hegseth on trial and remove him from the Pentagon.",
+            "url": "https://bsky.app/profile/schumer.senate.gov/post/3mzy5dh6ru22u",
+            "mediaUrl": null
+        },
+        {
+            "id": "youtube:KXPrkcK9ZDA",
+            "network": "youtube",
+            "postedAt": "2026-11-10T17:24:47.000Z",
+            "text": "Senator Schumer speaks from the Senate floor, 11.10.26",
+            "url": "https://www.youtube.com/watch?v=KXPrkcK9ZDA",
+            "mediaUrl": "https://i4.ytimg.com/vi/KXPrkcK9ZDA/hqdefault.jpg"
+        },
+        {
+            "id": "bluesky:at://did:plc:zlgotdjaxzuhw4nefvkxxvxa/app.bsky.feed.post/3mzxngxcds223",
+            "network": "bluesky",
+            "postedAt": "2026-11-10T14:25:31.744Z",
+            "text": "This is why Americans chose Democrats to be in charge. \n \nFrom his costly tariffs to his reckless war, Trump has only made inflation worse. And he openly admits he doesn’t care. \n \nOur Senate Democratic majority will work relentlessly to bring down costs for all Americans.",
+            "url": "https://bsky.app/profile/schumer.senate.gov/post/3mzxngxcds223",
+            "mediaUrl": null
+        },
+        {
+            "id": "youtube:jNLGDYnapSM",
+            "network": "youtube",
+            "postedAt": "2026-11-10T08:39:13.000Z",
+            "text": "WATCH: I am speaking live from the floor of the U.S. Senate",
+            "url": "https://www.youtube.com/watch?v=jNLGDYnapSM",
+            "mediaUrl": "https://i3.ytimg.com/vi/jNLGDYnapSM/hqdefault.jpg"
+        },
+        {
+            "id": "bluesky:at://did:plc:zlgotdjaxzuhw4nefvkxxvxa/app.bsky.feed.post/3mzw5xbnuss2p",
+            "network": "bluesky",
+            "postedAt": "2026-11-10T00:15:39.871Z",
+            "text": "I can't imagine a more nasty, incompetent, dangerous person to serve as WH Chief of Staff than Stephen Miller.\n\nThis is the same guy who smeared Renée Good & Alex Pretti as “domestic terrorists” & “assassins” after federal agents murdered them.\n\nMiller represents everything Americans just rejected.",
+            "url": "https://bsky.app/profile/schumer.senate.gov/post/3mzw5xbnuss2p",
+            "mediaUrl": null
+        },
+        {
+            "id": "bluesky:at://did:plc:zlgotdjaxzuhw4nefvkxxvxa/app.bsky.feed.post/3mzw4mynhhk2p",
+            "network": "bluesky",
+            "postedAt": "2026-11-09T23:52:01.134Z",
+            "text": "The American people gave our new Democratic majority our marching orders: bring down costs, stop the chaos, and clean up the corruption in our government\n\nWe are going to spend every second of every day striving to deliver on the mandate voters sent us and prove ourselves worthy of Americans’ trust",
+            "url": "https://bsky.app/profile/schumer.senate.gov/post/3mzw4mynhhk2p",
+            "mediaUrl": null
+        },
+        {
+            "id": "bluesky:at://did:plc:zlgotdjaxzuhw4nefvkxxvxa/app.bsky.feed.post/3mzvyshnsos22",
+            "network": "bluesky",
+            "postedAt": "2026-11-09T22:43:29.670Z",
+            "text": "It was my honor to welcome our 11 new Democratic Senators, with two more hopefully on the way!\n\nThey will bring essential new ideas and perspectives to the Senate, and I can't wait to work with them to lower costs, and end Trump’s corruption and chaos.",
+            "url": "https://bsky.app/profile/schumer.senate.gov/post/3mzvyshnsos22",
+            "mediaUrl": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:zlgotdjaxzuhw4nefvkxxvxa/bafkreicohbeyb2pbe3emt3i67pluhoco6ok7w3itvegfvzj4kiaqwbs3lq"
+        },
+        {
+            "id": "bluesky:at://did:plc:zlgotdjaxzuhw4nefvkxxvxa/app.bsky.feed.post/3mzveqovttc2n",
+            "network": "bluesky",
+            "postedAt": "2026-11-09T16:44:35.337Z",
+            "text": "Donald Trump’s pathetic return to election denialism was inevitable.\n\nHe can whine all he wants, but nothing will stop this inescapable truth:\n\nFor the last two years of his presidency, Trump will face the largest Democratic majorities in decades, all because he has been an unprecedented failure.",
+            "url": "https://bsky.app/profile/schumer.senate.gov/post/3mzveqovttc2n",
+            "mediaUrl": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:zlgotdjaxzuhw4nefvkxxvxa/bafkreievl6sv6fcy4uhjcjlqhm65ip7cd4t65sy6ehcubnn4sugpboyvtu"
+        },
+        {
+            "id": "bluesky:at://did:plc:zlgotdjaxzuhw4nefvkxxvxa/app.bsky.feed.post/3mztthvvmak2k",
+            "network": "bluesky",
+            "postedAt": "2026-11-09T02:02:47.329Z",
+            "text": "Happy Diwali!\n\nThe Festival of Lights makes our city and our country ever brighter, and I hope this holiday brings happiness and prosperity to all who celebrate.",
+            "url": "https://bsky.app/profile/schumer.senate.gov/post/3mztthvvmak2k",
+            "mediaUrl": null
+        },
+        {
+            "id": "bluesky:at://did:plc:zlgotdjaxzuhw4nefvkxxvxa/app.bsky.feed.post/3mztsit3huc2s",
+            "network": "bluesky",
+            "postedAt": "2026-11-09T01:45:24.189Z",
+            "text": "Trump says his immigration crackdown went too far.\n\nApparently, his solution was to put the man responsible for it in charge of the White House.\n\nThat’s not a course correction. That’s a promotion.",
+            "url": "https://bsky.app/profile/schumer.senate.gov/post/3mztsit3huc2s",
+            "mediaUrl": null
+        },
+        {
+            "id": "bluesky:at://did:plc:zlgotdjaxzuhw4nefvkxxvxa/app.bsky.feed.post/3mztsfeufnk2s",
+            "network": "bluesky",
+            "postedAt": "2026-11-09T01:43:28.614Z",
+            "text": "Republicans threatened to interfere with the election.\n\nDemocrats prepared. Election lawyers fought back. Tens of thousands of poll watchers stood guard.\n\nAnd Americans made their voices heard.\n\nOur democracy is stronger than any politician who tries to undermine it.",
+            "url": "https://bsky.app/profile/schumer.senate.gov/post/3mztsfeufnk2s",
+            "mediaUrl": null
+        },
+        {
+            "id": "bluesky:at://did:plc:zlgotdjaxzuhw4nefvkxxvxa/app.bsky.feed.post/3mzo5warf322s",
+            "network": "bluesky",
+            "postedAt": "2026-11-06T19:53:47.469Z",
+            "text": "Donald Trump learned nothing from his historic defeat.\n\nStephen Miller is the architect of the most barbaric, inhumane policies of this administration. Trump couldn’t have made a worse choice.\n\nOur Democratic majorities will fight him every step of the way.",
+            "url": "https://bsky.app/profile/schumer.senate.gov/post/3mzo5warf322s",
+            "mediaUrl": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:zlgotdjaxzuhw4nefvkxxvxa/bafkreiagnzvrtci4ztv3oeimuapkcts7jgbo6vbcgkc5gs6bfdkckmi2h4"
+        },
+        {
+            "id": "youtube:Z5slGnug8_o",
+            "network": "youtube",
+            "postedAt": "2026-11-06T17:16:07.000Z",
+            "text": "The Results Speak For Themselves",
+            "url": "https://www.youtube.com/watch?v=Z5slGnug8_o",
+            "mediaUrl": "https://i3.ytimg.com/vi/Z5slGnug8_o/hqdefault.jpg"
+        },
+        {
+            "id": "bluesky:at://did:plc:zlgotdjaxzuhw4nefvkxxvxa/app.bsky.feed.post/3mznv3xhauc2y",
+            "network": "bluesky",
+            "postedAt": "2026-11-06T17:15:55.358Z",
+            "text": "Costs, corruption, and chaos were the themes of this election.\n\nWe hammered Trump on all three. The results speak for themselves.\n\nNow, our Democratic Senate majority must deliver.",
+            "url": "https://bsky.app/profile/schumer.senate.gov/post/3mznv3xhauc2y",
+            "mediaUrl": "https://video.bsky.app/watch/did%3Aplc%3Azlgotdjaxzuhw4nefvkxxvxa/bafkreigkw73hagtkwx4gqu3k2gxfu4tnq4wabkkn7g4qfpfbgezoun657u/thumbnail.jpg"
+        },
+        {
+            "id": "bluesky:at://did:plc:zlgotdjaxzuhw4nefvkxxvxa/app.bsky.feed.post/3mzll33yips2y",
+            "network": "bluesky",
+            "postedAt": "2026-11-05T19:11:09.667Z",
+            "text": "Despite Donald Trump’s efforts to end offshore wind production, Revolution Wind is now fully operational!\n \nThis project will bring power to over 350,000 homes and create jobs for 1,000 local union workers.",
+            "url": "https://bsky.app/profile/schumer.senate.gov/post/3mzll33yips2y",
+            "mediaUrl": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:zlgotdjaxzuhw4nefvkxxvxa/bafkreibm5t5kvyogii4qqg4dkifvg2wpe4d2qsydsjhukk3m4lcfc2ngby"
+        },
+        {
+            "id": "bluesky:at://did:plc:zlgotdjaxzuhw4nefvkxxvxa/app.bsky.feed.post/3mzlfemgmpk2z",
+            "network": "bluesky",
+            "postedAt": "2026-11-05T17:29:06.446Z",
+            "text": "This was a devastating fire, and my prayers are with all those who were lost or injured and with the brave FDNY first responders.\n\nThere is so much more we must do to prevent these lithium-ion battery fires.\nwww.nytimes.com/2026/11/05/n...",
+            "url": "https://bsky.app/profile/schumer.senate.gov/post/3mzlfemgmpk2z",
+            "mediaUrl": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:zlgotdjaxzuhw4nefvkxxvxa/bafkreicbgzx7sx5j42li3avy2xszydyntuyugnvj5vdjkaetyvdybitkje"
+        },
+        {
+            "id": "youtube:4nyPbJ3V8rY",
+            "network": "youtube",
+            "postedAt": "2026-11-04T21:20:24.000Z",
+            "text": "Senate Democrats Will Fight To Make Life Affordable Again",
+            "url": "https://www.youtube.com/watch?v=4nyPbJ3V8rY",
+            "mediaUrl": "https://i1.ytimg.com/vi/4nyPbJ3V8rY/hqdefault.jpg"
+        },
+        {
+            "id": "bluesky:at://did:plc:zlgotdjaxzuhw4nefvkxxvxa/app.bsky.feed.post/3mzjbszr36k2d",
+            "network": "bluesky",
+            "postedAt": "2026-11-04T21:20:15.739Z",
+            "text": "The American people have made clear that they cannot afford life under Trump and Republicans.\n \nThe Senate Democratic Majority will fight to make life affordable again.",
+            "url": "https://bsky.app/profile/schumer.senate.gov/post/3mzjbszr36k2d",
+            "mediaUrl": "https://video.bsky.app/watch/did%3Aplc%3Azlgotdjaxzuhw4nefvkxxvxa/bafkreidwmviruvsszfggdyarmmiw3km4nywrppjffrda2ias4mixdejjki/thumbnail.jpg"
+        },
+        {
+            "id": "youtube:KgFTCTy72Go",
+            "network": "youtube",
+            "postedAt": "2026-11-04T18:50:16.000Z",
+            "text": "Democrats Won Big",
+            "url": "https://www.youtube.com/watch?v=KgFTCTy72Go",
+            "mediaUrl": "https://i4.ytimg.com/vi/KgFTCTy72Go/hqdefault.jpg"
+        }
+    ],
+    "links": {
+        "x": "https://x.com/SenSchumer",
+        "facebook": "https://www.facebook.com/senschumer",
+        "instagram": "https://www.instagram.com/senschumer"
+    }
+}

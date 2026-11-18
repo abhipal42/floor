@@ -90,8 +90,7 @@ private struct SeatRowSurface: ViewModifier {
             .padding(.horizontal, 10)
             .padding(.vertical, 8)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .background(Palette.panel, in: .rect(cornerRadius: 12))
-            .overlay(RoundedRectangle(cornerRadius: 12).stroke(elect ? Palette.elect.opacity(0.35) : Palette.panelBorder, lineWidth: 1))
+            .glassCard(cornerRadius: 12, border: elect ? Palette.elect.opacity(0.35) : Palette.panelBorder)
     }
 }
 

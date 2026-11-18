@@ -230,8 +230,7 @@ public struct AddFollowsView: View {
         }
         .padding(.horizontal, 11)
         .padding(.vertical, 9)
-        .background(Palette.panel, in: .rect(cornerRadius: 10))
-        .overlay(RoundedRectangle(cornerRadius: 10).stroke(Palette.panelBorder, lineWidth: 1))
+        .glassCard(cornerRadius: 10)
     }
 
     private var chamberSwitch: some View {
@@ -381,8 +380,7 @@ public struct AddFollowsView: View {
         }
         .padding(.horizontal, 10)
         .padding(.vertical, 8)
-        .background(Palette.panel, in: .rect(cornerRadius: 12))
-        .overlay(RoundedRectangle(cornerRadius: 12).stroke(Palette.panelBorder, lineWidth: 1))
+        .glassCard(cornerRadius: 12)
     }
 
     private func notice(title: String, body: String) -> some View {

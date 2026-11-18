@@ -21,12 +21,6 @@ struct SaidTextTests {
         #expect(plain(PostText.when(youtube, timeZone: eastern, locale: locale)) == "Nov 16 · 3:04 PM")
     }
 
-    @Test func postLinksSayWhereTheyGo() {
-        #expect(PostText.open(.youtube) == "Watch on YouTube")
-        #expect(PostText.open(.bluesky) == "Open on Bluesky")
-        #expect(PostText.open(.mastodon) == "Open on Mastodon")
-    }
-
     @Test func theDeckIsLabelledByRaceAndHeading() {
         let said = MemberPromises.sample
         #expect(SaidText.deckLabel(said) == "2024 CAMPAIGN · 1 PROMISE")

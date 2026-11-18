@@ -5,12 +5,70 @@ import SwiftUI
 // the ring, member portraits and the panel surface.
 
 public extension View {
-    /// The mocks' card: #14161B, a 1pt #2A2E36 hairline, 16pt corners.
+    /// The mocks' card, padded and full width, drawn as Arena's glass (``glassCard(cornerRadius:fill:border:)``).
     func panel(cornerRadius: CGFloat = 16, padding: CGFloat = 14) -> some View {
         self.padding(padding)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .background(Palette.panel, in: .rect(cornerRadius: cornerRadius))
-            .overlay(RoundedRectangle(cornerRadius: cornerRadius).stroke(Palette.panelBorder, lineWidth: 1))
+            .glassCard(cornerRadius: cornerRadius)
+    }
+
+    /// Arena's glass card (v0.2.58), every screen's card surface: the panel fill, its hairline, a
+    /// 1pt light inside the top edge and a soft long drop shadow.
+    func glassCard(cornerRadius: CGFloat = 16, border: Color = Palette.panelBorder) -> some View {
+        glassCard(cornerRadius: cornerRadius, fill: Palette.panel, border: border)
+    }
+
+    /// The same, with a fill of its own (a card colour, a gradient).
+    func glassCard<S: ShapeStyle>(cornerRadius: CGFloat = 16, fill: S, border: Color = Palette.panelBorder) -> some View {
+        // The shadow is the shape's, not the content's, so text inside casts none.
+        background {
+            RoundedRectangle(cornerRadius: cornerRadius).fill(fill)
+                .shadow(color: Palette.cardShadow, radius: 7, y: 7)
+        }
+        .overlay(RoundedRectangle(cornerRadius: cornerRadius).stroke(border, lineWidth: 1))
+        .overlay(alignment: .top) { GlassHighlight(cornerRadius: cornerRadius, color: Palette.cardHighlight) }
+    }
+
+    /// Arena's hero card (story cards, post cards): the fill, a gradient hairline bright at the
+    /// top left fading out by 40%, a 1pt inner top highlight and the long shadow. Clips its content.
+    func heroCard<S: ShapeStyle>(cornerRadius: CGFloat, fill: S) -> some View {
+        background(fill)
+            .clipShape(.rect(cornerRadius: cornerRadius))
+            .overlay {
+                RoundedRectangle(cornerRadius: cornerRadius)
+                    .strokeBorder(
+                        LinearGradient(stops: [.init(color: Palette.storyEdge, location: 0.18),
+                                               .init(color: Palette.storyEdgeFaint, location: 0.4)],
+                                       startPoint: .topLeading, endPoint: .bottomTrailing),
+                        lineWidth: 1
+                    )
+            }
+            .overlay(alignment: .top) { GlassHighlight(cornerRadius: cornerRadius, color: Palette.storyInnerHighlight) }
+            .shadow(color: Palette.storyShadow, radius: 20, y: 14)
+    }
+
+    /// The soft radial glow at the top of a tab's root screen, over the ground (Finals' since v0.2.57).
+    func groundGlow() -> some View {
+        background(alignment: .top) {
+            EllipticalGradient(colors: [Palette.groundGlow, Palette.ground], center: .top, startRadiusFraction: 0, endRadiusFraction: 0.6)
+                .frame(height: 760)
+                .ignoresSafeArea()
+        }
+        .background(Palette.ground)
+    }
+}
+
+/// The 1pt light inside a card's top edge, kept clear of the corners.
+private struct GlassHighlight: View {
+    let cornerRadius: CGFloat
+    let color: Color
+
+    var body: some View {
+        Rectangle().fill(color).frame(height: 1)
+            .padding(.horizontal, cornerRadius)
+            .padding(.top, 1)
+            .accessibilityHidden(true)
+            .allowsHitTesting(false)
     }
 }
 

@@ -215,8 +215,7 @@ struct CatchUpDeckView: View {
         .padding(24)
         .frame(maxWidth: .infinity, alignment: .leading)
         .frame(height: 500)
-        .background(Palette.panel, in: .rect(cornerRadius: 20))
-        .overlay(RoundedRectangle(cornerRadius: 20).stroke(Palette.panelBorder, lineWidth: 1))
+        .glassCard(cornerRadius: 20)
         .shadow(color: Palette.shadow, radius: 24, y: 24)
         .contentShape(.rect)
         .onTapGesture { onOpenVote(vote.id) }

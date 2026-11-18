@@ -67,63 +67,6 @@ struct SectionSwitch<Section: Hashable & Identifiable & RawRepresentable & CaseI
     }
 }
 
-/// The compact header the Money and Contact segments put where the player card was.
-struct MemberHeader: View {
-    let member: Member
-
-    var body: some View {
-        HStack(spacing: 10) {
-            MemberPortrait(member).frame(width: 36, height: 36)
-            Text(member.fullName.uppercased())
-                .font(Typography.label(24))
-                .foregroundStyle(Palette.text)
-                .lineLimit(2)
-                .minimumScaleFactor(0.7)
-        }
-        .accessibilityElement(children: .combine)
-        .accessibilityAddTraits(.isHeader)
-    }
-}
-
-/// Everything under the member switcher for one member: the record, or the compact header, the
-/// switch and the Money or Contact segment.
-struct MemberSections: View {
-    let record: RepScreenModel
-    let member: Member?
-    @Binding var section: MemberSection
-    let fact: String?
-    var onOpenTopic: ((String) -> Void)?
-    let onOpenVote: (Vote) -> Void
-
-    var body: some View {
-        switch section {
-        case .record:
-            RepRecordContent(model: record, fact: fact, onOpenVote: onOpenVote, section: $section)
-        case .said, .posts, .money, .contact:
-            VStack(alignment: .leading, spacing: 16) {
-                if let member { MemberHeader(member: member) }
-                SectionSwitch(selection: $section)
-                if section == .said {
-                    @Bindable var record = record
-                    SaidContent(model: record.promises, member: member, card: $record.promiseCard, onOpenTopic: onOpenTopic)
-                } else if section == .posts {
-                    PostsContent(model: record.posts, member: member)
-                } else if section == .money {
-                    @Bindable var record = record
-                    SectionSwitch(selection: $record.moneySegment, label: "Money")
-                    if record.moneySegment == .funding {
-                        MoneyContent(model: record.money, member: member)
-                    } else {
-                        DisclosuresContent(model: record.disclosures, member: member)
-                    }
-                } else {
-                    ContactContent(record: record, member: member)
-                }
-            }
-        }
-    }
-}
-
 // MARK: - Money
 
 struct MoneyContent: View {
@@ -191,7 +134,7 @@ struct FundingFigures: View {
     }
 
     /// `Tones.moneyBar`, in order, which `PaletteTests` checks part against part.
-    private static let parts: [(part: Funding.Part, color: Color)] = [
+    static let parts: [(part: Funding.Part, color: Color)] = [
         (.smallDollar, Palette.yea), (.itemized, Palette.teal), (.pac, Palette.threshold), (.other, Palette.dim),
     ]
 
@@ -322,9 +265,8 @@ struct FundingFigures: View {
                 .overlay(alignment: .top) { Palette.panelBorder.frame(height: 1) }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Palette.panel, in: .rect(cornerRadius: 16))
         .clipShape(.rect(cornerRadius: 16))
-        .overlay(RoundedRectangle(cornerRadius: 16).stroke(Palette.panelBorder, lineWidth: 1))
+        .glassCard(cornerRadius: 16)
     }
 
     private func pacRow(_ check: PacCheck) -> some View {

@@ -158,8 +158,7 @@ public struct VoteScreenView: View {
         .padding(.horizontal, 11)
         .padding(.vertical, 8)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Palette.panel, in: .rect(cornerRadius: 12))
-        .overlay(RoundedRectangle(cornerRadius: 12).stroke(Palette.raised, lineWidth: 1))
+        .glassCard(cornerRadius: 12, border: Palette.raised)
         .sheet(isPresented: $showingKinds) {
             NavigationStack {
                 VoteKindsView(load: { await model.voteKinds() })
@@ -767,8 +766,7 @@ public struct VoteKindsView: View {
         .padding(.horizontal, 10)
         .padding(.vertical, 7)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Palette.panel, in: .rect(cornerRadius: 10))
-        .overlay(RoundedRectangle(cornerRadius: 10).stroke(Palette.panelBorder, lineWidth: 1))
+        .glassCard(cornerRadius: 10)
         .accessibilityElement(children: .combine)
     }
 

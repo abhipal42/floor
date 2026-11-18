@@ -42,8 +42,7 @@ struct ContactRows: View {
         VStack(alignment: .leading, spacing: 7) {
             if let contact, contact.phone != nil || contact.website != nil || contact.contactForm != nil || member.chamber == .house {
                 if let phone = contact.phone, let tel = SpeakUpLinks.tel(phone) {
-                    row(symbol: "phone", title: phone, caption: contact.office.map { "Washington office · \($0)" } ?? "Washington office",
-                        url: tel, label: "Call \(member.lastName)'s Washington office, \(phone)")
+                    callButton(phone: phone, office: contact.office, url: tel)
                 }
                 if let write = SpeakUpLinks.form(member: member, contact: contact) {
                     row(symbol: "square.and.pencil", title: "Write to the office", caption: writeCaption(contact),
@@ -52,6 +51,9 @@ struct ContactRows: View {
                 if let site = contact.website, let url = URL(string: site) {
                     row(symbol: "arrow.up.right", title: url.host?.replacingOccurrences(of: "www.", with: "") ?? site,
                         caption: "Official website", url: url, label: "\(member.lastName)'s official website")
+                }
+                if let address = contact.address, !address.isEmpty {
+                    addressRow(address)
                 }
             } else {
                 VStack(alignment: .leading, spacing: 4) {
@@ -82,32 +84,68 @@ struct ContactRows: View {
             : "No form listed, so the official website"
     }
 
-    private func row(symbol: String, title: String, caption: String, url: URL, label: String) -> some View {
+    /// The big call button (`.callbtn`): the number and the office, in yea green.
+    private func callButton(phone: String, office: String?, url: URL) -> some View {
         Link(destination: url) {
-            HStack(spacing: 10) {
-                Image(systemName: symbol)
-                    .font(.system(size: 13, weight: .semibold))
-                    .foregroundStyle(Palette.threshold)
-                    .frame(width: 28, height: 28)
-                    .background(Palette.chip, in: .rect(cornerRadius: 8))
+            HStack(spacing: 12) {
+                Image(systemName: "phone.fill")
+                    .font(.system(size: 17, weight: .semibold))
                     .accessibilityHidden(true)
-                VStack(alignment: .leading, spacing: 1) {
-                    Text(title).scaledFont(13, weight: .bold).foregroundStyle(Palette.text)
-                        .multilineTextAlignment(.leading)
-                    Text(caption).scaledFont(10.5, weight: .medium).foregroundStyle(Palette.textMuted)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(phone).font(Typography.callNumber).monospacedDigit()
+                    Text(office.map { "Washington office · \($0)" } ?? "Washington office")
+                        .scaledFont(Typography.Member.callLine)
+                        .opacity(0.9)
                         .multilineTextAlignment(.leading)
                         .fixedSize(horizontal: false, vertical: true)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
             }
-            .padding(.horizontal, 11)
-            .padding(.vertical, 9)
-            .background(Palette.panel, in: .rect(cornerRadius: 12))
-            .overlay(RoundedRectangle(cornerRadius: 12).stroke(Palette.panelBorder, lineWidth: 1))
+            .foregroundStyle(Palette.callInk)
+            .padding(14)
+            .background(Palette.yea, in: .rect(cornerRadius: 16))
         }
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel(label)
+        .accessibilityLabel("Call \(member.lastName)'s Washington office, \(phone)")
         .accessibilityAddTraits(.isLink)
+        .padding(.bottom, 1)
+    }
+
+    private func row(symbol: String, title: String, caption: String, url: URL, label: String) -> some View {
+        Link(destination: url) { rowContent(symbol: symbol, title: title, caption: caption) }
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel(label)
+            .accessibilityAddTraits(.isLink)
+    }
+
+    /// The mailing address: a row to read, not a link.
+    private func addressRow(_ address: String) -> some View {
+        rowContent(symbol: "envelope", title: address, caption: "Mailing address")
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel("Mailing address, \(address)")
+    }
+
+    private func rowContent(symbol: String, title: String, caption: String) -> some View {
+        HStack(spacing: 10) {
+            Image(systemName: symbol)
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundStyle(Palette.threshold)
+                .frame(width: 28, height: 28)
+                .background(Palette.chip, in: .rect(cornerRadius: 8))
+                .accessibilityHidden(true)
+            VStack(alignment: .leading, spacing: 1) {
+                Text(title).scaledFont(13, weight: .bold).foregroundStyle(Palette.text)
+                    .multilineTextAlignment(.leading)
+                    .fixedSize(horizontal: false, vertical: true)
+                Text(caption).scaledFont(10.5, weight: .medium).foregroundStyle(Palette.textMuted)
+                    .multilineTextAlignment(.leading)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .padding(.horizontal, 11)
+        .padding(.vertical, 9)
+        .glassCard(cornerRadius: 12)
     }
 }
 
@@ -354,8 +392,7 @@ struct DisclosuresFigures: View {
         .padding(.horizontal, 10)
         .padding(.vertical, 8)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Palette.panel, in: .rect(cornerRadius: 10))
-        .overlay(RoundedRectangle(cornerRadius: 10).stroke(Palette.panelBorder, lineWidth: 1))
+        .glassCard(cornerRadius: 10)
         .accessibilityElement(children: .combine)
     }
 
