@@ -1,0 +1,78 @@
+{
+ "_note": "GET /v1/local/ny in the v0.2.60 contract's shape, hand-built from real records: S 1788-A (Sen. Hinchey, signed Nov 11 2026, nysenate.gov) and the One Fair Price Act, S 8623-B (passed both houses June 4 2026, awaiting Gov. Hochul). News: real Google News RSS items recorded 2026-11-17. Titles and summaries are plain wording of each bill.",
+ "jurisdiction": {
+  "id": "ny",
+  "kind": "state",
+  "name": "New York State",
+  "state": "NY",
+  "placeGeoid": null,
+  "coverage": "records"
+ },
+ "updatedAt": "2026-11-17T06:00:00Z",
+ "enacted": [
+  {
+   "id": "ny-2025-S1788A",
+   "identifier": "S 1788-A",
+   "title": "Wider property tax break for combat veterans",
+   "summary": "Sen. Hinchey's bill expands who can claim the combat veterans' exemption.",
+   "body": "State Senate",
+   "date": "2026-11-11",
+   "status": "signed",
+   "yes": null,
+   "no": null,
+   "url": "https://www.nysenate.gov/legislation/bills/2025/S1788/amendment/A"
+  }
+ ],
+ "waiting": [
+  {
+   "id": "ny-2025-S8623B",
+   "identifier": "S 8623-B",
+   "title": "One Fair Price Act",
+   "summary": "Bars surveillance pricing statewide. Passed both houses; awaits Gov. Hochul.",
+   "body": "State Senate",
+   "date": "2026-06-04",
+   "status": "awaiting_governor",
+   "yes": null,
+   "no": null,
+   "url": "https://www.nysenate.gov/legislation/bills/2025/S8623/amendment/B"
+  }
+ ],
+ "news": [
+  {
+   "id": "h_4c08f14ca7",
+   "title": "Improving quality of life top of mind for New York State Assembly",
+   "source": "Spectrum News",
+   "url": "https://news.google.com/rss/articles/CBMirAFBVV95cUxPYjFXM21LbUJIRXZvZTJweW9NMkZZUFlySHhPRFRkRkhIaU1OMk9hTDFjTlVzUHhjSDZ1R0VOQlFOMURnbUtQUzlJcEZ6RGRFQkpTUmRablNucWFYTjgtWE9hanBkQXVYMmFyU1Noc29iZVlFV25mM2lqQW5XOGhoekpoLWxUbTM4RjhIMWpRU0FEeGZ0Um1kM0RQbF9WckFFa1ZSSDZmTXFpWUs2?oc=5",
+   "publishedAt": "2026-11-17T00:20:00Z",
+   "tone": null,
+   "storyId": null
+  },
+  {
+   "id": "h_65a105509d",
+   "title": "New York State Senate Election Results 2026: All 63 Districts",
+   "source": "New York Focus",
+   "url": "https://news.google.com/rss/articles/CBMieEFVX3lxTE5BbkpRMm1id1dYTnpZNGx1WjBWQWU3NXRkU1JNZGxpTWpRS3dmbDBLYVhMSzBFQzhKbkV3YVRCSElYTGtCZVBzb2hRT09YWVpETDlGY0J5LXMyYk1BRGNFcWd3cHM1dVZ4ZnBQNWJ0aHE5T3RwcFo0Ng?oc=5",
+   "publishedAt": "2026-11-13T22:26:00Z",
+   "tone": null,
+   "storyId": null
+  },
+  {
+   "id": "h_ea6feb6860",
+   "title": "Hochul weighs New York redistricting push after Democrats’ election gains",
+   "source": "Spectrum News",
+   "url": "https://news.google.com/rss/articles/CBMipAFBVV95cUxPQnRCLWljc0dMTTdpMGVuUGFrVE5ETjVqTU5sOHJ0YzhLU3NadG9YSUZQQlVXNzJOQUc0bVkxSkhKZ1RDeUxhMkxHMlFna1BSWlBFWkxfRUUtODZQZFZKb0kyREVaVEg2OHlkWTJpZWxYbFZxYlpfdHd4OGtYem1HTVVkaWE3U3BvTmRDRlFvV3gySGh6cHhzenFKSmEzdUw0QVN3Vw?oc=5",
+   "publishedAt": "2026-11-13T00:30:00Z",
+   "tone": null,
+   "storyId": null
+  },
+  {
+   "id": "h_fdc709fd37",
+   "title": "Cutting Red Tape: Governor Hochul Announces Launch of Nation-Leading “Click to Renew” Tool to Streamline Licensing for New York’s Small Businesses",
+   "source": "Governor Kathy Hochul (.gov)",
+   "url": "https://news.google.com/rss/articles/CBMiwwFBVV95cUxQUm52OUZTWHMxRlBKVldEcEpsZkRoWVVseDJuSkRmRWRkbmZoMElPQUNpeEpzcFBuSXA5cjhwaGRDeTJTa0RxdThBWHJvcng3cGtYdDJRUHZsNzQ4am1RN2lwQ3c4UFFJaVFOcWF2bVlndVA0d3EtUjhEbEdXUzBNcWhCblIwUlctOF85UF9wcC1xYUFpMHpvV0hZT2l5amRreFV6MXhwMlRjeVNwWUlSV3plaUVrYUx2R2VaeHlwNjRFRGc?oc=5",
+   "publishedAt": "2026-11-12T20:47:51Z",
+   "tone": null,
+   "storyId": null
+  }
+ ]
+}

@@ -358,3 +358,78 @@ public extension MemberPosts {
 public extension PostsWall {
     static let sample = PostsWall(posts: [.sample], unreadable: [])
 }
+
+// v0.2.60: member news and polls, and the Local tab. Real items from Nov 10–17 2026 (the fixtures
+// in ModelsTests/Fixtures carry the full sets and say where each came from).
+
+public extension ToneCounts {
+    static let sample = ToneCounts(favorable: 1, neutral: 7, critical: 4, office: 0)
+}
+
+public extension Headline {
+    /// The url is The Hill's front page, a fixture link: the feed's own links are Google News redirects.
+    static let sample = Headline(
+        id: "S000148-hill-votes", title: "Schumer declares he has votes to beat Van Hollen and become majority leader - The Hill",
+        source: "The Hill", url: "https://thehill.com", publishedAt: "2026-11-17T20:23:00.000Z",
+        tone: .favorable, storyId: "S000148-leadership"
+    )
+}
+
+public extension NewsStory {
+    static let sample = NewsStory(
+        id: "S000148-leadership", title: "Van Hollen challenges Schumer for majority leader", tone: .sample,
+        headlineIds: ["S000148-hill-votes"]
+    )
+}
+
+public extension PollShare {
+    static let sample = PollShare(label: "favorable", pct: 22)
+}
+
+public extension Poll {
+    /// Economist/YouGov, Nov 13–16 2026, as The Hill reported it.
+    static let sample = Poll(
+        id: "yougov-2026-11-16-schumer", pollster: "Economist/YouGov", fieldedFrom: "2026-11-13", fieldedTo: "2026-11-16",
+        population: "U.S. adults", sampleSize: 1628, positive: .sample, negative: PollShare(label: "unfavorable", pct: 50),
+        other: PollShare(label: "don't know", pct: 28),
+        url: "https://thehill.com/the-120/6225885-chuck-schumer-democrats-unpopularity-poll-results"
+    )
+}
+
+public extension MemberNews {
+    static let sample = MemberNews(
+        memberId: "S000148", checkedAt: "2026-11-17T21:00:00.000Z",
+        window: Window(from: "2026-11-10", to: "2026-11-17"), tone: .sample, stories: [.sample],
+        headlines: [.sample], polls: [.sample]
+    )
+}
+
+public extension Jurisdiction {
+    static let sample = Jurisdiction(id: "nyc", kind: .city, name: "New York City", state: "NY", placeGeoid: "3651000", coverage: .records)
+}
+
+public extension LocalItem {
+    /// Int. 891-A, the surveillance pricing ban, passed 44–5 at the Council's stated meeting of Nov 12 2026.
+    static let sample = LocalItem(
+        id: "nyc-int-891-a", identifier: "Int. 891-A", title: "Surveillance pricing ban",
+        summary: "Stops businesses using personal data and algorithms to charge different people different prices for the same thing.",
+        body: "City Council", date: "2026-11-12", status: .passed, yes: 44, no: 5, url: nil
+    )
+}
+
+public extension LocalJurisdictions {
+    static let sample = LocalJurisdictions(jurisdictions: [.sample])
+}
+
+public extension LocalHub {
+    static let sample = LocalHub(jurisdiction: .sample, updatedAt: "2026-11-17T06:00:00.000Z", enacted: [.sample], news: [.sample])
+}
+
+public extension StateLegislator {
+    /// New York State Senate District 59.
+    static let sample = StateLegislator(id: "sample-ny-sd59", name: "Kristen Gonzalez", party: "Democratic", chamber: .upper, district: "59")
+}
+
+public extension StateLegislators {
+    static let sample = StateLegislators(legislators: [.sample])
+}

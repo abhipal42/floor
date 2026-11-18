@@ -103,6 +103,8 @@ class MemberSnapshotTest {
         promises = Load.Loaded(Fixtures.decode("arena-schumer-promises", Promises.serializer())),
         posts = Load.Loaded(Fixtures.decode("arena-schumer-posts", MemberPosts.serializer())),
         money = Load.Loaded(Fixtures.decode("arena-schumer-funding", MemberFunding.serializer())),
+        // v0.2.60: the week's news (real headlines, tones hand-labelled), between Posts and Money.
+        news = Load.Loaded(Fixtures.decode("news-schumer", app.floor.android.model.MemberNews.serializer())),
     )
 
     /** New York's senator, read from NY-12: "YOUR SENATOR · NEW YORK", no Follow on the hero. */

@@ -1301,6 +1301,496 @@
           "unreadable"
         ]
       },
+      "ToneCounts": {
+        "type": "object",
+        "properties": {
+          "favorable": {
+            "type": "integer"
+          },
+          "neutral": {
+            "type": "integer"
+          },
+          "critical": {
+            "type": "integer"
+          },
+          "office": {
+            "type": "integer",
+            "description": "Shown apart, never in the bar"
+          }
+        },
+        "required": [
+          "favorable",
+          "neutral",
+          "critical",
+          "office"
+        ]
+      },
+      "Story": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string",
+            "description": "Written by the AI, in neutral wording",
+            "example": "Van Hollen challenges Schumer for leader"
+          },
+          "tone": {
+            "$ref": "#/components/schemas/ToneCounts"
+          },
+          "headlineIds": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "At least 2, newest first"
+          }
+        },
+        "required": [
+          "id",
+          "title",
+          "tone",
+          "headlineIds"
+        ],
+        "description": "An AI group of headlines about the same event"
+      },
+      "HeadlineTone": {
+        "type": "string",
+        "nullable": true,
+        "enum": [
+          "favorable",
+          "neutral",
+          "critical",
+          "office"
+        ],
+        "description": "null = not AI-read (or, for a jurisdiction's headlines, never)"
+      },
+      "Headline": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string",
+            "example": "Schumer declares he has votes to beat Van Hollen and become majority leader"
+          },
+          "source": {
+            "type": "string",
+            "example": "The Hill"
+          },
+          "url": {
+            "type": "string",
+            "description": "The Google News link to the article"
+          },
+          "publishedAt": {
+            "type": "string",
+            "example": "2026-11-17T20:23:00.000Z"
+          },
+          "tone": {
+            "$ref": "#/components/schemas/HeadlineTone"
+          },
+          "storyId": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "required": [
+          "id",
+          "title",
+          "source",
+          "url",
+          "publishedAt",
+          "tone",
+          "storyId"
+        ],
+        "description": "Headline, publisher, date and link only: Floor stores no article text"
+      },
+      "PollShare": {
+        "type": "object",
+        "properties": {
+          "label": {
+            "type": "string",
+            "description": "As the pollster worded it",
+            "example": "favorable"
+          },
+          "pct": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "label",
+          "pct"
+        ]
+      },
+      "Poll": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "pollster": {
+            "type": "string",
+            "example": "Economist/YouGov"
+          },
+          "fieldedFrom": {
+            "type": "string",
+            "example": "2026-11-13"
+          },
+          "fieldedTo": {
+            "type": "string",
+            "example": "2026-11-16"
+          },
+          "population": {
+            "type": "string",
+            "example": "U.S. adults"
+          },
+          "sampleSize": {
+            "type": "integer",
+            "nullable": true,
+            "example": 1628
+          },
+          "positive": {
+            "$ref": "#/components/schemas/PollShare"
+          },
+          "negative": {
+            "$ref": "#/components/schemas/PollShare"
+          },
+          "other": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PollShare"
+              },
+              {
+                "nullable": true,
+                "description": "null when the release does not break the rest out"
+              }
+            ]
+          },
+          "url": {
+            "type": "string",
+            "description": "The release (or the report of it the poll file names)"
+          }
+        },
+        "required": [
+          "id",
+          "pollster",
+          "fieldedFrom",
+          "fieldedTo",
+          "population",
+          "sampleSize",
+          "positive",
+          "negative",
+          "other",
+          "url"
+        ]
+      },
+      "MemberNews": {
+        "type": "object",
+        "properties": {
+          "memberId": {
+            "type": "string",
+            "example": "S000148"
+          },
+          "checkedAt": {
+            "type": "string",
+            "nullable": true,
+            "description": "When Floor last asked Google News; null = never"
+          },
+          "window": {
+            "type": "object",
+            "properties": {
+              "from": {
+                "type": "string"
+              },
+              "to": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "from",
+              "to"
+            ],
+            "description": "The 7 days served"
+          },
+          "stories": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Story"
+            },
+            "description": "Groups of >= 2 headlines, biggest first; [] when not AI-read"
+          },
+          "tone": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ToneCounts"
+              },
+              {
+                "nullable": true,
+                "description": "Over `headlines`; null when none were AI-read"
+              }
+            ]
+          },
+          "headlines": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Headline"
+            },
+            "description": "Every headline in the window, newest first (stories' members included)"
+          },
+          "polls": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Poll"
+            },
+            "description": "Polls naming the member, fielded within the last 90 days, newest first"
+          }
+        },
+        "required": [
+          "memberId",
+          "checkedAt",
+          "window",
+          "stories",
+          "tone",
+          "headlines",
+          "polls"
+        ]
+      },
+      "JurisdictionKind": {
+        "type": "string",
+        "enum": [
+          "state",
+          "city"
+        ]
+      },
+      "LocalCoverage": {
+        "type": "string",
+        "enum": [
+          "records",
+          "pending",
+          "news_only"
+        ],
+        "description": "records: items from the last 90 days. news_only: no records source Floor can read. pending: a source, but nothing yet"
+      },
+      "Jurisdiction": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "example": "ny"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/JurisdictionKind"
+          },
+          "name": {
+            "type": "string",
+            "example": "New York State"
+          },
+          "state": {
+            "type": "string",
+            "description": "Postal code",
+            "example": "NY"
+          },
+          "placeGeoid": {
+            "type": "string",
+            "nullable": true,
+            "description": "Census place GEOID, for a city",
+            "example": "3651000"
+          },
+          "coverage": {
+            "$ref": "#/components/schemas/LocalCoverage"
+          }
+        },
+        "required": [
+          "id",
+          "kind",
+          "name",
+          "state",
+          "placeGeoid",
+          "coverage"
+        ]
+      },
+      "LocalList": {
+        "type": "object",
+        "properties": {
+          "jurisdictions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Jurisdiction"
+            }
+          }
+        },
+        "required": [
+          "jurisdictions"
+        ]
+      },
+      "LocalItemStatus": {
+        "type": "string",
+        "enum": [
+          "signed",
+          "became_law",
+          "passed",
+          "awaiting_governor"
+        ]
+      },
+      "LocalItem": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "identifier": {
+            "type": "string",
+            "example": "CB 121276"
+          },
+          "title": {
+            "type": "string"
+          },
+          "summary": {
+            "type": "string",
+            "nullable": true
+          },
+          "body": {
+            "type": "string",
+            "example": "City Council"
+          },
+          "date": {
+            "type": "string",
+            "example": "2026-11-13"
+          },
+          "status": {
+            "$ref": "#/components/schemas/LocalItemStatus"
+          },
+          "yes": {
+            "type": "integer",
+            "nullable": true
+          },
+          "no": {
+            "type": "integer",
+            "nullable": true
+          },
+          "url": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "required": [
+          "id",
+          "identifier",
+          "title",
+          "summary",
+          "body",
+          "date",
+          "status",
+          "yes",
+          "no",
+          "url"
+        ]
+      },
+      "LocalHub": {
+        "type": "object",
+        "properties": {
+          "jurisdiction": {
+            "$ref": "#/components/schemas/Jurisdiction"
+          },
+          "updatedAt": {
+            "type": "string",
+            "nullable": true,
+            "description": "The worker's last successful check of this jurisdiction; null = never"
+          },
+          "enacted": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/LocalItem"
+            },
+            "description": "State: signed into law or became law. City: passed by the council. Last 30 days, newest first, at most 20"
+          },
+          "waiting": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/LocalItem"
+            },
+            "description": "State only: passed both chambers, no executive action yet. [] for cities"
+          },
+          "news": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Headline"
+            },
+            "description": "Last 7 days, newest first, at most 20; tone null (not AI-read)"
+          }
+        },
+        "required": [
+          "jurisdiction",
+          "updatedAt",
+          "enacted",
+          "waiting",
+          "news"
+        ]
+      },
+      "StateChamber": {
+        "type": "string",
+        "enum": [
+          "upper",
+          "lower"
+        ]
+      },
+      "StateLegislator": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "example": "ocd-person/adb58f21-f2fd-4830-85b6-f490b0867d14"
+          },
+          "name": {
+            "type": "string"
+          },
+          "party": {
+            "type": "string",
+            "example": "Democratic"
+          },
+          "chamber": {
+            "$ref": "#/components/schemas/StateChamber"
+          },
+          "district": {
+            "type": "string",
+            "example": "27"
+          },
+          "photoUrl": {
+            "type": "string",
+            "nullable": true
+          },
+          "url": {
+            "type": "string",
+            "nullable": true,
+            "description": "Their Open States page"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "party",
+          "chamber",
+          "district",
+          "photoUrl",
+          "url"
+        ]
+      },
+      "StateLegislators": {
+        "type": "object",
+        "properties": {
+          "legislators": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/StateLegislator"
+            }
+          }
+        },
+        "required": [
+          "legislators"
+        ]
+      },
       "PacCheck": {
         "type": "object",
         "properties": {
@@ -1662,13 +2152,47 @@
             "type": "string",
             "nullable": true,
             "example": "48453"
+          },
+          "stateUpper": {
+            "type": "string",
+            "nullable": true,
+            "description": "State senate district, as Open States names it (Census BASENAME); null where Census has no layer",
+            "example": "14"
+          },
+          "stateLower": {
+            "type": "string",
+            "nullable": true,
+            "description": "State house/assembly district, as Open States names it; null where there is none (Nebraska)",
+            "example": "49"
+          },
+          "place": {
+            "type": "object",
+            "nullable": true,
+            "properties": {
+              "geoid": {
+                "type": "string",
+                "example": "4805000"
+              },
+              "name": {
+                "type": "string",
+                "example": "Austin"
+              }
+            },
+            "required": [
+              "geoid",
+              "name"
+            ],
+            "description": "The Census Incorporated Place, or null outside one"
           }
         },
         "required": [
           "congress",
           "state",
           "district",
-          "countyFips"
+          "countyFips",
+          "stateUpper",
+          "stateLower",
+          "place"
         ]
       },
       "Reps": {
@@ -3477,6 +4001,164 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/PostsWall"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/members/{id}/news": {
+      "get": {
+        "summary": "A member's headlines this week, AI-read for tone and grouped into stories, and polls that name them",
+        "description": "Headlines are Google News results naming the member: title, publisher, date and link only. Tone (how the headline frames the member) and stories are read by AI and may contain errors; label them. Polls are added by hand from the pollster's release and reviewed.",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^[A-Z]\\d{6}$",
+              "example": "S001208"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The week's news",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MemberNews"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No member with that ID",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/local": {
+      "get": {
+        "summary": "Every state and city the Local tab covers, with what Floor has for each",
+        "responses": {
+          "200": {
+            "description": "The jurisdictions",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LocalList"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/local/{id}": {
+      "get": {
+        "summary": "A state's or city's hub: what became law (or passed the council), what waits on the governor, and headlines",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-z][a-z-]{1,30}$",
+              "example": "nyc"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The hub",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LocalHub"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No jurisdiction with that id",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/local/{state}/legislators": {
+      "get": {
+        "summary": "The state senator and house/assembly members for these districts, from Open States",
+        "description": "Pass the district's `stateUpper` and `stateLower` from /v1/reps. [] when Open States is not configured.",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-z]{2}$",
+              "example": "ny"
+            },
+            "required": true,
+            "name": "state",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 40,
+              "example": "27"
+            },
+            "required": false,
+            "name": "upper",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 40,
+              "example": "66"
+            },
+            "required": false,
+            "name": "lower",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Senate first, then house/assembly",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StateLegislators"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not a state Floor covers",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
                 }
               }
             }

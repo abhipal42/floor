@@ -1,0 +1,12 @@
+{
+  "members": ["S000148"],
+  "pollster": "NBC News",
+  "fieldedFrom": "2026-10-28",
+  "fieldedTo": "2026-10-30",
+  "population": "registered voters",
+  "sampleSize": 1000,
+  "positive": { "label": "positive", "pct": 13 },
+  "negative": { "label": "negative", "pct": 53 },
+  "other": { "label": "neutral or unsure", "pct": 34 },
+  "url": "https://www.nbcnews.com/politics/2026-election/poll-voters-demand-change-check-trump-fueling-steep-democratic-midterm-rcna606183"
+}

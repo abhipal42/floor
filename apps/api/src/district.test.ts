@@ -12,13 +12,26 @@ describe("parseCensusDistrict (real Census geocoder responses)", () => {
     // Texas State Capitol, 119th Congress layer (ACS2025 vintage)
     expect(parseCensusDistrict(fixture("census-texas-capitol.json"), 119)).toEqual({
       congress: 119, state: "TX", stateFips: "48", district: 37, countyFips: "48453",
+      // "2024 State Legislative Districts - Upper/Lower", BASENAME (SLDU is "014").
+      stateUpper: "14", stateLower: "49", place: { geoid: "4805000", name: "Austin" },
     });
   });
 
   it("treats a delegate seat as at-large (district 0)", () => {
-    // U.S. Capitol, 120th Congress layer (Current vintage)
+    // U.S. Capitol, 120th Congress layer (Current vintage). DC's upper layer is "2026 State
+    // Legislative Districts - Upper" (its wards: "Ward 6"), and it has no lower layer.
     expect(parseCensusDistrict(fixture("census-capitol.json"), 120)).toEqual({
       congress: 120, state: "DC", stateFips: "11", district: 0, countyFips: "11001",
+      stateUpper: "6", stateLower: null, place: { geoid: "1150000", name: "Washington" },
+    });
+  });
+
+  it("reads New York City Hall's state districts and place (coordinates lookup, 2026-11-17)", () => {
+    // Census's address matcher does not find "1 Centre St, New York, NY 10007" (no match on
+    // 2026-11-17), so this is City Hall's point, x=-74.0060 y=40.7127: Senate 27, Assembly 66.
+    expect(parseCensusDistrict(fixture("census-coords-nyc-city-hall.json"), 119)).toEqual({
+      congress: 119, state: "NY", stateFips: "36", district: 10, countyFips: "36061",
+      stateUpper: "27", stateLower: "66", place: { geoid: "3651000", name: "New York" },
     });
   });
 

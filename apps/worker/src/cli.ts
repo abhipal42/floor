@@ -21,6 +21,9 @@ import { disclosureSource, ingestDisclosures, parseDisclosureArgs } from "./disc
 import { loadTranscription, readTranscriptions } from "./transcriptions.js";
 import { BillEventPusher } from "./billevents.js";
 import { ingestElectDisclosures, ingestHouseMembersElect, loadElections, readElections } from "./elect.js";
+import { ingestNews, parseNewsArgs } from "./news.js";
+import { loadPolls, readPolls } from "./polls.js";
+import { ingestLocal, openStatesGet, parseLocalArgs } from "./local.js";
 
 const USAGE = `Usage:
   npm run ingest -w @floor/worker -- members
@@ -60,6 +63,13 @@ const USAGE = `Usage:
                                          (campaign promises from the FEC committee's site as the Wayback Machine held
                                           it before election day; default 25 members not yet checked; needs
                                           CONGRESS_API_KEY and ANTHROPIC_API_KEY)
+  npm run ingest -w @floor/worker -- news [--budget N] [--member ID]
+                                         (members' headlines from Google News RSS, the 100 checked longest ago, each at
+                                          most every 12 h, 1.2 s apart; with ANTHROPIC_API_KEY, tone and stories)
+  npm run ingest -w @floor/worker -- polls                        (load apps/worker/polls/*.json: polls naming members, reviewed in PRs)
+  npm run ingest -w @floor/worker -- local [--only ID] [--no-news]
+                                         (state bills from Open States with OPENSTATES_API_KEY, city council matters
+                                          from Legistar (NYC needs NYC_LEGISTAR_TOKEN), and each jurisdiction's headlines)
   npm run ingest -w @floor/worker -- live                     (always-on: floor events, vote state, roll calls; until SIGTERM)
   npm run ingest -w @floor/worker -- latency [days]               (posting latency the live worker measured; default 30 days)
 
@@ -278,6 +288,53 @@ async function main() {
       } finally {
         conn.release();
       }
+    } else if (command === "news") {
+      const opts = parseNewsArgs(args);
+      const ai = analyzeOptions(process.env, undefined);
+      // Credentials come from the SDK's usual chain (ANTHROPIC_API_KEY first). Never log them.
+      const complete = process.env.ANTHROPIC_API_KEY ? anthropicComplete(new Anthropic(), ai.model, ai) : undefined;
+      // One connection for the whole run: the run's advisory lock is held on it.
+      const conn = await pool.connect();
+      try {
+        const r = await ingestNews(conn as unknown as Db, fetchWithTimeout(fetch, 30_000), {
+          complete,
+          budget: opts.budget,
+          members: opts.members,
+          log: (msg) => console.log(`${new Date().toISOString()} ${msg}`),
+        });
+        if (r.ran) {
+          console.log(
+            `Checked ${r.checked} members: ${r.headlines} headlines, ${r.failed} failed${r.stoppedBy === "rate-limited" ? " (stopped: rate-limited)" : ""}; ` +
+              `read ${r.read} for tone, ${r.stories} stories; est. ${r.costUsd === null ? "unknown" : `$${r.costUsd.toFixed(2)}`}`,
+          );
+        }
+      } finally {
+        conn.release();
+      }
+    } else if (command === "polls") {
+      const dir = new URL("../polls/", import.meta.url).pathname;
+      const r = await loadPolls(db, readPolls(dir));
+      console.log(`Loaded ${r.polls} polls${r.unknownMembers.length ? `; unknown member ids skipped: ${r.unknownMembers.join(", ")}` : ""}`);
+    } else if (command === "local") {
+      const opts = parseLocalArgs(args);
+      const key = process.env.OPENSTATES_API_KEY;
+      const r = await ingestLocal(
+        db,
+        {
+          // The key goes in a header (openStatesGet), so Open States URLs are safe to log.
+          openStates: key ? openStatesGet(key) : undefined,
+          fetchText: fetchWithTimeout(fetch, 60_000),
+          // Legistar's NYC token is a query parameter: local.ts never logs a URL carrying it.
+          tokens: { NYC_LEGISTAR_TOKEN: process.env.NYC_LEGISTAR_TOKEN || undefined },
+          log: (msg) => console.log(`${new Date().toISOString()} ${msg}`),
+        },
+        { only: opts.only, news: opts.news },
+      );
+      console.log(
+        `Local: ${r.states} states (${r.enacted} enacted, ${r.waiting} waiting), ${r.cities} cities (${r.passed} new passed), ` +
+          `${r.headlines} headlines, ${r.failed} failed; skipped: ${r.skipped.join(", ") || "none"}; ` +
+          `requests: Open States ${r.requests.openstates}, Legistar ${r.requests.legistar}, Google News ${r.requests.news}`,
+      );
     } else if (command === "nominations") {
       if (!process.env.CONGRESS_API_KEY) throw new Error("Set CONGRESS_API_KEY in .env (free key: https://api.data.gov/signup)");
       const refresh = args.includes("--refresh");

@@ -1,0 +1,15 @@
+{
+  "_fixture": "A news-only city with nothing captured: the empty hub.",
+  "jurisdiction": {
+    "id": "houston",
+    "kind": "city",
+    "name": "Houston",
+    "state": "TX",
+    "placeGeoid": "4835000",
+    "coverage": "news_only"
+  },
+  "updatedAt": null,
+  "enacted": [],
+  "waiting": [],
+  "news": []
+}

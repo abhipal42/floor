@@ -8,6 +8,10 @@ import app.floor.android.model.Disclosures
 import app.floor.android.model.ElectProfile
 import app.floor.android.model.MemberDetail
 import app.floor.android.model.MemberFunding
+import app.floor.android.model.MemberNews
+import app.floor.android.model.LocalHub
+import app.floor.android.model.LocalRegistry
+import app.floor.android.model.StateLegislators
 import app.floor.android.model.MemberPosts
 import app.floor.android.model.MemberSearch
 import app.floor.android.model.MemberVotes
@@ -299,6 +303,46 @@ class FloorApi(
     fun savedMember(id: String): Saved<MemberDetail>? = saved(memberUrl(id), MemberDetail.serializer())
 
     private fun memberUrl(id: String): HttpUrl = base.newBuilder().addPathSegments("v1/members").addPathSegment(id).build()
+
+    /**
+     * A member's headlines of the week, the AI's stories and tone, and the polls that name them. An
+     * API without the route (its 404) reads as nothing yet, so the member page leaves News out.
+     */
+    suspend fun memberNews(id: String): MemberNews = get(memberNewsUrl(id), MemberNews.serializer(), notFound = MemberNews.NONE_BODY)
+
+    fun savedMemberNews(id: String): Saved<MemberNews>? = saved(memberNewsUrl(id), MemberNews.serializer())
+
+    private fun memberNewsUrl(id: String): HttpUrl = memberUrl(id).newBuilder().addPathSegment("news").build()
+
+    /** Every state and city the Local tab covers; an API without the route reads as none. */
+    suspend fun local(): LocalRegistry = get(localUrl(), LocalRegistry.serializer(), notFound = """{"jurisdictions":[]}""")
+
+    fun savedLocal(): Saved<LocalRegistry>? = saved(localUrl(), LocalRegistry.serializer())
+
+    private fun localUrl(): HttpUrl = base.newBuilder().addPathSegments("v1/local").build()
+
+    /** One state's or city's hub: enacted, waiting on the governor, and the week's news. */
+    suspend fun localHub(id: String): LocalHub = get(localHubUrl(id), LocalHub.serializer())
+
+    fun savedLocalHub(id: String): Saved<LocalHub>? = saved(localHubUrl(id), LocalHub.serializer())
+
+    private fun localHubUrl(id: String): HttpUrl = localUrl().newBuilder().addPathSegment(id).build()
+
+    /**
+     * The state legislators for the stored district's upper and lower districts. Only the district
+     * codes are sent, never the address; an API without the route (or its key) answers none.
+     */
+    suspend fun stateLegislators(state: String, upper: String?, lower: String?): StateLegislators =
+        get(legislatorsUrl(state, upper, lower), StateLegislators.serializer(), notFound = """{"legislators":[]}""")
+
+    fun savedStateLegislators(state: String, upper: String?, lower: String?): Saved<StateLegislators>? =
+        saved(legislatorsUrl(state, upper, lower), StateLegislators.serializer())
+
+    private fun legislatorsUrl(state: String, upper: String?, lower: String?): HttpUrl =
+        localUrl().newBuilder().addPathSegment(state.lowercase()).addPathSegment("legislators").apply {
+            if (upper != null) addQueryParameter("upper", upper)
+            if (lower != null) addQueryParameter("lower", lower)
+        }.build()
 
     private fun <T> saved(url: HttpUrl, strategy: DeserializationStrategy<T>): Saved<T>? {
         val entry = cache?.load(url.toString()) ?: return null

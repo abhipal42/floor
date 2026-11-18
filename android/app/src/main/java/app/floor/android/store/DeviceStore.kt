@@ -9,6 +9,8 @@ import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import app.floor.android.api.FloorApi
 import app.floor.android.model.Delegation
+import kotlinx.serialization.builtins.ListSerializer
+import kotlinx.serialization.builtins.serializer
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -25,6 +27,22 @@ interface DelegationStore {
     /** "Skip, I'll pick members myself": onboarding is not shown again until asked for. */
     fun skipped(): Boolean
     fun setSkipped(skipped: Boolean)
+}
+
+/**
+ * The Local tab's saved cities, by registry id, on this phone only. Null until the user first adds
+ * or removes one: until then the tab shows their own place's city ([app.floor.android.model.LocalHubs.cityIds]).
+ */
+interface CityStore {
+    fun loadCities(): List<String>?
+    fun saveCities(ids: List<String>)
+}
+
+class InMemoryCityStore(private var stored: List<String>? = null) : CityStore {
+    override fun loadCities() = stored
+    override fun saveCities(ids: List<String>) {
+        stored = ids
+    }
 }
 
 class InMemoryDelegationStore(private var stored: Delegation? = null, private var skip: Boolean = false) : DelegationStore {
@@ -48,7 +66,7 @@ private val Context.floorStore: DataStore<Preferences> by preferencesDataStore(n
  * backup with the rest of the app's files). Read once at launch, before any screen, as iOS reads its
  * `UserDefaults`; written in the background on every change, in order.
  */
-class DeviceStore(context: Context) : DelegationStore, FollowStore {
+class DeviceStore(context: Context) : DelegationStore, FollowStore, CityStore {
     private val store = context.applicationContext.floorStore
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO.limitedParallelism(1))
     private var prefs: Preferences = runBlocking { store.data.first() }
@@ -98,7 +116,22 @@ class DeviceStore(context: Context) : DelegationStore, FollowStore {
         write { it[FOLLOWS] = text }
     }
 
+    override fun loadCities(): List<String>? = prefs[CITIES]?.let {
+        try {
+            FloorApi.json.decodeFromString(ListSerializer(String.serializer()), it)
+        } catch (_: Exception) {
+            null
+        }
+    }
+
+    override fun saveCities(ids: List<String>) {
+        val text = FloorApi.json.encodeToString(ListSerializer(String.serializer()), ids)
+        prefs = prefs.toMutablePreferences().apply { this[CITIES] = text }
+        write { it[CITIES] = text }
+    }
+
     private companion object {
+        val CITIES = stringPreferencesKey("local.cities.v1")
         val DELEGATION = stringPreferencesKey("delegation.v1")
         val FOLLOWS = stringPreferencesKey("follows.v1")
         val SKIPPED = booleanPreferencesKey("onboarding.skipped")

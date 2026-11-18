@@ -1,0 +1,23 @@
+{
+  "_note": "Eval-style fixture: a reply in the shape the model returns for the Schumer headlines of gnews-schumer.xml, which the worker sends newest first as h1, h2, ... (h1 'Schumer declares he has votes to beat Van Hollen...', h2 'The Angry Democratic Base Powering the Challenge to Chuck Schumer', h3 'Van Hollen's bid to replace Schumer puts pressure on Democrats...', h4 'Many Americans view Schumer unfavorably...: Poll', h5 'Van Hollen Says His Senate Challenge to Schumer Is Gaining Support', h6 'Who Is Chris Van Hollen? Meet the Democrat Taking On Chuck Schumer', h7 'Van Hollen's Senate backers lie low as Schumer takes big lead', h8 'Senate Democrats reject quick exit from Schumer vs. Van Hollen fight', h10 'Democratic-Leaning Voters Favor Van Hollen Over Schumer...'). Tones and groups are HAND-LABELLED by the author on 2026-11-17, not model output. It also carries the mistakes validation must catch: an id never sent (h99), a tone outside the three (h7 'mixed'), a story left with one real headline, and a headline placed in two stories.",
+  "reply": {
+    "headlines": [
+      { "id": "h1", "tone": "favorable" },
+      { "id": "h2", "tone": "critical" },
+      { "id": "h3", "tone": "neutral" },
+      { "id": "h4", "tone": "critical" },
+      { "id": "h5", "tone": "critical" },
+      { "id": "h6", "tone": "neutral" },
+      { "id": "h7", "tone": "mixed" },
+      { "id": "h8", "tone": "neutral" },
+      { "id": "h10", "tone": "critical" },
+      { "id": "h99", "tone": "critical" }
+    ],
+    "stories": [
+      { "title": "Van Hollen challenges Schumer for Senate leader", "headlineIds": ["h2", "h3", "h5", "h8", "h99"] },
+      { "title": "Schumer says he has the votes", "headlineIds": ["h1", "h99"] },
+      { "title": "Duplicate group", "headlineIds": ["h2", "h6"] },
+      { "title": "Polls on Schumer's standing", "headlineIds": ["h4", "h10"] }
+    ]
+  }
+}

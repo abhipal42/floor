@@ -584,6 +584,51 @@ public enum Typography {
         public static let miniLine: CGFloat = 11.5
         public static let weekRange: CGFloat = 12
     }
+
+    /// The News page and the member page's News section (v0.2.60), scaled with ``View/scaledFont(_:weight:)``.
+    public enum News {
+        /// The member's name small at the top of the News page.
+        public static let name: CGFloat = 11
+        public static let summary: CGFloat = 13
+        public static let filter: CGFloat = 12.5
+        public static let eyebrow: CGFloat = 11
+        public static let headline: CGFloat = 13.5
+        public static let source: CGFloat = 11.5
+        public static let officeTag: CGFloat = 10
+        public static let more: CGFloat = 12.5
+        public static let pollHeading: CGFloat = 13
+        public static let pollLabel: CGFloat = 11.5
+        public static let footnote: CGFloat = 11.5
+        public static let aiChip: CGFloat = 9
+        /// A story card's title (Barlow Condensed BlackItalic, uppercase).
+        public static let storyTitle: Font = Typography.display(24, weight: .blackItalic)
+    }
+
+    /// The Local tab and the Cities screen (v0.2.60), scaled with ``View/scaledFont(_:weight:)``.
+    public enum Local {
+        public static let hub: CGFloat = 12.5
+        public static let cities: CGFloat = 13
+        public static let date: CGFloat = 11
+        public static let summary: CGFloat = 12.5
+        public static let rowTitle: CGFloat = 14.5
+        public static let rowLine: CGFloat = 13
+        public static let scoreLabel: CGFloat = 11
+        public static let note: CGFloat = 12.5
+        public static let legislatorName: CGFloat = 14.5
+        public static let legislatorSeat: CGFloat = 11.5
+        public static let cityName: CGFloat = 14.5
+        public static let badge: CGFloat = 10.5
+        public static let button: CGFloat = 14
+        /// The Cities screen's add / added mark.
+        public static let toggle: CGFloat = 22
+        /// A law or a passed matter's title on its card.
+        public static let itemTitle: Font = Typography.display(23, weight: .blackItalic)
+        /// The YES and NO numbers on a passed matter with a tally.
+        public static let score: Font = Typography.display(48, weight: .blackItalic, scales: false)
+        /// The cite chip and the PASSED stamp.
+        public static let chip: CGFloat = 13
+        public static let stamp: CGFloat = 15
+    }
 }
 
 public extension Color {

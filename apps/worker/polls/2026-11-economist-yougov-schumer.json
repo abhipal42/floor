@@ -1,0 +1,13 @@
+{
+  "members": ["S000148"],
+  "pollster": "Economist/YouGov",
+  "fieldedFrom": "2026-11-13",
+  "fieldedTo": "2026-11-16",
+  "population": "U.S. adults",
+  "sampleSize": 1628,
+  "positive": { "label": "favorable", "pct": 22 },
+  "negative": { "label": "unfavorable", "pct": 50 },
+  "other": { "label": "don't know", "pct": 28 },
+  "url": "https://thehill.com/the-120/6225885-chuck-schumer-democrats-unpopularity-poll-results",
+  "note": "YouGov's own release for this wave was not found on 2026-11-17; the url is The Hill's report of it."
+}

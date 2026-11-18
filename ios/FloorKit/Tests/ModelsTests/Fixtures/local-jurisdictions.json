@@ -1,0 +1,477 @@
+{
+  "_fixture": "The spec's registry (50 states, nine cities). Coverage is the fixture's: records where a real item below exists (NY, NYC, Seattle), news_only for the four cities with no feed, pending elsewhere. The ids are the contract's.",
+  "jurisdictions": [
+    {
+      "id": "al",
+      "kind": "state",
+      "name": "Alabama",
+      "state": "AL",
+      "placeGeoid": null,
+      "coverage": "pending"
+    },
+    {
+      "id": "ak",
+      "kind": "state",
+      "name": "Alaska",
+      "state": "AK",
+      "placeGeoid": null,
+      "coverage": "pending"
+    },
+    {
+      "id": "az",
+      "kind": "state",
+      "name": "Arizona",
+      "state": "AZ",
+      "placeGeoid": null,
+      "coverage": "pending"
+    },
+    {
+      "id": "ar",
+      "kind": "state",
+      "name": "Arkansas",
+      "state": "AR",
+      "placeGeoid": null,
+      "coverage": "pending"
+    },
+    {
+      "id": "ca",
+      "kind": "state",
+      "name": "California",
+      "state": "CA",
+      "placeGeoid": null,
+      "coverage": "pending"
+    },
+    {
+      "id": "co",
+      "kind": "state",
+      "name": "Colorado",
+      "state": "CO",
+      "placeGeoid": null,
+      "coverage": "pending"
+    },
+    {
+      "id": "ct",
+      "kind": "state",
+      "name": "Connecticut",
+      "state": "CT",
+      "placeGeoid": null,
+      "coverage": "pending"
+    },
+    {
+      "id": "de",
+      "kind": "state",
+      "name": "Delaware",
+      "state": "DE",
+      "placeGeoid": null,
+      "coverage": "pending"
+    },
+    {
+      "id": "fl",
+      "kind": "state",
+      "name": "Florida",
+      "state": "FL",
+      "placeGeoid": null,
+      "coverage": "pending"
+    },
+    {
+      "id": "ga",
+      "kind": "state",
+      "name": "Georgia",
+      "state": "GA",
+      "placeGeoid": null,
+      "coverage": "pending"
+    },
+    {
+      "id": "hi",
+      "kind": "state",
+      "name": "Hawaii",
+      "state": "HI",
+      "placeGeoid": null,
+      "coverage": "pending"
+    },
+    {
+      "id": "id",
+      "kind": "state",
+      "name": "Idaho",
+      "state": "ID",
+      "placeGeoid": null,
+      "coverage": "pending"
+    },
+    {
+      "id": "il",
+      "kind": "state",
+      "name": "Illinois",
+      "state": "IL",
+      "placeGeoid": null,
+      "coverage": "pending"
+    },
+    {
+      "id": "in",
+      "kind": "state",
+      "name": "Indiana",
+      "state": "IN",
+      "placeGeoid": null,
+      "coverage": "pending"
+    },
+    {
+      "id": "ia",
+      "kind": "state",
+      "name": "Iowa",
+      "state": "IA",
+      "placeGeoid": null,
+      "coverage": "pending"
+    },
+    {
+      "id": "ks",
+      "kind": "state",
+      "name": "Kansas",
+      "state": "KS",
+      "placeGeoid": null,
+      "coverage": "pending"
+    },
+    {
+      "id": "ky",
+      "kind": "state",
+      "name": "Kentucky",
+      "state": "KY",
+      "placeGeoid": null,
+      "coverage": "pending"
+    },
+    {
+      "id": "la",
+      "kind": "state",
+      "name": "Louisiana",
+      "state": "LA",
+      "placeGeoid": null,
+      "coverage": "pending"
+    },
+    {
+      "id": "me",
+      "kind": "state",
+      "name": "Maine",
+      "state": "ME",
+      "placeGeoid": null,
+      "coverage": "pending"
+    },
+    {
+      "id": "md",
+      "kind": "state",
+      "name": "Maryland",
+      "state": "MD",
+      "placeGeoid": null,
+      "coverage": "pending"
+    },
+    {
+      "id": "ma",
+      "kind": "state",
+      "name": "Massachusetts",
+      "state": "MA",
+      "placeGeoid": null,
+      "coverage": "pending"
+    },
+    {
+      "id": "mi",
+      "kind": "state",
+      "name": "Michigan",
+      "state": "MI",
+      "placeGeoid": null,
+      "coverage": "pending"
+    },
+    {
+      "id": "mn",
+      "kind": "state",
+      "name": "Minnesota",
+      "state": "MN",
+      "placeGeoid": null,
+      "coverage": "pending"
+    },
+    {
+      "id": "ms",
+      "kind": "state",
+      "name": "Mississippi",
+      "state": "MS",
+      "placeGeoid": null,
+      "coverage": "pending"
+    },
+    {
+      "id": "mo",
+      "kind": "state",
+      "name": "Missouri",
+      "state": "MO",
+      "placeGeoid": null,
+      "coverage": "pending"
+    },
+    {
+      "id": "mt",
+      "kind": "state",
+      "name": "Montana",
+      "state": "MT",
+      "placeGeoid": null,
+      "coverage": "pending"
+    },
+    {
+      "id": "ne",
+      "kind": "state",
+      "name": "Nebraska",
+      "state": "NE",
+      "placeGeoid": null,
+      "coverage": "pending"
+    },
+    {
+      "id": "nv",
+      "kind": "state",
+      "name": "Nevada",
+      "state": "NV",
+      "placeGeoid": null,
+      "coverage": "pending"
+    },
+    {
+      "id": "nh",
+      "kind": "state",
+      "name": "New Hampshire",
+      "state": "NH",
+      "placeGeoid": null,
+      "coverage": "pending"
+    },
+    {
+      "id": "nj",
+      "kind": "state",
+      "name": "New Jersey",
+      "state": "NJ",
+      "placeGeoid": null,
+      "coverage": "pending"
+    },
+    {
+      "id": "nm",
+      "kind": "state",
+      "name": "New Mexico",
+      "state": "NM",
+      "placeGeoid": null,
+      "coverage": "pending"
+    },
+    {
+      "id": "ny",
+      "kind": "state",
+      "name": "New York State",
+      "state": "NY",
+      "placeGeoid": null,
+      "coverage": "records"
+    },
+    {
+      "id": "nc",
+      "kind": "state",
+      "name": "North Carolina",
+      "state": "NC",
+      "placeGeoid": null,
+      "coverage": "pending"
+    },
+    {
+      "id": "nd",
+      "kind": "state",
+      "name": "North Dakota",
+      "state": "ND",
+      "placeGeoid": null,
+      "coverage": "pending"
+    },
+    {
+      "id": "oh",
+      "kind": "state",
+      "name": "Ohio",
+      "state": "OH",
+      "placeGeoid": null,
+      "coverage": "pending"
+    },
+    {
+      "id": "ok",
+      "kind": "state",
+      "name": "Oklahoma",
+      "state": "OK",
+      "placeGeoid": null,
+      "coverage": "pending"
+    },
+    {
+      "id": "or",
+      "kind": "state",
+      "name": "Oregon",
+      "state": "OR",
+      "placeGeoid": null,
+      "coverage": "pending"
+    },
+    {
+      "id": "pa",
+      "kind": "state",
+      "name": "Pennsylvania",
+      "state": "PA",
+      "placeGeoid": null,
+      "coverage": "pending"
+    },
+    {
+      "id": "ri",
+      "kind": "state",
+      "name": "Rhode Island",
+      "state": "RI",
+      "placeGeoid": null,
+      "coverage": "pending"
+    },
+    {
+      "id": "sc",
+      "kind": "state",
+      "name": "South Carolina",
+      "state": "SC",
+      "placeGeoid": null,
+      "coverage": "pending"
+    },
+    {
+      "id": "sd",
+      "kind": "state",
+      "name": "South Dakota",
+      "state": "SD",
+      "placeGeoid": null,
+      "coverage": "pending"
+    },
+    {
+      "id": "tn",
+      "kind": "state",
+      "name": "Tennessee",
+      "state": "TN",
+      "placeGeoid": null,
+      "coverage": "pending"
+    },
+    {
+      "id": "tx",
+      "kind": "state",
+      "name": "Texas",
+      "state": "TX",
+      "placeGeoid": null,
+      "coverage": "pending"
+    },
+    {
+      "id": "ut",
+      "kind": "state",
+      "name": "Utah",
+      "state": "UT",
+      "placeGeoid": null,
+      "coverage": "pending"
+    },
+    {
+      "id": "vt",
+      "kind": "state",
+      "name": "Vermont",
+      "state": "VT",
+      "placeGeoid": null,
+      "coverage": "pending"
+    },
+    {
+      "id": "va",
+      "kind": "state",
+      "name": "Virginia",
+      "state": "VA",
+      "placeGeoid": null,
+      "coverage": "pending"
+    },
+    {
+      "id": "wa",
+      "kind": "state",
+      "name": "Washington",
+      "state": "WA",
+      "placeGeoid": null,
+      "coverage": "pending"
+    },
+    {
+      "id": "wv",
+      "kind": "state",
+      "name": "West Virginia",
+      "state": "WV",
+      "placeGeoid": null,
+      "coverage": "pending"
+    },
+    {
+      "id": "wi",
+      "kind": "state",
+      "name": "Wisconsin",
+      "state": "WI",
+      "placeGeoid": null,
+      "coverage": "pending"
+    },
+    {
+      "id": "wy",
+      "kind": "state",
+      "name": "Wyoming",
+      "state": "WY",
+      "placeGeoid": null,
+      "coverage": "pending"
+    },
+    {
+      "id": "nyc",
+      "kind": "city",
+      "name": "New York City",
+      "state": "NY",
+      "placeGeoid": "3651000",
+      "coverage": "records"
+    },
+    {
+      "id": "seattle",
+      "kind": "city",
+      "name": "Seattle",
+      "state": "WA",
+      "placeGeoid": "5363000",
+      "coverage": "records"
+    },
+    {
+      "id": "sf",
+      "kind": "city",
+      "name": "San Francisco",
+      "state": "CA",
+      "placeGeoid": "0667000",
+      "coverage": "pending"
+    },
+    {
+      "id": "boston",
+      "kind": "city",
+      "name": "Boston",
+      "state": "MA",
+      "placeGeoid": "2507000",
+      "coverage": "pending"
+    },
+    {
+      "id": "denver",
+      "kind": "city",
+      "name": "Denver",
+      "state": "CO",
+      "placeGeoid": "0820000",
+      "coverage": "pending"
+    },
+    {
+      "id": "los-angeles",
+      "kind": "city",
+      "name": "Los Angeles",
+      "state": "CA",
+      "placeGeoid": "0644000",
+      "coverage": "news_only"
+    },
+    {
+      "id": "chicago",
+      "kind": "city",
+      "name": "Chicago",
+      "state": "IL",
+      "placeGeoid": "1714000",
+      "coverage": "news_only"
+    },
+    {
+      "id": "houston",
+      "kind": "city",
+      "name": "Houston",
+      "state": "TX",
+      "placeGeoid": "4835000",
+      "coverage": "news_only"
+    },
+    {
+      "id": "philadelphia",
+      "kind": "city",
+      "name": "Philadelphia",
+      "state": "PA",
+      "placeGeoid": "4260000",
+      "coverage": "news_only"
+    }
+  ]
+}

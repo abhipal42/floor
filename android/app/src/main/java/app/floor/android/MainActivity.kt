@@ -68,6 +68,10 @@ import app.floor.android.shell.FloorShell
 import app.floor.android.shell.LocalNavigate
 import app.floor.android.shell.Routes
 import app.floor.android.store.DeviceStore
+import app.floor.android.store.CityStore
+import app.floor.android.local.CitiesScreen
+import app.floor.android.local.LocalModel
+import app.floor.android.local.LocalScreen
 import app.floor.android.store.Session
 import app.floor.android.vote.VoteKindsModel
 import app.floor.android.vote.VoteKindsScreen
@@ -119,7 +123,7 @@ class MainActivity : ComponentActivity() {
                         onFinished = session::finish,
                     )
                 } else {
-                    App(api, session, appearance, link, onLinkHandled = { link = null }) {
+                    App(api, session, device, appearance, link, onLinkHandled = { link = null }) {
                         appearance = it
                         Appearance.save(this, it)
                     }
@@ -147,6 +151,7 @@ class MainActivity : ComponentActivity() {
 private fun App(
     api: FloorApi,
     session: Session,
+    cities: CityStore,
     appearance: Appearance,
     link: FloorLink?,
     onLinkHandled: () -> Unit,
@@ -154,6 +159,8 @@ private fun App(
 ) {
     // Finals and Following share one feed: the Following tab's rings and latest votes come from it.
     val home: HomeModel = viewModel(key = "home") { HomeModel(api, session) }
+    // The Local tab and its Cities screen share one model: a city added there shows on the switch.
+    val localModel: LocalModel = viewModel(key = "local") { LocalModel(api, cities) }
     val follows = session.follows
     val followActions = FollowActions(
         follows.state, session.reps.map { it.bioguideId }.toSet(),
@@ -251,6 +258,22 @@ private fun App(
                     onOpenElect = { navigate(Routes.elect(it)) },
                     follow = followActions,
                 )
+            },
+            local = { onOpenCities ->
+                val district = session.delegation?.district
+                LaunchedEffect(district) { localModel.appear(district) }
+                LocalScreen(
+                    state = localModel.state,
+                    zone = zone,
+                    locale = locale,
+                    onOpenCities = onOpenCities,
+                    onSelect = localModel::select,
+                    onFindReps = session::findReps,
+                    onRetry = localModel::reload,
+                )
+            },
+            cities = { back, onBack ->
+                CitiesScreen(localModel.state, back, onBack, onToggle = localModel::toggleCity, onRetry = localModel::reload)
             },
             following = {
                 val navigate = LocalNavigate.current
@@ -393,6 +416,7 @@ private fun App(
                     onRetryPromises = { model.reloadPromises() },
                     onRetryPosts = { model.reloadPosts() },
                     now = java.time.Instant.now(),
+                    onRetryNews = { model.reloadNews() },
                 )
             },
             elect = { id, back, onBack ->

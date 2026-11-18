@@ -49,7 +49,11 @@ public struct RepScreenView: View {
         content
             .background(Palette.ground)
             .navigationDestination(item: $page) { section in
-                MemberSectionPage(model: model, section: section, onOpenTopic: onOpenTopic, onOpenVote: onOpenVote)
+                if section == .news {
+                    NewsPage(model: model.news, member: model.member)
+                } else {
+                    MemberSectionPage(model: model, section: section, onOpenTopic: onOpenTopic, onOpenVote: onOpenVote)
+                }
             }
             // The hero's colour under the clear navigation bar, so the back button sits on the hero.
             .background(alignment: .top) {
@@ -66,7 +70,8 @@ public struct RepScreenView: View {
         async let promises: Void = model.promises.needsRefresh ? model.promises.load() : ()
         async let posts: Void = model.posts.needsRefresh ? model.posts.load() : ()
         async let money: Void = model.money.needsRefresh ? model.money.load() : ()
-        _ = await (record, promises, posts, money)
+        async let news: Void = model.news.needsRefresh ? model.news.load() : ()
+        _ = await (record, promises, posts, money, news)
     }
 
     @ViewBuilder
@@ -134,6 +139,7 @@ public struct RepScreenView: View {
         }
         if let said = saidBlock(member) { out.append(said) }
         if let posts = postsBlock(member) { out.append(posts) }
+        if let news = newsBlock(member) { out.append(news) }
         if let money = moneyBlock(member) { out.append(money) }
         if let record {
             out.append(MemberBlock(section: .contact, link: nil,
@@ -200,6 +206,16 @@ public struct RepScreenView: View {
             return MemberBlock(section: .posts, link: posts.posts.isEmpty ? nil : ("All", { page = .posts }),
                                content: AnyView(content))
         }
+    }
+
+    /// News (v0.2.60): the week's count and tone, the top story, and "News ›". With no headlines
+    /// and no polls — or while it loads, or when it failed — the block and its chip are left out:
+    /// news is extra, not a section to apologise for.
+    private func newsBlock(_ member: Member) -> MemberBlock? {
+        guard case let .loaded(news) = model.news.phase, !news.isEmpty else { return nil }
+        return MemberBlock(section: .news, link: nil, content: AnyView(
+            NewsSection(news: news) { page = .news }
+        ))
     }
 
     private func moneyBlock(_ member: Member) -> MemberBlock? {
@@ -306,6 +322,8 @@ public struct MemberSectionPage: View {
             SaidContent(model: model.promises, member: model.member, card: $model.promiseCard, onOpenTopic: onOpenTopic)
         case .posts:
             PostsContent(model: model.posts, member: model.member)
+        case .news:
+            NewsContent(model: model.news, member: model.member)
         case .money:
             SectionSwitch(selection: $model.moneySegment, label: "Money")
             if model.moneySegment == .funding {

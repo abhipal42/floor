@@ -1,0 +1,209 @@
+{
+  "_fixture": "Real item: Int. 891-A (sponsor Speaker Julie Menin) passed 44-5 at the stated meeting of Nov 12 2026; title and summary written from the coverage, not Legistar's matter text. News: Google News RSS, Nov 12-17, newest 20, not AI-read.",
+  "jurisdiction": {
+    "id": "nyc",
+    "kind": "city",
+    "name": "New York City",
+    "state": "NY",
+    "placeGeoid": "3651000",
+    "coverage": "records"
+  },
+  "updatedAt": "2026-11-17T06:00:00.000Z",
+  "enacted": [
+    {
+      "id": "nyc-int-891-a",
+      "identifier": "Int. 891-A",
+      "title": "Surveillance pricing ban",
+      "summary": "Stops businesses using personal data and algorithms to charge different people different prices for the same thing. Sponsored by Speaker Julie Menin.",
+      "body": "City Council",
+      "date": "2026-11-12",
+      "status": "passed",
+      "yes": 44,
+      "no": 5,
+      "url": null
+    }
+  ],
+  "waiting": [],
+  "news": [
+    {
+      "id": "nyc-21",
+      "title": "NYC Council votes to make LGBTQ+ veterans support a legal duty - PinkNews",
+      "source": "PinkNews",
+      "url": "https://news.google.com/rss/articles/CBMie0FVX3lxTE5QUWtxcy1NRFU4eEZBZXFSVm9pZmhTS1FtMThGbDJyUkg3M2IzRDg1TTJnV3VXSkFHSGVfVXEtR0dmV3BWbUt6aTR6bGl4Q0hUTURQUTNodHJCN1R0eUY5d1I4RkwxUy1WN2RCLURqNlpHb1pKSV9OUzU4cw?oc=5",
+      "publishedAt": "2026-11-17T14:10:35.000Z",
+      "tone": null,
+      "storyId": null
+    },
+    {
+      "id": "nyc-12",
+      "title": "New York City votes to make support for LGBTQ+ veterans a permanent duty - Advocate.com",
+      "source": "Advocate.com",
+      "url": "https://news.google.com/rss/articles/CBMigAFBVV95cUxPNjlsSEphUUllMUZ3aVd0TDhwS0ZYSmZ1M2QwZS11eVRVR184MlNrdTNHS2xySEVCXzNuM2Q5VmlBbnhhbUVBVmsxaktVYmJWaEd5ejFaY2UtODB1M0ZwTHlyc0ExdDZzQ1ZSMEtmTm1WUm1TSWJodjBxd05nbVc4LQ?oc=5",
+      "publishedAt": "2026-11-16T22:50:18.000Z",
+      "tone": null,
+      "storyId": null
+    },
+    {
+      "id": "nyc-10",
+      "title": "NYC Council Speaker Menin: Normalization of terror support in our city is 'shocking and abhorrent' - The Times of Israel",
+      "source": "The Times of Israel",
+      "url": "https://news.google.com/rss/articles/CBMi2AFBVV95cUxNaGQ2WTZMclFFcERRUHNUcG1IaF9TMGdpSUNjd3hOaVBHa1VOYldiMS1OUHhuMnhCLTBURW0tYWFVRXZWcmhEX1NtaGxvZE1fWlpPQUVGcHlVaUt4Y3N1dFZwdU9ZYkZDT0hSV2hnMHkxM2MteUhFTXJIbl9Xb3RZVWFsZ1BvdUVMcVE3ZTViNnlUWjRrZ3NmUk8xR0NDeTN6Q25kQVRqMnd6VnJldHpIY096OVhDNVNlS2VCWUNxbUV1RGVEOXZsZjRMMERJUmpvWGo1aXFoVTA?oc=5",
+      "publishedAt": "2026-11-16T20:32:45.000Z",
+      "tone": null,
+      "storyId": null
+    },
+    {
+      "id": "nyc-24",
+      "title": "NYC Bans Surveillance Pricing - Progressive Grocer",
+      "source": "Progressive Grocer",
+      "url": "https://news.google.com/rss/articles/CBMia0FVX3lxTE9VdVgxOXNmQmU3ZlM5ZlA5ajlYU3FiYXItd2RmOG1KaVBXS2VQeGY3bWhOY3dEcnJyajdwcGY3ZE9KeHM1RUhjNUFPdFg1Y2g0RVZkRWVGMmlnOGpEZTFmbDVaLUN2ZnN5OXF3?oc=5",
+      "publishedAt": "2026-11-16T14:38:32.000Z",
+      "tone": null,
+      "storyId": null
+    },
+    {
+      "id": "nyc-22",
+      "title": "Queens borough president renews call to eliminate SHSAT - Spectrum News NY1",
+      "source": "Spectrum News NY1",
+      "url": "https://news.google.com/rss/articles/CBMiswFBVV95cUxNUlRacWtIT0pfQWJaMmJkSE05U21sMmpUamw0V2VuWmhmSE84UGMxNjZscDRiUzVaZ0xlNXFFY2FUU3QxbldUUGNmZ1M1Q1pLcmZOZFk3OWp5R3lZZ2I4LVRrVGlzOGZkTmtkSk5rLW1XZFBPalR1M3RnZ1hZVmk1OWVTTFVEejFLbFFTa24zMnQxeXl1TFAwMWNVN3FNbmE3ZmdfcGJqby1MZlFaWUFKNEhtZw?oc=5",
+      "publishedAt": "2026-11-16T13:30:00.000Z",
+      "tone": null,
+      "storyId": null
+    },
+    {
+      "id": "nyc-23",
+      "title": "NYC Mayor Mamdani, Commissioner Tisch disbanding NYPD's Strategic Response Group - CBS News",
+      "source": "CBS News",
+      "url": "https://news.google.com/rss/articles/CBMiswFBVV95cUxQaTVxVlBrN2FyQkVBcWVna18yTElXajBGQWZXdTZ1X09ac1VHQ3lKRjU3WnNUTlBueEJsazlkOERwcXJFUDIwUjh3MEtrMVluWncyOE5BMGNVM3VtZ1JST3ZaWDRRYl9TdFFvQ3ZfUmZNUjl5bThQdHRaU0tOSGJvVlJHNmowVmVOSEdHV2FvNlhaVXY1Q3l4TmdwM2JZN2dRWS1vRFpCczkxZG9fWlhGRWdTaw?oc=5",
+      "publishedAt": "2026-11-16T12:42:00.000Z",
+      "tone": null,
+      "storyId": null
+    },
+    {
+      "id": "nyc-17",
+      "title": "Amazon-backed business group threatens to sue city if Delivery Protection Act passes - City & State New York",
+      "source": "City & State New York",
+      "url": "https://news.google.com/rss/articles/CBMizwFBVV95cUxQM2Vsemo1LWdGSXNCbmJud3pub3lnSlVuMmdGWGZJSDZfbDVfMHpLTFJXd0c2cDE5STM0TTlWYjlsVXF1RHpuQW5CX2cwemF2WXV3dnc1dXNTYWo1Yk5yb0VVeTg4b0dORjJVTXctb0oxaUhoN3ptQ3ZBaDJxQngzeF9YM3JuM3dvanZyUU1saTduQVZ6WkVHSXg5NF9XejhfQmlLUzVXMFpPeFRjdzNuUWhyRFJocjB4cGxOOTA2OGRSUlVlMVZReWpXMEtnS0E?oc=5",
+      "publishedAt": "2026-11-16T10:00:00.000Z",
+      "tone": null,
+      "storyId": null
+    },
+    {
+      "id": "nyc-18",
+      "title": "Brooklyn building collapse highlights need to address staffing, funding for NYC DOB, Menin says - CBS News",
+      "source": "CBS News",
+      "url": "https://news.google.com/rss/articles/CBMingFBVV95cUxPTVEtT1Fad21rRVI1Wl81SWllVk9Fa2J0UEZkblJ6Qjc4a2pGVk1FNUJUT0QtSHR3RzZaUFJ1Z3VNcks2QzlxeEJVM1Jaa05lbmctXzluX0VlTm1WaHBTNGZMalQ5ckVWMjJvaW9VR2V2bGxtdTJVMWV5VTBZVTVYQmMtWHVWSUZCSFZ5UGd0Q213OGFsSUdlOEJXZDNKQQ?oc=5",
+      "publishedAt": "2026-11-14T22:11:15.000Z",
+      "tone": null,
+      "storyId": null
+    },
+    {
+      "id": "nyc-06",
+      "title": "New York City Council Speaker Julie Menin and Steven Fulop | The Point Full Episode 11.14.26 - CBS News",
+      "source": "CBS News",
+      "url": "https://news.google.com/rss/articles/CBMiyAFBVV95cUxOYzBUYWtZNmlBVXFtNUoyU01IR2tjNzg5SU9EcHBlU0ZPWTBuMnY0RVJOZ1Q3STZ2TzRjY2lWSnFWWDhuVVRfQnBZSy1ZQWo1SFRGdVpTOVpHOXNUMkEwamVhNldNVEZOQW9yWG5HcWlmMmJNUUxFUG5UYVdrbUJJbnMtR0k5ZFc5ODIwUFVRVVNLcDhubDlmVzd0dGotQTlZczdpQmJPSm5YQWprR1ZWdGlUN0lIZVBDU3hUSGpJVVJWOFVDay1ubA?oc=5",
+      "publishedAt": "2026-11-14T21:06:00.000Z",
+      "tone": null,
+      "storyId": null
+    },
+    {
+      "id": "nyc-00",
+      "title": "COUNCIL MEMBERS VOTE TO PASS LEGISLATION TO STRENGTHEN TRAFFIC SAFETY PROTECTIONS FOR CHILDREN - New York City Council (.gov)",
+      "source": "New York City Council (.gov)",
+      "url": "https://news.google.com/rss/articles/CBMi4wFBVV95cUxQYmNUM3lmZEd1VmxONU5aNFIzQkhEc0hnTDNvX3JPZFlGNzRSTjhyVWJhWXZqLWdUMUNXbXVzdnR4VTZqelh4TUxVWEZYQXJBLXZ6X2ZYUEJDWEhaVklpZVFna1FLemxPQXF1cmVRYWlhOWhyVndZS3BzeE95SDA3X0ViVGlYNE05Tm5aU1FmcHlqdUxmdzd1anFpT2RpR3JOWXpGdE5kSE5EZFprbnBJT1l4YTN5ekhpc1JpQWZHYUJGY29CZUZrdG1tTXJSeFIzU09wZE5FUHAtYlZrZVZFNmZFYw?oc=5",
+      "publishedAt": "2026-11-14T00:44:01.000Z",
+      "tone": null,
+      "storyId": null
+    },
+    {
+      "id": "nyc-19",
+      "title": "Who’s who in Zohran Mamdani’s administration? - City & State New York",
+      "source": "City & State New York",
+      "url": "https://news.google.com/rss/articles/CBMimwFBVV95cUxPbHdZamxIY1htY3BZOV8xSm5hNEJNUmRfOHc1V1M5SzdPbExyNk8yN3RsRkczSzdsYTVNdEVwTHNCT2VwS1V2RTZBRmdJWk1PM25iYmhhNFhMUkgzYWY5SThybktiWHMxY3dsX1hzNTVCQ09hX01EQW9NcnlMbi1qNnZ4aU5QWnpPbFZ0TzlxZm56U1ZFRDlSV3g4aw?oc=5",
+      "publishedAt": "2026-11-13T20:15:23.000Z",
+      "tone": null,
+      "storyId": null
+    },
+    {
+      "id": "nyc-15",
+      "title": "New York: City Council approves legislation to ban surveillance pricing - DataGuidance",
+      "source": "DataGuidance",
+      "url": "https://news.google.com/rss/articles/CBMijgFBVV95cUxOWmgwWnRqVkM3eGNNX1Jadjg1aXJHZlI1U2ZMNEFXa2pzdVhoRGpLZlg5d2lHMGRhTGtfWUdqc19CY09hZko0SVE4SmxZc0IwVWZZekI0cUlQYnd0QklhaF94U2xpLWl4QWwxWURmSGpEZ1duWm5INWNVOVVvOG1yMWZLX3RhcUh1aTZhVWVR?oc=5",
+      "publishedAt": "2026-11-13T11:54:09.000Z",
+      "tone": null,
+      "storyId": null
+    },
+    {
+      "id": "nyc-14",
+      "title": "New York City Council asks Mnookin to testify on sexual violence response at Columbia - Columbia Daily Spectator",
+      "source": "Columbia Daily Spectator",
+      "url": "https://news.google.com/rss/articles/CBMi2AFBVV95cUxQOGh5emp0Ym1JN0NOM3BpbXBzYzRqal9YZ1huS2RXRVhNdTJybDZiWmxkc1FSaXBtdl9uSkNsNzF6X180MFY1eVVzWks0TndHa0ZKSlU3WTh1SWFhZFNTOEdwRG5YeC04dFFkWVZLZWtHZkFRRDNPYmhyejl6eHBoRGhHRFJsSC1GY2JjTWM0N0JiQ3prQmE3clZmLUhuaEEwSjExLXYyU2JEb0tfenJDUzc4dHBubUF4UXo1dWhMeDMyd0RLY3Z5SEdCNllQRUtBdzRMNlozNE4?oc=5",
+      "publishedAt": "2026-11-13T03:55:46.000Z",
+      "tone": null,
+      "storyId": null
+    },
+    {
+      "id": "nyc-04",
+      "title": "Julie Menin’s Bill Bans Surveillance Pricing in NYC After 44-5 City Council Vote - La Voce di New York",
+      "source": "La Voce di New York",
+      "url": "https://news.google.com/rss/articles/CBMiywFBVV95cUxQdXBkVklJMFdaQWd6MlZXLVkyVnJPVDNyby13eDdadG1TN2xocVB1VTYyaVRWNWUtWkFCNWtFbGdUa3NtRFlLYkcweTA2TzlQdUFLbUdZeDFYdzJaYzJ5VzNjOGtnQmhJNWRLZG1wTktQOFZUSV9qcFRhS1pGV0k5eTJCbThKNHZfdEN6Vk9pM2RYVEdySWFJWEZ3R21XSWplTjkyZDFjRUd6Z3M3Zko3cXJtcXByZVhSMmpWOUozc05XLW9BUzY1b3FMRQ?oc=5",
+      "publishedAt": "2026-11-12T23:01:28.000Z",
+      "tone": null,
+      "storyId": null
+    },
+    {
+      "id": "nyc-01",
+      "title": "NYC Council bans ‘surveillance pricing’ that has customers’ data used against them - New York Post",
+      "source": "New York Post",
+      "url": "https://news.google.com/rss/articles/CBMiugFBVV95cUxNck00ZlJWY3BPd0xjZVNvVEd5X0pld0dvVkFidXZOV2MwOXVFZVoyeXFQU2VHaGY3T3E2dndxeWV0aXI4SWhhRGZSWHJoMElzNjVud3RZZ0Y1SkNyRVlPcXhIeDM1Rnoyb0J4emlYaWtQaXNhZ0c3bWw3TGoyQ2xMY2o1VUtiWGI4YWR1bWN4T24zV1JDTzg5ODJxcVJPTElCWXA1cFFVYnRYbjZlZWlvMm9FZnBISFdTdUE?oc=5",
+      "publishedAt": "2026-11-12T22:44:00.000Z",
+      "tone": null,
+      "storyId": null
+    },
+    {
+      "id": "nyc-16",
+      "title": "Mayor Mary Sheffield announced the city's new participatory budgeting process, which allocates $250,000 per City Council district for infrastructure projects in neighborhoods that residents propose. Video by Dana Afana. - Facebook",
+      "source": "Facebook",
+      "url": "https://news.google.com/rss/articles/CBMi3wFBVV95cUxNa2VHT1h4WWIySmhmMkQ5UGFYQU5mRTAzY0xrZjRKQjBwUFlWV0RLempOLTh2WWpUbEd0U1o3MzhiQnZlYTlHTjdWb3p4al9CS3gwemp5ZnJwR211Mk5IS2puTFF0ekw1bm1HWlBaSVJYOUV1VkdaZVdCRDN5d21hdWpGbURQUTZpblpMMFlueTdOdjJ5RF9ZWjd2VGdJZGYxU0VPMURFQ05QbG9CQ3RuSUpCSlRfMnRRSURIcWlRODBVUkl2cHQ3QU5jdTJZdWlVUjlzMUtIZHpJR0VNTTBN?oc=5",
+      "publishedAt": "2026-11-12T22:14:54.000Z",
+      "tone": null,
+      "storyId": null
+    },
+    {
+      "id": "nyc-03",
+      "title": "Julie Menin’s surveillance pricing ban passes the council - City & State New York",
+      "source": "City & State New York",
+      "url": "https://news.google.com/rss/articles/CBMiqgFBVV95cUxPYnIxQnJpb0Nlb2xoUGFMMzRINFhHcG84RDdoczVSTE9UbEhUSzZzTjlRei1rMlBlSkduMVVMX1pQZFRrdnZZTmhoVTlPUjVRYjBTcDlCeUxyMkVsMXU2ZF9lbHFKLVExa1gtdVk5dzN0QjRZcy1JNU9wSW4xSmJMc18xaDNhZm1xUlpLV0RXNDBJbU4tb2QxdElUdGlVMkVCZWRyOGFsRTFXQQ?oc=5",
+      "publishedAt": "2026-11-12T21:47:47.000Z",
+      "tone": null,
+      "storyId": null
+    },
+    {
+      "id": "nyc-13",
+      "title": "NYC Council bans pricing based on what companies can get from a given individual - New York Daily News",
+      "source": "New York Daily News",
+      "url": "https://news.google.com/rss/articles/CBMixwFBVV95cUxOUVA4MVdWU1ZxcUI4RFlfSjV5S3loVW1qQjJLS0F0WVU2NmZrRFJsejJac2F5SGpYMGViSFZlbTZXbEVaTFlYR045UGU5VGVmeU9SRFpuSUx1czlEMTZMbDFaLVRZOWt5QlBna0lrbVJVNjVlRjdEUWNnMy04cXJMTUxnT0ZYd2wxcTlWT0tfNzhZVkxKeVBsRzdLMHlOeEFVLXQ4bmtyVnNRLWlLVGtrMkJNZnJxdmRyTHkzc3pxdl9nbXJGZkY4?oc=5",
+      "publishedAt": "2026-11-12T21:04:52.000Z",
+      "tone": null,
+      "storyId": null
+    },
+    {
+      "id": "nyc-05",
+      "title": "New York City Becomes the Latest City to Ban Surveillance Pricing - EPIC – Electronic Privacy Information Center",
+      "source": "EPIC – Electronic Privacy Information Center",
+      "url": "https://news.google.com/rss/articles/CBMiiwFBVV95cUxOcXRxRmhmSGZqTjl6UzZHUVZrUHMybUtFRnp1a3JoOWNYSXE2bC16X1lTVVdJVjVURHJBQmdyVDdnSmhTRGZOcXdyMzFjOGVkQlBMYVhlSzVtSDhMakdiQXlXME5BTm1wNWljWTZLMURwUzNfUGF3R2R2S2JaNmcyYUpsbWJmMDd3Z1BR?oc=5",
+      "publishedAt": "2026-11-12T21:00:10.000Z",
+      "tone": null,
+      "storyId": null
+    },
+    {
+      "id": "nyc-08",
+      "title": "‘Ridiculous’: NYC Council Member Slams MSG on Facial Recognition Tech - Front Office Sports",
+      "source": "Front Office Sports",
+      "url": "https://news.google.com/rss/articles/CBMiqAFBVV95cUxPcEEwX1RIU19aYU1ic1Q1N2VaSWlGR2RIb0pZd0pkSVlZbkZyY0M5RUJLeWtvbkRwYllpdXM0MkxTd1RKRDAxa3JwU0RBTUdoRHEzWXJLRkJlUndGa1VxT2JFcHFYUW5IeDIxNW5TWkhiRVBaZmNmMXo4SFhlcDdxbXVITG8zc0tfX0s0YmUybklPRE5IMk9tUzNXQXpyOW9pWUhESWxheHc?oc=5",
+      "publishedAt": "2026-11-12T20:43:56.000Z",
+      "tone": null,
+      "storyId": null
+    }
+  ]
+}

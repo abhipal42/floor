@@ -34,6 +34,8 @@ public final class RepScreenModel {
     public let promises: PromisesModel
     /// The Posts segment, loaded only when it is first shown.
     public let posts: PostsModel
+    /// This week's headlines and the polls that name them (v0.2.60).
+    public let news: NewsModel
     /// The promise deck's front card, kept here so leaving the segment keeps your place.
     public var promiseCard = 0
     /// Money's Funding · Disclosures switch, kept here so leaving the tab keeps your place.
@@ -50,6 +52,7 @@ public final class RepScreenModel {
         disclosures = DisclosuresModel(bioguideId: bioguideId, api: api)
         promises = PromisesModel(bioguideId: bioguideId, api: api)
         posts = PostsModel(bioguideId: bioguideId, api: api)
+        news = NewsModel(bioguideId: bioguideId, api: api)
     }
 
     /// The office contact from the record, once it has loaded.
@@ -100,7 +103,7 @@ public final class RepScreenModel {
     }
 }
 
-/// The member screen's switch: Votes · Said · Posts · Money · Contact (round 13; round 11 made it
+/// The member page's sections, in page order: Votes · Said · Posts · News · Money · Contact (round 13; round 11 made it
 /// Votes · Money · Contact). Votes is the record (it read "Record" before); disclosures moved under
 /// Money, beside funding.
 public enum MemberSection: String, CaseIterable, Sendable, Identifiable {
@@ -109,6 +112,8 @@ public enum MemberSection: String, CaseIterable, Sendable, Identifiable {
     case said = "Said"
     /// Their posts on YouTube, Bluesky and Mastodon (`/v1/members/{id}/posts`).
     case posts = "Posts"
+    /// This week's headlines, grouped into stories, and the polls that name them (`/v1/members/{id}/news`).
+    case news = "News"
     case money = "Money"
     /// Phone, the office's form and website, from congress-legislators.
     case contact = "Contact"
@@ -268,6 +273,55 @@ public final class PostsModel {
             guard mine == generation else { return }
             saved = nil
             phase = .failed((error as? FloorAPIError)?.errorDescription ?? "Couldn't load the posts.")
+        }
+    }
+}
+
+/// A member's headlines and polls: `/v1/members/{id}/news`, saved for offline.
+@MainActor
+@Observable
+public final class NewsModel {
+    public enum Phase: Equatable {
+        case loading
+        case loaded(MemberNews)
+        case failed(String)
+    }
+
+    public private(set) var phase: Phase = .loading
+    public private(set) var saved: SavedCopy?
+    private var generation = 0
+
+    private let bioguideId: String
+    private let api: FloorAPI
+
+    public init(bioguideId: String, api: FloorAPI) {
+        self.bioguideId = bioguideId
+        self.api = api
+    }
+
+    public var needsRefresh: Bool {
+        if case .loaded = phase { return saved != nil }
+        return true
+    }
+
+    public func load() async {
+        generation += 1
+        let mine = generation
+        if case .loaded = phase {} else {
+            phase = .loading
+            saved = nil
+        }
+        do {
+            try await revalidate(api, report: { if mine == generation { saved = $0 } }) { [bioguideId] pass in
+                let found = try await pass.api.memberNews(id: bioguideId)
+                guard mine == generation else { throw CancellationError() }
+                phase = .loaded(found)
+            }
+        } catch is CancellationError {
+        } catch {
+            guard mine == generation else { return }
+            saved = nil
+            phase = .failed((error as? FloorAPIError)?.errorDescription ?? "Couldn't load the news.")
         }
     }
 }

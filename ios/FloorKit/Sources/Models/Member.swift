@@ -92,7 +92,7 @@ public struct Member: Codable, Sendable, Hashable, Identifiable {
     }
 
     /// Where a House member has no vote on passage and no senators beside them.
-    static let delegateJurisdictions: Set<String> = ["DC", "PR", "GU", "VI", "AS", "MP"]
+    public static let delegateJurisdictions: Set<String> = ["DC", "PR", "GU", "VI", "AS", "MP"]
 }
 
 /// How often a member sided with the majority of their own party.
@@ -291,16 +291,56 @@ public struct MemberVotes: Codable, Sendable, Hashable {
 }
 
 public struct District: Codable, Sendable, Hashable {
+    /// The Census incorporated place an address falls in (v0.2.60): what the Local tab's default city
+    /// is matched on.
+    public struct Place: Codable, Sendable, Hashable {
+        public var geoid: String
+        public var name: String
+
+        public init(geoid: String, name: String) {
+            self.geoid = geoid
+            self.name = name
+        }
+    }
+
     public var congress: Int
     public var state: String
     public var district: Int
     public var countyFips: String?
+    /// The state legislative districts (Census SLDU / SLDL, as Open States names them), from the
+    /// same lookup. nil from an API before v0.2.60, and on a district stored before it: the Local
+    /// tab then asks for the address again rather than guess.
+    public var stateUpper: String?
+    public var stateLower: String?
+    public var place: Place?
 
-    public init(congress: Int, state: String, district: Int, countyFips: String?) {
+    public init(congress: Int, state: String, district: Int, countyFips: String?,
+                stateUpper: String? = nil, stateLower: String? = nil, place: Place? = nil) {
         self.congress = congress
         self.state = state
         self.district = district
         self.countyFips = countyFips
+        self.stateUpper = stateUpper
+        self.stateLower = stateLower
+        self.place = place
+    }
+
+    private enum CodingKeys: String, CodingKey { case congress, state, district, countyFips, stateUpper, stateLower, place }
+
+    public init(from decoder: any Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        congress = try c.decode(Int.self, forKey: .congress)
+        state = try c.decode(String.self, forKey: .state)
+        district = try c.decode(Int.self, forKey: .district)
+        countyFips = try c.decodeIfPresent(String.self, forKey: .countyFips)
+        // The v0.2.60 additions are read leniently: a stored district or an older API has none.
+        func code(_ key: CodingKeys) -> String? {
+            let text = ((try? c.decodeIfPresent(String.self, forKey: key)) ?? nil)?.trimmingCharacters(in: .whitespaces)
+            return text?.isEmpty == false ? text : nil
+        }
+        stateUpper = code(.stateUpper)
+        stateLower = code(.stateLower)
+        place = (try? c.decodeIfPresent(Place.self, forKey: .place)) ?? nil
     }
 
     /// `TX-37`, `TX-AL` for an at-large seat, or just `DC` where a delegate covers the whole place.

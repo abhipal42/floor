@@ -15,7 +15,9 @@ name: Ingest
 #                     postgres.<ref>@aws-1-us-east-1.pooler.supabase.com:5432
 #                     (GitHub's runners have no IPv6, so not the direct host)
 #   CONGRESS_API_KEY  the api.data.gov key, for bills and nominations
-#   ANTHROPIC_API_KEY for campaign promises (optional: without it that step skips)
+#   ANTHROPIC_API_KEY for campaign promises and news tone (optional: without it those skip)
+#   OPENSTATES_API_KEY state bills for the Local tab (optional: without it states skip)
+#   NYC_LEGISTAR_TOKEN NYC Council records (optional: without it NYC skips)
 # Without DATABASE_URL the job says so and stops, rather than failing every hour.
 #
 # GitHub turns a schedule off after 60 days with no activity in a public repo,
@@ -49,6 +51,9 @@ jobs:
       CONGRESS_API_KEY: ${{ secrets.CONGRESS_API_KEY }}
       # Campaign promises only (one Claude call a member). Until it is set, that step skips.
       ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+      # The Local tab (v0.2.60). Each is optional: the local step logs what it skipped.
+      OPENSTATES_API_KEY: ${{ secrets.OPENSTATES_API_KEY }}
+      NYC_LEGISTAR_TOKEN: ${{ secrets.NYC_LEGISTAR_TOKEN }}
     steps:
       - name: Secrets present
         id: secrets
@@ -151,6 +156,21 @@ jobs:
       - name: Campaign promises
         if: steps.install.outcome == 'success' && env.CONGRESS_API_KEY != '' && env.ANTHROPIC_API_KEY != '' && (github.event_name == 'workflow_dispatch' || github.event.schedule == '17 6 * * *') && !cancelled()
         run: npm run ingest -w @floor/worker -- promises --budget 25
+      # Members' headlines every hour (v0.2.60): Google News RSS for the 100 members checked longest
+      # ago, none more often than every 12 h, 1.2 s apart (~2 minutes). With ANTHROPIC_API_KEY, one
+      # Claude call per member with new headlines, for tone and stories; without it, headlines only.
+      - name: News
+        if: steps.install.outcome == 'success' && !cancelled()
+        run: npm run ingest -w @floor/worker -- news --budget 100
+      # Polls naming members (apps/worker/polls, reviewed in PRs), once a day. Idempotent.
+      - name: Polls
+        if: steps.install.outcome == 'success' && (github.event_name == 'workflow_dispatch' || github.event.schedule == '17 6 * * *') && !cancelled()
+        run: npm run ingest -w @floor/worker -- polls
+      # The Local tab, once a day: Open States (OPENSTATES_API_KEY; at most 150 requests, 7 s apart),
+      # Legistar for the cities (NYC with NYC_LEGISTAR_TOKEN), and 59 Google News queries.
+      - name: Local
+        if: steps.install.outcome == 'success' && (github.event_name == 'workflow_dispatch' || github.event.schedule == '17 6 * * *') && !cancelled()
+        run: npm run ingest -w @floor/worker -- local
       - name: Bill catalog
         if: steps.install.outcome == 'success' && env.CONGRESS_API_KEY != '' && !cancelled()
         env:
